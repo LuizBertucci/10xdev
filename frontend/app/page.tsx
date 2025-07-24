@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePlatform } from "@/hooks/use-platform"
+import Home from "@/pages/Home"
 
 function AppSidebar({ activeTab }: { activeTab: string }) {
   const platformState = usePlatform();
@@ -1663,128 +1664,7 @@ export async function GET() {
 
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Todo o conteúdo das abas permanece exatamente igual */}
-            {platformState.activeTab === "home" && (
-              <div className="space-y-8">
-                {/* Hero Section */}
-                <div className="text-center space-y-4">
-                  <h1 className="text-4xl font-bold text-gray-900">Acelere seu desenvolvimento com códigos prontos</h1>
-                  <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Acesse milhares de snippets, videoaulas organizadas e templates de projetos para turbinar sua
-                    produtividade como desenvolvedor.
-                  </p>
-                </div>
-
-                {/* Quick Access Blocks */}
-                <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido por Linguagem</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {quickAccessBlocks.map((block, index) => (
-                      <Card
-                        key={index}
-                        className="hover:shadow-lg transition-shadow cursor-pointer"
-                        onClick={() => {
-                          if (block.title === "Node.js APIs") {
-                            platformState.setActiveTab("codes");
-                            platformState.setSelectedTech("node.js");
-                          }
-                        }}
-                      >
-                        <CardContent className="p-6">
-                          <div className={`w-12 h-12 ${block.color} rounded-lg flex items-center justify-center mb-4`}>
-                            <block.icon className="h-6 w-6 text-white" />
-                          </div>
-                          <h3 className="font-semibold text-lg mb-2">{block.title}</h3>
-                          <p className="text-gray-600 text-sm">{block.count}</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Featured Videos */}
-                <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-6">Videoaulas em Destaque</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {featuredVideos.map((video, index) => (
-                      <Card key={index} className="hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <CardTitle className="text-lg">{video.title}</CardTitle>
-                          <CardDescription>
-                            Por {video.instructor} • {video.duration}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span>Progresso</span>
-                              <span>{video.progress}%</span>
-                            </div>
-                            <Progress value={video.progress} className="h-2" />
-                          </div>
-                          <Button className="w-full mt-4" variant={video.progress > 0 ? "default" : "outline"}>
-                            <Play className="h-4 w-4 mr-2" />
-                            {video.progress > 0 ? "Continuar" : "Começar"}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Featured Projects */}
-                <div>
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-6">Projetos em Destaque</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {featuredProjects.map((project, index) => (
-                      <Card key={index} className="hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <CardTitle className="text-lg">{project.title}</CardTitle>
-                            <Badge variant="secondary">{project.difficulty}</Badge>
-                          </div>
-                          <CardDescription>{project.description}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex flex-wrap gap-2">
-                              {project.tech.map((tech, techIndex) => (
-                                <Badge key={techIndex} variant="outline">
-                                  {tech}
-                                </Badge>
-                              ))}
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-1">
-                                <Star className="h-4 w-4 text-yellow-500" />
-                                <span className="text-sm">{project.stars}</span>
-                              </div>
-                              <div className="flex space-x-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    if (project.title === "Dashboard Analytics") {
-                                      platformState.setActiveTab("dashboard");
-                                    }
-                                  }}
-                                >
-                                  <Play className="h-4 w-4 mr-2" />
-                                  Acessar
-                                </Button>
-                                <Button size="sm">
-                                  <GitBranch className="h-4 w-4 mr-2" />
-                                  Clonar
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            {platformState.activeTab === "home" && <Home platformState={platformState} />}
 
             {/* Codes Tab */}
             {platformState.activeTab === "codes" && (
