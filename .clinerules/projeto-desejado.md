@@ -19,13 +19,13 @@ O arquivo atual tem **~1.200 linhas** e contém 6 abas diferentes com lógica co
 ```typescript
 // frontend/hooks/use-platform.ts
 ```
-**Sub-etapa 1.1: Mover estado básico e seus setters**
+**Sub-etapa 1.1: Mover estado básico e seus setters (Concluído)**
 - Mover `activeTab`, `searchTerm`, `selectedTech` e suas funções `setActiveTab`, `setSearchTerm`, `setSelectedTech` para `use-platform.ts`.
 
-**Sub-etapa 1.2: Mover lógica de filtragem**
+**Sub-etapa 1.2: Mover lógica de filtragem (Concluído)**
 - Mover a lógica de `filteredSnippets` para `use-platform.ts`, retornando os snippets já filtrados.
 
-**Sub-etapa 1.3: Mover estado de favoritos**
+**Sub-etapa 1.3: Mover estado de favoritos (Concluído)**
 - Mover `favorites` e a função `toggleFavorite` para `use-platform.ts`.
 
 ### **Fase 2: Extrair Páginas por Aba**
