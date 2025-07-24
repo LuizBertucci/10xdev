@@ -5,63 +5,92 @@ O arquivo `app/page.tsx` é bastante extenso e contém a lógica e a UI de vári
 ## 📊 **Análise do Problema Atual**
 
 O `page.tsx` está sobrecarregado com:
-- **6 abas diferentes** (home, codes, lessons, projects, ai, dashboard) - cada uma com 100-300 linhas
+- **6 abas diferentes** (home, codes, lessons, projects, ai, dashboard) - cada uma com 100-400 linhas
 - **Lógica de estado complexa** misturada com UI
 - **Dados hardcoded** dentro do componente (alguns já foram movidos para `/data`)
 - **Componentes inline** que poderiam ser reutilizáveis
 - **Falta de separação de responsabilidades**
+- **❌ NOVO PROBLEMA: Código backend misturado no frontend** (~500 linhas de classes, middlewares)
+- **❌ NOVO PROBLEMA: Componentes duplicados** (~150 linhas de código repetido)
+- **❌ NOVO PROBLEMA: Componentes grandes não extraídos** (UserList, UserForm, etc.)
 
-O arquivo atual tem **~1.200 linhas** e contém 6 abas diferentes com lógica complexa misturada.
+O arquivo atual tem **2.671 linhas** (muito maior que estimado!) e contém:
+- 6 abas diferentes com lógica complexa misturada
+- Backend classes (User, AuthController) que não deveriam estar no frontend  
+- Middlewares de autenticação no componente React
+- Componentes grandes (UserForm ~534 linhas, UserList ~96 linhas)
+- Código duplicado (MetricCard repetido)
 
 ## 🎯 **Plano de Componentização Detalhado**
 
-### **Fase 1: Criar Hook Customizado para Estado Global**
+### **Fase 0: CRÍTICO - Limpeza e Separação de Responsabilidades** 
+**❗ DEVE SER FEITO PRIMEIRO - ECONOMIZA ~800+ LINHAS**
+
+**🔧 Sub-etapa 0.1: Remover código backend do frontend**
+- ❌ **User class** (~92 linhas) → Mover para `backend/models/User.ts`
+- ❌ **AuthController** (~68 linhas) → Mover para `backend/controllers/AuthController.ts`  
+- ❌ **Middlewares** (~117 linhas) → Mover para `backend/middleware/`
+- ❌ **CRUD hooks backend** (~111 linhas) → Mover para `backend/hooks/`
+
+**🧹 Sub-etapa 0.2: Limpar código duplicado** 
+- ❌ **MetricCard duplicado** (~150 linhas) → Remover duplicatas
+- ❌ **DashboardMetrics duplicado** → Consolidar em uma versão
+
+**📁 Sub-etapa 0.3: Extrair componentes grandes**
+- **UserList** (~96 linhas) → `frontend/components/UserList.tsx`
+- **UserForm** (~534 linhas) → `frontend/components/UserForm.tsx`
+- **MetricCard** (~149 linhas) → `frontend/components/MetricCard.tsx`
+
+### **Fase 1: Criar Hook Customizado para Estado Global** ✅ **CONCLUÍDO**
 ```typescript
 // frontend/hooks/use-platform.ts
 ```
-**Sub-etapa 1.1: Mover estado básico e seus setters (Concluído)**
-- Mover `activeTab`, `searchTerm`, `selectedTech` e suas funções `setActiveTab`, `setSearchTerm`, `setSelectedTech` para `use-platform.ts`.
+**✅ Sub-etapa 1.1: Mover estado básico e seus setters (Concluído)**
+- ✅ Mover `activeTab`, `searchTerm`, `selectedTech` e suas funções `setActiveTab`, `setSearchTerm`, `setSelectedTech` para `use-platform.ts`.
 
-**Sub-etapa 1.2: Mover lógica de filtragem (Concluído)**
-- Mover a lógica de `filteredSnippets` para `use-platform.ts`, retornando os snippets já filtrados.
+**✅ Sub-etapa 1.2: Mover lógica de filtragem (Concluído)**
+- ✅ Mover a lógica de `filteredSnippets` para `use-platform.ts`, retornando os snippets já filtrados.
 
-**Sub-etapa 1.3: Mover estado de favoritos (Concluído)**
-- Mover `favorites` e a função `toggleFavorite` para `use-platform.ts`.
+**✅ Sub-etapa 1.3: Mover estado de favoritos (Concluído)**
+- ✅ Mover `favorites` e a função `toggleFavorite` para `use-platform.ts`.
 
-### **Fase 2: Extrair Páginas por Aba**
-Criar 6 páginas separadas em `frontend/pages/`:
+### **Fase 2: Extrair Páginas por Aba** 
+**✅ PARCIALMENTE CONCLUÍDO (3/6 abas extraídas)**
 
-**🏠 Home.tsx** (~200 linhas → 50 linhas)
-- Hero Section
-- Quick Access Blocks → `HomeQuickAccessBlock.tsx`
-- Featured Videos → `HomeFeaturedVideoCard.tsx` 
-- Featured Projects → `HomeFeaturedProjectCard.tsx`
+**✅ 🏠 Home.tsx** (~147 linhas) - **CONCLUÍDO**
+- ✅ Hero Section
+- ✅ Quick Access Blocks → Dados internos
+- ✅ Featured Videos → Dados internos
+- ✅ Featured Projects → Dados internos
 
-**💻 Codes.tsx** (~300 linhas → 80 linhas)
-- Breadcrumb → `CodeBreadcrumb.tsx`
-- Search Bar → `CodeSearchBar.tsx`
-- Code Cards → `CodeSnippetCard.tsx`
-- Modal → `CodeExpansionModal.tsx`
+**✅ 💻 Codes.tsx** (~508 linhas) - **CONCLUÍDO**
+- ✅ Breadcrumb → Integrado no componente
+- ✅ Search Bar → Integrado no componente  
+- ✅ Code Cards → Integrado no componente
+- ✅ Modal → Integrado no componente
 
-**🎓 Lessons.tsx** (~250 linhas → 70 linhas)
-- Progress Header → `LessonProgressHeader.tsx`
-- Lesson Cards → `LessonCard.tsx`
-- Track Tabs → Reutilizar componente existente
+**✅ 🎓 Lessons.tsx** (~156 linhas) - **CONCLUÍDO**
+- ✅ Progress Header → Integrado no componente
+- ✅ Lesson Cards → Integrado no componente
+- ✅ Track Tabs → Integrado no componente
 
-**📁 Projects.tsx** (~200 linhas → 60 linhas)
-- Project Cards → `ProjectTemplateCard.tsx`
-- Requirements List → Componente interno
+**🔄 📁 Projects.tsx** (~80 linhas) - **PENDENTE**
+- Project Cards → Integrado no componente  
+- Requirements List → Integrado no componente
 
-**🤖 AI.tsx** (~400 linhas → 100 linhas)
-- Automation Cards → `AIAutomationCard.tsx`
-- Cursor Rules → `CursorRuleCard.tsx`
-- MCP Servers Table → `MCPServerTable.tsx`
-- Tips Cards → `AITipCard.tsx`
+**🔄 🤖 AI.tsx** (~400+ linhas) - **PENDENTE - SEÇÃO MASSIVA**
+- Automation Cards → Múltiplas abas internas
+- Cursor Rules → Seção com regras extensas
+- MCP Servers Table → Tabela complexa  
+- Tips Cards → Cards com dicas extensas
+- **❗ Esta é a maior seção restante**
 
-**📊 Dashboard.tsx** (~300 linhas → 80 linhas)
-- Sidebar Features → `DashboardSidebar.tsx`
-- Code Preview → `CodePreviewCard.tsx`
-- Tabs Content → Componentes menores
+**🔄 📊 Dashboard.tsx** (~400+ linhas) - **PENDENTE - SEÇÃO COMPLEXA**
+- Sidebar com features → Navegação complexa
+- Code Preview → Preview com múltiplas abas
+- Metric Cards → Cards de métricas analíticas
+- Chart Components → Componentes de gráficos
+- **❗ Segunda maior seção restante**
 
 ### **Fase 3: Componentes Reutilizáveis**
 Criar 15+ componentes em `frontend/components/`:
@@ -89,7 +118,15 @@ Mover dados hardcoded restantes:
 - Completar separação de todos os dados
 
 ### **Fase 5: Otimizar page.tsx Principal**
-O arquivo principal ficará com apenas **~100 linhas**:
+**🎯 META: Reduzir de 2.671 linhas para ~100 linhas**
+
+**Progresso atual:**
+- ✅ **Fase 1 concluída** (hook customizado criado)
+- ✅ **Fase 2 - 50% concluída** (3/6 abas extraídas: Home, Codes, Lessons)
+- ❌ **Fase 0 CRÍTICA não iniciada** (~800+ linhas de limpeza necessária)
+- ❌ **Restam 3 abas grandes** (Projects, AI ~400 linhas, Dashboard ~400 linhas)
+
+O arquivo principal ficará com apenas **~100 linhas** após todas as fases:
 ```typescript
 export default function DevPlatform() {
   const platformState = usePlatform()
@@ -112,6 +149,29 @@ export default function DevPlatform() {
   )
 }
 
+## 📊 **Status Atual e Próximos Passos**
+
+### **✅ Concluído (Fases 1 e 2 parcial):**
+- ✅ Hook `use-platform.ts` criado e funcionando  
+- ✅ 3 abas extraídas: `Home.tsx` (147 linhas), `Codes.tsx` (508 linhas), `Lessons.tsx` (156 linhas)
+- ✅ Funcionalidade preservada em todas as abas
+- ✅ Arquitetura de componentes funcional
+
+### **🔄 Próximas Prioridades (Fase 0 CRÍTICA):**
+1. **🚨 URGENTE - Limpeza backend** (~500 linhas):
+   - Remover User class, AuthController, middlewares do frontend
+2. **🧹 URGENTE - Remover duplicatas** (~150 linhas):
+   - Consolidar MetricCard e DashboardMetrics duplicados  
+3. **📁 Extrair componentes grandes** (~630 linhas):
+   - UserForm (534 linhas), UserList (96 linhas)
+4. **📄 Extrair abas restantes** (~880 linhas):
+   - Projects (80 linhas), AI (400+ linhas), Dashboard (400+ linhas)
+
+### **🎯 Resultado Esperado:**
+- **De:** 2.671 linhas → **Para:** ~100 linhas
+- **Economia:** ~2.571 linhas (96% redução)
+- **Arquitetura limpa:** Frontend/backend separados, componentes reutilizáveis
+
 ## Estrutura de Diretórios Final
 
 ```
@@ -121,63 +181,47 @@ export default function DevPlatform() {
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   ├── loading.tsx
-│   │   └── page.tsx (muito mais limpo - ~100 linhas)
-│   ├── pages/
-│   │   ├── Home.tsx
-│   │   ├── Codes.tsx
-│   │   ├── Lessons.tsx
-│   │   ├── Projects.tsx
-│   │   ├── AI.tsx
-│   │   └── Dashboard.tsx
-│   ├── components/
-│   │   ├── ui/ (apenas componentes shadcn)
-│   │   ├── AppSidebar.tsx
-│   │   ├── CodeSnippetCard.tsx
-│   │   ├── CodeSearchBar.tsx
-│   │   ├── CodeBreadcrumb.tsx
-│   │   ├── HomeQuickAccessBlock.tsx
-│   │   ├── HomeFeaturedVideoCard.tsx
-│   │   ├── HomeFeaturedProjectCard.tsx
-│   │   ├── LessonCard.tsx
-│   │   ├── LessonProgressHeader.tsx
-│   │   ├── ProjectTemplateCard.tsx
-│   │   ├── CodeExpansionModal.tsx
-│   │   ├── AIAutomationCard.tsx
-│   │   ├── CursorRuleCard.tsx
-│   │   ├── MCPServerTable.tsx
-│   │   ├── AITipCard.tsx
-│   │   ├── DashboardSidebar.tsx
-│   │   └── CodePreviewCard.tsx
+│   │   └── page.tsx ⭐ (APENAS ~100 linhas)
+│   ├── pages/ ⭐ (NOVAS PÁGINAS EXTRAÍDAS)
+│   │   ├── Home.tsx ✅ (147 linhas)
+│   │   ├── Codes.tsx ✅ (508 linhas) 
+│   │   ├── Lessons.tsx ✅ (156 linhas)
+│   │   ├── Projects.tsx 🔄 (PENDENTE)
+│   │   ├── AI.tsx 🔄 (PENDENTE - 400+ linhas)
+│   │   └── Dashboard.tsx 🔄 (PENDENTE - 400+ linhas)
+│   ├── components/ ⭐ (COMPONENTES EXTRAÍDOS)
+│   │   ├── ui/ (componentes shadcn)
+│   │   ├── AppSidebar.tsx ✅
+│   │   ├── UserList.tsx 🔄 (PENDENTE - extrair do page.tsx)
+│   │   ├── UserForm.tsx 🔄 (PENDENTE - extrair do page.tsx)  
+│   │   ├── MetricCard.tsx 🔄 (PENDENTE - consolidar duplicatas)
+│   │   └── ... (outros componentes conforme necessário)
 │   ├── hooks/
 │   │   ├── use-mobile.tsx
 │   │   ├── use-toast.ts
-│   │   └── use-platform.ts
-│   ├── data/
+│   │   └── use-platform.ts ✅ (CRIADO)
+│   ├── data/ ⭐ (DADOS SEPARADOS)
 │   │   ├── sidebar.ts
-│   │   ├── home.ts
-│   │   ├── codes.ts
-│   │   ├── lessons.ts
-│   │   ├── projects.ts
-│   │   ├── ai.ts
-│   │   └── dashboard.ts
+│   │   ├── home.ts 🔄 (PENDENTE)
+│   │   ├── codes.ts 🔄 (PENDENTE)
+│   │   ├── lessons.ts 🔄 (PENDENTE)
+│   │   ├── projects.ts 🔄 (PENDENTE)
+│   │   ├── ai.ts 🔄 (PENDENTE)
+│   │   └── dashboard.ts 🔄 (PENDENTE)
 │   ├── lib/
 │   │   └── utils.ts
-│   ├── public/
-│   │   ├── placeholder-logo.png
-│   │   ├── placeholder-logo.svg
-│   │   ├── placeholder-user.jpg
-│   │   ├── placeholder.jpg
-│   │   └── placeholder.svg
 │   └── styles/
 │       └── globals.css
-├── backend/
-│   └── (futuros arquivos de backend)
+├── backend/ ⭐ (CÓDIGO BACKEND MOVIDO AQUI)
+│   ├── models/
+│   │   └── User.ts 🔄 (MOVER DO FRONTEND)
+│   ├── controllers/
+│   │   └── AuthController.ts 🔄 (MOVER DO FRONTEND)  
+│   ├── middleware/ 🔄 (MOVER DO FRONTEND)
+│   └── hooks/ 🔄 (MOVER DO FRONTEND)
 ├── .gitignore
 ├── components.json
 ├── next.config.mjs
 ├── package.json
-├── pnpm-lock.yaml
-├── postcss.config.mjs
 ├── README.md
-├── tailwind.config.ts
 └── tsconfig.json
