@@ -52,8 +52,10 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { usePlatform } from "@/hooks/use-platform"
 
-function AppSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) {
+function AppSidebar({ activeTab }: { activeTab: string }) {
+  const platformState = usePlatform();
   const menuItems = [
     {
       title: "Início",
@@ -122,7 +124,7 @@ function AppSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveT
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => platformState.setActiveTab(item.key)}
                     isActive={activeTab === item.key}
                     tooltip={item.title}
                   >
@@ -195,16 +197,9 @@ function AppSidebar({ activeTab, setActiveTab }: { activeTab: string; setActiveT
 }
 
 export default function DevPlatform() {
-  const [activeTab, setActiveTab] = useState("home")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedTech, setSelectedTech] = useState("all")
-  const [favorites, setFavorites] = useState<string[]>([])
+  const platformState = usePlatform()
   const [currentScreens, setCurrentScreens] = useState<Record<string, number>>({})
   const [openModalId, setOpenModalId] = useState<string | null>(null)
-
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) => (prev.includes(id) ? prev.filter((fav) => fav !== id) : [...prev, id]))
-  }
 
   const quickAccessBlocks = [
     { title: "React Hooks", icon: Code2, color: "bg-blue-500", count: "150+ snippets" },
@@ -1564,13 +1559,6 @@ export async function GET() {
     },
   ]
 
-  const filteredSnippets = codeSnippets.filter((snippet) => {
-    const matchesSearch =
-      snippet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      snippet.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesTech = selectedTech === "all" || snippet.tech.toLowerCase() === selectedTech.toLowerCase()
-    return matchesSearch && matchesTech
-  })
 
   const videoLessons = [
     {
@@ -1655,7 +1643,7 @@ export async function GET() {
 
   return (
     <SidebarProvider>
-      <AppSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+<AppSidebar activeTab={platformState.activeTab} />
       <SidebarInset>
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
           {/* Header */}
@@ -1675,7 +1663,7 @@ export async function GET() {
 
           <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Todo o conteúdo das abas permanece exatamente igual */}
-            {activeTab === "home" && (
+            {platformState.activeTab === "home" && (
               <div className="space-y-8">
                 {/* Hero Section */}
                 <div className="text-center space-y-4">
@@ -1696,8 +1684,8 @@ export async function GET() {
                         className="hover:shadow-lg transition-shadow cursor-pointer"
                         onClick={() => {
                           if (block.title === "Node.js APIs") {
-                            setActiveTab("codes")
-                            setSelectedTech("node.js")
+                            platformState.setActiveTab("codes");
+                            platformState.setSelectedTech("node.js");
                           }
                         }}
                       >
@@ -1776,7 +1764,7 @@ export async function GET() {
                                   variant="outline"
                                   onClick={() => {
                                     if (project.title === "Dashboard Analytics") {
-                                      setActiveTab("dashboard")
+                                      platformState.setActiveTab("dashboard");
                                     }
                                   }}
                                 >
@@ -1799,56 +1787,56 @@ export async function GET() {
             )}
 
             {/* Codes Tab */}
-            {activeTab === "codes" && (
+            {platformState.activeTab === "codes" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="flex items-center space-x-2 text-sm mb-2">
                       <button
                         onClick={() => {
-                          setSelectedTech("all")
-                          setSearchTerm("")
+                          platformState.setSelectedTech("all")
+                          platformState.setSearchTerm("")
                         }}
                         className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
                       >
                         Biblioteca de Códigos
                       </button>
-                      {selectedTech !== "all" && (
+                      {platformState.selectedTech !== "all" && (
                         <>
                           <ChevronRight className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-900 font-medium capitalize">{selectedTech}</span>
+                          <span className="text-gray-900 font-medium capitalize">{platformState.selectedTech}</span>
                         </>
                       )}
                     </div>
                   </div>
-                  <div className="flex space-x-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Buscar snippets..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64"
-                      />
-                    </div>
-                    <Select value={selectedTech} onValueChange={setSelectedTech}>
-                      <SelectTrigger className="w-40">
-                        <Filter className="h-4 w-4 mr-2" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas</SelectItem>
-                        <SelectItem value="react">React</SelectItem>
-                        <SelectItem value="node.js">Node.js</SelectItem>
-                        <SelectItem value="python">Python</SelectItem>
-                        <SelectItem value="javascript">JavaScript</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="flex space-x-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                      placeholder="Buscar snippets..."
+                      value={platformState.searchTerm}
+                      onChange={(e) => platformState.setSearchTerm(e.target.value)}
+                      className="pl-10 w-64"
+                    />
                   </div>
+                  <Select value={platformState.selectedTech} onValueChange={platformState.setSelectedTech}>
+                    <SelectTrigger className="w-40">
+                      <Filter className="h-4 w-4 mr-2" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="react">React</SelectItem>
+                      <SelectItem value="node.js">Node.js</SelectItem>
+                      <SelectItem value="python">Python</SelectItem>
+                      <SelectItem value="javascript">JavaScript</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {filteredSnippets.map((snippet) => {
+{platformState.filteredSnippets(codeSnippets).map((snippet) => {
                     const currentScreen = currentScreens[snippet.id] || 0
                     const screen = snippet.screens[currentScreen]
 
@@ -1909,7 +1897,7 @@ export async function GET() {
             )}
 
             {/* Lessons Tab */}
-            {activeTab === "lessons" && (
+            {platformState.activeTab === "lessons" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h1 className="text-3xl font-bold text-gray-900">Videoaulas</h1>
@@ -2025,7 +2013,7 @@ export async function GET() {
             )}
 
             {/* Projects Tab */}
-            {activeTab === "projects" && (
+            {platformState.activeTab === "projects" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h1 className="text-3xl font-bold text-gray-900">Templates de Projetos</h1>
@@ -2107,7 +2095,7 @@ export async function GET() {
               </div>
             )}
             {/* AI Integration Tab */}
-            {activeTab === "ai" && (
+            {platformState.activeTab === "ai" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h1 className="text-3xl font-bold text-gray-900">Integrando com IA</h1>
@@ -2531,12 +2519,12 @@ export async function GET() {
                 </Tabs>
               </div>
             )}
-            {activeTab === "dashboard" && (
+            {platformState.activeTab === "dashboard" && (
               <div className="space-y-6">
                 {/* Breadcrumb Navigation */}
                 <div className="flex items-center space-x-2 text-sm">
                   <button
-                    onClick={() => setActiveTab("home")}
+                    onClick={() => platformState.setActiveTab("home")}
                     className="text-blue-600 hover:text-blue-800 font-medium"
                   >
                     Projetos
