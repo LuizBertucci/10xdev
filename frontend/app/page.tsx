@@ -54,6 +54,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { usePlatform } from "@/hooks/use-platform"
 import Home from "@/pages/Home"
+import Codes from "@/pages/Codes"
 
 function AppSidebar({ activeTab }: { activeTab: string }) {
   const platformState = usePlatform();
@@ -1666,115 +1667,7 @@ export async function GET() {
             {/* Todo o conteúdo das abas permanece exatamente igual */}
             {platformState.activeTab === "home" && <Home platformState={platformState} />}
 
-            {/* Codes Tab */}
-            {platformState.activeTab === "codes" && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="flex items-center space-x-2 text-sm mb-2">
-                      <button
-                        onClick={() => {
-                          platformState.setSelectedTech("all")
-                          platformState.setSearchTerm("")
-                        }}
-                        className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                      >
-                        Biblioteca de Códigos
-                      </button>
-                      {platformState.selectedTech !== "all" && (
-                        <>
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-900 font-medium capitalize">{platformState.selectedTech}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                <div className="flex space-x-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Buscar snippets..."
-                      value={platformState.searchTerm}
-                      onChange={(e) => platformState.setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
-                    />
-                  </div>
-                  <Select value={platformState.selectedTech} onValueChange={platformState.setSelectedTech}>
-                    <SelectTrigger className="w-40">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="react">React</SelectItem>
-                      <SelectItem value="node.js">Node.js</SelectItem>
-                      <SelectItem value="python">Python</SelectItem>
-                      <SelectItem value="javascript">JavaScript</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-{platformState.filteredSnippets(codeSnippets).map((snippet) => {
-                    const currentScreen = currentScreens[snippet.id] || 0
-                    const screen = snippet.screens[currentScreen]
-
-                    return (
-                      <Card key={snippet.id} className="hover:shadow-lg transition-shadow h-64">
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-base">{snippet.title}</CardTitle>
-                              <CardDescription className="text-sm line-clamp-2">{snippet.description}</CardDescription>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setOpenModalId(snippet.id)}
-                              className="text-gray-500 hover:text-gray-900"
-                            >
-                              <Maximize2 className="h-4 w-4 mr-1" />
-                              Expandir
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <Badge variant="secondary" className="text-xs">
-                                {snippet.tech}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {snippet.language}
-                              </Badge>
-                            </div>
-
-                            <div className="bg-gray-900 rounded-md p-3 h-32 overflow-hidden relative group">
-                              <pre className="text-xs text-gray-100 leading-tight">
-                                <code>{snippet.screens[0]?.code.slice(0, 200)}...</code>
-                              </pre>
-                              <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity"></div>
-                              <div className="absolute bottom-2 right-2 text-xs text-gray-400 group-hover:text-gray-300">
-                                {snippet.screens.length} arquivo{snippet.screens.length > 1 ? "s" : ""}
-                              </div>
-                            </div>
-
-                            <div className="flex justify-between items-center pt-1">
-                              <span className="text-xs text-gray-500">{snippet.screens[0]?.name}</span>
-                              <Button size="sm" variant="outline" className="h-6 text-xs px-2">
-                                <Code2 className="h-3 w-3 mr-1" />
-                                Ver código
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
+            {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
             {/* Lessons Tab */}
             {platformState.activeTab === "lessons" && (
