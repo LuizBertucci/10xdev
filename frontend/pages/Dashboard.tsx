@@ -86,7 +86,7 @@ export default function Dashboard({ platformState }: DashboardProps) {
           onClick={() => platformState.setActiveTab("home")}
           className="text-blue-600 hover:text-blue-800 font-medium"
         >
-          Projetos
+          Início
         </button>
         <ChevronRight className="h-4 w-4 text-gray-400" />
         <span className="text-gray-900 font-medium">Dashboard Analytics</span>

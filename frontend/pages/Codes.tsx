@@ -536,6 +536,13 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         <div>
           <div className="flex items-center space-x-2 text-sm mb-2">
             <button
+              onClick={() => platformState.setActiveTab("home")}
+              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            >
+              Início
+            </button>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+            <button
               onClick={() => {
                 platformState.setSelectedTech("all")
                 platformState.setSearchTerm("")

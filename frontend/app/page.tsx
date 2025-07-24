@@ -33,6 +33,7 @@ import {
   Trophy,
   Maximize2,
   X,
+  BarChart3,
 } from "lucide-react"
 
 import {
@@ -60,8 +61,7 @@ import Projects from "@/pages/Projects"
 import AI from "@/pages/AI"
 import Dashboard from "@/pages/Dashboard"
 
-function AppSidebar({ activeTab }: { activeTab: string }) {
-  const platformState = usePlatform();
+function AppSidebar({ platformState }: { platformState: any }) {
   const menuItems = [
     {
       title: "Início",
@@ -92,6 +92,12 @@ function AppSidebar({ activeTab }: { activeTab: string }) {
       icon: Brain,
       key: "ai",
       description: "Integração com IA",
+    },
+    {
+      title: "Dashboard",
+      icon: BarChart3,
+      key: "dashboard",
+      description: "Analytics e métricas",
     },
   ]
 
@@ -131,7 +137,7 @@ function AppSidebar({ activeTab }: { activeTab: string }) {
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     onClick={() => platformState.setActiveTab(item.key)}
-                    isActive={activeTab === item.key}
+                    isActive={platformState.activeTab === item.key}
                     tooltip={item.title}
                   >
                     <item.icon className="size-4" />
@@ -1649,7 +1655,7 @@ export async function GET() {
 
   return (
     <SidebarProvider>
-<AppSidebar activeTab={platformState.activeTab} />
+<AppSidebar platformState={platformState} />
       <SidebarInset>
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
           {/* Header */}
