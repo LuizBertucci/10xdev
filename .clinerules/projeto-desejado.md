@@ -27,10 +27,22 @@ O arquivo atual tem **2.671 linhas** (muito maior que estimado!) e contém:
 **❗ DEVE SER FEITO PRIMEIRO - ECONOMIZA ~800+ LINHAS**
 
 **🔧 Sub-etapa 0.1: Remover código backend do frontend**
+
+**❌ Problemas Específicos da User class (~92 linhas):**
+- **🔐 Sistema de autenticação completo** no componente React (hash senhas, JWT tokens)
+- **👥 Gerenciamento de usuários** (criar, buscar por email/ID, sistema de roles)
+- **💾 Persistência em memória** com array estático e IDs auto-incrementados
+- **📚 Importa bibliotecas de servidor** (`bcrypt`, `jwt`) no frontend
+- **🚨 Violação de segurança** - senhas hasheadas processadas no browser
+- **⚡ Performance** - código desnecessário carregado no cliente
+
+**✅ Soluções:**
 - ❌ **User class** (~92 linhas) → Mover para `backend/models/User.ts`
 - ❌ **AuthController** (~68 linhas) → Mover para `backend/controllers/AuthController.ts`  
 - ❌ **Middlewares** (~117 linhas) → Mover para `backend/middleware/`
-- ❌ **CRUD hooks backend** (~111 linhas) → Mover para `backend/hooks/`
+- ❌ **CRUD hooks backend** (~111 linhas) → Mover para `backend/hooks/useAuth.ts`, `backend/hooks/useUsers.ts`, `backend/hooks/useDatabase.ts`, `backend/hooks/useValidation.ts`
+- ✅ **Frontend limpo** - manter apenas UI React e chamadas para API backend
+- ✅ **Arquitetura correta** - separação clara entre frontend e backend
 
 **🧹 Sub-etapa 0.2: Limpar código duplicado** 
 - ❌ **MetricCard duplicado** (~150 linhas) → Remover duplicatas
