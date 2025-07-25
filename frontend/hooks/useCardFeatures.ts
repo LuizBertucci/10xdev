@@ -1,50 +1,15 @@
 import { useState, useCallback, useEffect } from 'react'
-
-// Interfaces temporárias - serão movidas para types/cardfeature.ts
-interface CardFeatureScreen {
-  name: string
-  description: string
-  code: string
-}
-
-interface CardFeature {
-  id: string
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: CardFeatureScreen[]
-  createdAt: Date
-  updatedAt: Date
-}
-
-interface CardFeatureState {
-  items: CardFeature[]
-  loading: boolean
-  error: string | null
-  selectedItem: CardFeature | null
-  editingItem: CardFeature | null
-  isCreating: boolean
-  isEditing: boolean
-  showDeleteConfirm: boolean
-  deleteItemId: string | null
-  activeTab: string
-  searchTerm: string
-  selectedTech: string
-}
-
-interface CreateCardFeatureData {
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: Omit<CardFeatureScreen, 'id'>[]
-}
-
-interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
+import type {
+  CardFeature,
+  CardFeatureState,
+  CreateCardFeatureData,
+  UpdateCardFeatureData,
+  UseCardFeaturesReturn,
+  UseCardFeaturesOptions
+} from '@/types/cardfeature'
 
 // Hook principal para gerenciar CardFeatures
-export function useCardFeatures() {
+export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFeaturesReturn {
   const [state, setState] = useState<CardFeatureState>({
     items: [],
     loading: false,
