@@ -43,23 +43,27 @@ Transformar a aba **Codes** de uma visualização estática em um **sistema CRUD
 ```
 frontend/
 ├── components/
-│   ├── CardFeatures/
-│   │   ├── CardFeatureCard.tsx        ✅ (extrair do Codes.tsx)
-│   │   ├── CardFeatureModal.tsx       ✅ (extrair do Codes.tsx com abas)
-│   │   ├── CardFeatureForm.tsx        🆕 (formulário create/edit)
-│   │   ├── CardFeatureFormFields.tsx  🆕 (campos reutilizáveis)
-│   │   ├── CardFeatureTabEditor.tsx   🆕 (editor de abas/screens)
-│   │   ├── CardFeatureDeleteModal.tsx 🆕 (confirmação de remoção)
-│   │   └── CardFeatureTabs.tsx        🆕 (componente de abas)
-│   └── ui/
-│       ├── code-editor.tsx            🆕 (editor com syntax highlighting)
-│       ├── confirm-dialog.tsx         🆕 (modal de confirmação)
-│       └── tabs.tsx                   🆕 (sistema de abas customizado)
+│   ├── ui/                           (existente - shadcn)
+│   │   ├── code-editor.tsx           🆕 (editor com syntax highlighting)
+│   │   ├── confirm-dialog.tsx        🆕 (modal de confirmação)
+│   │   └── tabs.tsx                  🆕 (sistema de abas customizado)
+│   ├── AppSidebar.tsx                (existente)
+│   ├── CardFeature.tsx               ✅ (extrair do Codes.tsx)
+│   ├── CardFeatureModal.tsx          ✅ (extrair do Codes.tsx com abas)
+│   ├── CardFeatureForm.tsx           🆕 (formulário create/edit)
+│   ├── CardFeatureFormFields.tsx     🆕 (campos reutilizáveis)
+│   ├── CardFeatureTabEditor.tsx      🆕 (editor de abas/screens)
+│   ├── CardFeatureDeleteModal.tsx    🆕 (confirmação de remoção)
+│   └── CardFeatureTabs.tsx           🆕 (componente de abas)
 ├── hooks/
+│   ├── use-mobile.tsx                (existente)
+│   ├── use-platform.ts               (existente)
+│   ├── use-toast.ts                  (existente)
 │   ├── useCardFeatures.ts            🆕 (CRUD operations)
 │   ├── useCardFeatureForm.ts         🆕 (form state management)
 │   └── useLocalStorage.ts            🆕 (persistência local)
 ├── lib/
+│   ├── utils.ts                      (existente)
 │   ├── cardfeature-validation.ts     🆕 (validações)
 │   └── cardfeature-utils.ts          🆕 (utilitários)
 └── types/
@@ -190,32 +194,40 @@ interface CardFeature {
 
 ## ⚙️ **Implementação por Fases**
 
-### **🔥 Fase 1: Fundação**
-1. **Extrair componentes** atuais do `Codes.tsx`:
-   - `CardFeature.tsx` 
-   - `CardFeatureModal.tsx` (com sistema de abas)
-2. **Criar hooks base**:
-   - `useCardFeatures.ts` (CRUD básico)
-   - `useLocalStorage.ts` (persistência)
-3. **Definir tipos** em `types/cardfeature.ts`
+### **🔥 Fase 1: Fundação (Base Arquitetural)**
+1. **Controller (Lógica Principal)**:
+   - `useCardFeatures.ts` (CRUD operations + estado global + filtros)
+   
+2. **Models (Contratos de Dados)**:
+   - `types/cardfeature.ts` (interfaces CardFeature, CardFeatureScreen, tipos CRUD)
+   
+3. **Persistência (Armazenamento)**:
+   - `useLocalStorage.ts` (generic localStorage hook com auto-sync)
+   
+4. **Utilitários (Helpers)**:
+   - `lib/cardfeature-utils.ts` (ID generator, formatters, transformers)
+
+5. **Extração de Componentes**:
+   - `CardFeature.tsx` (extrair do `Codes.tsx`)
+   - `CardFeatureModal.tsx` (modal com sistema de abas)
 
 ### **🚀 Fase 2: Criação**
 1. **Implementar formulário**:
-   - `CardFeatureForm.tsx`
-   - `CardFeatureTabEditor.tsx` (editor de abas)
-2. **Adicionar validações**:
-   - `lib/cardfeature-validation.ts`
-3. **Integrar botão "Novo CardFeature"** na interface
+   - `CardFeatureForm.tsx` (formulário principal)
+   - `CardFeatureTabEditor.tsx` (editor de abas dinâmicas)
+   - `CardFeatureFormFields.tsx` (campos reutilizáveis)
+2. **Integrar botão "Novo CardFeature"** na interface
+3. **Preview com abas** antes de salvar
 
 ### **✏️ Fase 3: Edição**
 1. **Adaptar formulário** para modo edição
-2. **Implementar carregamento** de dados existentes com abas
-4. **Gerenciamento de abas** (adicionar/remover/reordenar)
-3. **Adicionar botões "Editar"** nos cards
+2. **Implementar carregamento** de dados existentes com abas preservadas
+3. **Gerenciamento de abas** (adicionar/remover/reordenar)
+4. **Adicionar botões "Editar"** nos cards
 
 ### **🗑️ Fase 4: Remoção**
-1. **Criar modal** de confirmação
-2. **Implementar lógica** de remoção
+1. **Criar modal** de confirmação (`CardFeatureDeleteModal.tsx`)
+2. **Implementar lógica** de remoção segura
 3. **Adicionar botões "Remover"** nos cards
 
 ### **🎨 Fase 5: Melhorias UX**
@@ -223,7 +235,7 @@ interface CardFeature {
 2. **Preview com abas** em tempo real
 3. **Animações** de transição entre abas
 4. **Drag & drop** para reordenar abas
-5. **Validação** aprimorada
+5. **Validações** aprimoradas (`lib/cardfeature-validation.ts`)
 
 ## 🧪 **Estratégia de Testes**
 
