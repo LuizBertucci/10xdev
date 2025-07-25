@@ -71,9 +71,15 @@ export default function Home({ platformState }: HomeProps) {
               key={index}
               className="hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => {
+                platformState.setActiveTab("codes");
                 if (block.title === "Node.js APIs") {
-                  platformState.setActiveTab("codes");
                   platformState.setSelectedTech("node.js");
+                } else if (block.title === "React Hooks") {
+                  platformState.setSelectedTech("react");
+                } else if (block.title === "Python Scripts") {
+                  platformState.setSelectedTech("python");
+                } else if (block.title === "CSS Animations") {
+                  platformState.setSelectedTech("javascript");
                 }
               }}
             >
