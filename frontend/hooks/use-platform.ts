@@ -34,7 +34,7 @@ export function usePlatform() {
     return snippets.filter(snippet => {
       const matchesSearch = snippet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             snippet.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTech = selectedTech === 'all' || snippet.technology === selectedTech;
+      const matchesTech = selectedTech === 'all' || snippet.tech.toLowerCase() === selectedTech.toLowerCase();
       return matchesSearch && matchesTech;
     });
   }, [searchTerm, selectedTech]);

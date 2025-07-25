@@ -31,6 +31,61 @@ interface CodesProps {
   platformState: PlatformState
 }
 
+const getTechConfig = (tech: string) => {
+  switch (tech.toLowerCase()) {
+    case 'react':
+      return {
+        color: 'bg-blue-50 text-blue-700 border-blue-200',
+        icon: '⚛️'
+      }
+    case 'node.js':
+      return {
+        color: 'bg-green-50 text-green-700 border-green-200',
+        icon: '🟢'
+      }
+    case 'python':
+      return {
+        color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+        icon: '🐍'
+      }
+    case 'javascript':
+      return {
+        color: 'bg-orange-50 text-orange-700 border-orange-200',
+        icon: '🟨'
+      }
+    default:
+      return {
+        color: 'bg-gray-50 text-gray-700 border-gray-200',
+        icon: '💻'
+      }
+  }
+}
+
+const getLanguageConfig = (language: string) => {
+  switch (language.toLowerCase()) {
+    case 'typescript':
+      return {
+        color: 'bg-blue-50 text-blue-700 border-blue-200',
+        icon: 'TS'
+      }
+    case 'javascript':
+      return {
+        color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+        icon: 'JS'
+      }
+    case 'python':
+      return {
+        color: 'bg-green-50 text-green-700 border-green-200',
+        icon: 'PY'
+      }
+    default:
+      return {
+        color: 'bg-gray-50 text-gray-700 border-gray-200',
+        icon: language.substring(0, 2).toUpperCase()
+      }
+  }
+}
+
 export default function Codes({ platformState }: CodesProps) {
   const [currentScreens, setCurrentScreens] = useState<Record<string, number>>({})
   const [openModalId, setOpenModalId] = useState<string | null>(null)
@@ -591,12 +646,12 @@ export const MetricCard: React.FC<MetricCardProps> = ({
           const screen = snippet.screens[currentScreen]
 
           return (
-            <Card key={snippet.id} className="hover:shadow-lg transition-shadow h-64">
+            <Card key={snippet.id} className="hover:shadow-lg transition-shadow h-80">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-base">{snippet.title}</CardTitle>
-                    <CardDescription className="text-sm line-clamp-2">{snippet.description}</CardDescription>
+                    <CardDescription className="text-sm h-10 leading-5 overflow-hidden">{snippet.description}</CardDescription>
                   </div>
                   <Button
                     variant="ghost"
@@ -611,16 +666,22 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">
+                  <div className="flex justify-end space-x-2">
+                    <Badge 
+                      className={`text-xs rounded-md shadow-sm border pointer-events-none ${getTechConfig(snippet.tech).color}`}
+                    >
+                      <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
                       {snippet.tech}
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge 
+                      className={`text-xs rounded-md shadow-sm border pointer-events-none ${getLanguageConfig(snippet.language).color}`}
+                    >
+                      <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
                       {snippet.language}
                     </Badge>
                   </div>
 
-                  <div className="bg-gray-900 rounded-md p-3 h-32 overflow-hidden relative group">
+                  <div className="bg-gray-900 rounded-md p-4 h-44 overflow-hidden relative group">
                     <pre className="text-xs text-gray-100 leading-tight">
                       <code>{snippet.screens[0]?.code.slice(0, 200)}...</code>
                     </pre>
