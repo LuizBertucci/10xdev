@@ -179,3 +179,229 @@ frontend/
 **Resultado:** **SUCESSO COMPLETO** - Todas as metas atingidas e superadas!
 
 > 🎯 **Próximos passos sugeridos:** O projeto está pronto para desenvolvimento de novas funcionalidades com a base sólida implementada.
+
+---
+
+# 🚀 **NOVA META: Sistema CRUD para CodeBlocks**
+
+## 🎯 **Objetivo da Nova Funcionalidade**
+
+Transformar a aba **Codes** de uma visualização estática em um **sistema CRUD completo**, permitindo que usuários criem, editem, visualizem e removam CodeBlocks de forma interativa.
+
+## 📋 **Requisitos Funcionais**
+
+### **🔍 1. Visualização (Read)**
+- ✅ **Já implementado** - Grid de CodeBlocks com filtros e busca
+- ✅ **Já implementado** - Modal expandido para visualização completa
+- 🔄 **Melhoria pendente** - Adicionar indicadores visuais (data criação, autor, status)
+
+### **➕ 2. Criação (Create)**
+- **Formulário de criação** com campos:
+  - `title` (string, obrigatório)
+  - `tech` (select, obrigatório) 
+  - `language` (select, obrigatório)
+  - `description` (textarea, obrigatório)
+  - `screens[]` (array dinâmico):
+    - `name` (string, obrigatório)
+    - `description` (string, obrigatório)
+    - `code` (textarea com syntax highlighting, obrigatório)
+- **Validação** em tempo real
+- **Preview** antes de salvar
+- **Botão "Novo CodeBlock"** na interface
+
+### **✏️ 3. Edição (Update)**
+- **Formulário de edição** (mesmo layout da criação)
+- **Carregamento** dos dados existentes
+- **Botão "Editar"** em cada CodeBlock
+- **Salvamento** com confirmação
+- **Cancelamento** com confirmação se houver alterações
+
+### **🗑️ 4. Remoção (Delete)**
+- **Botão "Remover"** em cada CodeBlock
+- **Modal de confirmação** com preview do item
+- **Remoção** da lista e persistência
+
+## 🏗️ **Arquitetura Técnica Planejada**
+
+### **📁 Estrutura de Arquivos**
+```
+frontend/
+├── components/
+│   ├── CodeBlocks/
+│   │   ├── CodeBlockCard.tsx          ✅ (extrair do Codes.tsx)
+│   │   ├── CodeBlockModal.tsx         ✅ (extrair do Codes.tsx)
+│   │   ├── CodeBlockForm.tsx          🆕 (formulário create/edit)
+│   │   ├── CodeBlockFormFields.tsx    🆕 (campos reutilizáveis)
+│   │   ├── CodeBlockScreenEditor.tsx  🆕 (editor de screens)
+│   │   └── CodeBlockDeleteModal.tsx   🆕 (confirmação de remoção)
+│   └── ui/
+│       ├── code-editor.tsx            🆕 (editor com syntax highlighting)
+│       └── confirm-dialog.tsx         🆕 (modal de confirmação)
+├── hooks/
+│   ├── useCodeBlocks.ts              🆕 (CRUD operations)
+│   ├── useCodeBlockForm.ts           🆕 (form state management)
+│   └── useLocalStorage.ts            🆕 (persistência local)
+├── lib/
+│   ├── codeblock-validation.ts       🆕 (validações)
+│   └── codeblock-utils.ts            🆕 (utilitários)
+└── types/
+    └── codeblock.ts                  🆕 (tipos específicos)
+```
+
+### **🔄 Fluxo de Estados**
+```typescript
+interface CodeBlockState {
+  items: CodeSnippet[]
+  loading: boolean
+  error: string | null
+  selectedItem: CodeSnippet | null
+  editingItem: CodeSnippet | null
+  isCreating: boolean
+  isEditing: boolean
+  showDeleteConfirm: boolean
+}
+
+interface CodeBlockActions {
+  // Create
+  createCodeBlock: (data: CreateCodeBlockData) => Promise<void>
+  startCreating: () => void
+  cancelCreating: () => void
+  
+  // Read
+  fetchCodeBlocks: () => Promise<void>
+  selectCodeBlock: (id: string) => void
+  
+  // Update  
+  updateCodeBlock: (id: string, data: UpdateCodeBlockData) => Promise<void>
+  startEditing: (id: string) => void
+  cancelEditing: () => void
+  
+  // Delete
+  deleteCodeBlock: (id: string) => Promise<void>
+  showDeleteConfirmation: (id: string) => void
+  cancelDelete: () => void
+}
+```
+
+## 🎨 **Interface de Usuário Planejada**
+
+### **📱 Layout da Aba Codes Atualizada**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [Início] > [Biblioteca de Códigos] > [React]           │
+├─────────────────────────────────────────────────────────┤
+│ [🔍 Buscar snippets...] [🔽 Filtro Tech] [➕ Novo]     │
+├─────────────────────────────────────────────────────────┤
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐         │
+│ │ CodeBlock 1 │ │ CodeBlock 2 │ │ CodeBlock 3 │         │
+│ │             │ │             │ │             │         │
+│ │ [👁️][✏️][🗑️] │ │ [👁️][✏️][🗑️] │ │ [👁️][✏️][🗑️] │         │
+│ └─────────────┘ └─────────────┘ └─────────────┘         │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐         │
+│ │ CodeBlock 4 │ │ CodeBlock 5 │ │ CodeBlock 6 │         │
+│ └─────────────┘ └─────────────┘ └─────────────┘         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### **📝 Modal de Criação/Edição**
+```
+┌─────────────────────────────────────────────────────────┐
+│ ✨ Novo CodeBlock                              [❌]     │
+├─────────────────────────────────────────────────────────┤
+│ Título: [________________________________]              │
+│ Tecnologia: [React ▼]  Linguagem: [TypeScript ▼]      │
+│ Descrição:                                              │
+│ [_________________________________________________]      │
+│ [_________________________________________________]      │
+│                                                         │
+│ 🖥️ Arquivos de Código:                                  │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 📄 Component.tsx                            [➕][❌] │ │
+│ │ Descrição: [_____________________________]           │ │
+│ │ ┌─────────────────────────────────────────────────┐   │ │
+│ │ │ import React from 'react'                      │   │ │
+│ │ │                                                │   │ │
+│ │ │ export default function Component() {          │   │ │
+│ │ │   return <div>Hello World</div>               │   │ │
+│ │ │ }                                             │   │ │
+│ │ └─────────────────────────────────────────────────┘   │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ [👁️ Preview] [💾 Salvar] [❌ Cancelar]                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+## ⚙️ **Implementação por Fases**
+
+### **🔥 Fase 1: Fundação (Semana 1)**
+1. **Extrair componentes** atuais do `Codes.tsx`:
+   - `CodeBlockCard.tsx` 
+   - `CodeBlockModal.tsx`
+2. **Criar hooks base**:
+   - `useCodeBlocks.ts` (CRUD básico)
+   - `useLocalStorage.ts` (persistência)
+3. **Definir tipos** em `types/codeblock.ts`
+
+### **🚀 Fase 2: Criação (Semana 2)**
+1. **Implementar formulário**:
+   - `CodeBlockForm.tsx`
+   - `CodeBlockScreenEditor.tsx`
+2. **Adicionar validações**:
+   - `lib/codeblock-validation.ts`
+3. **Integrar botão "Novo"** na interface
+
+### **✏️ Fase 3: Edição (Semana 3)**
+1. **Adaptar formulário** para modo edição
+2. **Implementar carregamento** de dados existentes
+3. **Adicionar botões "Editar"** nos cards
+
+### **🗑️ Fase 4: Remoção (Semana 4)**
+1. **Criar modal** de confirmação
+2. **Implementar lógica** de remoção
+3. **Adicionar botões "Remover"** nos cards
+
+### **🎨 Fase 5: Melhorias UX (Semana 5)**
+1. **Code editor** com syntax highlighting
+2. **Preview** em tempo real
+3. **Animações** e feedback visual
+4. **Validação** aprimorada
+
+## 🧪 **Estratégia de Testes**
+
+### **🔍 Testes Unitários**
+- Hooks de CRUD (`useCodeBlocks.ts`)
+- Validações (`codeblock-validation.ts`)
+- Utilitários (`codeblock-utils.ts`)
+
+### **🖱️ Testes de Integração**
+- Fluxo completo: Criar → Visualizar → Editar → Remover
+- Persistência no localStorage
+- Filtros e busca com novos itens
+
+### **👤 Testes de Usabilidade**
+- Formulário intuitivo e responsivo
+- Feedback claro para ações do usuário
+- Confirmações adequadas para ações destrutivas
+
+## 📊 **Métricas de Sucesso**
+
+| Critério | Meta |
+|----------|------|
+| **Tempo para criar CodeBlock** | < 2 minutos |
+| **Tempo para editar CodeBlock** | < 1 minuto |
+| **Taxa de erro em formulários** | < 5% |
+| **Satisfação do usuário** | > 4.5/5 |
+| **Performance** | Sem impacto na navegação |
+
+## 🎯 **Resultado Esperado**
+
+Ao final da implementação, a aba **Codes** será uma **ferramenta completa** para gerenciar CodeBlocks, permitindo:
+
+1. **📝 Criação rápida** de novos snippets de código
+2. **✏️ Edição simples** de conteúdo existente  
+3. **👁️ Visualização otimizada** com modal expandido
+4. **🗑️ Remoção segura** com confirmação
+5. **🔍 Busca e filtros** funcionando com dados dinâmicos
+6. **💾 Persistência local** para não perder dados
+
+**🚀 Meta final:** Transformar o 10xDev em uma plataforma interativa onde desenvolvedores podem contribuir e gerenciar seu próprio banco de snippets de código!
