@@ -72,11 +72,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
     },
   ]
 
-  const quickStats = [
-    { label: "Snippets", value: "2.5k+" },
-    { label: "Aulas", value: "150+" },
-    { label: "Projetos", value: "80+" },
-  ]
 
   return (
     <Sidebar collapsible="icon">
@@ -120,19 +115,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Estatísticas</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <div className="space-y-2">
-              {quickStats.map((stat, index) => (
-                <div key={index} className="flex items-center justify-between px-2 py-1 text-sm">
-                  <span className="text-sidebar-foreground/70">{stat.label}</span>
-                  <span className="font-medium">{stat.value}</span>
-                </div>
-              ))}
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Favoritos</SidebarGroupLabel>
