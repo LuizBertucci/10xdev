@@ -630,13 +630,6 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center pt-1">
-                    <span className="text-xs text-gray-500">{snippet.screens[0]?.name}</span>
-                    <Button size="sm" variant="outline" className="h-6 text-xs px-2">
-                      <Code2 className="h-3 w-3 mr-1" />
-                      Ver código
-                    </Button>
-                  </div>
                 </div>
               </CardContent>
             </Card>
