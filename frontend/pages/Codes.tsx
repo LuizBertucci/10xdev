@@ -665,11 +665,29 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="flex-1 overflow-hidden">
-              {/* Modal content would go here */}
-              <div className="p-4">
-                <p className="text-gray-500">Modal de código expandido em desenvolvimento...</p>
-              </div>
+            <div className="flex-1 overflow-auto p-4">
+              {(() => {
+                const snippet = codeSnippets.find(s => s.id === openModalId);
+                if (!snippet) return null;
+                
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                    {snippet.screens.map((screen, index) => (
+                      <div key={index} className="flex flex-col">
+                        <div className="mb-3">
+                          <h4 className="font-medium text-gray-900">{screen.name}</h4>
+                          <p className="text-sm text-gray-600">{screen.description}</p>
+                        </div>
+                        <div className="bg-gray-900 rounded-lg p-4 overflow-auto flex-1">
+                          <pre className="text-sm text-gray-100 leading-relaxed">
+                            <code>{screen.code}</code>
+                          </pre>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
