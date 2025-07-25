@@ -1,5 +1,5 @@
 // ================================================
-// INTERFACES PRINCIPAIS
+// INTERFACES PRINCIPAIS - Sincronizadas com Backend
 // ================================================
 
 /**
@@ -13,6 +13,7 @@ export interface CardFeatureScreen {
 
 /**
  * CardFeature completo com todas as informações
+ * Sincronizado com backend API response
  */
 export interface CardFeature {
   id: string
@@ -21,8 +22,19 @@ export interface CardFeature {
   language: string       // Linguagem de programação (typescript, javascript, python)
   description: string    // Descrição do que o código faz
   screens: CardFeatureScreen[]  // Array de abas/arquivos
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string      // ISO string do backend
+  updatedAt: string      // ISO string do backend
+}
+
+/**
+ * CardFeature com campos adicionais para UI
+ */
+export interface CardFeatureDisplay extends CardFeature {
+  formattedCreatedAt: string
+  formattedUpdatedAt: string
+  screenCount: number
+  isSelected?: boolean
+  isEditing?: boolean
 }
 
 // ================================================
@@ -31,13 +43,14 @@ export interface CardFeature {
 
 /**
  * Dados necessários para criar um novo CardFeature
+ * Sincronizado com backend API
  */
 export interface CreateCardFeatureData {
   title: string
   tech: string
   language: string
   description: string
-  screens: Omit<CardFeatureScreen, 'id'>[]  // Screens sem ID (serão gerados)
+  screens: CardFeatureScreen[]
 }
 
 /**
@@ -61,12 +74,23 @@ export interface CreateScreenData {
 
 /**
  * Estado completo do sistema de CardFeatures
+ * Atualizado para trabalhar com API
  */
 export interface CardFeatureState {
   // Dados principais
   items: CardFeature[]
+  filteredItems: CardFeature[]
+  
+  // Estados de loading
   loading: boolean
+  creating: boolean
+  updating: boolean
+  deleting: boolean
+  fetching: boolean
+  
+  // Estados de erro
   error: string | null
+  lastError: Date | null
 
   // Estados de UI
   selectedItem: CardFeature | null    // Item sendo visualizado no modal
@@ -80,6 +104,13 @@ export interface CardFeatureState {
   activeTab: string                   // Aba ativa no modal
   searchTerm: string                  // Termo de busca
   selectedTech: string                // Filtro de tecnologia selecionado
+  
+  // Paginação
+  currentPage: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+  totalCount: number
 }
 
 // ================================================
@@ -220,12 +251,17 @@ export interface CardFeatureMetadata {
 
 /**
  * Retorno do hook useCardFeatures
+ * Atualizado para trabalhar com API
  */
 export interface UseCardFeaturesReturn {
   // Estado
   items: CardFeature[]
   filteredItems: CardFeature[]
   loading: boolean
+  creating: boolean
+  updating: boolean
+  deleting: boolean
+  fetching: boolean
   error: string | null
   selectedItem: CardFeature | null
   editingItem: CardFeature | null
@@ -236,13 +272,25 @@ export interface UseCardFeaturesReturn {
   activeTab: string
   searchTerm: string
   selectedTech: string
+  
+  // Paginação
+  currentPage: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+  totalCount: number
 
-  // CRUD Operations
-  createCardFeature: (data: CreateCardFeatureData) => Promise<CardFeature>
-  getCardFeature: (id: string) => CardFeature | null
-  updateCardFeature: (id: string, data: UpdateCardFeatureData) => Promise<void>
-  deleteCardFeature: (id: string) => Promise<void>
-  fetchCardFeatures: () => Promise<void>
+  // CRUD Operations (retornam promises da API)
+  createCardFeature: (data: CreateCardFeatureData) => Promise<CardFeature | null>
+  getCardFeature: (id: string) => Promise<CardFeature | null>
+  updateCardFeature: (id: string, data: UpdateCardFeatureData) => Promise<CardFeature | null>
+  deleteCardFeature: (id: string) => Promise<boolean>
+  fetchCardFeatures: (params?: import('./api').QueryParams) => Promise<void>
+  searchCardFeatures: (searchTerm: string) => Promise<void>
+  
+  // Bulk Operations
+  bulkCreate: (items: CreateCardFeatureData[]) => Promise<CardFeature[]>
+  bulkDelete: (ids: string[]) => Promise<number>
 
   // UI Actions
   startCreating: () => void
@@ -256,6 +304,13 @@ export interface UseCardFeaturesReturn {
   setSearchTerm: (term: string) => void
   setSelectedTech: (tech: string) => void
   clearSelection: () => void
+  clearError: () => void
+  
+  // Paginação
+  goToPage: (page: number) => Promise<void>
+  nextPage: () => Promise<void>
+  prevPage: () => Promise<void>
+  refreshData: () => Promise<void>
 }
 
 /**
