@@ -1,5 +1,5 @@
 import { supabaseTyped } from '@/database/supabase'
-import { nanoid } from 'nanoid'
+import { randomUUID } from 'crypto'
 import type {
   CardFeatureRow,
   CardFeatureInsert,
@@ -72,7 +72,7 @@ export class CardFeatureModel {
   static async create(data: CreateCardFeatureRequest): Promise<ModelResult<CardFeatureResponse>> {
     try {
       const insertData: CardFeatureInsert = {
-        id: nanoid(),
+        id: randomUUID(),
         title: data.title,
         tech: data.tech,
         language: data.language,
@@ -271,8 +271,8 @@ export class CardFeatureModel {
       if (!existingCheck.success) {
         return {
           success: false,
-          error: existingCheck.error,
-          statusCode: existingCheck.statusCode
+          error: existingCheck.error || 'Erro ao verificar CardFeature',
+          statusCode: existingCheck.statusCode || 404
         }
       }
 
@@ -409,7 +409,7 @@ export class CardFeatureModel {
   static async bulkCreate(items: CreateCardFeatureRequest[]): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const insertData: CardFeatureInsert[] = items.map(item => ({
-        id: nanoid(),
+        id: randomUUID(),
         title: item.title,
         tech: item.tech,
         language: item.language,

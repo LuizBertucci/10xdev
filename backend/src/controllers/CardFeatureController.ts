@@ -74,9 +74,12 @@ export class CardFeatureController {
   
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
+      const page = req.query.page ? parseInt(req.query.page as string) : 1
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+      
       const params: CardFeatureQueryParams = {
-        page: req.query.page ? parseInt(req.query.page as string) : undefined,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        page,
+        limit,
         tech: req.query.tech as string,
         language: req.query.language as string,
         search: req.query.search as string,
@@ -171,9 +174,12 @@ export class CardFeatureController {
         return
       }
 
+      const page = req.query.page ? parseInt(req.query.page as string) : 1
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+      
       const params: CardFeatureQueryParams = {
-        page: req.query.page ? parseInt(req.query.page as string) : undefined,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        page,
+        limit,
         tech: req.query.tech as string,
         language: req.query.language as string,
         sortBy: req.query.sortBy as any,
@@ -228,9 +234,12 @@ export class CardFeatureController {
         return
       }
 
+      const page = req.query.page ? parseInt(req.query.page as string) : 1
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+      
       const params: CardFeatureQueryParams = {
-        page: req.query.page ? parseInt(req.query.page as string) : undefined,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        page,
+        limit,
         language: req.query.language as string,
         search: req.query.search as string,
         sortBy: req.query.sortBy as any,
@@ -418,7 +427,7 @@ export class CardFeatureController {
       // Validar cada item
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
-        if (!item.title || !item.tech || !item.language || !item.description || !item.screens) {
+        if (!item?.title || !item?.tech || !item?.language || !item?.description || !item?.screens) {
           res.status(400).json({
             success: false,
             error: `Item ${i + 1}: Campos obrigatórios: title, tech, language, description, screens`
@@ -426,7 +435,7 @@ export class CardFeatureController {
           return
         }
 
-        if (!Array.isArray(item.screens) || item.screens.length === 0) {
+        if (!Array.isArray(item?.screens) || item?.screens.length === 0) {
           res.status(400).json({
             success: false,
             error: `Item ${i + 1}: O campo screens deve ser um array com pelo menos um item`

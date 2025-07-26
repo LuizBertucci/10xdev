@@ -60,7 +60,9 @@ class ApiClient {
   }
 
   private buildURL(endpoint: string, params?: Record<string, any>): string {
-    const url = new URL(endpoint, this.baseURL)
+    const baseUrl = this.baseURL.endsWith('/') ? this.baseURL : this.baseURL + '/'
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
+    const url = new URL(cleanEndpoint, baseUrl)
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {

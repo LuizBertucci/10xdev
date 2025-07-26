@@ -132,6 +132,11 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
   const sanitizeObject = (obj: any): any => {
     if (typeof obj !== 'object' || obj === null) return obj
     
+    // Preservar arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => sanitizeObject(item))
+    }
+    
     const sanitized = { ...obj }
     
     // Remove propriedades que começam com $ ou contêm __proto__

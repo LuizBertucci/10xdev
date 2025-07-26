@@ -4,27 +4,17 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, ChevronRight, Maximize2, Code2, X } from "lucide-react"
-
-interface CodeSnippet {
-  id: string
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: {
-    name: string
-    description: string
-    code: string
-  }[]
-}
+import { Textarea } from "@/components/ui/textarea"
+import { Search, Filter, ChevronRight, Maximize2, Code2, X, Loader2, Plus, Save, Edit } from "lucide-react"
+import { useCardFeatures } from "@/hooks/useCardFeatures"
+import type { CardFeature } from "@/types"
 
 interface PlatformState {
   searchTerm: string
   setSearchTerm: (term: string) => void
   selectedTech: string
   setSelectedTech: (tech: string) => void
-  filteredSnippets: (snippets: CodeSnippet[]) => CodeSnippet[]
+  filteredSnippets: (snippets: CardFeature[]) => CardFeature[]
 }
 
 interface CodesProps {
@@ -89,501 +79,73 @@ const getLanguageConfig = (language: string) => {
 export default function Codes({ platformState }: CodesProps) {
   const [currentScreens, setCurrentScreens] = useState<Record<string, number>>({})
   const [openModalId, setOpenModalId] = useState<string | null>(null)
-
-  const codeSnippets: CodeSnippet[] = [
-    {
-      id: "1",
-      title: "Sistema de Autenticação JWT",
-      tech: "Node.js",
-      language: "typescript",
-      description: "Sistema completo de autenticação com JWT, middleware e validação",
-      screens: [
-        {
-          name: "Model",
-          description: "Classe User com métodos de autenticação",
-          code: `import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-
-interface IUser {
-  id: string;
-  email: string;
-  password: string;
-  name: string;
-  role: 'user' | 'admin';
-  createdAt: Date;
-}
-
-export class User {
-  private static users: IUser[] = [];
-  private static nextId = 1;
-
-  constructor(
-    public id: string,
-    public email: string,
-    public password: string,
-    public name: string,
-    public role: 'user' | 'admin' = 'user',
-    public createdAt: Date = new Date()
-  ) {}
-
-  static async create(userData: Omit<IUser, 'id' | 'createdAt'>): Promise<User> {
-    const hashedPassword = await bcrypt.hash(userData.password, 12);
-    
-    const user = new User(
-      String(this.nextId++),
-      userData.email,
-      hashedPassword,
-      userData.name,
-      userData.role,
-      new Date()
-    );
-    
-    this.users.push(user);
-    return user;
-  }
-
-  async comparePassword(password: string): Promise<boolean> {
-    return await bcrypt.compare(password, this.password);
-  }
-
-  generateToken(): string {
-    return jwt.sign(
-      { id: this.id, email: this.email, role: this.role },
-      process.env.JWT_SECRET!,
-      { expiresIn: '7d' }
-    );
-  }
-}`
-        },
-        {
-          name: "Controller",
-          description: "Controlador de autenticação com login e registro",
-          code: `import { Request, Response } from 'express';
-import { User } from '../models/User';
-import { validationResult } from 'express-validator';
-
-export class AuthController {
-  static async register(req: Request, res: Response) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const { email, password, name, role } = req.body;
-
-      const existingUser = User.findByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: 'Usuário já existe' });
-      }
-
-      const user = await User.create({ email, password, name, role });
-      const token = user.generateToken();
-
-      res.status(201).json({
-        message: 'Usuário criado com sucesso',
-        token,
-        user: user.toJSON()
-      });
-    } catch (error) {
-      res.status(500).json({ message: 'Erro interno do servidor' });
-    }
-  }
-
-  static async login(req: Request, res: Response) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const { email, password } = req.body;
-
-      const user = User.findByEmail(email);
-      if (!user) {
-        return res.status(401).json({ message: 'Credenciais inválidas' });
-      }
-
-      const isValidPassword = await user.comparePassword(password);
-      if (!isValidPassword) {
-        return res.status(401).json({ message: 'Credenciais inválidas' });
-      }
-
-      const token = user.generateToken();
-
-      res.json({
-        message: 'Login realizado com sucesso',
-        token,
-        user: user.toJSON()
-      });
-    } catch (error) {
-      res.status(500).json({ message: 'Erro interno do servidor' });
-    }
-  }
-}`
-        }
-      ]
-    },
-    {
-      id: "2",
-      title: "CRUD Completo React + TypeScript",
-      tech: "React",
-      language: "typescript",
-      description: "Implementação completa de CRUD com hooks customizados, formulários e estado global",
-      screens: [
-        {
-          name: "Hook",
-          description: "Hook customizado para gerenciar operações CRUD",
-          code: `import { useState, useEffect, useCallback } from 'react';
-
-interface CrudItem {
-  id: string;
-  name: string;
-  email: string;
-  status: 'active' | 'inactive';
-  createdAt: string;
-}
-
-interface UseCrudReturn {
-  items: CrudItem[];
-  loading: boolean;
-  error: string | null;
-  createItem: (item: Omit<CrudItem, 'id' | 'createdAt'>) => Promise<void>;
-  updateItem: (id: string, item: Partial<CrudItem>) => Promise<void>;
-  deleteItem: (id: string) => Promise<void>;
-  refreshItems: () => Promise<void>;
-}
-
-export const useCrud = (apiEndpoint: string): UseCrudReturn => {
-  const [items, setItems] = useState<CrudItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchItems = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch(apiEndpoint);
-      if (!response.ok) {
-        throw new Error('Falha ao carregar itens');
-      }
-      
-      const data = await response.json();
-      setItems(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro desconhecido');
-    } finally {
-      setLoading(false);
-    }
-  }, [apiEndpoint]);
-
-  const createItem = useCallback(async (newItem: Omit<CrudItem, 'id' | 'createdAt'>) => {
-    try {
-      setError(null);
-      
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newItem)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Falha ao criar item');
-      }
-      
-      const createdItem = await response.json();
-      setItems(prev => [...prev, createdItem]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar item');
-      throw err;
-    }
-  }, [apiEndpoint]);
-
-  const updateItem = useCallback(async (id: string, updates: Partial<CrudItem>) => {
-    try {
-      setError(null);
-      
-      const response = await fetch(\`\${apiEndpoint}/\${id}\`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Falha ao atualizar item');
-      }
-      
-      const updatedItem = await response.json();
-      setItems(prev => prev.map(item => item.id === id ? updatedItem : item));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar item');
-      throw err;
-    }
-  }, [apiEndpoint]);
-
-  const deleteItem = useCallback(async (id: string) => {
-    try {
-      setError(null);
-      
-      const response = await fetch(\`\${apiEndpoint}/\${id}\`, {
-        method: 'DELETE'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Falha ao deletar item');
-      }
-      
-      setItems(prev => prev.filter(item => item.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao deletar item');
-      throw err;
-    }
-  }, [apiEndpoint]);
-
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-
-  return {
-    items,
-    loading,
-    error,
-    createItem,
-    updateItem,
-    deleteItem,
-    refreshItems: fetchItems
-  };
-};`
-        }
-      ]
-    },
-    {
-      id: "3",
-      title: "API REST com Validação",
-      tech: "Python",
-      language: "python",
-      description: "API REST completa com FastAPI, validação Pydantic e operações CRUD",
-      screens: [
-        {
-          name: "Models",
-          description: "Modelos Pydantic para validação de dados",
-          code: `from pydantic import BaseModel, EmailStr, validator
-from typing import Optional, List
-from datetime import datetime
-from enum import Enum
-
-class UserRole(str, Enum):
-    ADMIN = "admin"
-    USER = "user"
-    MODERATOR = "moderator"
-
-class UserStatus(str, Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    SUSPENDED = "suspended"
-
-class UserBase(BaseModel):
-    email: EmailStr
-    name: str
-    role: UserRole = UserRole.USER
-    status: UserStatus = UserStatus.ACTIVE
-
-    @validator('name')
-    def name_must_not_be_empty(cls, v):
-        if not v.strip():
-            raise ValueError('Nome não pode estar vazio')
-        return v.strip()
-
-    @validator('email')
-    def email_must_be_valid(cls, v):
-        if not v:
-            raise ValueError('Email é obrigatório')
-        return v.lower()
-
-class UserCreate(UserBase):
-    password: str
-
-    @validator('password')
-    def password_validation(cls, v):
-        if len(v) < 8:
-            raise ValueError('Senha deve ter pelo menos 8 caracteres')
-        if not any(c.isupper() for c in v):
-            raise ValueError('Senha deve conter pelo menos uma letra maiúscula')
-        if not any(c.islower() for c in v):
-            raise ValueError('Senha deve conter pelo menos uma letra minúscula')
-        if not any(c.isdigit() for c in v):
-            raise ValueError('Senha deve conter pelo menos um número')
-        return v
-
-class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    name: Optional[str] = None
-    role: Optional[UserRole] = None
-    status: Optional[UserStatus] = None
-
-    @validator('name')
-    def name_validator(cls, v):
-        if v is not None and not v.strip():
-            raise ValueError('Nome não pode estar vazio')
-        return v.strip() if v else v
-
-class UserResponse(UserBase):
-    id: str
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-class UserListResponse(BaseModel):
-    users: List[UserResponse]
-    total: int
-    page: int
-    per_page: int
-    has_next: bool
-    has_prev: bool`
-        }
-      ]
-    },
-    {
-      id: "dashboard-metrics",
-      title: "Cards de Métricas Dashboard",
-      tech: "React",
-      language: "typescript",
-      description: "Componentes de métricas para dashboard com gráficos, mudanças percentuais e dados em tempo real",
-      screens: [
-        {
-          name: "Component",
-          description: "Componente principal do card de métrica",
-          code: `import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-
-interface MetricCardProps {
-  title: string;
-  value: string | number;
-  change?: {
-    value: number;
-    type: 'positive' | 'negative' | 'neutral';
-    period: string;
-  };
-  icon?: React.ComponentType<any>;
-  formatter?: 'currency' | 'number' | 'percentage';
-  description?: string;
-  loading?: boolean;
-  className?: string;
-}
-
-const formatValue = (value: string | number, formatter?: string): string => {
-  const numValue = typeof value === 'string' ? parseFloat(value) : value;
   
-  switch (formatter) {
-    case 'currency':
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-      }).format(numValue);
-    case 'percentage':
-      return \`\${numValue.toFixed(1)}%\`;
-    case 'number':
-      return new Intl.NumberFormat('pt-BR').format(numValue);
-    default:
-      return value.toString();
-  }
-};
+  // Usar o hook de CardFeatures com API
+  const cardFeatures = useCardFeatures()
 
-const getTrendIcon = (type: 'positive' | 'negative' | 'neutral') => {
-  switch (type) {
-    case 'positive':
-      return <TrendingUp className="h-4 w-4" />;
-    case 'negative':
-      return <TrendingDown className="h-4 w-4" />;
-    case 'neutral':
-      return <Minus className="h-4 w-4" />;
-  }
-};
+  // State para formulário de criação
+  const [formData, setFormData] = useState({
+    title: '',
+    tech: 'React',
+    language: 'typescript',
+    description: '',
+    screens: [
+      {
+        name: 'Main',
+        description: 'Arquivo principal',
+        code: ''
+      }
+    ]
+  })
 
-const getTrendColor = (type: 'positive' | 'negative' | 'neutral') => {
-  switch (type) {
-    case 'positive':
-      return 'text-green-600 bg-green-50 border-green-200';
-    case 'negative':
-      return 'text-red-600 bg-red-50 border-red-200';
-    case 'neutral':
-      return 'text-gray-600 bg-gray-50 border-gray-200';
-  }
-};
+  // Usar dados da API
+  const codeSnippets = cardFeatures.filteredItems
 
-export const MetricCard: React.FC<MetricCardProps> = ({
-  title,
-  value,
-  change,
-  icon: Icon,
-  formatter,
-  description,
-  loading = false,
-  className = ''
-}) => {
-  if (loading) {
-    return (
-      <Card className={\`\${className} animate-pulse\`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="h-4 bg-gray-200 rounded w-24"></div>
-          <div className="h-4 w-4 bg-gray-200 rounded"></div>
-        </CardHeader>
-        <CardContent>
-          <div className="h-8 bg-gray-200 rounded w-32 mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-20"></div>
-        </CardContent>
-      </Card>
-    );
+  // Funções do formulário
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  return (
-    <Card className={className}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-          {formatValue(value, formatter)}
-        </div>
-        <div className="flex items-center space-x-2 mt-2">
-          {change && (
-            <Badge 
-              variant="outline" 
-              className={\`flex items-center space-x-1 \${getTrendColor(change.type)}\`}
-            >
-              {getTrendIcon(change.type)}
-              <span className="text-xs font-medium">
-                {Math.abs(change.value)}%
-              </span>
-            </Badge>
-          )}
-          {description && (
-            <p className="text-xs text-muted-foreground">
-              {description}
-            </p>
-          )}
-          {change && (
-            <p className="text-xs text-muted-foreground">
-              vs {change.period}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};`
-        }
-      ]
+  const handleScreenChange = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      screens: prev.screens.map((screen, i) => 
+        i === index ? { ...screen, [field]: value } : screen
+      )
+    }))
+  }
+
+  const addScreen = () => {
+    setFormData(prev => ({
+      ...prev,
+      screens: [...prev.screens, { name: '', description: '', code: '' }]
+    }))
+  }
+
+  const removeScreen = (index: number) => {
+    if (formData.screens.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        screens: prev.screens.filter((_, i) => i !== index)
+      }))
     }
-  ]
+  }
+
+  const handleSubmit = async () => {
+    try {
+      await cardFeatures.createCardFeature(formData)
+      // Reset form
+      setFormData({
+        title: '',
+        tech: 'React',
+        language: 'typescript',
+        description: '',
+        screens: [{ name: 'Main', description: 'Arquivo principal', code: '' }]
+      })
+    } catch (error) {
+      console.error('Erro ao criar CardFeature:', error)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -599,17 +161,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button
               onClick={() => {
-                platformState.setSelectedTech("all")
-                platformState.setSearchTerm("")
+                cardFeatures.setSelectedTech("all")
+                cardFeatures.setSearchTerm("")
               }}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Biblioteca de Códigos
             </button>
-            {platformState.selectedTech !== "all" && (
+            {cardFeatures.selectedTech !== "all" && (
               <>
                 <ChevronRight className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-900 font-medium capitalize">{platformState.selectedTech}</span>
+                <span className="text-gray-900 font-medium capitalize">{cardFeatures.selectedTech}</span>
               </>
             )}
           </div>
@@ -619,12 +181,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Buscar snippets..."
-              value={platformState.searchTerm}
-              onChange={(e) => platformState.setSearchTerm(e.target.value)}
+              value={cardFeatures.searchTerm}
+              onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
               className="pl-10 w-64"
+              disabled={cardFeatures.loading}
             />
           </div>
-          <Select value={platformState.selectedTech} onValueChange={platformState.setSelectedTech}>
+          <Select 
+            value={cardFeatures.selectedTech} 
+            onValueChange={cardFeatures.setSelectedTech}
+            disabled={cardFeatures.loading}
+          >
             <SelectTrigger className="w-40">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue />
@@ -637,11 +204,64 @@ export const MetricCard: React.FC<MetricCardProps> = ({
               <SelectItem value="javascript">JavaScript</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            onClick={cardFeatures.startCreating}
+            disabled={cardFeatures.loading || cardFeatures.creating}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {platformState.filteredSnippets(codeSnippets).map((snippet) => {
+      {/* Loading State */}
+      {cardFeatures.loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600">Carregando snippets...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {cardFeatures.error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex">
+            <div className="text-red-600">
+              <X className="h-5 w-5" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Erro ao carregar snippets</h3>
+              <p className="text-sm text-red-700 mt-1">{cardFeatures.error}</p>
+              <button
+                onClick={() => cardFeatures.refreshData()}
+                className="text-sm text-red-600 hover:text-red-800 underline mt-2"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (
+        <div className="text-center py-12">
+          <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum snippet encontrado</h3>
+          <p className="text-gray-600">
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all'
+              ? 'Tente ajustar seus filtros de busca'
+              : 'Ainda não há snippets de código disponíveis'
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Content Grid */}
+      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {codeSnippets.map((snippet) => {
           const currentScreen = currentScreens[snippet.id] || 0
           const screen = snippet.screens[currentScreen]
 
@@ -653,15 +273,26 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                     <CardTitle className="text-base">{snippet.title}</CardTitle>
                     <CardDescription className="text-sm h-10 leading-5 overflow-hidden">{snippet.description}</CardDescription>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setOpenModalId(snippet.id)}
-                    className="text-gray-500 hover:text-gray-900"
-                  >
-                    <Maximize2 className="h-4 w-4 mr-1" />
-                    Expandir
-                  </Button>
+                  <div className="flex space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => cardFeatures.startEditing(snippet)}
+                      className="text-gray-500 hover:text-gray-900"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setOpenModalId(snippet.id)}
+                      className="text-gray-500 hover:text-gray-900"
+                    >
+                      <Maximize2 className="h-4 w-4 mr-1" />
+                      Expandir
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -696,7 +327,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             </Card>
           )
         })}
-      </div>
+        </div>
+      )}
 
       {/* Code Expansion Modal */}
       {openModalId && (
@@ -742,6 +374,422 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create CardFeature Modal */}
+      {cardFeatures.isCreating && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-xl font-semibold">Novo CardFeature</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={cardFeatures.cancelCreating}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6">
+              <div className="space-y-6">
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Título *
+                    </label>
+                    <Input
+                      placeholder="Ex: Sistema de Autenticação JWT"
+                      value={formData.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tecnologia *
+                    </label>
+                    <Select
+                      value={formData.tech}
+                      onValueChange={(value) => handleInputChange('tech', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="React">React</SelectItem>
+                        <SelectItem value="Node.js">Node.js</SelectItem>
+                        <SelectItem value="Python">Python</SelectItem>
+                        <SelectItem value="JavaScript">JavaScript</SelectItem>
+                        <SelectItem value="Vue.js">Vue.js</SelectItem>
+                        <SelectItem value="Angular">Angular</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Linguagem *
+                    </label>
+                    <Select
+                      value={formData.language}
+                      onValueChange={(value) => handleInputChange('language', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="typescript">TypeScript</SelectItem>
+                        <SelectItem value="javascript">JavaScript</SelectItem>
+                        <SelectItem value="python">Python</SelectItem>
+                        <SelectItem value="html">HTML</SelectItem>
+                        <SelectItem value="css">CSS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descrição *
+                  </label>
+                  <Textarea
+                    placeholder="Descreva o que este código faz..."
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Screens/Files */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Arquivos/Abas *
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addScreen}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar Arquivo
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {formData.screens.map((screen, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium">Arquivo {index + 1}</h4>
+                          {formData.screens.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeScreen(index)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Nome do Arquivo
+                            </label>
+                            <Input
+                              placeholder="Ex: Model, Controller, Routes"
+                              value={screen.name}
+                              onChange={(e) => handleScreenChange(index, 'name', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                              Descrição
+                            </label>
+                            <Input
+                              placeholder="Ex: Classe User com métodos..."
+                              value={screen.description}
+                              onChange={(e) => handleScreenChange(index, 'description', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Código
+                          </label>
+                          <Textarea
+                            placeholder="Cole seu código aqui..."
+                            value={screen.code}
+                            onChange={(e) => handleScreenChange(index, 'code', e.target.value)}
+                            rows={8}
+                            className="font-mono text-sm"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end space-x-3 p-4 border-t bg-gray-50">
+              <Button
+                variant="outline"
+                onClick={cardFeatures.cancelCreating}
+                disabled={cardFeatures.creating}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={cardFeatures.creating || !formData.title || !formData.description}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {cardFeatures.creating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Criar CardFeature
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit CardFeature Modal */}
+      {cardFeatures.isEditing && cardFeatures.editingItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-xl font-semibold">Editar CardFeature</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={cardFeatures.cancelEditing}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6">
+              <div className="space-y-6">
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Título *
+                    </label>
+                    <Input
+                      placeholder="Ex: Sistema de Autenticação JWT"
+                      value={cardFeatures.editingItem.title}
+                      onChange={(e) => cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, title: e.target.value })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tecnologia *
+                    </label>
+                    <Select
+                      value={cardFeatures.editingItem.tech}
+                      onValueChange={(value) => cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, tech: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="React">React</SelectItem>
+                        <SelectItem value="Node.js">Node.js</SelectItem>
+                        <SelectItem value="Python">Python</SelectItem>
+                        <SelectItem value="JavaScript">JavaScript</SelectItem>
+                        <SelectItem value="Vue.js">Vue.js</SelectItem>
+                        <SelectItem value="Angular">Angular</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Linguagem *
+                    </label>
+                    <Select
+                      value={cardFeatures.editingItem.language}
+                      onValueChange={(value) => cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, language: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="typescript">TypeScript</SelectItem>
+                        <SelectItem value="javascript">JavaScript</SelectItem>
+                        <SelectItem value="python">Python</SelectItem>
+                        <SelectItem value="html">HTML</SelectItem>
+                        <SelectItem value="css">CSS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descrição *
+                  </label>
+                  <Textarea
+                    placeholder="Descreva o que este código faz..."
+                    value={cardFeatures.editingItem.description}
+                    onChange={(e) => cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+
+                {/* Screens/Files */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Arquivos/Abas *
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newScreens = [...cardFeatures.editingItem.screens, { name: '', description: '', code: '' }]
+                        cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, screens: newScreens })
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar Arquivo
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {cardFeatures.editingItem.screens.map((screen, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium">Arquivo {index + 1}</h4>
+                          {cardFeatures.editingItem.screens.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newScreens = cardFeatures.editingItem.screens.filter((_, i) => i !== index)
+                                cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, screens: newScreens })
+                              }}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Nome do arquivo *
+                            </label>
+                            <Input
+                              placeholder="Ex: component.tsx, utils.js"
+                              value={screen.name}
+                              onChange={(e) => {
+                                const newScreens = [...cardFeatures.editingItem.screens]
+                                newScreens[index] = { ...screen, name: e.target.value }
+                                cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, screens: newScreens })
+                              }}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Descrição *
+                            </label>
+                            <Input
+                              placeholder="Ex: Componente principal"
+                              value={screen.description}
+                              onChange={(e) => {
+                                const newScreens = [...cardFeatures.editingItem.screens]
+                                newScreens[index] = { ...screen, description: e.target.value }
+                                cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, screens: newScreens })
+                              }}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Código *
+                          </label>
+                          <Textarea
+                            placeholder="Cole seu código aqui..."
+                            value={screen.code}
+                            onChange={(e) => {
+                              const newScreens = [...cardFeatures.editingItem.screens]
+                              newScreens[index] = { ...screen, code: e.target.value }
+                              cardFeatures.updateEditingItem({ ...cardFeatures.editingItem, screens: newScreens })
+                            }}
+                            rows={10}
+                            className="font-mono text-sm"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 p-4 border-t">
+              <Button
+                variant="outline"
+                onClick={cardFeatures.cancelEditing}
+                disabled={cardFeatures.updating}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => cardFeatures.updateCardFeature(cardFeatures.editingItem.id, {
+                  title: cardFeatures.editingItem.title,
+                  tech: cardFeatures.editingItem.tech,
+                  language: cardFeatures.editingItem.language,
+                  description: cardFeatures.editingItem.description,
+                  screens: cardFeatures.editingItem.screens
+                })}
+                disabled={cardFeatures.updating || !cardFeatures.editingItem.title || !cardFeatures.editingItem.description}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {cardFeatures.updating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Alterações
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
