@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Maximize2, Edit, Trash2 } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import type { CardFeature as CardFeatureType } from "@/types"
@@ -18,46 +19,67 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
 
   return (
-    <Card className="hover:shadow-lg transition-shadow h-80">
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-base">{snippet.title}</CardTitle>
-            <CardDescription className="text-sm h-10 leading-5 overflow-hidden">
-              {snippet.description}
-            </CardDescription>
+    <TooltipProvider>
+      <Card className="hover:shadow-lg transition-shadow h-80">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-base">{snippet.title}</CardTitle>
+              <CardDescription className="text-sm h-10 leading-5 overflow-hidden">
+                {snippet.description}
+              </CardDescription>
+            </div>
+            <div className="flex space-x-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(snippet)}
+                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Editar CardFeature</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onExpand(snippet.id)}
+                    className="text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-2"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Expandir visualização</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onDelete(snippet.id)}
+                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Excluir CardFeature</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-          <div className="flex space-x-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(snippet)}
-              className="text-gray-500 hover:text-gray-900"
-            >
-              <Edit className="h-4 w-4 mr-1" />
-              Editar
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onExpand(snippet.id)}
-              className="text-gray-500 hover:text-gray-900"
-            >
-              <Maximize2 className="h-4 w-4 mr-1" />
-              Expandir
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(snippet.id)}
-              className="text-gray-500 hover:text-red-600"
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Excluir
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2">
           {/* Badges de tecnologia */}
@@ -113,5 +135,6 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
         </div>
       </CardContent>
     </Card>
+    </TooltipProvider>
   )
 }
