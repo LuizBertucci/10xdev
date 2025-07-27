@@ -58,59 +58,24 @@ backend/
 
 frontend/
 ├── components/
-│   └── ui/                             ✅ (shadcn components)
+│   ├── ui/                             ✅ (shadcn components)
+│   ├── CardFeature.tsx                 ⚠️ (PENDENTE - card individual)
+│   ├── CardFeatureModal.tsx            ⚠️ (PENDENTE - modal visualização)
+│   ├── CardFeatureForm.tsx             ⚠️ (PENDENTE - formulário criação/edição)
+│   └── utils/
+│       └── techConfigs.ts              ⚠️ (PENDENTE - configs tecnologia/linguagem)
 ├── hooks/
 │   └── useCardFeatures.ts              ✅ (hook completo com CRUD + UI states)
 ├── services/
 │   ├── apiClient.ts                    ✅ (cliente HTTP genérico)
 │   └── cardFeatureService.ts           ✅ (service layer para API)
 ├── pages/
-│   └── Codes.tsx                       ✅ (página completa com todos os modais)
+│   └── Codes.tsx                       ✅ (página monolítica - PRECISA COMPONENTIZAÇÃO)
 └── types/
     └── cardfeature.ts                  ✅ (tipos TypeScript frontend)
 ```
 
-### **🔄 Estados Implementados**
-```typescript
-interface CardFeatureState {
-  // Dados principais ✅
-  items: CardFeature[]
-  filteredItems: CardFeature[]
-  
-  // Estados de loading ✅
-  loading: boolean
-  creating: boolean
-  updating: boolean
-  deleting: boolean
-  fetching: boolean
-  
-  // Estados de erro ✅
-  error: string | null
-  lastError: Date | null
-
-  // Estados de UI ✅
-  selectedItem: CardFeature | null
-  editingItem: CardFeature | null
-  isCreating: boolean
-  isEditing: boolean
-  showDeleteConfirm: boolean
-  deleteItemId: string | null
-
-  // Controles de interface ✅
-  activeTab: string
-  searchTerm: string
-  selectedTech: string
-  
-  // Paginação ✅
-  currentPage: number
-  totalPages: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
-  totalCount: number
-}
-```
-
-### **🎯 Funcionalidades Implementadas**
+### **Funcionalidades Implementadas**
 
 #### **Backend (Node.js + TypeScript + Supabase)**
 - ✅ **CRUD completo** - Create, Read, Update, Delete
@@ -252,17 +217,7 @@ items: items
 
 **Resultado**: ✅ Cards agora carregam corretamente na inicialização
 
-## 📊 **Métricas Atuais**
-
-| Critério | Status | Meta Original |
-|----------|---------|-------|
-| **Tempo para criar CardFeature** | ✅ ~1-2 min | < 2 minutos |
-| **Tempo para editar CardFeature** | ✅ ~30-60s | < 1 minuto |
-| **Taxa de erro em formulários** | ✅ ~0% | < 5% |
-| **Performance** | ✅ Sem impacto | Sem impacto na navegação |
-| **CRUD Completo** | 🟡 75% (sem Delete UI) | 100% |
-
-## 🎯 **Status Final**
+## **Status Final**
 
 ### **✅ Funcionalidades Implementadas**
 1. ✅ **Criação completa** - Modal com formulário e abas dinâmicas
@@ -273,23 +228,106 @@ items: items
 6. ✅ **Estados de loading** - Feedback visual para todas as operações
 7. ✅ **Tratamento de erros** - Com retry e mensagens claras
 
-### **⚠️ Funcionalidades Pendentes**
-1. ❌ **Remoção com UI** - Lógica existe, falta botão e modal de confirmação
-2. ❌ **Syntax highlighting** - Usando textarea simples
-3. ❌ **Animações** - Interface funcional mas sem transitions
-4. ❌ **Drag & drop** - Para reordenar abas
+### **🚀 Melhorias Futuras Opcionais**
+1. ❌ **Syntax highlighting** - Editor de código com destaque de sintaxe
+2. ❌ **Animações** - Transitions suaves entre estados
+3. ❌ **Drag & drop** - Para reordenar abas dos arquivos
+4. ❌ **Exportação** - Download de CardFeatures em formatos diversos
+5. ❌ **Favoritos** - Sistema de marcação de snippets importantes
 
-### **🚀 Resultado Atual**
+## 🎨 **Próxima Evolução: CardFeature Modernizado**
 
-A aba **Codes** agora é uma **ferramenta funcional** para gerenciar CardFeatures, permitindo:
+### **🎯 Objetivo: Transformar CardFeature em Interface Moderna com Abas**
 
-1. ✅ **Criação rápida** de novos snippets com múltiplos arquivos organizados em abas
-2. ✅ **Edição simples** de conteúdo existente com preservação das abas
-3. ✅ **Visualização otimizada** com modal expandido e navegação entre arquivos
-4. ⚠️ **Remoção** - lógica pronta, falta interface
-5. ✅ **Busca e filtros** funcionando perfeitamente com dados dinâmicos
-6. ✅ **Persistência no backend** para dados seguros
+**Motivação**: Melhorar preview de código e navegação entre múltiplos arquivos diretamente no card
 
-**🎉 Meta alcançada (75%):** O 10xDev agora permite que desenvolvedores criem e gerenciem seus próprios CardFeatures com **sistema de abas organizadas**!
+---
 
-**🔜 Próximos passos:** Implementar interface de remoção e melhorias de UX (syntax highlighting, animações).
+## **📋 Plano de Implementação - CardFeature v2.0**
+
+### **🚀 Fase 1: Sistema de Abas Interno** (Prioridade máxima)
+**Funcionalidade principal que muda a experiência**
+
+#### **📝 Implementação:**
+1. **Estado interno** - `useState(0)` para aba ativa dentro do CardFeature.tsx
+2. **Renderização das abas** - Sempre mostrar, mesmo se 1 arquivo
+3. **Navegação** - Click handler para trocar abas
+4. **Estilos** - Aba ativa vs inativa, hover states
+5. **Preview dinâmico** - Mostrar código da aba selecionada
+
+#### **🎨 Resultado Visual:**
+```
+┌─────────────────────────────────────────────────┐
+│ Sistema Auth JWT              [Edit][View][Del] │
+│ Sistema completo de auth...                     │
+│ [React][TS]                                     │
+├─────────────────────────────────────────────────┤
+│ [Model.ts]                                      │ ← Aba única sempre visível
+├─────────────────────────────────────────────────┤
+│ export class UserModel {                        │ ← Código da aba ativa
+│   private id: string                            │
+│   constructor() { ... }                         │
+└─────────────────────────────────────────────────┘
+
+// OU com múltiplas abas:
+┌─────────────────────────────────────────────────┐
+│ [Model.ts] [Controller.ts] [Routes.ts]         │ ← Múltiplas abas
+├─────────────────────────────────────────────────┤
+│ export class UserModel { ...                   │ ← Código da aba ativa
+└─────────────────────────────────────────────────┘
+```
+
+#### **🏗️ Estrutura Técnica:**
+```tsx
+// Dentro do CardFeature.tsx
+const [activeTab, setActiveTab] = useState(0)
+const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
+
+// Abas Header - SEMPRE VISÍVEL
+<div className="flex border-b border-gray-200">
+  {snippet.screens.map((screen, index) => (
+    <button
+      key={index}
+      onClick={() => setActiveTab(index)}
+      className={activeTab === index ? 'active-tab' : 'inactive-tab'}
+    >
+      {screen.name}
+    </button>
+  ))}
+</div>
+
+// Preview do Código - Aba Ativa
+<div className="bg-gray-900 rounded-b-md">
+  <code>{activeScreen.code.slice(0, 200)}...</code>
+</div>
+```
+
+### **🚀 Fase 2: Ícones + Tooltips** (UX polish)
+**Após abas funcionando, limpar interface**
+
+#### **📝 Implementação:**
+1. Remover textos dos botões (Editar → ✏️, Expandir → 👁️, Excluir → 🗑️)
+2. Adicionar Tooltip component do shadcn/ui
+3. Melhorar hover states com animações suaves
+4. Ajustar espaçamentos para layout mais limpo
+
+### **🚀 Fase 3: Syntax Highlighting** (Visual polish)
+**Por último, melhorar aparência do código**
+
+#### **📝 Implementação:**
+1. Biblioteca de highlighting (Prism.js ou highlight.js)
+2. Detecção automática por linguagem do CardFeature
+3. Temas de cores que combinam com o design
+4. Integração com o sistema de abas
+
+## **🎯 Benefícios Esperados**
+
+### **📈 UX Melhorada:**
+- **Mais informativo**: Ver múltiplos arquivos sem abrir modal
+- **Mais limpo**: Interface menos cluttered com ícones
+- **Mais profissional**: Preview com abas como IDEs modernas
+
+### **🔧 Técnico:**
+- **Tudo centralizado**: Lógica das abas dentro do próprio CardFeature
+- **Performance**: Sem overhead de componentes extras
+- **Manutenibilidade**: Código coeso e fácil de entender
