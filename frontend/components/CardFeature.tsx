@@ -29,7 +29,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 
   return (
     <TooltipProvider>
-      <Card className="shadow-lg hover:shadow-xl transition-shadow h-[25rem]">
+      <Card className="shadow-lg hover:shadow-xl transition-shadow h-[28rem]">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
@@ -108,21 +108,19 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
           </div>
 
           {/* Sistema de Abas + Preview */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* Abas Header - SEMPRE VISÍVEL */}
-            <div className="flex border-b border-gray-200 bg-gray-50 rounded-t-md">
+            <div className="flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
               {snippet.screens.map((screen, index) => (
                 <button
                   key={index}
                   onClick={() => setActiveTab(index)}
                   className={`
-                    px-3 py-2 text-xs font-medium transition-all duration-200 relative
+                    px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative
                     ${activeTab === index 
-                      ? 'text-blue-600 bg-white border-b-2 border-blue-600 -mb-px z-10' 
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
                     }
-                    ${index === 0 ? 'rounded-tl-md' : ''}
-                    ${index === snippet.screens.length - 1 ? 'rounded-tr-md' : ''}
                   `}
                 >
                   {screen.name}
@@ -131,21 +129,32 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
             </div>
 
             {/* Preview do Código - Aba Ativa com Syntax Highlighting */}
-            <div className="rounded-xl shadow-xl p-6 h-52 overflow-hidden relative group" 
+            <div className="rounded-xl shadow-xl p-6 h-64 overflow-y-auto relative group" 
             style={{backgroundColor: 'rgb(162, 164, 165)', 
-            fontFamily: 'JetBrains Mono, Fira Code, Consolas, Monaco, monospace'}}>
-              <div className="relative z-10">
+            fontFamily: 'Fira Code, Consolas, Monaco, monospace'}}>
+              <style>{`
+                .codeblock-scroll::-webkit-scrollbar {
+                  width: 8px;
+                }
+                .codeblock-scroll::-webkit-scrollbar-track {
+                  background: rgba(0, 0, 0, 0.1);
+                  border-radius: 4px;
+                }
+                .codeblock-scroll::-webkit-scrollbar-thumb {
+                  background: rgba(0, 0, 0, 0.3);
+                  border-radius: 4px;
+                }
+                .codeblock-scroll::-webkit-scrollbar-thumb:hover {
+                  background: rgba(0, 0, 0, 0.5);
+                }
+              `}</style>
+              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
                 <SyntaxHighlighter
                   code={activeScreen.code}
                   language={snippet.language}
-                  maxLength={200}
                 />
-                <span className="text-xs text-gray-400">...</span>
               </div>
               {/* <div className="absolute inset-0 opacity-60 group-hover:opacity-30 transition-opacity" style={{background: 'linear-gradient(to top, #374151 0%, transparent 50%, transparent 100%)'}}></div> */}
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400 group-hover:text-gray-300 z-20">
-                {snippet.screens.length} arquivo{snippet.screens.length > 1 ? "s" : ""}
-              </div>
             </div>
           </div>
         </div>
