@@ -18,7 +18,7 @@ export const detectLanguage = (language: string): string => {
   }
 }
 
-// Aplicar highlighting básico usando regex (versão simplificada)
+// Aplicar highlighting básico usando regex (versão com tokens)
 export const applyBasicHighlighting = (code: string, language: string): string => {
   const lang = detectLanguage(language)
   
@@ -44,8 +44,8 @@ export const applyBasicHighlighting = (code: string, language: string): string =
     
     // Strings com tokens únicos
     highlightedCode = highlightedCode.replace(
-      /(["'`])([^"'`]*?)\1/g,
-      (match, quote1, content, quote2) => {
+      /([\"'`])([^\"'`]*?)\1/g,
+      (match, quote1, content) => {
         const token = `__TOKEN_${tokenIndex++}__`
         tokens.push({ token, replacement: `<span class="syntax-string">${quote1}${content}${quote1}</span>` })
         return token
@@ -62,27 +62,39 @@ export const applyBasicHighlighting = (code: string, language: string): string =
       }
     )
     
-    // Numbers
+    // Numbers com tokens únicos
     highlightedCode = highlightedCode.replace(
       /\b(\d+\.?\d*)\b/g,
-      '<span class="syntax-number">$1</span>'
+      (match, number) => {
+        const token = `__TOKEN_${tokenIndex++}__`
+        tokens.push({ token, replacement: `<span class="syntax-number">${number}</span>` })
+        return token
+      }
     )
     
-    // Comments (linha única)
+    // Comments com tokens únicos
     highlightedCode = highlightedCode.replace(
       /(\/\/.*$)/gm,
-      '<span class="syntax-comment">$1</span>'
+      (match, comment) => {
+        const token = `__TOKEN_${tokenIndex++}__`
+        tokens.push({ token, replacement: `<span class="syntax-comment">${comment}</span>` })
+        return token
+      }
     )
     
-    // Operators
+    // Operators com tokens únicos
     highlightedCode = highlightedCode.replace(
       /([+\-*\/=<>!&|?:]+)/g,
-      '<span class="syntax-operator">$1</span>'
+      (match, operator) => {
+        const token = `__TOKEN_${tokenIndex++}__`
+        tokens.push({ token, replacement: `<span class="syntax-operator">${operator}</span>` })
+        return token
+      }
     )
     
     // Substituir tokens de volta por HTML
     tokens.forEach(({ token, replacement }) => {
-      highlightedCode = highlightedCode.replace(token, replacement)
+      highlightedCode = highlightedCode.replaceAll(token, replacement)
     })
   }
   
@@ -95,7 +107,7 @@ export const applyBasicHighlighting = (code: string, language: string): string =
     
     // Strings
     highlightedCode = highlightedCode.replace(
-      /(["'])((?:(?!\1)[^\\]|\\.)*)(\1)/g,
+      /([\"'])((?:(?!\1)[^\\]|\\.)*)(\\1)/g,
       '<span class="syntax-string">$1$2$3</span>'
     )
     
@@ -109,7 +121,7 @@ export const applyBasicHighlighting = (code: string, language: string): string =
   if (lang === 'html') {
     // HTML tags
     highlightedCode = highlightedCode.replace(
-      /(<\/?[\w\s="/.':;#-\/\?]+>)/g,
+      /(<\/?[\w\s=\"/.':;#-\/\?]+>)/g,
       '<span class="syntax-tag">$1</span>'
     )
   }
@@ -130,47 +142,48 @@ export const applyBasicHighlighting = (code: string, language: string): string =
   return highlightedCode
 }
 
-// Estilos CSS para syntax highlighting (otimizados para fundo escuro)
+// Estilos CSS para syntax highlighting (otimizados para fundo cinza claro)
 export const syntaxHighlightStyles = `
   .syntax-keyword {
-    color: #ff79c6;
+    color: #1e40af;
     font-weight: 600;
   }
   
   .syntax-string {
-    color: #f1fa8c;
+    color: #059669;
   }
   
   .syntax-number {
-    color: #bd93f9;
+    color: #7c3aed;
     font-weight: 500;
   }
   
   .syntax-comment {
-    color: #6272a4;
+    color: #6b7280;
     font-style: italic;
   }
   
   .syntax-tag {
-    color: #ff79c6;
+    color: #dc2626;
   }
   
   .syntax-selector {
-    color: #50fa7b;
+    color: #059669;
     font-weight: 500;
   }
   
   .syntax-property {
-    color: #8be9fd;
+    color: #0891b2;
   }
   
   .syntax-function {
-    color: #50fa7b;
-    font-weight: 500;
+    color: #dc2626;
+    font-weight: 600;
   }
   
   .syntax-operator {
-    color: #ff79c6;
+    color: #1f2937;
+    font-weight: 500;
   }
   
   /* Garantir que o highlighting seja visível mesmo com o gradiente overlay */
