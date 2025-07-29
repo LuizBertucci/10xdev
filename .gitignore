@@ -29,3 +29,7 @@ yarn-error.log*
 next-env.d.ts
 /frontend/.next/
 /frontend/.next/trace
+*.ttf
+*.woff2
+JetBrainsMono/
+JetBrainsMono.zip
