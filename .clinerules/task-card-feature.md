@@ -86,11 +86,6 @@ Sistema CRUD **quase completo** - falta apenas funcionalidade de **Delete**.
 14. [ ] **Tablet**: Aproveitamento otimizado do espaço
 15. [ ] **Desktop**: Máximo de altura para evitar scroll excessivo
 
-**Inspiração Visual:**
-- **GitHub gists**: Cards de código elegantes
-- **CodePen**: Interface limpa e moderna
-- **VS Code**: Tema escuro profissional
-
 ---
 
 #### **UX/UI Enhancements (Secundário)**

@@ -35,18 +35,19 @@ export default function SyntaxHighlighter({
           background: transparent !important;
           background-color: transparent !important;
         }
-        .syntax-keyword { color: #ff79c6; font-weight: 600; }
-        .syntax-string { color: #f1fa8c; }
-        .syntax-number { color: #bd93f9; font-weight: 500; }
-        .syntax-comment { color: #6272a4; font-style: italic; }
-        .syntax-function { color: #50fa7b; font-weight: 600; }
-        .syntax-operator { color: #ff79c6; font-weight: 500; }
-        .syntax-tag { color: #ff79c6; }
-        .syntax-selector { color: #50fa7b; font-weight: 500; }
-        .syntax-property { color: #8be9fd; }
+        .syntax-keyword { color: #1e40af; font-weight: 600; }
+        .syntax-string { color: #059669; }
+        .syntax-number { color: #7c3aed; font-weight: 500; }
+        .syntax-comment { color: #6b7280; font-style: italic; }
+        .syntax-function { color: #dc2626; font-weight: 600; }
+        .syntax-operator { color: #1f2937; font-weight: 500; }
+        .syntax-tag { color: #dc2626; }
+        .syntax-selector { color: #059669; font-weight: 500; }
+        .syntax-property { color: #0891b2; }
       `}</style>
-      <pre className="codeblock-pre text-xs text-black leading-tight">
+      <pre className="codeblock-pre text-xs text-black leading-tight whitespace-pre-wrap break-words" style={{fontFamily: 'Consolas, Monaco, "Courier New", monospace !important', wordWrap: 'break-word', overflowWrap: 'break-word'}}>
         <code 
+          style={{fontFamily: 'Consolas, Monaco, "Courier New", monospace !important'}}
           dangerouslySetInnerHTML={{ 
             __html: highlightedCode
           }}

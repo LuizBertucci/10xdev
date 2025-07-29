@@ -131,7 +131,9 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
             </div>
 
             {/* Preview do Código - Aba Ativa com Syntax Highlighting */}
-            <div className="rounded-xl shadow-xl p-6 h-52 overflow-hidden relative group" style={{backgroundColor: 'rgb(162, 164, 165)'}}>
+            <div className="rounded-xl shadow-xl p-6 h-52 overflow-hidden relative group" 
+            style={{backgroundColor: 'rgb(162, 164, 165)', 
+            fontFamily: 'JetBrains Mono, Fira Code, Consolas, Monaco, monospace'}}>
               <div className="relative z-10">
                 <SyntaxHighlighter
                   code={activeScreen.code}
