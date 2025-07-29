@@ -64,41 +64,105 @@ Sistema CRUD **quase completo** - falta apenas funcionalidade de **Delete**.
 **Melhorias Planejadas:**
 
 **📐 Estrutura Visual**
-1. [x] **Bordas arredondadas**: `border-radius: 12px` para suavizar aparência ✅
-2. [x] **Drop shadow**: Sombra sutil para dar profundidade (`shadow-lg` ou customizada) ✅
-3. [x] **Padding interno**: Espaçamento consistente para melhor legibilidade ✅
-4. [x] **Background cinza**: Mudar fundo atual (preto) para cinza escuro (bg-gray-900 ou similar) ✅
+1. [x] **Bordas arredondadas**: `rounded-xl` para suavizar aparência ✅
+2. [x] **Drop shadow**: Sombra intensa (`shadow-xl`) para dar profundidade ✅
+3. [x] **Padding interno**: `p-6` para espaçamento consistente ✅
+4. [x] **Background cinza**: Fundo cinza claro `rgb(162, 164, 165)` para contraste ✅
+5. [x] **Altura expandida**: CodeBlock com `h-64` (256px) para mais espaço ✅
 
 **🎨 Estética do Código**
-5. [ ] **Header com linguagem**: Badge pequeno no canto superior direito (ex: "TS", "JS")
-6. [ ] **Numeração de linhas**: Opcional, com cor mais suave (#6B7280)
-7. [ ] **Scroll personalizado**: Scrollbar customizada mais fina e elegante
-8. [ ] **Syntax highlighting aprimorado**: Cores mais vibrantes e contrastantes
+6. [x] **Fonte monospace premium**: `Fira Code, Consolas, Monaco` para código elegante ✅
+7. [x] **Scroll personalizado**: Scrollbar fina (8px) com estilo discreto integrado ✅
+8. [x] **Syntax highlighting adaptado**: Cores ajustadas para fundo cinza claro ✅
+9. [x] **Quebra de linha**: `whitespace-pre-wrap break-words` respeitando container ✅
+10. [x] **Código completo**: Removido `maxLength`, mostra código inteiro com scroll ✅
 
 **✨ Interatividade**
-9. [ ] **Hover effect**: Leve elevação da sombra ao passar mouse
-10. [ ] **Copy button**: Botão "📋 Copy" que aparece no hover (canto superior direito)
-11. [ ] **Expand/collapse**: Para códigos muito longos (>10 linhas)
-12. [ ] **Transições suaves**: `transition-all duration-300` para mudanças de estado
+11. [x] **Card hover effect**: `shadow-lg hover:shadow-xl` sempre presente ✅
+12. [x] **Scroll funcional**: Navegação vertical no código completo ✅
+13. [x] **Transições suaves**: `transition-all duration-300` para mudanças de estado ✅
+14. [x] **Abas modernas**: Design pill com gradiente, sombra e hover elevation ✅
 
-**📱 Responsividade**
-13. [ ] **Mobile**: Fonte menor, scroll horizontal suave
-14. [ ] **Tablet**: Aproveitamento otimizado do espaço
-15. [ ] **Desktop**: Máximo de altura para evitar scroll excessivo
+**🎭 Design das Abas (Novo)**
+15. [x] **Pill style**: Abas com `rounded-lg` para visual moderno ✅
+16. [x] **Gradiente sutil**: Container com `from-gray-50 to-gray-100` ✅
+17. [x] **Aba ativa destacada**: `shadow-md scale-105` para feedback visual ✅
+18. [x] **Hover elevation**: `-translate-y-0.5` nas abas inativas ✅
+19. [x] **Efeitos translúcidos**: `bg-white/50` no hover das abas ✅
+
+**📏 Dimensões Otimizadas**
+20. [x] **CardFeature expandido**: `h-[28rem]` (448px) para mais espaço ✅
+21. [x] **CodeBlock maior**: `h-64` (256px) para melhor visualização ✅
+22. [x] **Espaçamento balanceado**: `space-y-2` entre abas e código ✅
 
 ---
-
-#### **UX/UI Enhancements (Secundário)**
-- **Animações**: Transições suaves entre estados (hover, modal open/close)
-- **Micro-interações**: Feedback visual em botões e cards
-- **Loading states**: Skeleton loaders para cards durante carregamento
-- **Empty states**: Melhor design quando não há CardFeatures
 
 #### **Interface Moderna (Futuro)**
 - **Drag & drop**: Reordenar abas dentro do formulário
 - **Preview em tempo real**: Visualização do card durante edição no form
 - **Temas**: Light/dark mode toggle
 - **Responsividade**: Otimizar grid para tablets e mobile
+
+#### **🎯 PRÓXIMA FEATURE: Adicionar Aba Dinâmica**
+
+**Objetivo**: Permitir adicionar novas abas diretamente no card, ao lado das abas existentes
+
+**📋 Análise Completa - Do Início ao Fim:**
+
+**🎨 1. Interface (Frontend)**
+- Botão "+" ao lado direito da última aba no CardFeature
+- Estilo consistente com design pill das abas atuais
+- Modal/dropdown para configurar nova aba (nome, descrição, código inicial)
+- Feedback visual durante criação (loading, sucesso, erro)
+
+**⚙️ 2. Estado e Lógica (Frontend)**
+- Adicionar função `onAddScreen` no componente CardFeature
+- Estado local para modal de criação de aba
+- Validação de campos obrigatórios (nome único, não vazio)
+- Integração com hook `useCardFeatures` para persistir mudança
+
+**🔗 3. API Backend**
+- Novo endpoint PUT `/api/card-features/:id/screens` para adicionar screen
+- Validação no controller para limites (máx. 10 abas?)
+- Atualização do array `screens` no banco de dados
+- Resposta com CardFeature atualizado
+
+**💾 4. Banco de Dados**
+- Campo `screens` já suporta array dinâmico (JSONB no PostgreSQL)
+- Sem mudanças na estrutura necessárias
+- Possível índice para performance se muitas screens
+
+**🔄 5. Sincronização Estado**
+- Após API success, atualizar estado local do card
+- Refresh da lista de CardFeatures no hook
+- Manter aba recém-criada como ativa
+- Scroll automático se necessário
+
+**📱 6. UX/UI Considerações**
+- Posição do botão "+" (direita das abas vs fixo)
+- Tamanho e hover states consistentes com abas
+- Loading state durante criação
+- Tratamento de erros (nome duplicado, limite atingido)
+- Confirmação visual de sucesso
+
+**🧪 7. Casos Edge**
+- Limite máximo de abas (UX + performance)
+- Nomes duplicados de abas
+- Falha na API (rollback do estado)
+- Validação de código vazio/inválido
+- Responsividade com muitas abas
+
+**🔍 8. Fluxo Completo**
+1. User clica no "+" ao lado das abas
+2. Modal abre com campos: nome, descrição, código
+3. User preenche e clica "Adicionar"
+4. Frontend valida campos localmente
+5. API call PUT `/api/card-features/:id/screens`
+6. Backend valida e atualiza banco
+7. Resposta retorna CardFeature atualizado
+8. Frontend atualiza estado e fecha modal
+9. Nova aba aparece e fica ativa
+10. Scroll automático se necessário
 
 #### **Funcionalidades Avançadas (Futuro)**
 - **Sistema de favoritos**: Marcar CardFeatures importantes

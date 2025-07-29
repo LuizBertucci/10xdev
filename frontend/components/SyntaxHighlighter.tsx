@@ -3,20 +3,16 @@ import { applyBasicHighlighting } from './utils/syntaxUtils'
 interface SyntaxHighlighterProps {
   code: string
   language: string
-  maxLength?: number
 }
 
 // Componente de syntax highlighting usando nossa implementação interna
 // (react-syntax-highlighter removido devido a conflitos de dependência)
 export default function SyntaxHighlighter({ 
   code, 
-  language, 
-  maxLength = 200 
+  language
 }: SyntaxHighlighterProps) {
-  const truncatedCode = code.slice(0, maxLength)
-  
   // Usar nossa implementação interna de highlighting
-  const highlightedCode = applyBasicHighlighting(truncatedCode, language)
+  const highlightedCode = applyBasicHighlighting(code, language)
   
   return (
     <div style={{ position: 'relative', zIndex: 1, backgroundColor: 'transparent' }}>

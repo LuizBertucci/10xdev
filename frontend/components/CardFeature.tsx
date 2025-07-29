@@ -29,7 +29,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 
   return (
     <TooltipProvider>
-      <Card className="shadow-lg hover:shadow-xl transition-shadow h-[28rem]">
+      <Card className="shadow-lg hover:shadow-xl transition-shadow h-[29rem]">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
