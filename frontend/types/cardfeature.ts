@@ -295,7 +295,7 @@ export interface UseCardFeaturesReturn {
   // UI Actions
   startCreating: () => void
   cancelCreating: () => void
-  startEditing: (id: string) => void
+  startEditing: (item: CardFeature) => void
   cancelEditing: () => void
   selectCardFeature: (id: string) => void
   setActiveTab: (tabName: string) => void

@@ -1,333 +1,169 @@
-# 🚀 **Task: Sistema CRUD para CardFeatures** ✅ **CONCLUÍDO**
+# Task: Sistema CRUD para CardFeatures ✅ **CONCLUÍDO**
 
-## 🎯 **Objetivo da Funcionalidade**
+## Status Atual
+Sistema CRUD **quase completo** - falta apenas funcionalidade de **Delete**.
 
-~~Transformar a aba **Codes** de uma visualização estática em um **sistema CRUD completo**~~ ✅ **IMPLEMENTADO**, permitindo que usuários criem, editem, visualizem e removam CardFeatures de forma interativa. Cada CardFeature terá **abas internas** para organizar diferentes arquivos (Model, Controller, etc.).
+### Implementado ✅
+- **Create**: Formulário com abas dinâmicas para múltiplos arquivos
+- **Read**: Grid com filtros, busca e modal de visualização com abas
+- **Update**: Edição completa preservando estrutura de abas
+- **CardFeature v2.0**: Abas internas + ícones + syntax highlighting
 
-## 📋 **Status dos Requisitos Funcionais**
+### Pendente ❌
+- **Delete**: Botão de remoção + modal de confirmação
 
-### **🔍 1. Visualização (Read)** ✅ **CONCLUÍDO**
-- ✅ **Implementado** - Grid de CardFeatures com filtros e busca
-- ✅ **Implementado** - Modal expansivo com visualização de múltiplas abas/arquivos
-- ✅ **Implementado** - Navegação entre abas dentro do modal
-- ✅ **Implementado** - Indicadores visuais (tecnologia, linguagem, número de arquivos)
+### **✅ Fase 1: Fundação Arquitetural**
+- **Backend**: Controllers, Models, Routes com Supabase
+- **Frontend**: Hook useCardFeatures + Service Layer
+- **Tipos**: Interfaces TypeScript compartilhadas
+- **Persistência**: API RESTful + PostgreSQL
 
-### **➕ 2. Criação (Create)** ✅ **CONCLUÍDO**
-- ✅ **Implementado** - Formulário de criação com campos:
-  - `title` (string, obrigatório)
-  - `tech` (select, obrigatório) 
-  - `language` (select, obrigatório)
-  - `description` (textarea, obrigatório)
-  - `screens[]` (array dinâmico com **sistema de abas**):
-    - `name` (string, obrigatório) - Nome da aba (ex: "Model", "Controller")
-    - `description` (string, obrigatório) - Descrição do arquivo
-    - `code` (textarea, obrigatório)
-- ✅ **Implementado** - Validação em tempo real
-- ✅ **Implementado** - Sistema de abas dinâmicas (adicionar/remover arquivos)
-- ✅ **Implementado** - Botão "Novo CardFeature" na interface
-- ✅ **Implementado** - Reset automático do formulário após criação
+### **✅ Fase 2: CRUD - Create**
+- Formulário modal com campos obrigatórios
+- Sistema de abas dinâmicas (adicionar/remover arquivos)
+- Validação em tempo real
+- Reset automático pós-criação
 
-### **✏️ 3. Edição (Update)** ✅ **CONCLUÍDO**
-- ✅ **Implementado** - Formulário de edição (mesmo layout da criação)
-- ✅ **Implementado** - Carregamento dos dados existentes com abas preservadas
-- ✅ **Implementado** - Botão "Editar" em cada CardFeature
-- ✅ **Implementado** - Gerenciamento de abas (adicionar/remover)
-- ✅ **Implementado** - Salvamento com confirmação visual
+### **✅ Fase 3: CRUD - Read**
+- Grid responsivo com filtros por tecnologia
+- Busca em tempo real com debounce
+- Modal expansivo com navegação entre abas
+- Loading states e tratamento de erros
 
-### **🗑️ 4. Remoção (Delete)** ⚠️ **PENDENTE**
-- ❌ **Não implementado** - Botão "Remover" em cada CardFeature
-- ❌ **Não implementado** - Modal de confirmação com preview do item
-- ❌ **Não implementado** - Remoção da lista e persistência
+### **✅ Fase 4: CRUD - Update**
+- Reutilização do formulário de criação
+- Carregamento de dados existentes
+- Preservação da estrutura de abas
+- Confirmação visual de salvamento
 
-## 🏗️ **Arquitetura Técnica Implementada**
+### **✅ Fase 5: CardFeature v2.0 - Interface Moderna**
+- **Abas internas**: Sistema de abas dentro de cada card
+- **Ícones + tooltips**: Interface limpa (✏️ Editar, 👁️ Expandir)
+- **Syntax highlighting**: Implementação interna sem dependências
 
-### **📁 Estrutura de Arquivos Atual**
-```
-backend/
-├── src/
-│   ├── controllers/
-│   │   └── CardFeatureController.ts    ✅ (CRUD completo)
-│   ├── models/
-│   │   └── CardFeatureModel.ts         ✅ (com Supabase)
-│   ├── routes/
-│   │   └── cardFeatureRoutes.ts        ✅ (todas as rotas CRUD)
-│   ├── types/
-│   │   └── cardfeature.ts              ✅ (tipos TypeScript)
-│   └── middleware/
-│       └── errorHandler.ts             ✅ (tratamento de erros)
+## 🎯 Próximos Passos
 
-frontend/
-├── components/
-│   ├── ui/                             ✅ (shadcn components)
-│   ├── CardFeature.tsx                 ⚠️ (PENDENTE - card individual)
-│   ├── CardFeatureModal.tsx            ⚠️ (PENDENTE - modal visualização)
-│   ├── CardFeatureForm.tsx             ⚠️ (PENDENTE - formulário criação/edição)
-│   └── utils/
-│       └── techConfigs.ts              ⚠️ (PENDENTE - configs tecnologia/linguagem)
-├── hooks/
-│   └── useCardFeatures.ts              ✅ (hook completo com CRUD + UI states)
-├── services/
-│   ├── apiClient.ts                    ✅ (cliente HTTP genérico)
-│   └── cardFeatureService.ts           ✅ (service layer para API)
-├── pages/
-│   └── Codes.tsx                       ✅ (página monolítica - PRECISA COMPONENTIZAÇÃO)
-└── types/
-    └── cardfeature.ts                  ✅ (tipos TypeScript frontend)
-```
+### **🛠️ Tarefas Técnicas**
 
-### **Funcionalidades Implementadas**
+#### **Crítico: Funcionalidade Delete**
+1. Adicionar botão "🗑️ Excluir" nos cards
+2. Modal de confirmação com preview do item
+3. Integração com API DELETE endpoint
 
-#### **Backend (Node.js + TypeScript + Supabase)**
-- ✅ **CRUD completo** - Create, Read, Update, Delete
-- ✅ **Paginação** - com limit/offset
-- ✅ **Busca** - por título e descrição
-- ✅ **Filtros** - por tecnologia
-- ✅ **Validação** - dados de entrada
-- ✅ **Tratamento de erros** - middleware centralizado
-- ✅ **Persistência** - Supabase PostgreSQL
+#### **Bug: Inconsistência Edit → Card**
+- **Problema**: Dados editados no formulário aparecem diferentes na visualização do card
+- **Causa provável**: Problemas de dependências do pnpm podem estar afetando o comportamento
+- **Ação**: Resolver problemas de dependências antes de investigar o bug específico
 
-#### **Frontend (React + TypeScript + Tailwind)**
-- ✅ **Hook useCardFeatures** - gerenciamento completo de estado
-- ✅ **Service Layer** - cardFeatureService para API calls
-- ✅ **Grid responsivo** - cards com informações visuais
-- ✅ **Modal de visualização** - com sistema de abas para múltiplos arquivos
-- ✅ **Modal de criação** - formulário completo com abas dinâmicas
-- ✅ **Modal de edição** - mesmo formulário, carrega dados existentes
-- ✅ **Filtros e busca** - em tempo real com debounce
-- ✅ **Loading states** - feedback visual para todas as operações
-- ✅ **Error handling** - tratamento de erros com retry
+### **🎨 Melhorias de Design**
 
-## 🎨 **Interface Final Implementada**
+#### **🎯 PRIORIDADE: CodeBlock Code - Visual Moderno**
 
-### **📱 Aba Codes - Layout Atual**
-```
-┌─────────────────────────────────────────────────────────┐
-│ [Início] > [Biblioteca de Códigos] > [React]           │
-├─────────────────────────────────────────────────────────┤
-│ [🔍 Buscar snippets...] [🔽 Filtro Tech] [➕ Novo CardFeature] │
-├─────────────────────────────────────────────────────────┤
-│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐         │
-│ │ CardFeature1│ │ CardFeature2│ │ CardFeature3│         │
-│ │ React | TS  │ │ Node.js | JS│ │ Python | PY │         │
-│ │ [✏️ Editar]   │ │ [✏️ Editar]   │ │ [✏️ Editar]   │         │
-│ │ [🔍 Expandir] │ │ [🔍 Expandir] │ │ [🔍 Expandir] │         │
-│ │ 2 arquivos  │ │ 3 arquivos  │ │ 1 arquivo   │         │
-│ └─────────────┘ └─────────────┘ └─────────────┘         │
-└─────────────────────────────────────────────────────────┘
-```
+**Objetivo**: Transformar a área de código em um componente visualmente atrativo e profissional
 
-### **📝 Modal de Criação/Edição Implementado**
-```
-┌─────────────────────────────────────────────────────────┐
-│ ✨ Novo CardFeature                            [❌]     │
-├─────────────────────────────────────────────────────────┤
-│ Título: [________________________________]              │
-│ Tecnologia: [React ▼]  Linguagem: [TypeScript ▼]      │
-│ Descrição:                                              │
-│ [_________________________________________________]      │
-│                                                         │
-│ 🗂️ Arquivos/Abas:                                       │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Arquivo 1                              [❌ Remove] │ │
-│ │ Nome: [Model________] Descrição: [____________]     │ │
-│ │ ┌─────────────────────────────────────────────────┐ │ │
-│ │ │ Código:                                        │ │ │
-│ │ │ [_____________________________________________] │ │ │
-│ │ │ [_____________________________________________] │ │ │
-│ │ │ [_____________________________________________] │ │ │
-│ │ └─────────────────────────────────────────────────┘ │ │
-│ └─────────────────────────────────────────────────────┘ │
-│ [➕ Adicionar Arquivo]                                   │
-│                                                         │
-│ [❌ Cancelar] [💾 Criar CardFeature]                     │
-└─────────────────────────────────────────────────────────┘
-```
+**Melhorias Planejadas:**
 
-### **👁️ Modal de Visualização com Abas Implementado**
-```
-┌─────────────────────────────────────────────────────────┐
-│ 🔍 Sistema de Autenticação JWT                  [❌]    │
-├─────────────────────────────────────────────────────────┤
-│ Descrição: Sistema completo de auth com JWT...         │
-│                                                         │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ [Model] [Controller]                               │ │
-│ │ ┌─────────────────────────────────────────────────┐ │ │
-│ │ │ Model - Classe User com métodos de auth        │ │ │
-│ │ │ ┌─────────────────────────────────────────────┐ │ │ │
-│ │ │ │ import bcrypt from 'bcrypt'                │ │ │ │
-│ │ │ │ import jwt from 'jsonwebtoken'             │ │ │ │
-│ │ │ │                                            │ │ │ │
-│ │ │ │ export class User {                        │ │ │ │
-│ │ │ │   // ... código do modelo                  │ │ │ │
-│ │ │ │ }                                          │ │ │ │
-│ │ │ └─────────────────────────────────────────────┘ │ │ │
-│ │ └─────────────────────────────────────────────────┘ │ │
-│ └─────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-```
+**📐 Estrutura Visual**
+1. [x] **Bordas arredondadas**: `border-radius: 12px` para suavizar aparência ✅
+2. [x] **Drop shadow**: Sombra sutil para dar profundidade (`shadow-lg` ou customizada) ✅
+3. [x] **Padding interno**: Espaçamento consistente para melhor legibilidade ✅
+4. [x] **Background cinza**: Mudar fundo atual (preto) para cinza escuro (bg-gray-900 ou similar) ✅
 
-## ⚙️ **Progresso da Implementação**
+**🎨 Estética do Código**
+5. [ ] **Header com linguagem**: Badge pequeno no canto superior direito (ex: "TS", "JS")
+6. [ ] **Numeração de linhas**: Opcional, com cor mais suave (#6B7280)
+7. [ ] **Scroll personalizado**: Scrollbar customizada mais fina e elegante
+8. [ ] **Syntax highlighting aprimorado**: Cores mais vibrantes e contrastantes
 
-### **✅ Fase 1: Fundação (Base Arquitetural)** - **CONCLUÍDA**
-1. ✅ **Controller**: `useCardFeatures.ts` (CRUD operations + estado global + filtros)
-2. ✅ **Models**: `types/cardfeature.ts` (interfaces completas)
-3. ✅ **Persistência**: API Backend + Supabase (não localStorage)
-4. ✅ **Utilitários**: Service layer com validações
-5. ✅ **Componente integrado**: Tudo em `Codes.tsx` (não foi necessário extrair)
+**✨ Interatividade**
+9. [ ] **Hover effect**: Leve elevação da sombra ao passar mouse
+10. [ ] **Copy button**: Botão "📋 Copy" que aparece no hover (canto superior direito)
+11. [ ] **Expand/collapse**: Para códigos muito longos (>10 linhas)
+12. [ ] **Transições suaves**: `transition-all duration-300` para mudanças de estado
 
-### **✅ Fase 2: Criação** - **CONCLUÍDA**
-1. ✅ **Formulário implementado**: Modal completo com validações
-2. ✅ **Editor de abas dinâmicas**: Adicionar/remover arquivos
-3. ✅ **Botão integrado**: "Novo CardFeature" funcional
-4. ✅ **Preview em tempo real**: Visualização durante criação
+**📱 Responsividade**
+13. [ ] **Mobile**: Fonte menor, scroll horizontal suave
+14. [ ] **Tablet**: Aproveitamento otimizado do espaço
+15. [ ] **Desktop**: Máximo de altura para evitar scroll excessivo
 
-### **✅ Fase 3: Edição** - **CONCLUÍDA**
-1. ✅ **Formulário adaptado**: Mesmo modal, modo edição
-2. ✅ **Carregamento**: Dados existentes carregados corretamente
-3. ✅ **Gerenciamento de abas**: Adicionar/remover/editar
-4. ✅ **Botões integrados**: "Editar" em cada card
-
-### **❌ Fase 4: Remoção** - **PENDENTE**
-1. ❌ **Modal de confirmação**: Ainda não implementado
-2. ❌ **Lógica de remoção**: Método existe no hook mas não tem UI
-3. ❌ **Botões de remover**: Não foram adicionados aos cards
-
-### **🎨 Fase 5: Melhorias UX** - **PARCIAL**
-1. ❌ **Code editor com syntax highlighting**: Usando textarea simples
-2. ✅ **Preview com abas**: Implementado
-3. ❌ **Animações**: Não implementadas
-4. ❌ **Drag & drop**: Não implementado
-5. ✅ **Validações**: Básicas implementadas
-
-## 🔧 **Problemas Resolvidos**
-
-### **🐛 Bug Crítico Corrigido: Cards não apareciam**
-**Problema**: API retornava dados em `response.data` (array direto), mas o hook esperava `response.data.data`
-
-**Solução implementada**:
-```typescript
-// Antes (não funcionava)
-items: response.data!.data
-
-// Depois (funcionando)
-const items = Array.isArray(response.data) ? response.data : response.data.data || []
-items: items
-```
-
-**Resultado**: ✅ Cards agora carregam corretamente na inicialização
-
-## **Status Final**
-
-### **✅ Funcionalidades Implementadas**
-1. ✅ **Criação completa** - Modal com formulário e abas dinâmicas
-2. ✅ **Visualização otimizada** - Modal expandido com navegação entre abas
-3. ✅ **Edição completa** - Mesmo formulário, carrega dados existentes
-4. ✅ **Busca e filtros** - Funcionando com dados da API
-5. ✅ **Persistência** - Backend com Supabase PostgreSQL
-6. ✅ **Estados de loading** - Feedback visual para todas as operações
-7. ✅ **Tratamento de erros** - Com retry e mensagens claras
-
-### **🚀 Melhorias Futuras Opcionais**
-1. ❌ **Syntax highlighting** - Editor de código com destaque de sintaxe
-2. ❌ **Animações** - Transitions suaves entre estados
-3. ❌ **Drag & drop** - Para reordenar abas dos arquivos
-4. ❌ **Exportação** - Download de CardFeatures em formatos diversos
-5. ❌ **Favoritos** - Sistema de marcação de snippets importantes
-
-## 🎨 **Próxima Evolução: CardFeature Modernizado**
-
-### **🎯 Objetivo: Transformar CardFeature em Interface Moderna com Abas**
-
-**Motivação**: Melhorar preview de código e navegação entre múltiplos arquivos diretamente no card
+**Inspiração Visual:**
+- **GitHub gists**: Cards de código elegantes
+- **CodePen**: Interface limpa e moderna
+- **VS Code**: Tema escuro profissional
 
 ---
 
-## **📋 Plano de Implementação - CardFeature v2.0**
+#### **UX/UI Enhancements (Secundário)**
+- **Animações**: Transições suaves entre estados (hover, modal open/close)
+- **Micro-interações**: Feedback visual em botões e cards
+- **Loading states**: Skeleton loaders para cards durante carregamento
+- **Empty states**: Melhor design quando não há CardFeatures
 
-### **🚀 Fase 1: Sistema de Abas Interno** (Prioridade máxima)
-**Funcionalidade principal que muda a experiência**
+#### **Interface Moderna (Futuro)**
+- **Drag & drop**: Reordenar abas dentro do formulário
+- **Preview em tempo real**: Visualização do card durante edição no form
+- **Temas**: Light/dark mode toggle
+- **Responsividade**: Otimizar grid para tablets e mobile
 
-#### **📝 Implementação:**
-1. **Estado interno** - `useState(0)` para aba ativa dentro do CardFeature.tsx
-2. **Renderização das abas** - Sempre mostrar, mesmo se 1 arquivo
-3. **Navegação** - Click handler para trocar abas
-4. **Estilos** - Aba ativa vs inativa, hover states
-5. **Preview dinâmico** - Mostrar código da aba selecionada
+#### **Funcionalidades Avançadas (Futuro)**
+- **Sistema de favoritos**: Marcar CardFeatures importantes
+- **Exportação**: Download em JSON, Markdown, ZIP
+- **Compartilhamento**: URLs diretas para CardFeatures específicos
+- **Histórico**: Versionamento de edições
 
-#### **🎨 Resultado Visual:**
+---
+---
+
+## 🏗️ Arquitetura Técnica
+
+### Backend (Node.js + TypeScript + Supabase)
+- **CRUD completo**: Create, Read, Update, Delete
+- **Recursos**: Paginação, busca, filtros, validação
+- **Middleware**: CORS, rate limiting, error handling
+
+### Frontend (React + TypeScript + Tailwind)
+- **Estado**: Hook useCardFeatures para gerenciamento completo
+- **UI**: shadcn/ui components + Tailwind styling
+- **Funcionalidades**: Grid responsivo, modais, filtros em tempo real
+
+### Estrutura de Arquivos
 ```
-┌─────────────────────────────────────────────────┐
-│ Sistema Auth JWT              [Edit][View][Del] │
-│ Sistema completo de auth...                     │
-│ [React][TS]                                     │
-├─────────────────────────────────────────────────┤
-│ [Model.ts]                                      │ ← Aba única sempre visível
-├─────────────────────────────────────────────────┤
-│ export class UserModel {                        │ ← Código da aba ativa
-│   private id: string                            │
-│   constructor() { ... }                         │
-└─────────────────────────────────────────────────┘
+backend/src/
+├── controllers/CardFeatureController.ts ✅
+├── models/CardFeatureModel.ts          ✅
+├── routes/cardFeatureRoutes.ts         ✅
+└── types/cardfeature.ts                ✅
 
-// OU com múltiplas abas:
-┌─────────────────────────────────────────────────┐
-│ [Model.ts] [Controller.ts] [Routes.ts]         │ ← Múltiplas abas
-├─────────────────────────────────────────────────┤
-│ export class UserModel { ...                   │ ← Código da aba ativa
-└─────────────────────────────────────────────────┘
-```
-
-#### **🏗️ Estrutura Técnica:**
-```tsx
-// Dentro do CardFeature.tsx
-const [activeTab, setActiveTab] = useState(0)
-const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
-
-// Abas Header - SEMPRE VISÍVEL
-<div className="flex border-b border-gray-200">
-  {snippet.screens.map((screen, index) => (
-    <button
-      key={index}
-      onClick={() => setActiveTab(index)}
-      className={activeTab === index ? 'active-tab' : 'inactive-tab'}
-    >
-      {screen.name}
-    </button>
-  ))}
-</div>
-
-// Preview do Código - Aba Ativa
-<div className="bg-gray-900 rounded-b-md">
-  <code>{activeScreen.code.slice(0, 200)}...</code>
-</div>
+frontend/
+├── components/
+│   ├── CardFeature.tsx                 ✅ (com abas + highlighting)
+│   ├── SyntaxHighlighter.tsx           ✅
+│   └── utils/syntaxUtils.ts            ✅
+├── hooks/useCardFeatures.ts            ✅
+├── services/cardFeatureService.ts      ✅
+├── pages/Codes.tsx                     ✅
+└── types/cardfeature.ts                ✅
 ```
 
-### **🚀 Fase 2: Ícones + Tooltips** (UX polish)
-**Após abas funcionando, limpar interface**
+---
 
-#### **📝 Implementação:**
-1. Remover textos dos botões (Editar → ✏️, Expandir → 👁️, Excluir → 🗑️)
-2. Adicionar Tooltip component do shadcn/ui
-3. Melhorar hover states com animações suaves
-4. Ajustar espaçamentos para layout mais limpo
+## 🔧 Principais Problemas Resolvidos
 
-### **🚀 Fase 3: Syntax Highlighting** (Visual polish)
-**Por último, melhorar aparência do código**
+### **Bug Crítico: Cards não apareciam**
+```typescript
+// Solução: Normalização da resposta da API
+const items = Array.isArray(response.data) ? response.data : response.data.data || []
+```
 
-#### **📝 Implementação:**
-1. Biblioteca de highlighting (Prism.js ou highlight.js)
-2. Detecção automática por linguagem do CardFeature
-3. Temas de cores que combinam com o design
-4. Integração com o sistema de abas
+### **react-syntax-highlighter: Conflitos de dependência**
+- **Problema**: Conflitos de peer dependencies na instalação
+- **Solução**: Sistema interno de highlighting usando regex + CSS
+- **Resultado**: Bundle menor, zero conflitos, controle total
 
-## **🎯 Benefícios Esperados**
+### **Sistema de Highlighting Interno**
+- **Linguagens**: TypeScript, JavaScript, Python, HTML, CSS
+- **Tema**: Baseado no Dracula theme
+- **Performance**: Highlighting apenas dos primeiros 200 chars
+- **Cores customizadas**: Keywords (rosa), Strings (amarelo), Functions (verde)
 
-### **📈 UX Melhorada:**
-- **Mais informativo**: Ver múltiplos arquivos sem abrir modal
-- **Mais limpo**: Interface menos cluttered com ícones
-- **Mais profissional**: Preview com abas como IDEs modernas
-
-### **🔧 Técnico:**
-- **Tudo centralizado**: Lógica das abas dentro do próprio CardFeature
-- **Performance**: Sem overhead de componentes extras
-- **Manutenibilidade**: Código coeso e fácil de entender
+---

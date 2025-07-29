@@ -40,7 +40,14 @@ export default function Codes({ platformState }: CodesProps) {
 
   const handleEditSubmit = async (formData: any) => {
     if (cardFeatures.editingItem) {
+      console.log('Editando CardFeature:', {
+        id: cardFeatures.editingItem.id,
+        originalData: cardFeatures.editingItem,
+        formData: formData
+      })
       await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, formData)
+    } else {
+      console.error('Nenhum item sendo editado!')
     }
   }
 
