@@ -36,7 +36,8 @@ const corsOptions = {
     'Accept',
     'Authorization',
     'Cache-Control',
-    'X-API-Key'
+    'X-API-Key', 
+    'Access-Control-Allow-Origin'
   ],
   
   exposedHeaders: [
