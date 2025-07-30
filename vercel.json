@@ -1,22 +1,15 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "backend/src/server.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "backend/src/server.ts"
-    }
-  ],
   "functions": {
     "backend/src/server.ts": {
-      "includeFiles": "backend/**"
+      "runtime": "@vercel/node"
     }
   },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/src/server.ts"
+    }
+  ],
   "env": {
     "NODE_ENV": "production",
     "NEXT_PUBLIC_API_URL": "/api"
