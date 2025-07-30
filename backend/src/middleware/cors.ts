@@ -8,7 +8,8 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',        // Frontend development
       'http://127.0.0.1:3000',       // Alternative localhost
-      'https://10xdev.vercel.app',    // Production frontend (ajustar conforme necessário)
+      'https://10xdev.vercel.app',    // Production frontend
+      'https://v0-10xdev.vercel.app', // Current Vercel deployment
       process.env.CORS_ORIGIN         // Origem do .env
     ].filter(Boolean) // Remove undefined values
 
