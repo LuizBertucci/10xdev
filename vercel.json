@@ -1,19 +1,24 @@
 {
   "version": 2,
-  "name": "10xdev",
   "builds": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/next",
-      "config": {
-        "rootDirectory": "frontend"
-      }
+      "src": "backend/src/server.ts",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "src": "/api/(.*)",
+      "dest": "backend/src/server.ts"
     }
-  ]
+  ],
+  "functions": {
+    "backend/src/server.ts": {
+      "includeFiles": "backend/**"
+    }
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "NEXT_PUBLIC_API_URL": "/api"
+  }
 }
