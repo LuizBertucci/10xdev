@@ -157,8 +157,14 @@ app.use(errorHandler)
 const PORT = process.env.PORT || 3001
 const NODE_ENV = process.env.NODE_ENV || 'development'
 
-const server = app.listen(PORT, () => {
-  console.log(`
+
+// Para Vercel serverless
+export default app
+
+// Para desenvolvimento local 
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`
 🚀 Servidor iniciado com sucesso!
 
 📊 Informações:
@@ -178,29 +184,24 @@ const server = app.listen(PORT, () => {
    
 ⏰ Timestamp: ${new Date().toISOString()}
   `)
-})
-
-// Graceful shutdown
-const gracefulShutdown = (signal: string) => {
-  console.log(`\n🛑 Recebido sinal ${signal}. Iniciando graceful shutdown...`)
-  
-  server.close(() => {
-    console.log('✅ Servidor HTTP fechado.')
-    
-    // Aqui você pode fechar conexões com banco de dados, etc.
-    console.log('✅ Todas as conexões foram fechadas.')
-    process.exit(0)
   })
-  
-  // Force close after 10 seconds
-  setTimeout(() => {
-    console.error('❌ Forçando encerramento após timeout.')
-    process.exit(1)
-  }, 10000)
+
+  // Graceful shutdown
+  const gracefulShutdown = (signal: string) => {
+    console.log(`\n🛑 Recebido sinal ${signal}. Iniciando graceful shutdown...`)
+    
+    server.close(() => {
+      console.log('✅ Servidor HTTP fechado.')
+      console.log('✅ Todas as conexões foram fechadas.')
+      process.exit(0)
+    })
+    
+    setTimeout(() => {
+      console.error('❌ Forçando encerramento após timeout.')
+      process.exit(1)
+    }, 10000)
+  }
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 }
-
-// Listen for termination signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
-process.on('SIGINT', () => gracefulShutdown('SIGINT'))
-
-export default app
