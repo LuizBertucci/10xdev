@@ -312,8 +312,8 @@ export default function CardFeatureForm({
                         placeholder="Cole seu código aqui..."
                         value={screen.code}
                         onChange={(e) => handleScreenChange(index, 'code', e.target.value)}
-                        rows={mode === 'edit' ? 10 : 8}
-                        className="font-mono text-sm"
+                        rows={10}
+                        className="font-mono text-sm min-h-[240px]"
                       />
                     </div>
                   </div>
