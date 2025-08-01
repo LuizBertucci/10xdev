@@ -50,10 +50,80 @@ Sistema CRUD **quase completo** - falta apenas funcionalidade de **Delete**.
 2. Modal de confirmação com preview do item
 3. Integração com API DELETE endpoint
 
-#### **Bug: Inconsistência Edit → Card**
-- **Problema**: Dados editados no formulário aparecem diferentes na visualização do card
-- **Causa provável**: Problemas de dependências do pnpm podem estar afetando o comportamento
-- **Ação**: Resolver problemas de dependências antes de investigar o bug específico
+#### **🐛 Bug Crítico: __TOKEN_0__ no Syntax Highlighting**
+
+**Problema Identificado**: 
+- No modo Edit: código aparece como `// Controles de interface`
+- No modo Index: código aparece como `// Controles de __TOKEN_0__`
+
+**Causa Raiz**: Sistema de highlighting interno com falha na substituição de tokens
+
+**Análise Técnica Completa**:
+
+1. **Sistema de Tokens**: `syntaxUtils.ts` usa tokens temporários (`__TOKEN_0__`, `__TOKEN_1__`) para evitar conflitos durante highlighting
+2. **Fluxo de Processamento**:
+   - Step 1: Replace keywords/strings → `__TOKEN_N__`
+   - Step 2: Apply HTML spans to tokens
+   - Step 3: Replace tokens back → **FALHA AQUI**
+
+3. **Diferentes Rendering Paths**:
+   - **CardFeature (Index)**: Usa `SyntaxHighlighter` → token system falha
+   - **CardFeatureForm (Edit)**: Usa `<textarea>` → raw text, sem tokens
+   - **CardFeatureModal**: Usa `<code>` → raw text, sem highlighting
+
+4. **Token Replacement Bug** (`syntaxUtils.ts:95-98`):
+   ```typescript
+   tokens.forEach(({ token, replacement }) => {
+     highlightedCode = highlightedCode.replaceAll(token, replacement)
+   })
+   ```
+   **Falhas**: Race conditions, string mutations, HTML escaping conflicts
+
+**🎯 Solução Recomendada - Migração para NPM Package**:
+
+**Opção 1: react-syntax-highlighter (Recomendado)**
+```bash
+npm install react-syntax-highlighter @types/react-syntax-highlighter
+```
+
+**Opção 2: Prism.js Direct Integration**
+```bash
+npm install prismjs @types/prismjs
+```
+
+**Opção 3: prism-react-renderer (Mais Customizável)**
+```bash
+npm install prism-react-renderer
+```
+
+**Implementação Sugerida** (react-syntax-highlighter):
+```typescript
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+export default function CodeHighlighter({ code, language }) {
+  return (
+    <SyntaxHighlighter 
+      language={language} 
+      style={tomorrow}
+      customStyle={{
+        background: 'rgb(162, 164, 165)',
+        fontFamily: 'Consolas, Monaco, "Courier New", monospace'
+      }}
+    >
+      {code}
+    </SyntaxHighlighter>
+  );
+}
+```
+
+**Benefícios da Migração**:
+- ✅ Zero bugs de token replacement
+- ✅ Highlighting mais preciso e completo
+- ✅ Suporte a mais linguagens
+- ✅ Manutenção externa (não precisamos manter)
+- ✅ Performance otimizada
+- ✅ Temas profissionais prontos
 
 ### **🎨 Melhorias de Design**
 

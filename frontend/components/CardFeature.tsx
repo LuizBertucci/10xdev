@@ -130,7 +130,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 
             {/* Preview do Código - Aba Ativa com Syntax Highlighting */}
             <div className="rounded-xl shadow-xl p-6 h-64 overflow-y-auto relative group" 
-            style={{backgroundColor: 'rgb(162, 164, 165)', 
+            style={{backgroundColor: '#f8f8ff', 
             fontFamily: 'Fira Code, Consolas, Monaco, monospace'}}>
               <style>{`
                 .codeblock-scroll::-webkit-scrollbar {
