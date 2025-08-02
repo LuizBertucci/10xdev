@@ -17,10 +17,10 @@ export class CardFeatureController {
       const data: CreateCardFeatureRequest = req.body
 
       // Validação básica
-      if (!data.title || !data.tech || !data.language || !data.description || !data.screens) {
+      if (!data.title || !data.tech || !data.language || !data.screens) {
         res.status(400).json({
           success: false,
-          error: 'Campos obrigatórios: title, tech, language, description, screens'
+          error: 'Campos obrigatórios: title, tech, language, screens'
         })
         return
       }
@@ -35,10 +35,10 @@ export class CardFeatureController {
 
       // Validar cada screen
       for (const screen of data.screens) {
-        if (!screen.name || !screen.description || !screen.code) {
+        if (!screen.name || !screen.code) {
           res.status(400).json({
             success: false,
-            error: 'Cada screen deve ter name, description e code'
+            error: 'Cada screen deve ter name e code'
           })
           return
         }
@@ -306,10 +306,10 @@ export class CardFeatureController {
         }
 
         for (const screen of data.screens) {
-          if (!screen.name || !screen.description || !screen.code) {
+          if (!screen.name || !screen.code) {
             res.status(400).json({
               success: false,
-              error: 'Cada screen deve ter name, description e code'
+              error: 'Cada screen deve ter name e code'
             })
             return
           }
