@@ -352,63 +352,188 @@ Transformar o formulário de arquivos/abas de uma lista vertical para um sistema
 3. **Conteúdo da aba**: Formulário da aba ativa apenas
 4. **Gerenciamento**: Botões para adicionar/remover abas
 
-**Layout desejado**:
-```jsx
-{/* Header das Abas */}
-<div className="flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
-  {formData.screens.map((screen, index) => (
-    <button onClick={() => setActiveTab(index)}>
-      {screen.name || `Arquivo ${index + 1}`}
-    </button>
-  ))}
-  <button onClick={addScreen}>+ Adicionar</button>
-</div>
+---
 
-{/* Conteúdo da Aba Ativa */}
-<div className="border rounded-lg p-4">
-  {/* Formulário apenas da aba ativa */}
-  <TabContent screen={activeScreen} onUpdate={handleUpdate} />
-</div>
+## 📋 Task: Sistema de Campos Dinâmicos nas Abas
+
+### Objetivo
+Implementar um sistema flexível de campos dinâmicos onde cada aba pode ter vários blocos de conteúdo organizáveis (instruções, comandos, código).
+
+### Situação Atual
+- **Estrutura fixa**: Cada aba tem apenas campos fixos (nome, rota, código)
+- **Limitação**: Não há forma de adicionar instruções ou comandos separadamente
+- **Rigidez**: Layout não permite organização flexível de conteúdo
+
+### Proposta: Sistema de Blocos Dinâmicos
+
+#### Estrutura de Dados Proposta
+```typescript
+interface ContentBlock {
+  id: string
+  type: 'instruction' | 'command' | 'code'
+  content: string
+  order: number
+  title?: string  // Título opcional do bloco
+}
+
+interface CardFeatureScreen {
+  name: string
+  route?: string
+  blocks: ContentBlock[]  // Substitui o campo 'code' atual
+}
 ```
 
-#### Fase 3: Implementação Técnica
-**Arquivo**: `frontend/components/CardFeatureForm.tsx`
+#### Interface Visual Conceitual
+```
+[Aba: Component]
 
-**Mudanças necessárias**:
-1. **Estado da aba ativa**:
-   - Adicionar `const [activeTab, setActiveTab] = useState(0)`
-   - Calcular `activeScreen = formData.screens[activeTab]`
+┌─────────────────────────────────────────────────┐
+│ [📝 Instrução] [📋 Comando] [💻 Código]         │ <- Botões para adicionar
+└─────────────────────────────────────────────────┘
 
-2. **Header de navegação**:
-   - Substituir lista vertical por botões horizontais
-   - Reutilizar estilo do CardFeature (linhas 81-97)
-   - Mostrar nome do arquivo ou "Arquivo N" se vazio
+📝 Bloco 1: Instrução                           [🗑️]
+├─ "Instale as dependências necessárias..."
+├─ [↑] [↓] [✏️]
 
-3. **Formulário da aba**:
-   - Exibir apenas campos da `activeScreen`
-   - Manter funções `handleScreenChange` existentes
-   - Adaptar `index` para `activeTab`
+📋 Bloco 2: Comando                             [🗑️] 
+├─ "npm install @radix-ui/react-slot lucide-react"
+├─ [↑] [↓] [✏️]
 
-4. **Gerenciamento de abas**:
-   - Botão "+" integrado no header das abas
-   - Botão "X" no canto da aba ativa (se > 1 aba)
-   - Auto-selecionar nova aba ao criar
-   - Ajustar `activeTab` ao remover aba
+💻 Bloco 3: Código                              [🗑️]
+├─ "import React from 'react'..."
+├─ [↑] [↓] [✏️]
 
-#### Fase 4: Melhorias de UX
-**Funcionalidades extras**:
-1. **Validação visual**: Destacar abas com campos obrigatórios vazios
-2. **Navegação inteligente**: Auto-avançar para próxima aba ao preencher
-3. **Indicadores**: Mostrar quantas abas existem (ex: "2/5 abas")
-4. **Responsive**: Scroll horizontal no header se muitas abas
+[+ Adicionar Bloco]
+```
 
-#### Fase 5: Benefícios Esperados
-**Vantagens da implementação**:
-- ✅ **Consistência**: UX igual entre formulário e visualização
-- ✅ **Espaço**: Melhor aproveitamento da área vertical
-- ✅ **Foco**: Edição concentrada em uma aba por vez
-- ✅ **Organização**: Interface mais limpa e profissional
-- ✅ **Escalabilidade**: Suporta muitas abas sem poluir a tela
+#### Tipos de Blocos
 
-### Status: Planejamento Concluído ✅
-Próximo passo: Implementação do código.
+1. **📝 Instrução**
+   - **Propósito**: Explicações, contexto, documentação
+   - **Exemplo**: "Este componente requer configuração do Tailwind CSS"
+   - **Renderização**: Texto simples com formatação básica
+
+2. **📋 Comando**
+   - **Propósito**: Comandos de terminal, CLI, scripts
+   - **Exemplo**: `npm install @radix-ui/react-slot`
+   - **Renderização**: Monospace com highlight de terminal
+
+3. **💻 Código**
+   - **Propósito**: Código fonte propriamente dito
+   - **Exemplo**: Componentes React, funções, etc.
+   - **Renderização**: Syntax highlighting completo
+
+#### Funcionalidades do Sistema
+
+**Gerenciamento de Blocos:**
+- ✅ **Adicionar**: Botões específicos para cada tipo
+- ✅ **Reordenar**: Setas ↑↓ para mudar posição
+- ✅ **Editar**: Modal ou inline editing
+- ✅ **Remover**: Botão de exclusão com confirmação
+- ✅ **Duplicar**: Clonar bloco existente
+
+**Organização:**
+- ✅ **Posição flexível**: Inserir acima/abaixo de qualquer bloco
+- ✅ **Numeração automática**: Order automático
+- ✅ **Preview**: Ver conteúdo durante edição
+- 🔄 **Drag & Drop**: (futuro) Arrastar para reordenar
+
+#### Plano de Implementação
+
+**Fase 1: Estrutura de Dados**
+1. **Atualizar interfaces TypeScript**:
+   - Modificar `CardFeatureScreen` para usar `blocks[]`
+   - Criar interface `ContentBlock`
+   - Atualizar tipos no backend
+
+2. **Migração de dados**:
+   - Converter campo `code` existente para `blocks[{type: 'code', content: code}]`
+   - Script de migração para dados existentes
+   - Manter compatibilidade durante transição
+
+**Fase 2: Interface do Formulário**
+1. **Componente BlockEditor**:
+   ```jsx
+   <BlockEditor 
+     blocks={activeScreen.blocks}
+     onBlocksChange={handleBlocksChange}
+     onAddBlock={handleAddBlock}
+     onRemoveBlock={handleRemoveBlock}
+     onReorderBlock={handleReorderBlock}
+   />
+   ```
+
+2. **Tipos de editores**:
+   - `InstructionEditor`: Textarea simples
+   - `CommandEditor`: Input com preview monospace
+   - `CodeEditor`: Textarea com syntax highlighting
+
+3. **Controles de ordem**:
+   - Botões ↑↓ em cada bloco
+   - Indicador visual de posição
+   - Confirmação antes de remover
+
+**Fase 3: Visualização nos Cards**
+1. **CardFeature.tsx**: Renderizar blocos em sequência
+2. **Diferentes estilos**: 
+   - Instruções com fundo cinza claro
+   - Comandos com fundo preto/terminal
+   - Código com syntax highlighting atual
+
+3. **Layout responsivo**: Blocos se adaptam ao tamanho
+
+**Fase 4: Backend e API**
+1. **Validação**: Validar estrutura de blocos
+2. **Endpoints**: Suportar nova estrutura
+3. **Banco de dados**: Campo JSONB já suporta
+
+#### Vantagens do Sistema
+
+**Para o Usuário:**
+- ✅ **Flexibilidade total**: Organizar conteúdo como quiser
+- ✅ **Contexto rico**: Instruções + comandos + código juntos
+- ✅ **Reutilização**: Blocos independentes e modulares
+- ✅ **Organização visual**: Clara separação de tipos de conteúdo
+
+**Para o Desenvolvimento:**
+- ✅ **Extensibilidade**: Fácil adicionar novos tipos de bloco
+- ✅ **Manutenibilidade**: Componentes modulares
+- ✅ **Compatibilidade**: Migração suave dos dados existentes
+
+#### Impacto e Complexidade
+
+**Alto Impacto:**
+- Mudança fundamental na estrutura de dados
+- Nova interface completa para edição
+- Migração de todos os cards existentes
+
+**Complexidade Técnica:**
+- 🟡 **Média-Alta**: Requer mudanças em frontend, backend e dados
+- 📊 **Estimativa**: 3-5 dias de desenvolvimento
+- 🧪 **Testes**: Migração de dados + novos fluxos
+
+#### Alternativas Consideradas
+
+**Opção 1: Campos fixos adicionais**
+- Apenas adicionar campos `instructions` e `commands`
+- Mais simples, mas menos flexível
+
+**Opção 2: Sistema de blocos simplificado**
+- Apenas 2 tipos: "texto" e "código"
+- Meio termo entre flexibilidade e complexidade
+
+**Opção 3: Sistema atual + melhorias**
+- Manter estrutura, adicionar formatação rica no código
+- Menor impacto, mas não resolve a necessidade de organização
+
+#### Questões em Aberto
+
+1. **Drag & Drop**: Implementar agora ou apenas setas ↑↓?
+2. **Tipos iniciais**: Começar com 3 tipos ou expandir depois?
+3. **Edição**: Modal de edição ou editing inline?
+4. **Migração**: Automática ou manual para cards existentes?
+5. **Títulos**: Permitir títulos opcionais nos blocos?
+6. **Validação**: Bloco de código obrigatório ou opcional?
+
+### Status: Análise Completa - Aguardando Decisão ⏳
+Necessária decisão sobre complexidade vs benefício e priorização da implementação.
