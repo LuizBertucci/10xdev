@@ -117,8 +117,17 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 }
               `}</style>
               
-              {/* Botões no canto superior direito */}
-              <div className="absolute top-2 right-4 z-20 flex space-x-1">
+              {/* Flex container para rota (esquerda) e botões (direita) */}
+              <div className="absolute top-2 left-4 right-4 z-20 flex justify-between items-start">
+                {/* Rota do arquivo (lado esquerdo) - Card */}
+                <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex-1 mr-2">
+                  <span className="text-xs text-gray-600 font-mono truncate block">
+                    {activeScreen.route || 'Sem rota definida'}
+                  </span>
+                </div>
+                
+                {/* Botões (lado direito) */}
+                <div className="flex space-x-1 ml-auto">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -150,9 +159,10 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     <p>Tela cheia</p>
                   </TooltipContent>
                 </Tooltip>
+                </div>
               </div>
               
-              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
+              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
                 <SyntaxHighlighter
                   code={activeScreen.code}
                   language={snippet.language}

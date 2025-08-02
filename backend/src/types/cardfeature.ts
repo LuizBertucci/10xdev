@@ -6,6 +6,7 @@ export interface CardFeatureScreen {
   name: string
   description: string
   code: string
+  route?: string
 }
 
 export interface CardFeatureRow {
@@ -151,6 +152,7 @@ export interface CardFeatureValidationRules {
       name: { required: boolean; maxLength: number }
       description: { required: boolean; maxLength: number }
       code: { required: boolean; maxLength: number }
+      route: { required: boolean; maxLength: number }
     }
   }
 }

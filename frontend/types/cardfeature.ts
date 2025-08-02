@@ -9,6 +9,7 @@ export interface CardFeatureScreen {
   name: string        // Nome da aba (ex: "Model", "Controller", "Routes")
   description: string // Descrição do que o arquivo faz
   code: string       // Código do arquivo
+  route?: string     // Caminho do arquivo (ex: "backend/src/models/User.ts")
 }
 
 /**
@@ -66,6 +67,7 @@ export interface CreateScreenData {
   name: string
   description: string
   code: string
+  route?: string
 }
 
 // ================================================

@@ -82,7 +82,30 @@ export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onD
                       background: rgba(0, 0, 0, 0.5);
                     }
                   `}</style>
-                  <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
+                  
+                  {/* Flex container para rota (esquerda) e botão de edição (direita) */}
+                  <div className="absolute top-2 left-4 right-4 z-20 flex justify-between items-start">
+                    {/* Rota do arquivo (lado esquerdo) - Card */}
+                    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex-1 mr-2">
+                      <span className="text-xs text-gray-600 font-mono truncate block">
+                        {screen.route || 'Sem rota definida'}
+                      </span>
+                    </div>
+                    
+                    {/* Botão de edição (lado direito) */}
+                    {onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(snippet)}
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 opacity-80 hover:opacity-100"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
                     <SyntaxHighlighter
                       code={screen.code}
                       language={snippet.language}

@@ -288,3 +288,38 @@ const items = Array.isArray(response.data) ? response.data : response.data.data 
 - **Cores customizadas**: Keywords (rosa), Strings (amarelo), Functions (verde)
 
 ---
+
+## 📁 Task: Adicionar Campo de Rota no CardFeature
+
+### Objetivo
+Adicionar campo `route` para exibir caminho do arquivo no topo da área de código.
+
+### Plano de Implementação
+
+#### Fase 1: Atualizar Tipos e Banco ✅
+**Arquivo**: `frontend/types/cardfeature.ts`
+- [x] Adicionar `route?: string` na interface `CardFeatureScreen`
+
+**Arquivo**: `backend/src/types/cardfeature.ts`
+- [x] Adicionar `route?: string` na interface `CardFeatureScreen` do backend
+
+**Banco de Dados**: Supabase
+- [x] Campo `route` já suportado (JSONB permite campos opcionais dinamicamente)
+- [x] Não requer migração - compatível com dados existentes
+
+#### Fase 2: Adicionar no Formulário ✅
+**Arquivo**: `frontend/components/CardFeatureForm.tsx`
+- [x] Adicionar campo `route` no formulário de cada aba/screen
+- [x] Input opcional para inserir caminho do arquivo
+- [x] Funciona tanto no Create quanto no Edit
+- [x] Remover obrigatoriedade da descrição do card (linha 239)
+- [x] Remover obrigatoriedade da descrição das abas (linha 297)
+- [x] Ajustar validação do botão submit para não exigir descrição
+
+#### Fase 3: Display no Componente ✅
+**Arquivo**: `frontend/components/CardFeature.tsx`
+- [x] Adicionar elemento para exibir rota na mesma linha dos botões (lado esquerdo)
+- [x] Estilo: Card com `text-xs text-gray-500 font-mono`
+- [x] Layout: Flexbox com `justify-between` para separar rota dos botões
+- [x] Card sempre visível (mesmo sem rota)
+- [x] Rota também no modal (`CardFeatureModal.tsx`)

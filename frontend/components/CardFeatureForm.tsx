@@ -10,6 +10,7 @@ interface ScreenData {
   name: string
   description: string
   code: string
+  route?: string
 }
 
 interface FormData {
@@ -56,7 +57,8 @@ export default function CardFeatureForm({
         {
           name: 'Main',
           description: 'Arquivo principal',
-          code: ''
+          code: '',
+          route: ''
         }
       ]
     }
@@ -88,7 +90,8 @@ export default function CardFeatureForm({
           {
             name: 'Main',
             description: 'Arquivo principal',
-            code: ''
+            code: '',
+            route: ''
           }
         ]
       })
@@ -121,7 +124,7 @@ export default function CardFeatureForm({
   const addScreen = () => {
     setFormData(prev => ({
       ...prev,
-      screens: [...prev.screens, { name: '', description: '', code: '' }]
+      screens: [...prev.screens, { name: '', description: '', code: '', route: '' }]
     }))
   }
 
@@ -150,7 +153,7 @@ export default function CardFeatureForm({
         tech: 'React',
         language: 'typescript',
         description: '',
-        screens: [{ name: 'Main', description: 'Arquivo principal', code: '' }]
+        screens: [{ name: 'Main', description: 'Arquivo principal', code: '', route: '' }]
       })
     }
   }
@@ -236,7 +239,7 @@ export default function CardFeatureForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Descrição *
+                Descrição
               </label>
               <Textarea
                 placeholder="Descreva o que este código faz..."
@@ -304,7 +307,20 @@ export default function CardFeatureForm({
                       </div>
                     </div>
                     
-                    <div>
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Rota do Arquivo
+                      </label>
+                      <Input
+                        placeholder="Ex: backend/src/models/User.ts"
+                        value={screen.route || ''}
+                        onChange={(e) => handleScreenChange(index, 'route', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                      </div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
                         Código
                       </label>
@@ -334,7 +350,7 @@ export default function CardFeatureForm({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isLoading || !formData.title || !formData.description}
+            disabled={isLoading || !formData.title}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isLoading ? (
