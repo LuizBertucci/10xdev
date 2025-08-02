@@ -323,3 +323,92 @@ Adicionar campo `route` para exibir caminho do arquivo no topo da área de códi
 - [x] Layout: Flexbox com `justify-between` para separar rota dos botões
 - [x] Card sempre visível (mesmo sem rota)
 - [x] Rota também no modal (`CardFeatureModal.tsx`)
+
+---
+
+## 📋 Task: Sistema de Abas no CardFeatureForm
+
+### Objetivo
+Transformar o formulário de arquivos/abas de uma lista vertical para um sistema de abas igual ao usado no CardFeature do index.
+
+### Situação Atual
+- **CardFeatureForm**: Lista vertical com todos os arquivos visíveis simultaneamente
+- **CardFeature (Index)**: Sistema de abas elegante com navegação por botões
+- **Inconsistência**: UX diferente entre formulário e visualização
+
+### Plano de Implementação
+
+#### Fase 1: Análise da Estrutura Existente ✅
+**Arquivo analisado**: `frontend/components/CardFeature.tsx` (linhas 81-97)
+- [x] **Sistema de abas**: Usa `useState` para `activeTab` 
+- [x] **Header de abas**: Botões estilizados com `map()` sobre `snippet.screens`
+- [x] **Estilo das abas**: Design pill com gradiente e hover effects
+- [x] **Conteúdo ativo**: Exibe apenas `activeScreen` baseado no `activeTab`
+
+#### Fase 2: Estrutura Proposta ✅
+**Componentes necessários**:
+1. **Estado de navegação**: `const [activeTab, setActiveTab] = useState(0)`
+2. **Header de abas**: Botões de navegação entre arquivos
+3. **Conteúdo da aba**: Formulário da aba ativa apenas
+4. **Gerenciamento**: Botões para adicionar/remover abas
+
+**Layout desejado**:
+```jsx
+{/* Header das Abas */}
+<div className="flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+  {formData.screens.map((screen, index) => (
+    <button onClick={() => setActiveTab(index)}>
+      {screen.name || `Arquivo ${index + 1}`}
+    </button>
+  ))}
+  <button onClick={addScreen}>+ Adicionar</button>
+</div>
+
+{/* Conteúdo da Aba Ativa */}
+<div className="border rounded-lg p-4">
+  {/* Formulário apenas da aba ativa */}
+  <TabContent screen={activeScreen} onUpdate={handleUpdate} />
+</div>
+```
+
+#### Fase 3: Implementação Técnica
+**Arquivo**: `frontend/components/CardFeatureForm.tsx`
+
+**Mudanças necessárias**:
+1. **Estado da aba ativa**:
+   - Adicionar `const [activeTab, setActiveTab] = useState(0)`
+   - Calcular `activeScreen = formData.screens[activeTab]`
+
+2. **Header de navegação**:
+   - Substituir lista vertical por botões horizontais
+   - Reutilizar estilo do CardFeature (linhas 81-97)
+   - Mostrar nome do arquivo ou "Arquivo N" se vazio
+
+3. **Formulário da aba**:
+   - Exibir apenas campos da `activeScreen`
+   - Manter funções `handleScreenChange` existentes
+   - Adaptar `index` para `activeTab`
+
+4. **Gerenciamento de abas**:
+   - Botão "+" integrado no header das abas
+   - Botão "X" no canto da aba ativa (se > 1 aba)
+   - Auto-selecionar nova aba ao criar
+   - Ajustar `activeTab` ao remover aba
+
+#### Fase 4: Melhorias de UX
+**Funcionalidades extras**:
+1. **Validação visual**: Destacar abas com campos obrigatórios vazios
+2. **Navegação inteligente**: Auto-avançar para próxima aba ao preencher
+3. **Indicadores**: Mostrar quantas abas existem (ex: "2/5 abas")
+4. **Responsive**: Scroll horizontal no header se muitas abas
+
+#### Fase 5: Benefícios Esperados
+**Vantagens da implementação**:
+- ✅ **Consistência**: UX igual entre formulário e visualização
+- ✅ **Espaço**: Melhor aproveitamento da área vertical
+- ✅ **Foco**: Edição concentrada em uma aba por vez
+- ✅ **Organização**: Interface mais limpa e profissional
+- ✅ **Escalabilidade**: Suporta muitas abas sem poluir a tela
+
+### Status: Planejamento Concluído ✅
+Próximo passo: Implementação do código.

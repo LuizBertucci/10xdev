@@ -53,6 +53,16 @@ export default function SyntaxHighlighter({
           }
         }}
         wrapLongLines={true}
+        showLineNumbers={true}
+        lineNumberStyle={{
+          minWidth: '3em',
+          paddingRight: '1em',
+          textAlign: 'left',
+          userSelect: 'none',
+          opacity: 0.7,
+          fontSize: '11px',
+          color: '#6b7280'
+        }}
       >
         {code}
       </SyntaxHighlighterLib>

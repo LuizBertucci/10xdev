@@ -57,7 +57,7 @@ export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onD
         <div className="flex-1 overflow-hidden p-4">
           <div className="flex flex-wrap justify-start gap-8 h-full">
             {snippet.screens.map((screen, index) => (
-              <div key={index} className="flex flex-col h-full w-[500px]">
+              <div key={index} className="flex flex-col h-full w-[580px]">
                 <div className="mb-3 flex-shrink-0">
                   <h4 className="font-medium text-gray-900">{screen.name}</h4>
                   <p className="text-sm text-gray-600">{screen.description}</p>
