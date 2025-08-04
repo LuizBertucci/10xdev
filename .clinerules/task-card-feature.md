@@ -507,11 +507,6 @@ interface CardFeatureScreen {
 - Nova interface completa para edição
 - Migração de todos os cards existentes
 
-**Complexidade Técnica:**
-- 🟡 **Média-Alta**: Requer mudanças em frontend, backend e dados
-- 📊 **Estimativa**: 3-5 dias de desenvolvimento
-- 🧪 **Testes**: Migração de dados + novos fluxos
-
 #### Alternativas Consideradas
 
 **Opção 1: Campos fixos adicionais**
