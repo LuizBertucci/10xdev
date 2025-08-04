@@ -1,5 +1,5 @@
 import { Prism as SyntaxHighlighterLib } from 'react-syntax-highlighter'
-import { coldarkCold } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { coldarkCold } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 
 interface SyntaxHighlighterProps {
   code: string
