@@ -29,8 +29,8 @@ export function usePlatform() {
   }, []);
 
   // Function to filter snippets based on searchTerm and selectedTech
-  // This would be used by the Codes page
-  const filteredSnippets = useCallback((snippets: CodeSnippet[]) => {
+  // This would be used by the Codes page - now handles both CodeSnippet and CardFeature
+  const filteredSnippets = useCallback((snippets: any[]) => {
     return snippets.filter(snippet => {
       const matchesSearch = snippet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             snippet.description.toLowerCase().includes(searchTerm.toLowerCase());

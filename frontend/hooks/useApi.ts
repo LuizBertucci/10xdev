@@ -100,7 +100,7 @@ export function useListApi<T = any>(options: UseApiOptions = {}) {
     const response = await api.execute(apiCall)
     
     // Se a resposta contém metadados de paginação
-    if (api.data && typeof response === 'object' && 'data' in response) {
+    if (response && typeof response === 'object' && 'data' in response) {
       const listResponse = response as any
       setListState({
         count: listResponse.count || 0,

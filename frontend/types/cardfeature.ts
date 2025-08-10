@@ -1,4 +1,58 @@
 // ================================================
+// ENUMS E CONSTANTES
+// ================================================
+
+export enum SortOrder {
+  ASC = 'asc',
+  DESC = 'desc'
+}
+
+export enum SortBy {
+  TITLE = 'title',
+  TECH = 'tech',
+  CREATED_AT = 'createdAt',
+  UPDATED_AT = 'updatedAt'
+}
+
+export enum SupportedTech {
+  REACT = 'React',
+  NODE_JS = 'Node.js',
+  PYTHON = 'Python',
+  JAVASCRIPT = 'JavaScript',
+  VUE_JS = 'Vue.js',
+  ANGULAR = 'Angular'
+}
+
+export enum SupportedLanguage {
+  TYPESCRIPT = 'typescript',
+  JAVASCRIPT = 'javascript',
+  PYTHON = 'python',
+  HTML = 'html',
+  CSS = 'css'
+}
+
+export enum CrudStatus {
+  IDLE = 'idle',
+  LOADING = 'loading',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
+
+// Interface para CodeSnippet (usado no use-platform.ts)
+// Compatível com CardFeature mas mantém campo 'code' para compatibilidade
+export interface CodeSnippet {
+  id: string
+  title: string
+  description: string
+  tech: string
+  language: string
+  code: string
+  screens?: CardFeatureScreen[]
+  createdAt?: string
+  updatedAt?: string
+}
+
+// ================================================
 // INTERFACES PRINCIPAIS - Sincronizadas com Backend
 // ================================================
 
@@ -163,44 +217,6 @@ export interface CardFeatureTabEditorProps {
 // ENUMS E CONSTANTES
 // ================================================
 
-/**
- * Tecnologias suportadas
- */
-export enum SupportedTech {
-  REACT = 'React',
-  NODEJS = 'Node.js',
-  PYTHON = 'Python',
-  JAVASCRIPT = 'JavaScript',
-  VUE = 'Vue.js',
-  ANGULAR = 'Angular',
-  DJANGO = 'Django',
-  FASTAPI = 'FastAPI',
-  EXPRESS = 'Express'
-}
-
-/**
- * Linguagens de programação suportadas
- */
-export enum SupportedLanguage {
-  TYPESCRIPT = 'typescript',
-  JAVASCRIPT = 'javascript',
-  PYTHON = 'python',
-  HTML = 'html',
-  CSS = 'css',
-  JSON = 'json',
-  YAML = 'yaml',
-  SQL = 'sql'
-}
-
-/**
- * Estados possíveis para operações CRUD
- */
-export enum CrudStatus {
-  IDLE = 'idle',
-  LOADING = 'loading',
-  SUCCESS = 'success',
-  ERROR = 'error'
-}
 
 // ================================================
 // TIPOS UTILITÁRIOS
@@ -297,6 +313,7 @@ export interface UseCardFeaturesReturn {
   cancelCreating: () => void
   startEditing: (item: CardFeature) => void
   cancelEditing: () => void
+  updateEditingItem: (updatedItem: CardFeature) => void
   selectCardFeature: (id: string) => void
   setActiveTab: (tabName: string) => void
   showDeleteConfirmation: (id: string) => void

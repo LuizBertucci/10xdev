@@ -59,7 +59,7 @@ export type {
   CacheConfig
 } from './api'
 
-// Re-export enums
+// Re-export enums and types
 export {
   SupportedTech,
   SupportedLanguage,
@@ -67,3 +67,5 @@ export {
   SortOrder,
   SortBy
 } from './cardfeature'
+
+export type { CodeSnippet } from './cardfeature'

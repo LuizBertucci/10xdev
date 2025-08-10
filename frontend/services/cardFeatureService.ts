@@ -122,7 +122,8 @@ class CardFeatureService {
   }
 
   async bulkDelete(ids: string[]): Promise<ApiResponse<{ deletedCount: number }>> {
-    return apiClient.delete<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
+    // Usar POST para bulk delete já que o método delete só aceita endpoint
+    return apiClient.post<{ deletedCount: number }>(`${this.endpoint}/bulk-delete`, { ids })
   }
 
   // ================================================

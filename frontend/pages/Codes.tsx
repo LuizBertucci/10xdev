@@ -15,7 +15,8 @@ interface PlatformState {
   setSearchTerm: (term: string) => void
   selectedTech: string
   setSelectedTech: (tech: string) => void
-  filteredSnippets: (snippets: CardFeatureType[]) => CardFeatureType[]
+  setActiveTab: (tab: string) => void
+  filteredSnippets: (snippets: any[]) => any[]
 }
 
 interface CodesProps {
