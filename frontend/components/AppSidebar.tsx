@@ -10,6 +10,7 @@ import {
   Brain,
   Star,
   BarChart3,
+  User,
 } from "lucide-react"
 
 import {
@@ -27,13 +28,16 @@ import {
 } from "@/components/ui/sidebar"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "./AuthContext"
 
 interface AppSidebarProps {
   platformState: any
 }
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {
-  const menuItems = [
+  const { isAuthenticated } = useAuth()
+
+  const baseMenuItems = [
     {
       title: "Início",
       icon: Zap,
@@ -71,6 +75,17 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       description: "Analytics e métricas",
     },
   ]
+
+  const authMenuItems = [
+    {
+      title: "Perfil",
+      icon: User,
+      key: "profile",
+      description: "Perfil do usuário",
+    },
+  ]
+
+  const menuItems = isAuthenticated ? [...baseMenuItems, ...authMenuItems] : baseMenuItems
 
 
   return (

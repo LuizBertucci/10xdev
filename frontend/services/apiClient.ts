@@ -26,7 +26,7 @@ class ApiClient {
   private defaultHeaders: Record<string, string>
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'

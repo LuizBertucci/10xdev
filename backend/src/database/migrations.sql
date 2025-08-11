@@ -1,9 +1,52 @@
 -- ================================================
--- MIGRATION: Create CardFeatures table
+-- MIGRATION: Create Tables for 10xDev Platform
 -- ================================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ================================================
+-- USERS TABLE: Authentication and authorization
+-- ================================================
+
+-- Create Users table
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for users table
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+
+-- ================================================
+-- JWT DENYLIST TABLE: Manage revoked tokens
+-- ================================================
+
+-- Create JWT Denylist table
+CREATE TABLE IF NOT EXISTS jwt_denylist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    jti VARCHAR(255) UNIQUE NOT NULL,
+    exp TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for jwt_denylist table
+CREATE INDEX IF NOT EXISTS idx_jwt_denylist_jti ON jwt_denylist(jti);
+CREATE INDEX IF NOT EXISTS idx_jwt_denylist_exp ON jwt_denylist(exp);
+
+-- ================================================
+-- CARDFEATURES TABLE: Code snippets and examples
+-- ================================================
 
 -- Create CardFeatures table
 CREATE TABLE IF NOT EXISTS card_features (
@@ -46,9 +89,27 @@ CREATE TRIGGER update_card_features_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+-- Trigger for users table
+CREATE TRIGGER update_users_updated_at 
+    BEFORE UPDATE ON users 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- ================================================
--- SEED DATA: Initial CardFeatures
+-- SEED DATA: Initial Admin User and CardFeatures
 -- ================================================
+
+-- Create initial admin user (password: Admin123!)
+-- Note: In production, create this user manually with a secure password
+INSERT INTO users (email, password_hash, role, first_name, last_name, is_active) VALUES 
+(
+    'admin@10xdev.com',
+    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewLegNRgKKKK2cka', -- Admin123!
+    'admin',
+    'Admin',
+    'User',
+    true
+) ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO card_features (title, tech, language, description, screens) VALUES 
 (

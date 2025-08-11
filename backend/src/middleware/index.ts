@@ -18,3 +18,4 @@ export {
   validateContentType,
   sanitizeInput
 } from './errorHandler'
+export { AuthMiddleware } from './auth'

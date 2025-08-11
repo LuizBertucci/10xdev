@@ -167,7 +167,7 @@ export class CardFeatureModel {
         }
       }
 
-      const transformedData = data?.map(row => this.transformToResponse(row)) || []
+      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
 
       return {
         success: true,
@@ -372,12 +372,12 @@ export class CardFeatureModel {
       }
 
       // Process counts
-      const byTech = techData?.reduce((acc, item) => {
+      const byTech = techData?.reduce((acc: any, item: any) => {
         acc[item.tech] = (acc[item.tech] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
 
-      const byLanguage = languageData?.reduce((acc, item) => {
+      const byLanguage = languageData?.reduce((acc: any, item: any) => {
         acc[item.language] = (acc[item.language] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
@@ -432,7 +432,7 @@ export class CardFeatureModel {
         }
       }
 
-      const transformedData = data?.map(row => this.transformToResponse(row)) || []
+      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
 
       return {
         success: true,

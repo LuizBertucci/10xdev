@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { cardFeatureRoutes } from './cardFeatureRoutes'
+import { authRoutes } from './authRoutes'
 
 const router = Router()
 
@@ -17,6 +18,9 @@ router.get('/health', (req, res) => {
   })
 })
 
+// Authentication routes
+router.use('/auth', authRoutes)
+
 // CardFeatures routes
 router.use('/card-features', cardFeatureRoutes)
 
@@ -28,6 +32,17 @@ router.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: 'GET /api/health',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        logout: 'POST /api/auth/logout',
+        me: 'GET /api/auth/me',
+        refresh: 'POST /api/auth/refresh',
+        users: 'GET /api/auth/users (admin only)',
+        getUser: 'GET /api/auth/users/:id (admin only)',
+        updateUser: 'PUT /api/auth/users/:id (admin only)',
+        deleteUser: 'DELETE /api/auth/users/:id (admin only)'
+      },
       cardFeatures: {
         list: 'GET /api/card-features',
         create: 'POST /api/card-features',

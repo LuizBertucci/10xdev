@@ -66,7 +66,7 @@ interface CardFeatureStats {
 // ================================================
 
 class CardFeatureService {
-  private readonly endpoint = '/card-features'
+  private readonly endpoint = '/api/card-features'
 
   // ================================================
   // CREATE
