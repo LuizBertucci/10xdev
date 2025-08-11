@@ -2,31 +2,14 @@
 // API CLIENT - Base HTTP client configuration
 // ================================================
 
-export interface ApiResponse<T = any> {
-  success: boolean
-  data?: T
-  error?: string
-  message?: string
-  count?: number
-  totalPages?: number
-  currentPage?: number
-  hasNextPage?: boolean
-  hasPrevPage?: boolean
-}
-
-export interface ApiError {
-  success: false
-  error: string
-  statusCode?: number
-  details?: any
-}
+import type { ApiResponse, ApiError } from '@/lib/types'
 
 class ApiClient {
   private baseURL: string
   private defaultHeaders: Record<string, string>
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3007/api'
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
@@ -195,3 +178,4 @@ export const apiClient = new ApiClient()
 
 // Export do tipo para uso externo
 export type { ApiClient }
+export type { ApiResponse, ApiError } from '@/lib/types'

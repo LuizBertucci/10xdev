@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy, Clock, Play, BookOpen, PlayCircle, List, Video, Plus, X, Edit2, Trash2 } from "lucide-react"
 import { useLessons } from "@/hooks/useLessons"
+import { useAuth } from "@/contexts/AuthContext"
 import AddYouTubeModal from "@/components/AddYouTubeModal"
 import CustomThumbnailGenerator from "@/components/CustomThumbnailGenerator"
 
@@ -37,6 +38,7 @@ export default function Lessons() {
     fetchVideoInfo
   } = useLessons()
   
+  const { isAdmin } = useAuth()
   const [showAddModal, setShowAddModal] = useState(false)
   const [customThumbnails, setCustomThumbnails] = useState<Record<string, string>>({})
 
@@ -129,13 +131,15 @@ export default function Lessons() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Aulas</h1>
         <div className="flex items-center space-x-4">
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar do YouTube
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar do YouTube
+            </Button>
+          )}
           <div className="flex items-center space-x-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
             <span className="text-sm font-medium">Progresso Geral</span>
@@ -198,34 +202,36 @@ export default function Lessons() {
                   <div className="absolute top-2 left-2">
                     <PlayCircle className="h-12 w-12 text-white opacity-80 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  {/* Botões de ação transparentes */}
-                  <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 p-0 bg-black/20 backdrop-blur-sm border border-white/10 hover:bg-black/40 hover:border-white/20 transition-all duration-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Implementar edição
-                        console.log('Editar série:', series.id);
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4 text-white drop-shadow-lg" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 p-0 bg-red-500/20 backdrop-blur-sm border border-red-300/20 hover:bg-red-500/40 hover:border-red-300/40 transition-all duration-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('Tem certeza que deseja deletar esta série?')) {
-                          removePlaylistSeries(series.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-100 drop-shadow-lg" />
-                    </Button>
-                  </div>
+                  {/* Botões de ação transparentes - apenas para admins */}
+                  {isAdmin && (
+                    <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 bg-black/20 backdrop-blur-sm border border-white/10 hover:bg-black/40 hover:border-white/20 transition-all duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // TODO: Implementar edição
+                          console.log('Editar série:', series.id);
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4 text-white drop-shadow-lg" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 bg-red-500/20 backdrop-blur-sm border border-red-300/20 hover:bg-red-500/40 hover:border-red-300/40 transition-all duration-200"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Tem certeza que deseja deletar esta série?')) {
+                            removePlaylistSeries(series.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-100 drop-shadow-lg" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
@@ -291,34 +297,36 @@ export default function Lessons() {
                       <div className="absolute bottom-1 right-1 bg-black/80 text-white px-1 py-0.5 rounded text-xs">
                         {training.duration}
                       </div>
-                      {/* Botões de ação */}
-                      <div className="absolute top-1 right-1 flex space-x-1">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="h-6 w-6 p-0 bg-white/90 hover:bg-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // TODO: Implementar edição
-                            console.log('Editar treinamento:', training.id);
-                          }}
-                        >
-                          <Edit2 className="h-3 w-3 text-gray-700" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="h-6 w-6 p-0 bg-red-500/90 hover:bg-red-500"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Tem certeza que deseja deletar este treinamento?')) {
-                              removeIndividualTraining(training.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3 text-white" />
-                        </Button>
-                      </div>
+                      {/* Botões de ação - apenas para admins */}
+                      {isAdmin && (
+                        <div className="absolute top-1 right-1 flex space-x-1">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-6 w-6 p-0 bg-white/90 hover:bg-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // TODO: Implementar edição
+                              console.log('Editar treinamento:', training.id);
+                            }}
+                          >
+                            <Edit2 className="h-3 w-3 text-gray-700" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-6 w-6 p-0 bg-red-500/90 hover:bg-red-500"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Tem certeza que deseja deletar este treinamento?')) {
+                                removeIndividualTraining(training.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 text-white" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-lg mb-1 group-hover:text-blue-600 transition-colors">
@@ -369,17 +377,19 @@ export default function Lessons() {
         </TabsContent>
       </Tabs>
 
-      <AddYouTubeModal
-        isOpen={showAddModal}
-        isLoading={loading}
-        loadingPlaylist={loadingPlaylist}
-        loadingVideo={loadingVideo}
-        onClose={() => setShowAddModal(false)}
-        onAddSeries={handleAddSeries}
-        onAddTraining={handleAddTraining}
-        onFetchPlaylistInfo={fetchPlaylistInfo}
-        onFetchVideoInfo={fetchVideoInfo}
-      />
+      {isAdmin && (
+        <AddYouTubeModal
+          isOpen={showAddModal}
+          isLoading={loading}
+          loadingPlaylist={loadingPlaylist}
+          loadingVideo={loadingVideo}
+          onClose={() => setShowAddModal(false)}
+          onAddSeries={handleAddSeries}
+          onAddTraining={handleAddTraining}
+          onFetchPlaylistInfo={fetchPlaylistInfo}
+          onFetchVideoInfo={fetchVideoInfo}
+        />
+      )}
     </div>
   )
 }

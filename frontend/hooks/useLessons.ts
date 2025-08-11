@@ -132,7 +132,7 @@ export function useLessons() {
         return {
           ...videoInfo,
           formattedDuration: youtubeService.formatVideoDuration(videoInfo.duration)
-        }
+        } as any
       }
       
       return null
@@ -163,6 +163,22 @@ export function useLessons() {
         throw new Error('Não foi possível obter informações da playlist')
       }
 
+      // Calcular progresso inicial inteligente baseado no contexto
+      const calculateInitialProgress = (videoCount: number): number => {
+        // Se o usuário já tem séries, assumir que pode ter assistido alguns vídeos
+        if (state.playlistSeries.length > 0) {
+          // Para séries grandes (>50 vídeos), iniciar com progresso pequeno
+          if (videoCount > 50) {
+            return Math.floor(videoCount * 0.05) // 5% de progresso inicial
+          }
+          // Para séries médias, iniciar com um pouco mais
+          if (videoCount > 20) {
+            return Math.floor(videoCount * 0.1) // 10% de progresso inicial
+          }
+        }
+        return 0 // Novo usuário começa do zero
+      }
+
       const newSeries: PlaylistSeries = {
         id: Date.now().toString(),
         title: customData?.title || playlistInfo.title,
@@ -172,7 +188,7 @@ export function useLessons() {
           : `https://i.ytimg.com/vi/placeholder/maxresdefault.jpg`),
         totalVideos: playlistInfo.videoCount,
         duration: playlistInfo.totalDuration, // Duração calculada automaticamente!
-        completed: 0,
+        completed: customData?.completed ?? calculateInitialProgress(playlistInfo.videoCount),
         youtubePlaylistId: playlistId,
         difficulty: customData?.difficulty || 'Iniciante',
         ...customData

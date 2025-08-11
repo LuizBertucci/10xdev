@@ -154,7 +154,7 @@ app.use(errorHandler)
 // SERVER STARTUP
 // ================================================
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3007
 const NODE_ENV = process.env.NODE_ENV || 'development'
 
 const server = app.listen(PORT, () => {
@@ -203,4 +203,4 @@ const gracefulShutdown = (signal: string) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
-export default app
+export default app// Trigger restart

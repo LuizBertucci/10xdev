@@ -7,7 +7,11 @@ const corsOptions = {
     // Lista de origens permitidas
     const allowedOrigins = [
       'http://localhost:3000',        // Frontend development
+      'http://localhost:3001',        // Frontend development (Next.js fallback port)
+      'http://localhost:3006',        // Frontend development (current port)
       'http://127.0.0.1:3000',       // Alternative localhost
+      'http://127.0.0.1:3001',       // Alternative localhost (Next.js fallback port)
+      'http://127.0.0.1:3006',       // Alternative localhost (current port)
       'https://10xdev.vercel.app',    // Production frontend
       'https://v0-10xdev.vercel.app', // Current Vercel deployment
       process.env.CORS_ORIGIN         // Origem do .env

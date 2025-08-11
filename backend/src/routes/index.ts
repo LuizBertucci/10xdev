@@ -1,5 +1,8 @@
 import { Router } from 'express'
 import { cardFeatureRoutes } from './cardFeatureRoutes'
+import youtubeRoutes from './youtubeRoutes'
+import authRoutes from './authRoutes'
+// import lessonRoutes from './lessonRoutes'
 
 const router = Router()
 
@@ -20,6 +23,15 @@ router.get('/health', (req, res) => {
 // CardFeatures routes
 router.use('/card-features', cardFeatureRoutes)
 
+// YouTube routes - API Premium para análise de playlists
+router.use('/youtube', youtubeRoutes)
+
+// Authentication routes - Sistema JWT completo
+router.use('/auth', authRoutes)
+
+// Lessons routes - Sistema de gerenciamento de aulas (temporariamente desabilitado)
+// router.use('/lessons', lessonRoutes)
+
 // API Info endpoint
 router.get('/', (req, res) => {
   res.status(200).json({
@@ -39,7 +51,30 @@ router.get('/', (req, res) => {
         stats: 'GET /api/card-features/stats',
         bulkCreate: 'POST /api/card-features/bulk',
         bulkDelete: 'DELETE /api/card-features/bulk'
-      }
+      },
+      youtube: {
+        playlistInfo: 'GET /api/youtube/playlist/:playlistId',
+        status: 'GET /api/youtube/status',
+        clearCache: 'DELETE /api/youtube/cache'
+      },
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        logout: 'POST /api/auth/logout',
+        refresh: 'POST /api/auth/refresh',
+        profile: 'GET /api/auth/me',
+        validate: 'POST /api/auth/validate',
+        status: 'GET /api/auth/status'
+      },
+      // lessons: {
+      //   list: 'GET /api/lessons',
+      //   getById: 'GET /api/lessons/:id',
+      //   create: 'POST /api/lessons (Admin)',
+      //   update: 'PUT /api/lessons/:id (Admin)',
+      //   delete: 'DELETE /api/lessons/:id (Admin)',
+      //   categories: 'GET /api/lessons/meta/categories',
+      //   stats: 'GET /api/lessons/meta/stats (Admin)'
+      // }
     },
     documentation: 'https://github.com/10xdev/api-docs'
   })

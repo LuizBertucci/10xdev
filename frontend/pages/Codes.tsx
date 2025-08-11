@@ -27,12 +27,14 @@ interface CodesProps {
 export default function Codes({ platformState }: CodesProps) {
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [editingSnippet, setEditingSnippet] = useState<CardFeatureType | null>(null)
   
   // Usar o hook de CardFeatures com API
   const cardFeatures = useCardFeatures()
 
   // Usar dados da API
-  const codeSnippets = cardFeatures.filteredItems
+  const codeSnippets = cardFeatures.items
 
   // Handlers para os componentes
   const handleCreateSubmit = async (formData: any) => {
@@ -86,17 +88,16 @@ export default function Codes({ platformState }: CodesProps) {
             <ChevronRight className="h-4 w-4 text-gray-400" />
             <button
               onClick={() => {
-                cardFeatures.setSelectedTech("all")
-                cardFeatures.setSearchTerm("")
+                cardFeatures.updateFilters({ selectedTech: "all", searchTerm: "" })
               }}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Biblioteca de Códigos
             </button>
-            {cardFeatures.selectedTech !== "all" && (
+            {cardFeatures.filters.selectedTech !== "all" && (
               <>
                 <ChevronRight className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-900 font-medium capitalize">{cardFeatures.selectedTech}</span>
+                <span className="text-gray-900 font-medium capitalize">{cardFeatures.filters.selectedTech}</span>
               </>
             )}
           </div>
@@ -106,15 +107,15 @@ export default function Codes({ platformState }: CodesProps) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Buscar snippets..."
-              value={cardFeatures.searchTerm}
-              onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
+              value={cardFeatures.filters.searchTerm}
+              onChange={(e) => cardFeatures.updateFilters({ searchTerm: e.target.value })}
               className="pl-10 w-64"
               disabled={cardFeatures.loading}
             />
           </div>
           <Select 
-            value={cardFeatures.selectedTech} 
-            onValueChange={cardFeatures.setSelectedTech}
+            value={cardFeatures.filters.selectedTech} 
+            onValueChange={(value) => cardFeatures.updateFilters({ selectedTech: value })}
             disabled={cardFeatures.loading}
           >
             <SelectTrigger className="w-40">
@@ -130,12 +131,12 @@ export default function Codes({ platformState }: CodesProps) {
             </SelectContent>
           </Select>
           <Button
-            onClick={cardFeatures.startCreating}
-            disabled={cardFeatures.loading || cardFeatures.creating}
+            onClick={() => setIsCreating(true)}
+            disabled={cardFeatures.loading}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
-            {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
+            Novo CardFeature
           </Button>
         </div>
       </div>
@@ -159,7 +160,7 @@ export default function Codes({ platformState }: CodesProps) {
               <h3 className="text-sm font-medium text-red-800">Erro ao carregar snippets</h3>
               <p className="text-sm text-red-700 mt-1">{cardFeatures.error}</p>
               <button
-                onClick={() => cardFeatures.refreshData()}
+                onClick={() => cardFeatures.fetchCardFeatures()}
                 className="text-sm text-red-600 hover:text-red-800 underline mt-2"
               >
                 Tentar novamente
@@ -175,7 +176,7 @@ export default function Codes({ platformState }: CodesProps) {
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum snippet encontrado</h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all'
+            {cardFeatures.filters.searchTerm || cardFeatures.filters.selectedTech !== 'all'
               ? 'Tente ajustar seus filtros de busca'
               : 'Ainda não há snippets de código disponíveis'
             }
@@ -190,7 +191,7 @@ export default function Codes({ platformState }: CodesProps) {
             <CardFeature
               key={snippet.id}
               snippet={snippet}
-              onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+              onEdit={(snippet) => setEditingSnippet(snippet)}
               onExpand={(snippetId) => setOpenModalId(snippetId)}
               onDelete={handleDeleteClick}
             />
@@ -203,26 +204,26 @@ export default function Codes({ platformState }: CodesProps) {
         snippet={codeSnippets.find(s => s.id === openModalId) || null}
         isOpen={!!openModalId}
         onClose={() => setOpenModalId(null)}
-        onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+        onEdit={(snippet) => setEditingSnippet(snippet)}
         onDelete={handleDeleteClick}
       />
 
       {/* Create CardFeature Modal */}
       <CardFeatureForm
-        isOpen={cardFeatures.isCreating}
+        isOpen={isCreating}
         mode="create"
-        isLoading={cardFeatures.creating}
-        onClose={cardFeatures.cancelCreating}
+        isLoading={cardFeatures.loading}
+        onClose={() => setIsCreating(false)}
         onSubmit={handleCreateSubmit}
       />
 
       {/* Edit CardFeature Modal */}
       <CardFeatureForm
-        isOpen={cardFeatures.isEditing}
+        isOpen={!!editingSnippet}
         mode="edit"
-        initialData={cardFeatures.editingItem || undefined}
-        isLoading={cardFeatures.updating}
-        onClose={cardFeatures.cancelEditing}
+        initialData={editingSnippet || undefined}
+        isLoading={cardFeatures.loading}
+        onClose={() => setEditingSnippet(null)}
         onSubmit={handleEditSubmit}
       />
 
@@ -230,7 +231,7 @@ export default function Codes({ platformState }: CodesProps) {
       <DeleteConfirmationDialog
         isOpen={!!deletingSnippet}
         snippet={deletingSnippet}
-        isDeleting={cardFeatures.deleting}
+        isDeleting={cardFeatures.loading}
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
       />

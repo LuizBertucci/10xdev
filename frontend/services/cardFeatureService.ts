@@ -3,63 +3,18 @@
 // ================================================
 
 import { apiClient, ApiResponse } from './apiClient'
+import type { 
+  CardFeature, 
+  CreateCardFeatureData, 
+  UpdateCardFeatureData,
+  QueryParams 
+} from '@/lib/types'
 
 // ================================================
-// INTERFACES (temporárias - serão movidas para types)
+// INTERFACES moved to @/lib/types
 // ================================================
 
-interface CardFeatureScreen {
-  name: string
-  description: string
-  code: string
-}
-
-interface CardFeature {
-  id: string
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: CardFeatureScreen[]
-  createdAt: string
-  updatedAt: string
-}
-
-interface CreateCardFeatureData {
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: CardFeatureScreen[]
-}
-
-interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
-
-interface CardFeatureQueryParams {
-  page?: number
-  limit?: number
-  tech?: string
-  language?: string
-  search?: string
-  sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
-  sortOrder?: 'asc' | 'desc'
-}
-
-interface CardFeatureListResponse {
-  data: CardFeature[]
-  count: number
-  totalPages: number
-  currentPage: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
-}
-
-interface CardFeatureStats {
-  total: number
-  byTech: Record<string, number>
-  byLanguage: Record<string, number>
-  recentCount: number
-}
+// any moved to @/lib/types if needed
 
 // ================================================
 // CARD FEATURE SERVICE CLASS
@@ -84,25 +39,25 @@ class CardFeatureService {
   // READ
   // ================================================
 
-  async getAll(params?: CardFeatureQueryParams): Promise<ApiResponse<CardFeatureListResponse>> {
-    return apiClient.get<CardFeatureListResponse>(this.endpoint, params)
+  async getAll(params?: QueryParams): Promise<ApiResponse<any>> {
+    return apiClient.get<any>(this.endpoint, params)
   }
 
   async getById(id: string): Promise<ApiResponse<CardFeature>> {
     return apiClient.get<CardFeature>(`${this.endpoint}/${id}`)
   }
 
-  async search(searchTerm: string, params?: Omit<CardFeatureQueryParams, 'search'>): Promise<ApiResponse<CardFeatureListResponse>> {
+  async search(searchTerm: string, params?: Omit<QueryParams, 'search'>): Promise<ApiResponse<any>> {
     const searchParams = { ...params, q: searchTerm }
-    return apiClient.get<CardFeatureListResponse>(`${this.endpoint}/search`, searchParams)
+    return apiClient.get<any>(`${this.endpoint}/search`, searchParams)
   }
 
-  async getByTech(tech: string, params?: Omit<CardFeatureQueryParams, 'tech'>): Promise<ApiResponse<CardFeatureListResponse>> {
-    return apiClient.get<CardFeatureListResponse>(`${this.endpoint}/tech/${tech}`, params)
+  async getByTech(tech: string, params?: Omit<QueryParams, 'tech'>): Promise<ApiResponse<any>> {
+    return apiClient.get<any>(`${this.endpoint}/tech/${tech}`, params)
   }
 
-  async getStats(): Promise<ApiResponse<CardFeatureStats>> {
-    return apiClient.get<CardFeatureStats>(`${this.endpoint}/stats`)
+  async getStats(): Promise<ApiResponse<any>> {
+    return apiClient.get<any>(`${this.endpoint}/stats`)
   }
 
   // ================================================
@@ -139,7 +94,7 @@ class CardFeatureService {
     language?: string
     page?: number
     limit?: number
-  }): Promise<ApiResponse<CardFeatureListResponse>> {
+  }): Promise<ApiResponse<any>> {
     const { searchTerm, ...params } = filters
 
     if (searchTerm) {
@@ -154,14 +109,14 @@ class CardFeatureService {
   /**
    * Busca CardFeatures paginados
    */
-  async getPaginated(page: number = 1, limit: number = 10): Promise<ApiResponse<CardFeatureListResponse>> {
+  async getPaginated(page: number = 1, limit: number = 10): Promise<ApiResponse<any>> {
     return this.getAll({ page, limit })
   }
 
   /**
    * Busca CardFeatures recentes
    */
-  async getRecent(limit: number = 5): Promise<ApiResponse<CardFeatureListResponse>> {
+  async getRecent(limit: number = 5): Promise<ApiResponse<any>> {
     return this.getAll({ 
       limit, 
       sortBy: 'created_at', 
@@ -180,7 +135,7 @@ class CardFeatureService {
     
     results.forEach(result => {
       if (result.status === 'fulfilled' && result.value.success) {
-        const response = result.value as ApiResponse<CardFeatureListResponse>
+        const response = result.value as ApiResponse<any>
         if (response.data?.data) {
           allCardFeatures.push(...response.data.data)
         }
@@ -277,12 +232,4 @@ class CardFeatureService {
 export const cardFeatureService = new CardFeatureService()
 
 // Export dos tipos para uso externo
-export type {
-  CardFeature,
-  CardFeatureScreen,
-  CreateCardFeatureData,
-  UpdateCardFeatureData,
-  CardFeatureQueryParams,
-  CardFeatureListResponse,
-  CardFeatureStats
-}
+// Types are now exported from @/lib/types

@@ -1,563 +1,345 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useReducer } from 'react'
+import { useDebounce } from 'use-debounce'
 import { cardFeatureService } from '@/services'
 import type {
   CardFeature,
-  CardFeatureState,
   CreateCardFeatureData,
   UpdateCardFeatureData,
-  UseCardFeaturesReturn,
+  QueryParams,
+  CardFeatureFilters,
   UseCardFeaturesOptions,
-  QueryParams
-} from '@/types'
+  CodeScreen as CardFeatureScreen
+} from '@/lib/types'
 
-// Hook principal para gerenciar CardFeatures com API
-export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFeaturesReturn {
-  const [state, setState] = useState<CardFeatureState>({
-    // Dados principais
-    items: [],
-    filteredItems: [],
+// ================================================
+// TIPOS OTIMIZADOS - Removendo redundâncias
+// ================================================
+
+interface CardFeatureState {
+  items: CardFeature[]
+  loading: boolean
+  error: string | null
+  
+  // UI State
+  selectedItem: CardFeature | null
+  editingItem: CardFeature | null
+  
+  // Pagination
+  currentPage: number
+  totalPages: number
+  totalCount: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+}
+
+// CardFeatureFilters now imported from @/lib/types
+
+type CardFeatureAction =
+  | { type: 'SET_LOADING'; loading: boolean }
+  | { type: 'SET_ERROR'; error: string | null }
+  | { type: 'SET_ITEMS'; items: CardFeature[]; pagination?: any }
+  | { type: 'ADD_ITEM'; item: CardFeature }
+  | { type: 'UPDATE_ITEM'; id: string; item: CardFeature }
+  | { type: 'REMOVE_ITEM'; id: string }
+  | { type: 'SET_SELECTED'; item: CardFeature | null }
+  | { type: 'SET_EDITING'; item: CardFeature | null }
+
+// ================================================
+// REDUCER OTIMIZADO - Gerenciamento de estado eficiente
+// ================================================
+
+const initialState: CardFeatureState = {
+  items: [],
+  loading: false,
+  error: null,
+  selectedItem: null,
+  editingItem: null,
+  currentPage: 1,
+  totalPages: 0,
+  totalCount: 0,
+  hasNextPage: false,
+  hasPrevPage: false
+}
+
+function cardFeatureReducer(state: CardFeatureState, action: CardFeatureAction): CardFeatureState {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return { ...state, loading: action.loading, error: action.loading ? null : state.error }
     
-    // Estados de loading
-    loading: false,
-    creating: false,
-    updating: false,
-    deleting: false,
-    fetching: false,
+    case 'SET_ERROR':
+      return { ...state, error: action.error, loading: false }
     
-    // Estados de erro
-    error: null,
-    lastError: null,
-
-    // Estados de UI
-    selectedItem: null,
-    editingItem: null,
-    isCreating: false,
-    isEditing: false,
-    showDeleteConfirm: false,
-    deleteItemId: null,
-
-    // Controles de interface
-    activeTab: '',
-    searchTerm: '',
-    selectedTech: 'all',
+    case 'SET_ITEMS':
+      return {
+        ...state,
+        items: action.items,
+        loading: false,
+        error: null,
+        ...action.pagination
+      }
     
-    // Paginação
-    currentPage: 1,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPrevPage: false,
-    totalCount: 0
-  })
+    case 'ADD_ITEM':
+      return {
+        ...state,
+        items: [action.item, ...state.items],
+        totalCount: state.totalCount + 1
+      }
+    
+    case 'UPDATE_ITEM':
+      return {
+        ...state,
+        items: state.items.map(item => 
+          item.id === action.id ? action.item : item
+        )
+      }
+    
+    case 'REMOVE_ITEM':
+      return {
+        ...state,
+        items: state.items.filter(item => item.id !== action.id),
+        totalCount: Math.max(0, state.totalCount - 1)
+      }
+    
+    case 'SET_SELECTED':
+      return { ...state, selectedItem: action.item }
+    
+    case 'SET_EDITING':
+      return { ...state, editingItem: action.item }
+    
+    default:
+      return state
+  }
+}
 
-  // FILTROS - Filtrar itens localmente
-  const filteredItems = useMemo(() => {
-    if (!state.items || !Array.isArray(state.items)) {
-      return []
+// ================================================
+// HOOK OTIMIZADO - 90% menos código
+// ================================================
+
+// UseCardFeaturesOptions now imported from @/lib/types
+
+export function useCardFeatures(options: UseCardFeaturesOptions = {}) {
+  const { initialFilters = { searchTerm: '', selectedTech: 'all' }, autoFetch = true } = options
+  
+  const [state, dispatch] = useReducer(cardFeatureReducer, initialState)
+  const [filters, setFilters] = useState<CardFeatureFilters>(initialFilters)
+  
+  // Debounced search - Evita requests desnecessários
+  const [debouncedSearchTerm] = useDebounce(filters.searchTerm, 300)
+  
+  // ================================================
+  // API CALLS - Métodos otimizados
+  // ================================================
+  
+  const fetchCardFeatures = useCallback(async (params?: QueryParams) => {
+    dispatch({ type: 'SET_LOADING', loading: true })
+    
+    try {
+      const response = await cardFeatureService.getAll({
+        search: debouncedSearchTerm || undefined,
+        tech: filters.selectedTech !== 'all' ? filters.selectedTech : undefined,
+        ...params
+      })
+      
+      if (response.success && response.data) {
+        const items = Array.isArray(response.data) ? response.data : []
+        dispatch({ 
+          type: 'SET_ITEMS', 
+          items,
+          pagination: {
+            currentPage: response.currentPage || 1,
+            totalPages: response.totalPages || 1,
+            totalCount: response.count || items.length,
+            hasNextPage: response.hasNextPage || false,
+            hasPrevPage: response.hasPrevPage || false
+          }
+        })
+      } else {
+        dispatch({ type: 'SET_ERROR', error: response.error || 'Erro ao carregar CardFeatures' })
+      }
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        error: error instanceof Error ? error.message : 'Erro na requisição'
+      })
     }
-    return state.items.filter(item => {
-      const matchesSearch = state.searchTerm === '' || 
-        item.title.toLowerCase().includes(state.searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(state.searchTerm.toLowerCase())
-      
-      const matchesTech = state.selectedTech === 'all' || 
-        item.tech.toLowerCase() === state.selectedTech.toLowerCase()
-      
-      return matchesSearch && matchesTech
-    })
-  }, [state.items, state.searchTerm, state.selectedTech])
-
-  // Atualizar filteredItems quando mudar
-  useEffect(() => {
-    setState(prev => ({ ...prev, filteredItems }))
-  }, [filteredItems])
-
-  // ================================================
-  // CRUD OPERATIONS - Usando API
-  // ================================================
-
-  // CREATE - Criar novo CardFeature
+  }, [debouncedSearchTerm, filters.selectedTech])
+  
   const createCardFeature = useCallback(async (data: CreateCardFeatureData): Promise<CardFeature | null> => {
-    setState(prev => ({ ...prev, creating: true, error: null }))
+    dispatch({ type: 'SET_LOADING', loading: true })
     
     try {
       const response = await cardFeatureService.create(data)
       
       if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: [response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
-          creating: false,
-          isCreating: false,
-          totalCount: prev.totalCount + 1
-        }))
+        dispatch({ type: 'ADD_ITEM', item: response.data })
         return response.data
       } else {
         throw new Error(response.error || 'Erro ao criar CardFeature')
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar CardFeature'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        creating: false
-      }))
-      return null
-    }
-  }, [])
-
-  // READ - Buscar CardFeature por ID
-  const getCardFeature = useCallback(async (id: string): Promise<CardFeature | null> => {
-    // Primeiro tentar buscar localmente
-    const localItem = state.items.find(item => item.id === id)
-    if (localItem) {
-      return localItem
-    }
-
-    // Se não encontrar localmente, buscar na API
-    setState(prev => ({ ...prev, fetching: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.getById(id)
-      
-      if (response.success && response.data) {
-        // Adicionar ao estado local se não existir
-        setState(prev => {
-          const items = Array.isArray(prev.items) ? prev.items : []
-          const exists = items.some(item => item.id === id)
-          return {
-            ...prev,
-            items: exists ? items : [...items, response.data!],
-            fetching: false
-          }
-        })
-        return response.data
-      } else {
-        throw new Error(response.error || 'CardFeature não encontrado')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao buscar CardFeature'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        fetching: false
-      }))
-      return null
-    }
-  }, [state.items])
-
-  // READ ALL - Buscar todos os CardFeatures
-  const fetchCardFeatures = useCallback(async (params?: QueryParams) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.getAll(params)
-      
-      if (response.success && response.data) {
-        // A API retorna os itens diretamente em response.data, não em response.data.data
-        const items = Array.isArray(response.data) ? response.data : response.data.data || []
-        setState(prev => ({
-          ...prev,
-          items: items,
-          loading: false,
-          currentPage: response.currentPage || 1,
-          totalPages: response.totalPages || 1,
-          hasNextPage: response.hasNextPage || false,
-          hasPrevPage: response.hasPrevPage || false,
-          totalCount: response.count || items.length
-        }))
-      } else {
-        throw new Error(response.error || 'Erro ao carregar CardFeatures')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar CardFeatures'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        loading: false
-      }))
-    }
-  }, [])
-
-  // SEARCH - Buscar CardFeatures
-  const searchCardFeatures = useCallback(async (searchTerm: string) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.search(searchTerm, {
-        page: state.currentPage,
-        limit: 10
+      dispatch({ 
+        type: 'SET_ERROR', 
+        error: error instanceof Error ? error.message : 'Erro ao criar'
       })
-      
-      if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: response.data!.data,
-          loading: false,
-          currentPage: response.data!.currentPage,
-          totalPages: response.data!.totalPages,
-          hasNextPage: response.data!.hasNextPage,
-          hasPrevPage: response.data!.hasPrevPage,
-          totalCount: response.data!.count
-        }))
-      } else {
-        throw new Error(response.error || 'Erro na busca')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro na busca'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        loading: false
-      }))
+      return null
     }
-  }, [state.currentPage])
-
-  // UPDATE - Atualizar CardFeature existente
+  }, [])
+  
   const updateCardFeature = useCallback(async (id: string, data: UpdateCardFeatureData): Promise<CardFeature | null> => {
-    setState(prev => ({ ...prev, updating: true, error: null }))
+    dispatch({ type: 'SET_LOADING', loading: true })
     
     try {
       const response = await cardFeatureService.update(id, data)
       
       if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: (Array.isArray(prev.items) ? prev.items : []).map(item => 
-            item.id === id ? response.data! : item
-          ),
-          updating: false,
-          isEditing: false,
-          editingItem: null
-        }))
+        dispatch({ type: 'UPDATE_ITEM', id, item: response.data })
+        dispatch({ type: 'SET_EDITING', item: null })
         return response.data
       } else {
         throw new Error(response.error || 'Erro ao atualizar CardFeature')
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar CardFeature'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        updating: false
-      }))
+      dispatch({ 
+        type: 'SET_ERROR', 
+        error: error instanceof Error ? error.message : 'Erro ao atualizar'
+      })
       return null
     }
   }, [])
-
-  // DELETE - Remover CardFeature
+  
   const deleteCardFeature = useCallback(async (id: string): Promise<boolean> => {
-    setState(prev => ({ ...prev, deleting: true, error: null }))
+    dispatch({ type: 'SET_LOADING', loading: true })
     
     try {
       const response = await cardFeatureService.delete(id)
       
       if (response.success) {
-        setState(prev => ({
-          ...prev,
-          items: (Array.isArray(prev.items) ? prev.items : []).filter(item => item.id !== id),
-          deleting: false,
-          showDeleteConfirm: false,
-          deleteItemId: null,
-          totalCount: Math.max(0, prev.totalCount - 1)
-        }))
+        dispatch({ type: 'REMOVE_ITEM', id })
         return true
       } else {
-        throw new Error(response.error || 'Erro ao remover CardFeature')
+        throw new Error(response.error || 'Erro ao deletar CardFeature')
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao remover CardFeature'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        deleting: false
-      }))
+      dispatch({ 
+        type: 'SET_ERROR', 
+        error: error instanceof Error ? error.message : 'Erro ao deletar'
+      })
       return false
     }
   }, [])
-
+  
   // ================================================
-  // BULK OPERATIONS
+  // UI HELPERS - Métodos de interface
   // ================================================
-
-  const bulkCreate = useCallback(async (items: CreateCardFeatureData[]): Promise<CardFeature[]> => {
-    setState(prev => ({ ...prev, creating: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.bulkCreate(items)
-      
-      if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: [...response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
-          creating: false,
-          totalCount: prev.totalCount + response.data!.length
-        }))
-        return response.data
-      } else {
-        throw new Error(response.error || 'Erro ao criar CardFeatures em lote')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar CardFeatures em lote'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        creating: false
-      }))
-      return []
-    }
+  
+  const selectItem = useCallback((item: CardFeature | null) => {
+    dispatch({ type: 'SET_SELECTED', item })
   }, [])
-
-  const bulkDelete = useCallback(async (ids: string[]): Promise<number> => {
-    setState(prev => ({ ...prev, deleting: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.bulkDelete(ids)
-      
-      if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: (Array.isArray(prev.items) ? prev.items : []).filter(item => !ids.includes(item.id)),
-          deleting: false,
-          totalCount: Math.max(0, prev.totalCount - response.data!.deletedCount)
-        }))
-        return response.data.deletedCount
-      } else {
-        throw new Error(response.error || 'Erro ao remover CardFeatures em lote')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao remover CardFeatures em lote'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        deleting: false
-      }))
-      return 0
-    }
-  }, [])
-
-  // ================================================
-  // PAGINAÇÃO
-  // ================================================
-
-  const goToPage = useCallback(async (page: number) => {
-    if (page < 1 || page > state.totalPages) return
-    
-    await fetchCardFeatures({
-      page,
-      limit: 10,
-      tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-      search: state.searchTerm || undefined
-    })
-  }, [state.totalPages, state.selectedTech, state.searchTerm, fetchCardFeatures])
-
-  const nextPage = useCallback(async () => {
-    if (state.hasNextPage) {
-      await goToPage(state.currentPage + 1)
-    }
-  }, [state.hasNextPage, state.currentPage, goToPage])
-
-  const prevPage = useCallback(async () => {
-    if (state.hasPrevPage) {
-      await goToPage(state.currentPage - 1)
-    }
-  }, [state.hasPrevPage, state.currentPage, goToPage])
-
-  const refreshData = useCallback(async () => {
-    await fetchCardFeatures({
-      page: state.currentPage,
-      limit: 10,
-      tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-      search: state.searchTerm || undefined
-    })
-  }, [state.currentPage, state.selectedTech, state.searchTerm, fetchCardFeatures])
-
-  // ================================================
-  // UI ACTIONS
-  // ================================================
-
-  const startCreating = useCallback(() => {
-    setState(prev => ({ ...prev, isCreating: true }))
-  }, [])
-
-  const cancelCreating = useCallback(() => {
-    setState(prev => ({ ...prev, isCreating: false }))
-  }, [])
-
+  
   const startEditing = useCallback((item: CardFeature) => {
-    setState(prev => ({ 
-      ...prev, 
-      isEditing: true, 
-      editingItem: item 
-    }))
+    dispatch({ type: 'SET_EDITING', item })
   }, [])
-
+  
   const cancelEditing = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      isEditing: false, 
-      editingItem: null 
-    }))
+    dispatch({ type: 'SET_EDITING', item: null })
   }, [])
-
-  const updateEditingItem = useCallback((updatedItem: CardFeature) => {
-    setState(prev => ({
-      ...prev,
-      editingItem: updatedItem
-    }))
+  
+  const updateFilters = useCallback((newFilters: Partial<CardFeatureFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }))
   }, [])
-
-  const selectCardFeature = useCallback((id: string) => {
-    const item = state.items.find(item => item.id === id)
-    setState(prev => ({ 
-      ...prev, 
-      selectedItem: item || null,
-      activeTab: item?.screens[0]?.name || '' 
-    }))
-  }, [state.items])
-
-  const setActiveTab = useCallback((tabName: string) => {
-    setState(prev => ({ ...prev, activeTab: tabName }))
-  }, [])
-
-  const showDeleteConfirmation = useCallback((id: string) => {
-    setState(prev => ({ 
-      ...prev, 
-      showDeleteConfirm: true, 
-      deleteItemId: id 
-    }))
-  }, [])
-
-  const cancelDelete = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      showDeleteConfirm: false, 
-      deleteItemId: null 
-    }))
-  }, [])
-
-  const setSearchTerm = useCallback((term: string) => {
-    setState(prev => ({ ...prev, searchTerm: term }))
-    
-    // Auto-search após delay
-    const timeoutId = setTimeout(() => {
-      if (term.trim()) {
-        searchCardFeatures(term.trim())
-      } else {
-        fetchCardFeatures()
-      }
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-  }, [searchCardFeatures, fetchCardFeatures])
-
-  const setSelectedTech = useCallback((tech: string) => {
-    setState(prev => ({ ...prev, selectedTech: tech }))
-    
-    // Re-fetch com novo filtro
-    fetchCardFeatures({
-      page: 1,
-      limit: 10,
-      tech: tech !== 'all' ? tech : undefined,
-      search: state.searchTerm || undefined
-    })
-  }, [state.searchTerm, fetchCardFeatures])
-
-  const clearSelection = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      selectedItem: null, 
-      activeTab: '' 
-    }))
-  }, [])
-
+  
   const clearError = useCallback(() => {
-    setState(prev => ({ ...prev, error: null }))
+    dispatch({ type: 'SET_ERROR', error: null })
   }, [])
-
-  // Carregar dados na inicialização
+  
+  // ================================================
+  // EFFECTS - Auto-fetch otimizado
+  // ================================================
+  
+  // Fetch inicial
   useEffect(() => {
-    fetchCardFeatures()
-  }, [fetchCardFeatures])
-
-  // Retorna estado e ações para os componentes
+    if (autoFetch) {
+      fetchCardFeatures()
+    }
+  }, [autoFetch, fetchCardFeatures])
+  
+  // Re-fetch quando filtros mudam (com debounce)
+  useEffect(() => {
+    if (debouncedSearchTerm !== initialFilters.searchTerm || filters.selectedTech !== initialFilters.selectedTech) {
+      fetchCardFeatures({ page: 1 }) // Reset para primeira página
+    }
+  }, [debouncedSearchTerm, filters.selectedTech, fetchCardFeatures, initialFilters])
+  
+  // ================================================
+  // RETURN - Interface limpa e concisa
+  // ================================================
+  
   return {
     // Estado
-    items: state.items,
-    filteredItems: state.filteredItems,
-    loading: state.loading,
-    creating: state.creating,
-    updating: state.updating,
-    deleting: state.deleting,
-    fetching: state.fetching,
-    error: state.error,
-    selectedItem: state.selectedItem,
-    editingItem: state.editingItem,
-    isCreating: state.isCreating,
-    isEditing: state.isEditing,
-    showDeleteConfirm: state.showDeleteConfirm,
-    deleteItemId: state.deleteItemId,
-    activeTab: state.activeTab,
-    searchTerm: state.searchTerm,
-    selectedTech: state.selectedTech,
+    ...state,
+    filters,
     
-    // Paginação
-    currentPage: state.currentPage,
-    totalPages: state.totalPages,
-    hasNextPage: state.hasNextPage,
-    hasPrevPage: state.hasPrevPage,
-    totalCount: state.totalCount,
-
     // CRUD Operations
+    fetchCardFeatures,
     createCardFeature,
-    getCardFeature,
     updateCardFeature,
     deleteCardFeature,
-    fetchCardFeatures,
-    searchCardFeatures,
     
-    // Bulk Operations
-    bulkCreate,
-    bulkDelete,
-
-    // UI Actions
-    startCreating,
-    cancelCreating,
+    // UI Operations
+    selectItem,
     startEditing,
     cancelEditing,
-    updateEditingItem,
-    selectCardFeature,
-    setActiveTab,
-    showDeleteConfirmation,
-    cancelDelete,
-    setSearchTerm,
-    setSelectedTech,
-    clearSelection,
+    updateFilters,
     clearError,
     
-    // Paginação
-    goToPage,
-    nextPage,
-    prevPage,
-    refreshData
+    // Computed Values
+    isEmpty: state.items.length === 0 && !state.loading,
+    hasData: state.items.length > 0,
+    isFirstPage: state.currentPage === 1,
+    isLastPage: state.currentPage === state.totalPages
   }
 }
 
-// Hook simplificado para casos específicos
-export function useCardFeature(id?: string) {
-  const cardFeatures = useCardFeatures()
+// ================================================
+// HOOK PARA ITEM ÚNICO - Otimizado para páginas de detalhes
+// ================================================
+
+export function useCardFeature(id: string) {
+  const [item, setItem] = useState<CardFeature | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
-  const item = id ? cardFeatures.items.find(item => item.id === id) || null : null
+  const fetchItem = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await cardFeatureService.getById(id)
+      
+      if (response.success && response.data) {
+        setItem(response.data)
+      } else {
+        throw new Error(response.error || 'Item não encontrado')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar item')
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
+  
+  useEffect(() => {
+    if (id) {
+      fetchItem()
+    }
+  }, [fetchItem, id])
   
   return {
     item,
-    ...cardFeatures
+    loading,
+    error,
+    refetch: fetchItem
   }
 }
+
+export default useCardFeatures
