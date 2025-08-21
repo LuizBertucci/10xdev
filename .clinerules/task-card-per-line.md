@@ -34,7 +34,7 @@ Criar uma nova aba "Códigos v2" para testar a visualização alternativa onde:
 ## Passo a Passo de Implementação
 
 #### ETAPA 1: Criar Nova Aba e Página Inicial ⭐ (PRIMEIRA)
-- [ ] Modificar `frontend/components/AppSidebar.tsx` - adicionar nova aba no menuItems:
+- [x] Modificar `frontend/components/AppSidebar.tsx` - adicionar nova aba no menuItems:
 ```javascript
 {
   title: "Códigos v2",
@@ -43,25 +43,10 @@ Criar uma nova aba "Códigos v2" para testar a visualização alternativa onde:
   description: "Teste: Cards em linha",
 }
 ```
-- [ ] Criar arquivo `frontend/pages/CodesV2.tsx` - página básica inicial:
-```javascript
-export default function CodesV2({ platformState }: CodesProps) {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Códigos v2 - Layout em Lista</h1>
-      <p className="text-gray-600">Nova visualização de cards em desenvolvimento...</p>
-    </div>
-  )
-}
-```
-- [ ] Modificar `frontend/app/page.tsx` - adicionar import e renderização:
-```javascript
-import CodesV2 from "@/pages/CodesV2"
-// ...
-{platformState.activeTab === "codes-v2" && <CodesV2 platformState={platformState} />}
-```
-- [ ] Testar navegação entre "Códigos" e "Códigos v2"
-- [ ] Verificar que nova aba aparece e renderiza conteúdo básico
+- [x] Criar arquivo `frontend/pages/CodesV2.tsx` - página básica inicial:
+- [x] Modificar `frontend/app/page.tsx` - adicionar import e renderização:
+- [x] Testar navegação entre "Códigos" e "Códigos v2"
+- [x] Verificar que nova aba aparece e renderiza conteúdo básico
 
 **Check**: ✅ Nova aba "Códigos v2" funciona e mostra página básica
 

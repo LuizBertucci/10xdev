@@ -7,6 +7,7 @@ import { usePlatform } from "@/hooks/use-platform"
 import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
+import CodesV2 from "@/pages/CodesV2"
 import Lessons from "@/pages/Lessons"
 import Projects from "@/pages/Projects"
 import AI from "@/pages/AI"
@@ -45,6 +46,8 @@ export default function DevPlatform() {
             {platformState.activeTab === "home" && <Home platformState={platformState} />}
 
             {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
+
+            {platformState.activeTab === "codes-v2" && <CodesV2 platformState={platformState} />}
 
             {platformState.activeTab === "lessons" && <Lessons />}
 
