@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
+import SyntaxHighlighter from "./SyntaxHighlighter"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -16,11 +17,16 @@ interface CardFeatureCompactProps {
 export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFeatureCompactProps) {
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
+  // Estado para controlar a aba ativa (similar ao CardFeature)
+  const [activeTab, setActiveTab] = useState(0)
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded)
   }
+
+  // Screen ativa baseada na tab selecionada
+  const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
 
   return (
     <TooltipProvider>
@@ -29,9 +35,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
           {/* Layout Horizontal */}
           <div className="flex items-center justify-between gap-4">
             
-            {/* Seção de Badges + Informações */}
+            {/* Seção de Informações + Badges */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
               
+              {/* Informações */}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
+                <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+              </div>
+
               {/* Badges */}
               <div className="flex gap-2 flex-shrink-0">
                 <Badge 
@@ -46,12 +58,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                   <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
                   {snippet.language}
                 </Badge>
-              </div>
-
-              {/* Informações */}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
-                <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
               </div>
             </div>
 
@@ -115,15 +121,58 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
             </div>
           </div>
           
-          {/* Debug: mostrar estado atual */}
+          {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-sm text-gray-600">
-                🚧 <strong>Estado expandido!</strong> Aqui aparecerá o código com tabs (próxima etapa)
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                isExpanded = {isExpanded.toString()}
-              </p>
+            <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+              {/* Sistema de Tabs */}
+              <div className="flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+                {snippet.screens.map((screen, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setActiveTab(index)}
+                    className={`
+                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative
+                      ${activeTab === index 
+                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
+                      }
+                    `}
+                  >
+                    {screen.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Área do Código com Syntax Highlighting */}
+              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-64 overflow-y-auto relative group" 
+                style={{
+                  backgroundColor: 'rgb(248, 249, 250)', 
+                  fontFamily: 'Fira Code, Consolas, Monaco, monospace'
+                }}
+              >
+                <style>{`
+                  .codeblock-scroll::-webkit-scrollbar {
+                    width: 8px;
+                  }
+                  .codeblock-scroll::-webkit-scrollbar-track {
+                    background: rgba(0, 0, 0, 0.1);
+                    border-radius: 4px;
+                  }
+                  .codeblock-scroll::-webkit-scrollbar-thumb {
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 4px;
+                  }
+                  .codeblock-scroll::-webkit-scrollbar-thumb:hover {
+                    background: rgba(0, 0, 0, 0.5);
+                  }
+                `}</style>
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
+                  <SyntaxHighlighter
+                    code={activeScreen.code}
+                    language={snippet.language}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

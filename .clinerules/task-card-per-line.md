@@ -71,24 +71,24 @@ Criar uma nova aba "Códigos v2" para testar a visualização alternativa onde:
 **Check**: ✅ Toggle funciona e muda ícone corretamente
 
 #### ETAPA 4: Adicionar Área de Código Condicional  
-- [ ] Importar componentes: SyntaxHighlighter, getTechConfig, getLanguageConfig
-- [ ] Adicionar estado `activeTab` para controle das tabs
-- [ ] Criar área condicional que renderiza quando `isExpanded = true`
-- [ ] Reutilizar lógica de tabs do CardFeature original
-- [ ] Integrar SyntaxHighlighter com tema atual
-- [ ] Adicionar transições CSS smooth para expand/collapse
+- [x] Importar componentes: SyntaxHighlighter, getTechConfig, getLanguageConfig
+- [x] Adicionar estado `activeTab` para controle das tabs
+- [x] Criar área condicional que renderiza quando `isExpanded = true`
+- [x] Reutilizar lógica de tabs do CardFeature original
+- [x] Integrar SyntaxHighlighter com tema atual
+- [x] Adicionar transições CSS smooth para expand/collapse
 
 **Check**: ✅ Código aparece/desaparece com tabs funcionais
 
-#### ETAPA 5: Integrar CardFeatureCompact na CodesV2
-- [ ] Modificar `CodesV2.tsx` para usar CardFeatureCompact
-- [ ] Alterar import: `CardFeature` → `CardFeatureCompact`
-- [ ] Modificar layout container: `grid grid-cols-1 lg:grid-cols-2 gap-6` → `space-y-4`
-- [ ] Remover prop `onExpand` (não usa mais modal)
-- [ ] Manter todas outras props: onEdit, onDelete
-- [ ] Testar página com novo layout
+#### ETAPA 5: Integrar CardFeatureCompact com Dados Reais
+- [x] Remover mock data da CodesV2.tsx
+- [x] Integrar useCardFeatures hook para dados reais da API
+- [x] Implementar layout de lista vertical com `space-y-4`
+- [x] Adicionar todos os handlers (search, filter, create, edit, delete)
+- [x] Remover prop `onExpand` dos componentes (não usa mais modal)
+- [x] Testar funcionalidades CRUD completas
 
-**Check**: ✅ Página renderiza com cards em lista vertical
+**Check**: ✅ Página renderiza com cards reais em lista vertical
 
 #### ETAPA 6: Ajustes de Responsividade
 - [ ] Testar layout em diferentes tamanhos de tela
