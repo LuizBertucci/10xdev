@@ -62,11 +62,11 @@ Criar uma nova aba "Códigos v2" para testar a visualização alternativa onde:
 **Check**: ✅ Componente renderiza horizontalmente compactado (SEM código visível)
 
 #### ETAPA 3: Implementar Estado e Toggle Button
-- [ ] Adicionar estado `isExpanded` (useState, padrão false)
-- [ ] Implementar função `toggleExpanded`
-- [ ] Criar botão toggle com ícones ChevronDown/ChevronUp
-- [ ] Adicionar tooltips ("Expandir código" / "Recolher código")
-- [ ] Testar mudança de estado e ícones
+- [x] Adicionar estado `isExpanded` (useState, padrão false)
+- [x] Implementar função `toggleExpanded`
+- [x] Criar botão toggle com ícones ChevronDown/ChevronUp
+- [x] Adicionar tooltips ("Expandir código" / "Recolher código")
+- [x] Testar mudança de estado e ícones
 
 **Check**: ✅ Toggle funciona e muda ícone corretamente
 

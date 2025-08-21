@@ -1,8 +1,9 @@
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Edit, Trash2, ChevronDown } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import type { CardFeature as CardFeatureType } from "@/types"
 
@@ -13,6 +14,14 @@ interface CardFeatureCompactProps {
 }
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFeatureCompactProps) {
+  // Estado para controlar se o código está expandido
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  // Função para alternar o estado de expansão
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded)
+  }
+
   return (
     <TooltipProvider>
       <Card className="shadow-sm hover:shadow-md transition-shadow">
@@ -83,23 +92,40 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 </TooltipContent>
               </Tooltip>
 
-              {/* Toggle Button (placeholder por enquanto) */}
+              {/* Toggle Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={toggleExpanded}
                     className="text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-2"
                   >
-                    <ChevronDown className="h-4 w-4" />
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Expandir código</p>
+                  <p>{isExpanded ? "Recolher código" : "Expandir código"}</p>
                 </TooltipContent>
               </Tooltip>
             </div>
           </div>
+          
+          {/* Debug: mostrar estado atual */}
+          {isExpanded && (
+            <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-sm text-gray-600">
+                🚧 <strong>Estado expandido!</strong> Aqui aparecerá o código com tabs (próxima etapa)
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                isExpanded = {isExpanded.toString()}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </TooltipProvider>
