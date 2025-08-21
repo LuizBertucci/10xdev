@@ -51,15 +51,15 @@ Criar uma nova aba "Códigos v2" para testar a visualização alternativa onde:
 **Check**: ✅ Nova aba "Códigos v2" funciona e mostra página básica
 
 #### ETAPA 2: Criar CardFeatureCompact.tsx - Layout Horizontal Básico
-- [ ] Criar arquivo `frontend/components/CardFeatureCompact.tsx`
-- [ ] Definir interface `CardFeatureCompactProps` (mesma do CardFeature)
-- [ ] Implementar layout horizontal com flexbox
-- [ ] Adicionar seção de badges (tech + language)
-- [ ] Adicionar seção de informações (título + descrição)  
-- [ ] Adicionar seção de actions (edit, delete, toggle placeholder)
-- [ ] Testar renderização básica sem funcionalidade
+- [x] Criar arquivo `frontend/components/CardFeatureCompact.tsx`
+- [x] Definir interface `CardFeatureCompactProps` (similar ao CardFeature, mas SEM onExpand)
+- [x] Implementar layout horizontal com flexbox
+- [x] Adicionar seção de badges (tech + language)
+- [x] Adicionar seção de informações (título + descrição)  
+- [x] Adicionar seção de actions (edit, delete, toggle placeholder)
+- [x] Testar renderização básica sem funcionalidade
 
-**Check**: ✅ Componente renderiza horizontalmente com informações visíveis
+**Check**: ✅ Componente renderiza horizontalmente compactado (SEM código visível)
 
 #### ETAPA 3: Implementar Estado e Toggle Button
 - [ ] Adicionar estado `isExpanded` (useState, padrão false)
