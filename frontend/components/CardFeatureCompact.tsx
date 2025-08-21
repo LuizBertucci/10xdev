@@ -144,7 +144,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Área do Código com Syntax Highlighting */}
-              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-64 overflow-y-auto relative group" 
+              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-96 overflow-y-auto relative group" 
                 style={{
                   backgroundColor: 'rgb(248, 249, 250)', 
                   fontFamily: 'Fira Code, Consolas, Monaco, monospace'
