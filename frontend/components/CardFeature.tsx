@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Maximize2, Edit, Trash2 } from "lucide-react"
+import { Expand, Edit, Trash2 } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import SyntaxHighlighter from "./SyntaxHighlighter"
 import type { CardFeature as CardFeatureType } from "@/types"
@@ -29,7 +29,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 
   return (
     <TooltipProvider>
-      <Card className="shadow-lg hover:shadow-xl transition-shadow h-[29rem]">
+      <Card className="shadow-lg hover:shadow-xl transition-shadow h-[32rem]">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
@@ -39,38 +39,6 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
               </CardDescription>
             </div>
             <div className="flex space-x-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(snippet)}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Editar CardFeature</p>
-                </TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onExpand(snippet.id)}
-                    className="text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-2"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Expandir visualização</p>
-                </TooltipContent>
-              </Tooltip>
-
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -129,8 +97,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
             </div>
 
             {/* Preview do Código - Aba Ativa com Syntax Highlighting */}
-            <div className="rounded-xl shadow-xl p-6 h-64 overflow-y-auto relative group" 
-            style={{backgroundColor: 'rgb(162, 164, 165)', 
+            <div className="rounded-xl shadow-xl p-6 h-[19rem] overflow-y-auto relative group" 
+            style={{backgroundColor: '#f8f8ff', 
             fontFamily: 'Fira Code, Consolas, Monaco, monospace'}}>
               <style>{`
                 .codeblock-scroll::-webkit-scrollbar {
@@ -148,7 +116,53 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   background: rgba(0, 0, 0, 0.5);
                 }
               `}</style>
-              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
+              
+              {/* Flex container para rota (esquerda) e botões (direita) */}
+              <div className="absolute top-2 left-4 right-4 z-20 flex justify-between items-start">
+                {/* Rota do arquivo (lado esquerdo) - Card */}
+                <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex-1 mr-2">
+                  <span className="text-xs text-gray-600 font-mono truncate block">
+                    {activeScreen.route || 'Sem rota definida'}
+                  </span>
+                </div>
+                
+                {/* Botões (lado direito) */}
+                <div className="flex space-x-1 ml-auto">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(snippet)}
+                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 opacity-80 hover:opacity-100"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Editar CardFeature</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onExpand(snippet.id)}
+                      className="text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-2 opacity-80 hover:opacity-100"
+                    >
+                      <Expand className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Tela cheia</p>
+                  </TooltipContent>
+                </Tooltip>
+                </div>
+              </div>
+              
+              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
                 <SyntaxHighlighter
                   code={activeScreen.code}
                   language={snippet.language}

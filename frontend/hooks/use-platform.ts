@@ -1,10 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { CodeSnippet } from '@/types'; // Assuming a types file exists, adjust as needed
 
 // Define the state and functions for the DevPlatform
 export function usePlatform() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Get initial tab from URL or default to 'home'
+  const getInitialTab = () => {
+    const tabFromUrl = searchParams.get('tab');
+    return tabFromUrl || 'home';
+  };
+
   // State for the active tab
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab());
 
   // State for search term
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -39,10 +50,32 @@ export function usePlatform() {
     });
   }, [searchTerm, selectedTech]);
 
+  // Enhanced setActiveTab that updates URL
+  const setActiveTabWithUrl = useCallback((tab: string) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'home') {
+      params.delete('tab');
+    } else {
+      params.set('tab', tab);
+    }
+    const queryString = params.toString();
+    const newUrl = queryString ? `/?${queryString}` : '/';
+    router.push(newUrl, { scroll: false });
+  }, [router, searchParams]);
+
+  // Listen to URL changes and update tab accordingly
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab') || 'home';
+    if (tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams, activeTab]);
+
   // Return all state and functions
   return {
     activeTab,
-    setActiveTab,
+    setActiveTab: setActiveTabWithUrl,
     searchTerm,
     setSearchTerm,
     selectedTech,
