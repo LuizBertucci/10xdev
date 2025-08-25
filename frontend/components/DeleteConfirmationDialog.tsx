@@ -37,14 +37,14 @@ export default function DeleteConfirmationDialog({
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="space-y-2">
-            <p>
+            <div>
               Tem certeza que deseja excluir o CardFeature{" "}
               <span className="font-semibold text-gray-900">"{snippet.title}"</span>?
-            </p>
-            <p className="text-sm text-red-600">
+            </div>
+            <div className="text-sm text-red-600">
               ⚠️ Esta ação não pode ser desfeita. Todos os {snippet.screens.length} arquivo{snippet.screens.length > 1 ? 's' : ''} 
               {" "}ser{snippet.screens.length > 1 ? 'ão' : 'á'} permanentemente removido{snippet.screens.length > 1 ? 's' : ''}.
-            </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
