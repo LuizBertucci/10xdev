@@ -77,23 +77,34 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 
           {/* Sistema de Abas + Preview */}
           <div className="space-y-2">
-            {/* Abas Header - SEMPRE VISÍVEL */}
-            <div className="flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
-              {snippet.screens.map((screen, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveTab(index)}
-                  className={`
-                    px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative
-                    ${activeTab === index 
-                      ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
-                      : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
-                    }
-                  `}
-                >
-                  {screen.name}
-                </button>
-              ))}
+            {/* Abas Header - SEMPRE VISÍVEL com scroll horizontal */}
+            <div className="p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg overflow-hidden">
+              <div className="tabs-scroll flex gap-2 overflow-x-auto pb-1">
+                <style>{`
+                  .tabs-scroll::-webkit-scrollbar {
+                    display: none;
+                  }
+                  .tabs-scroll {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                  }
+                `}</style>
+                {snippet.screens.map((screen, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setActiveTab(index)}
+                    className={`
+                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative whitespace-nowrap flex-shrink-0
+                      ${activeTab === index 
+                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
+                      }
+                    `}
+                  >
+                    {screen.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Preview do Código - Aba Ativa com Syntax Highlighting */}

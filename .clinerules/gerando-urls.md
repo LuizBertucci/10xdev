@@ -1,53 +1,83 @@
-# Implementando URLs Dinâmicas no Next.js 15
+# Migração de platformState para Next.js Routes
 
-## Problema Atual
-- A navegação usa query parameters: `/?tab=codes-v2`
-- Desejado: URLs limpas como `/codes-v2`
+## Situação Atual ✅
+- Sistema funcional com `platformState` centralizando estados (filtros, navegação)
+- Filtros sincronizados entre Home → Codes e vice-versa
+- URLs usando query parameters: `/?tab=codes`
 
-## Plano de Implementação
+## Novo Objetivo 🎯
+- Migrar de `platformState` para roteamento nativo do Next.js
+- URLs limpas: `/codes`, `/dashboard`, etc.
+- Filtros gerenciados por URL search params: `/codes?tech=node.js`
 
-### ✅ Análise Concluída
-- [x] Investigar componente da sidebar e navegação
-- [x] Verificar sistema de roteamento atual  
-- [x] Identificar uso de estado local no `usePlatform` hook
+## Plano de Migração
 
-### 🔄 Etapas da Reestruturação
+### ✅ Fase 1: Análise Concluída
+- [x] Sistema atual funcional com platformState
+- [x] Filtros sincronizados corretamente
+- [x] Identificação de dependências
 
-#### 1. Estrutura de Rotas Next.js
-- [ ] Criar arquivo `app/[tab]/page.tsx` para rotas dinâmicas
-- [ ] Validar tabs permitidos: `codes`, `codes-v2`, `lessons`, `projects`, `ai`, `dashboard`
-- [ ] Implementar `notFound()` para tabs inválidos
+### 🔄 Fase 2: Reestruturação de Rotas
 
-#### 2. Atualização do Hook `usePlatform`
-- [ ] Modificar para aceitar parâmetro de tab inicial
-- [ ] Implementar navegação com `router.push()` usando URLs limpas
-- [ ] Remover query parameters, usar rotas diretas
+#### 1. Criar Estrutura de Páginas
+- [ ] `app/codes/page.tsx` - Página de códigos 
+- [ ] `app/dashboard/page.tsx` - Dashboard
+- [ ] `app/lessons/page.tsx` - Aulas
+- [ ] `app/projects/page.tsx` - Projetos
+- [ ] `app/ai/page.tsx` - IA
+- [ ] Manter `app/page.tsx` como Home
 
-#### 3. Atualização do Componente AppSidebar
-- [ ] Modificar clicks para navegar para URLs diretas
-- [ ] Exemplo: `router.push('/codes')` em vez de `setActiveTab('codes')`
+#### 2. Migrar Filtros para URL Search Params
+- [ ] `/codes?tech=node.js&search=api` para filtros
+- [ ] `/dashboard?period=month&metric=views` para dashboard
+- [ ] Usar `useSearchParams()` e `useRouter()` do Next.js
+- [ ] Remover filtros do `usePlatform`
 
-#### 4. Manter Página Home na Raiz
-- [ ] Manter `app/page.tsx` para rota `/` (página inicial)
-- [ ] Não alterar estrutura da página home
+#### 3. Atualizar Navegação
+- [ ] Home.tsx: `router.push('/codes?tech=node.js')` nos quick access
+- [ ] AppSidebar: navegação direta com `Link` ou `router.push()`
+- [ ] Breadcrumbs: usar rota atual em vez de estado
 
-#### 5. URLs Resultantes
-- [ ] `/` → Home (sem mudanças)
-- [ ] `/codes` → Códigos
-- [ ] `/codes-v2` → Códigos v2  
-- [ ] `/lessons` → Aulas
-- [ ] `/projects` → Projetos
-- [ ] `/ai` → IA
-- [ ] `/dashboard` → Dashboard
+#### 4. Refatorar Hooks
+- [ ] **useCardFeatures**: receber filtros via props em vez de platformState
+- [ ] **Remover usePlatform**: não será mais necessário
+- [ ] Cada página gerencia seus próprios filtros via URL
 
-#### 6. Testes
-- [ ] Verificar navegação pela sidebar
-- [ ] Testar URLs diretas no navegador
-- [ ] Confirmar botões voltar/avançar funcionando
-- [ ] Validar reload da página mantém estado
+#### 5. Componentes Afetados
+- [ ] **Codes.tsx**: migrar para `app/codes/page.tsx`
+- [ ] **Dashboard.tsx**: migrar para `app/dashboard/page.tsx`  
+- [ ] **Home.tsx**: atualizar links para rotas diretas
+- [ ] **AppSidebar**: usar navegação Next.js
 
-## Observações Técnicas
-- Usar Next.js 15 App Router
-- Manter compatibilidade com componentes existentes
-- Preservar funcionalidades do `usePlatform` hook
-- Evitar quebrar navegação existente durante transição
+### 🔄 Fase 3: Implementação
+
+#### Ordem de Execução:
+1. [ ] Criar páginas individuais copiando componentes existentes
+2. [ ] Implementar filtros via URL search params em `/codes`
+3. [ ] Atualizar navegação na Home e Sidebar
+4. [ ] Testar todas as rotas e filtros
+5. [ ] Remover platformState e usePlatform
+6. [ ] Cleanup de código não utilizado
+
+### 🎯 Resultado Final
+- **URLs limpas**: `/codes`, `/dashboard` 
+- **Filtros em URL**: `/codes?tech=react&search=hooks`
+- **Navegação nativa**: botão voltar/avançar funcional
+- **SEO friendly**: cada página tem URL própria
+- **Sem estado global**: cada página independente
+- **Performance**: lazy loading por rota
+
+### 📋 Validações
+- [ ] Navegação sidebar → funcionando
+- [ ] Links da Home → aplicando filtros corretos  
+- [ ] URLs diretas → carregando páginas
+- [ ] Filtros persistem → ao recarregar página
+- [ ] Breadcrumbs → refletindo rota atual
+- [ ] Botões voltar/avançar → funcionando
+
+## Benefícios da Migração
+- 🚀 URLs compartilháveis com filtros
+- 🔍 Melhor SEO (cada rota indexável)
+- 🎯 Navegação nativa do navegador  
+- 🧹 Código mais limpo (sem estado global)
+- ⚡ Performance (code splitting automático)
