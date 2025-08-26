@@ -2,8 +2,9 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, ChevronRight, Code2, X, Loader2, Plus } from "lucide-react"
+import { Search, Filter, ChevronRight, Code2, X, Loader2, Plus, LayoutGrid, List } from "lucide-react"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
+import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeature from "@/components/CardFeature"
 import CardFeatureModal from "@/components/CardFeatureModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
@@ -22,36 +23,37 @@ interface CodesProps {
   platformState: PlatformState
 }
 
-
 export default function Codes({ platformState }: CodesProps) {
+  // ================================================
+  // ESTADO E HOOKS - Gerenciamento de estado da página
+  // ================================================
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('list')
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   
-  // Usar o hook de CardFeatures com API
+  // Hook principal para operações CRUD e dados da API
   const cardFeatures = useCardFeatures()
 
-  // Usar dados da API
+  // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems
 
-  // Handlers para os componentes
+  // ================================================
+  // EVENT HANDLERS - Funções para lidar com ações do usuário
+  // ================================================
+  
+  // Handler para criação de novo CardFeature
   const handleCreateSubmit = async (formData: any) => {
     await cardFeatures.createCardFeature(formData)
   }
 
+  // Handler para edição de CardFeature existente
   const handleEditSubmit = async (formData: any) => {
     if (cardFeatures.editingItem) {
-      console.log('Editando CardFeature:', {
-        id: cardFeatures.editingItem.id,
-        originalData: cardFeatures.editingItem,
-        formData: formData
-      })
       await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, formData)
-    } else {
-      console.error('Nenhum item sendo editado!')
     }
   }
 
-  // Handlers para exclusão
+  // Handler para iniciar processo de exclusão
   const handleDeleteClick = (snippetId: string) => {
     const snippet = codeSnippets.find(s => s.id === snippetId)
     if (snippet) {
@@ -59,21 +61,28 @@ export default function Codes({ platformState }: CodesProps) {
     }
   }
 
+  // Handler para confirmar exclusão
   const handleDeleteConfirm = async () => {
     if (deletingSnippet) {
       await cardFeatures.deleteCardFeature(deletingSnippet.id)
       setDeletingSnippet(null)
-      setOpenModalId(null) // Fecha o modal se estiver aberto
     }
   }
 
+  // Handler para cancelar exclusão
   const handleDeleteCancel = () => {
     setDeletingSnippet(null)
   }
 
+  // ================================================
+  // RENDER - Interface do usuário da página
+  // ================================================
+  
+  //* HEADER - Breadcrumb + Busca + Filtros + Botão Criar *//
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
+        {/* Breadcrumb Navigation */}
         <div>
           <div className="flex items-center space-x-2 text-sm mb-2">
             <button
@@ -90,7 +99,7 @@ export default function Codes({ platformState }: CodesProps) {
               }}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
-              Biblioteca de Códigos
+              Blocos de Códigos
             </button>
             {cardFeatures.selectedTech !== "all" && (
               <>
@@ -100,7 +109,10 @@ export default function Codes({ platformState }: CodesProps) {
             )}
           </div>
         </div>
+        
+        {/* Search, Filters and Actions */}
         <div className="flex space-x-4">
+          {/* Search Input */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
@@ -111,6 +123,8 @@ export default function Codes({ platformState }: CodesProps) {
               disabled={cardFeatures.loading}
             />
           </div>
+
+          {/* Tech Filter */}
           <Select 
             value={cardFeatures.selectedTech} 
             onValueChange={cardFeatures.setSelectedTech}
@@ -128,6 +142,38 @@ export default function Codes({ platformState }: CodesProps) {
               <SelectItem value="javascript">JavaScript</SelectItem>
             </SelectContent>
           </Select>
+          
+          {/* View Mode Toggle */}
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <Button
+              onClick={() => setViewMode('cards')}
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              className={`rounded-none border-0 ${
+                viewMode === 'cards'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Visualização em Cards"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => setViewMode('list')}
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className={`rounded-none border-0 border-l border-gray-300 ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Create Button */}
           <Button
             onClick={cardFeatures.startCreating}
             disabled={cardFeatures.loading || cardFeatures.creating}
@@ -139,6 +185,7 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
       </div>
 
+      {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
       {/* Loading State */}
       {cardFeatures.loading && (
         <div className="flex items-center justify-center py-12">
@@ -182,30 +229,41 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
       )}
 
-      {/* Content Grid */}
+      {/* ===== CONTEÚDO PRINCIPAL - Renderização Condicional por View Mode ===== */}
       {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {codeSnippets.map((snippet) => (
-            <CardFeature
-              key={snippet.id}
-              snippet={snippet}
-              onEdit={(snippet) => cardFeatures.startEditing(snippet)}
-              onExpand={(snippetId) => setOpenModalId(snippetId)}
-              onDelete={handleDeleteClick}
-            />
-          ))}
-        </div>
+        <>
+          {/* View Lista (Padrão) - Layout Vertical */}
+          {viewMode === 'list' && (
+            <div className="space-y-4">
+              {codeSnippets.map((snippet) => (
+                <CardFeatureCompact
+                  key={snippet.id}
+                  snippet={snippet}
+                  onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+                  onDelete={handleDeleteClick}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* View Cards - Layout Grid 2 Colunas */}
+          {viewMode === 'cards' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {codeSnippets.map((snippet) => (
+                <CardFeature
+                  key={snippet.id}
+                  snippet={snippet}
+                  onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+                  onExpand={(snippetId) => setOpenModalId(snippetId)}
+                  onDelete={handleDeleteClick}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Code Expansion Modal */}
-      <CardFeatureModal
-        snippet={codeSnippets.find(s => s.id === openModalId) || null}
-        isOpen={!!openModalId}
-        onClose={() => setOpenModalId(null)}
-        onEdit={(snippet) => cardFeatures.startEditing(snippet)}
-        onDelete={handleDeleteClick}
-      />
-
+      {/* ===== MODAIS - Formulários e Confirmações ===== */}
       {/* Create CardFeature Modal */}
       <CardFeatureForm
         isOpen={cardFeatures.isCreating}
@@ -233,6 +291,23 @@ export default function Codes({ platformState }: CodesProps) {
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
       />
+
+      {/* Card Feature Modal (only for cards view) */}
+      {viewMode === 'cards' && openModalId && (
+        <CardFeatureModal
+          isOpen={!!openModalId}
+          snippet={codeSnippets.find(s => s.id === openModalId) || null}
+          onClose={() => setOpenModalId(null)}
+          onEdit={(snippet) => {
+            setOpenModalId(null)
+            cardFeatures.startEditing(snippet)
+          }}
+          onDelete={(snippetId) => {
+            handleDeleteClick(snippetId)
+            setOpenModalId(null)
+          }}
+        />
+      )}
     </div>
   )
 }

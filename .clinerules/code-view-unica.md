@@ -1,9 +1,11 @@
 # Implementação: Página Única com Toggle de Visualização
 
 ## Objetivo
-Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alternância entre:
+Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página `Codes.tsx` com alternância entre:
 - **View por Cards** (layout em grid 2 colunas - original do Codes.tsx)
 - **View por Linha** (layout vertical compacto - original do CodesV2.tsx, **padrão**)
+
+**Estratégia**: CodesV2.tsx se tornará o novo Codes.tsx (substituição completa)
 
 ## Checklist de Implementação
 
@@ -36,30 +38,30 @@ Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alter
 - [x] Adicionar handler `onClose` que limpa `openModalId`
 
 ### 🎯 **Fase 5: Integração e Limpeza**
-- [ ] **⚠️ ATENÇÃO: Implementar sistema CRUD único** - Unificar os handlers para que funcionem consistentemente em ambas as views
-- [ ] Verificar se todos os handlers (edit, delete, create) funcionam em ambas as views
-- [ ] Testar alternância entre views mantendo filtros e busca
-- [ ] Verificar responsividade em ambas as visualizações
-- [ ] Limpar imports não utilizados
+- [x] **⚠️ ATENÇÃO: O backend é ÚNICO** - Ambas as páginas usam mesmo hook, services e API
+- [x] **🔄 RENOMEAR**: `CodesV2.tsx` → `Codes.tsx` (substituir arquivo antigo)
+- [x] **📝 MODIFICAR**: Interface `CodesV2Props` → `CodesProps`
+- [x] **📝 MODIFICAR**: Export `CodesV2` → `Codes`
+- [x] **📝 MODIFICAR**: `frontend/app/page.tsx` - Remover renderização de `codes-v2`, manter apenas `codes`
+- [x] **📝 MODIFICAR**: `frontend/components/AppSidebar.tsx` - Remover item "Códigos v2" do menu
+- [x] **🔍 VERIFICAR**: Todas as referências agora apontam para `"codes"` (aba única)
+- [x] Verificar se todos os handlers (edit, delete, create) funcionam em ambas as views
+- [x] Testar alternância entre views mantendo filtros e busca
+- [x] Verificar responsividade em ambas as visualizações
+- [x] Limpar imports não utilizados
 
 ### 🎯 **Fase 6: Breadcrumb e UX**
-- [ ] Atualizar texto do breadcrumb de "Códigos v2" para "Biblioteca de Códigos"
-- [ ] Adicionar tooltips nos botões de toggle
-- [ ] Verificar estados de loading/error em ambas as views
-- [ ] Testar empty state em ambos os layouts
+- [x] Atualizar texto do breadcrumb de "Códigos v2" para "Blocos de Códigos"
+- [x] Adicionar tooltips nos botões de toggle
+- [x] Verificar estados de loading/error em ambas as views
+- [x] Testar empty state em ambos os layouts
 
-## Estrutura do Código
-
-### Estado Adicional Necessário
-```typescript
-const [viewMode, setViewMode] = useState<'cards' | 'list'>('list')
-const [openModalId, setOpenModalId] = useState<string | null>(null)
-```
 
 ## Resultado Esperado
-- ✅ Uma única página que substitui ambas `Codes.tsx` e `CodesV2.tsx`
+- ✅ Uma única página `Codes.tsx` (CodesV2.tsx renomeado) que substitui a antiga
 - ✅ Toggle funcional entre visualizações
-- ✅ CodesV2 (lista) como visualização padrão
+- ✅ View lista como visualização padrão
 - ✅ Funcionalidade completa (CRUD) em ambas as views
 - ✅ Modal de expansão na view por cards
-- ✅ UX consistente e intuitiva 
+- ✅ UX consistente e intuitiva
+- ✅ Navegação unificada na aba `"codes"` (sem mais `"codes-v2"`) 

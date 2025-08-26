@@ -47,12 +47,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       description: "Snippets e exemplos",
     },
     {
-      title: "Códigos v2",
-      icon: Code2,
-      key: "codes-v2",
-      description: "Teste: Cards em linha",
-    },
-    {
       title: "Aulas",
       icon: Play,
       key: "lessons",
