@@ -30,10 +30,10 @@ Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alter
 - [x] Manter handlers existentes funcionando em ambas as views
 
 ### 🎯 **Fase 4: Modal de Expansão**
-- [ ] Adicionar `CardFeatureModal` (só ativo na view por cards)
-- [ ] Implementar handler `onExpand` que define `openModalId`
-- [ ] Conectar modal com dados do snippet correto
-- [ ] Adicionar handler `onClose` que limpa `openModalId`
+- [x] Adicionar `CardFeatureModal` (só ativo na view por cards)
+- [x] Implementar handler `onExpand` que define `openModalId`
+- [x] Conectar modal com dados do snippet correto
+- [x] Adicionar handler `onClose` que limpa `openModalId`
 
 ### 🎯 **Fase 5: Integração e Limpeza**
 - [ ] **⚠️ ATENÇÃO: Implementar sistema CRUD único** - Unificar os handlers para que funcionem consistentemente em ambas as views

@@ -291,6 +291,23 @@ export default function CodesV2({ platformState }: CodesV2Props) {
         onClose={handleDeleteCancel}
         onConfirm={handleDeleteConfirm}
       />
+
+      {/* Card Feature Modal (only for cards view) */}
+      {viewMode === 'cards' && openModalId && (
+        <CardFeatureModal
+          isOpen={!!openModalId}
+          snippet={codeSnippets.find(s => s.id === openModalId) || null}
+          onClose={() => setOpenModalId(null)}
+          onEdit={(snippet) => {
+            setOpenModalId(null)
+            cardFeatures.startEditing(snippet)
+          }}
+          onDelete={(snippetId) => {
+            handleDeleteClick(snippetId)
+            setOpenModalId(null)
+          }}
+        />
+      )}
     </div>
   )
 }
