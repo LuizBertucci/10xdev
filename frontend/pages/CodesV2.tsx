@@ -2,9 +2,11 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, ChevronRight, Code2, X, Loader2, Plus } from "lucide-react"
+import { Search, Filter, ChevronRight, Code2, X, Loader2, Plus, LayoutGrid, List } from "lucide-react"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import CardFeature from "@/components/CardFeature"
+import CardFeatureModal from "@/components/CardFeatureModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import type { CardFeature as CardFeatureType } from "@/types"
@@ -25,6 +27,8 @@ export default function CodesV2({ platformState }: CodesV2Props) {
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
   // ================================================
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('list')
+  const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   
   // Hook principal para operações CRUD e dados da API

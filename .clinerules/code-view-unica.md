@@ -8,18 +8,20 @@ Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alter
 ## Checklist de Implementação
 
 ### 🎯 **Fase 1: Preparação e Estado**
-- [ ] Criar estado `viewMode` com tipo `'cards' | 'list'` (padrão: `'list'`)
-- [ ] Importar `CardFeature` além do `CardFeatureCompact` já existente
-- [ ] Importar `CardFeatureModal` para funcionalidade de expansão
-- [ ] Adicionar estado `openModalId` para controlar modal de expansão
+- [x] Criar estado `viewMode` com tipo `'cards' | 'list'` (padrão: `'list'`)
+- [x] Importar `CardFeature` além do `CardFeatureCompact` já existente
+- [x] Importar `CardFeatureModal` para funcionalidade de expansão
+- [x] Adicionar estado `openModalId` para controlar modal de expansão
 
 ### 🎯 **Fase 2: Header e Controles**
-- [ ] Adicionar botões de toggle no header (lado direito, após o botão "Novo CardFeature")
+- [ ] **Layout na tela**: Adicionar grupo de 2 botões no header (lado direito, após o botão "Novo CardFeature")
+- [ ] **Button Group**: Criar grupo visual com bordas conectadas, botão ativo destacado
 - [ ] Implementar ícones apropriados:
-  - `LayoutGrid` para view por cards
-  - `List` para view por linha
-- [ ] Adicionar estilos condicionais para botão ativo
+  - `LayoutGrid` para view por cards (grid 2x2)
+  - `List` para view por linha (3 linhas horizontais)
+- [ ] **Estado visual**: Botão ativo com background azul, inativo com background cinza claro
 - [ ] Implementar handlers `setViewMode('cards')` e `setViewMode('list')`
+- [ ] **Tooltips**: "Visualização em Cards" e "Visualização em Lista"
 
 ### 🎯 **Fase 3: Renderização Condicional**
 - [ ] Substituir a seção de conteúdo atual por renderização condicional
@@ -34,6 +36,7 @@ Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alter
 - [ ] Adicionar handler `onClose` que limpa `openModalId`
 
 ### 🎯 **Fase 5: Integração e Limpeza**
+- [ ] **⚠️ ATENÇÃO: Implementar sistema CRUD único** - Unificar os handlers para que funcionem consistentemente em ambas as views
 - [ ] Verificar se todos os handlers (edit, delete, create) funcionam em ambas as views
 - [ ] Testar alternância entre views mantendo filtros e busca
 - [ ] Verificar responsividade em ambas as visualizações
