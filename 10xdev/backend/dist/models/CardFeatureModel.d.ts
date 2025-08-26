@@ -2,7 +2,6 @@ import type { CardFeatureResponse, CardFeatureQueryParams, ModelResult, ModelLis
 export declare class CardFeatureModel {
     private static readonly TABLE_NAME;
     private static transformToResponse;
-    private static buildQuery;
     static create(data: CreateCardFeatureRequest): Promise<ModelResult<CardFeatureResponse>>;
     static findById(id: string): Promise<ModelResult<CardFeatureResponse>>;
     static findAll(params?: CardFeatureQueryParams): Promise<ModelListResult<CardFeatureResponse>>;

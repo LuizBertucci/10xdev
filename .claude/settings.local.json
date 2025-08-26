@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(git ls-tree:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(az containerapp revision activate:*)",
+      "Bash(az containerapp show:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

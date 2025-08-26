@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CardFeatureModel = void 0;
-const supabase_1 = require("../database/supabase");
+const postgres_1 = require("../database/postgres");
 const crypto_1 = require("crypto");
 class CardFeatureModel {
     static TABLE_NAME = 'card_features';
@@ -12,33 +12,10 @@ class CardFeatureModel {
             tech: row.tech,
             language: row.language,
             description: row.description,
-            screens: row.screens,
+            screens: typeof row.screens === 'string' ? JSON.parse(row.screens) : row.screens,
             createdAt: row.created_at,
             updatedAt: row.updated_at
         };
-    }
-    static buildQuery(params = {}) {
-        let query = supabase_1.supabaseTyped
-            .from(this.TABLE_NAME)
-            .select('*', { count: 'exact' });
-        if (params.tech && params.tech !== 'all') {
-            query = query.ilike('tech', params.tech);
-        }
-        if (params.language && params.language !== 'all') {
-            query = query.ilike('language', params.language);
-        }
-        if (params.search) {
-            query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%,tech.ilike.%${params.search}%`);
-        }
-        const sortBy = params.sortBy || 'created_at';
-        const sortOrder = params.sortOrder || 'desc';
-        query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-        if (params.page && params.limit) {
-            const from = (params.page - 1) * params.limit;
-            const to = from + params.limit - 1;
-            query = query.range(from, to);
-        }
-        return query;
     }
     static async create(data) {
         try {
@@ -52,22 +29,31 @@ class CardFeatureModel {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
-            const { data: result, error } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .insert(insertData)
-                .select()
-                .single();
-            if (error) {
-                console.error('Error creating CardFeature:', error);
+            const result = await (0, postgres_1.query)(`
+        INSERT INTO ${this.TABLE_NAME} (id, title, tech, language, description, screens, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `, [
+                insertData.id,
+                insertData.title,
+                insertData.tech,
+                insertData.language,
+                insertData.description,
+                JSON.stringify(insertData.screens),
+                insertData.created_at,
+                insertData.updated_at
+            ]);
+            if (result.rows.length === 0) {
                 return {
                     success: false,
-                    error: error.message,
+                    error: 'Failed to create CardFeature',
                     statusCode: 400
                 };
             }
+            const row = result.rows[0];
             return {
                 success: true,
-                data: this.transformToResponse(result),
+                data: this.transformToResponse(row),
                 statusCode: 201
             };
         }
@@ -82,28 +68,21 @@ class CardFeatureModel {
     }
     static async findById(id) {
         try {
-            const { data, error } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .select('*')
-                .eq('id', id)
-                .single();
-            if (error) {
-                if (error.code === 'PGRST116') {
-                    return {
-                        success: false,
-                        error: 'CardFeature not found',
-                        statusCode: 404
-                    };
-                }
+            const result = await (0, postgres_1.query)(`
+        SELECT * FROM ${this.TABLE_NAME}
+        WHERE id = $1
+      `, [id]);
+            if (result.rows.length === 0) {
                 return {
                     success: false,
-                    error: error.message,
-                    statusCode: 400
+                    error: 'CardFeature not found',
+                    statusCode: 404
                 };
             }
+            const row = result.rows[0];
             return {
                 success: true,
-                data: this.transformToResponse(data),
+                data: this.transformToResponse(row),
                 statusCode: 200
             };
         }
@@ -118,20 +97,51 @@ class CardFeatureModel {
     }
     static async findAll(params = {}) {
         try {
-            const query = this.buildQuery(params);
-            const { data, error, count } = await query;
-            if (error) {
-                return {
-                    success: false,
-                    error: error.message,
-                    statusCode: 400
-                };
+            let whereClause = 'WHERE 1=1';
+            const queryParams = [];
+            let paramIndex = 1;
+            if (params.tech && params.tech !== 'all') {
+                whereClause += ` AND tech ILIKE $${paramIndex}`;
+                queryParams.push(`%${params.tech}%`);
+                paramIndex++;
             }
-            const transformedData = data?.map(row => this.transformToResponse(row)) || [];
+            if (params.language && params.language !== 'all') {
+                whereClause += ` AND language ILIKE $${paramIndex}`;
+                queryParams.push(`%${params.language}%`);
+                paramIndex++;
+            }
+            if (params.search) {
+                whereClause += ` AND (title ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR tech ILIKE $${paramIndex})`;
+                queryParams.push(`%${params.search}%`);
+                paramIndex++;
+            }
+            const sortBy = params.sortBy || 'created_at';
+            const sortOrder = params.sortOrder === 'asc' ? 'ASC' : 'DESC';
+            let limitClause = '';
+            if (params.page && params.limit) {
+                const offset = (params.page - 1) * params.limit;
+                limitClause = ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+                queryParams.push(params.limit, offset);
+            }
+            const countQuery = `
+        SELECT COUNT(*) as total
+        FROM ${this.TABLE_NAME}
+        ${whereClause}
+      `;
+            const countResult = await (0, postgres_1.query)(countQuery, queryParams.slice(0, paramIndex - 1));
+            const totalCount = parseInt(countResult.rows[0].total);
+            const dataQuery = `
+        SELECT * FROM ${this.TABLE_NAME}
+        ${whereClause}
+        ORDER BY ${sortBy} ${sortOrder}
+        ${limitClause}
+      `;
+            const dataResult = await (0, postgres_1.query)(dataQuery, queryParams);
+            const transformedData = dataResult.rows.map(row => this.transformToResponse(row));
             return {
                 success: true,
                 data: transformedData,
-                count: count || 0,
+                count: totalCount,
                 statusCode: 200
             };
         }
@@ -178,26 +188,55 @@ class CardFeatureModel {
             if (!existingCheck.success) {
                 return existingCheck;
             }
-            const updateData = {
-                ...data,
-                updated_at: new Date().toISOString()
-            };
-            const { data: result, error } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .update(updateData)
-                .eq('id', id)
-                .select()
-                .single();
-            if (error) {
+            const updateFields = [];
+            const queryParams = [];
+            let paramIndex = 1;
+            if (data.title !== undefined) {
+                updateFields.push(`title = $${paramIndex}`);
+                queryParams.push(data.title);
+                paramIndex++;
+            }
+            if (data.tech !== undefined) {
+                updateFields.push(`tech = $${paramIndex}`);
+                queryParams.push(data.tech);
+                paramIndex++;
+            }
+            if (data.language !== undefined) {
+                updateFields.push(`language = $${paramIndex}`);
+                queryParams.push(data.language);
+                paramIndex++;
+            }
+            if (data.description !== undefined) {
+                updateFields.push(`description = $${paramIndex}`);
+                queryParams.push(data.description);
+                paramIndex++;
+            }
+            if (data.screens !== undefined) {
+                updateFields.push(`screens = $${paramIndex}`);
+                queryParams.push(JSON.stringify(data.screens));
+                paramIndex++;
+            }
+            updateFields.push(`updated_at = $${paramIndex}`);
+            queryParams.push(new Date().toISOString());
+            paramIndex++;
+            queryParams.push(id);
+            const result = await (0, postgres_1.query)(`
+        UPDATE ${this.TABLE_NAME}
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `, queryParams);
+            if (result.rows.length === 0) {
                 return {
                     success: false,
-                    error: error.message,
+                    error: 'Failed to update CardFeature',
                     statusCode: 400
                 };
             }
+            const row = result.rows[0];
             return {
                 success: true,
-                data: this.transformToResponse(result),
+                data: this.transformToResponse(row),
                 statusCode: 200
             };
         }
@@ -220,15 +259,15 @@ class CardFeatureModel {
                     statusCode: existingCheck.statusCode || 404
                 };
             }
-            const { error } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .delete()
-                .eq('id', id);
-            if (error) {
+            const result = await (0, postgres_1.query)(`
+        DELETE FROM ${this.TABLE_NAME}
+        WHERE id = $1
+      `, [id]);
+            if (result.rowCount === 0) {
                 return {
                     success: false,
-                    error: error.message,
-                    statusCode: 400
+                    error: 'CardFeature not found',
+                    statusCode: 404
                 };
             }
             return {
@@ -248,64 +287,43 @@ class CardFeatureModel {
     }
     static async getStats() {
         try {
-            const { count: total, error: countError } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .select('*', { count: 'exact', head: true });
-            if (countError) {
-                return {
-                    success: false,
-                    error: countError.message,
-                    statusCode: 400
-                };
-            }
-            const { data: techData, error: techError } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .select('tech');
-            if (techError) {
-                return {
-                    success: false,
-                    error: techError.message,
-                    statusCode: 400
-                };
-            }
-            const { data: languageData, error: languageError } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .select('language');
-            if (languageError) {
-                return {
-                    success: false,
-                    error: languageError.message,
-                    statusCode: 400
-                };
-            }
+            const totalResult = await (0, postgres_1.query)(`
+        SELECT COUNT(*) as total FROM ${this.TABLE_NAME}
+      `);
+            const total = parseInt(totalResult.rows[0].total);
+            const techResult = await (0, postgres_1.query)(`
+        SELECT tech, COUNT(*) as count
+        FROM ${this.TABLE_NAME}
+        GROUP BY tech
+      `);
+            const byTech = {};
+            techResult.rows.forEach(row => {
+                byTech[row.tech] = parseInt(row.count);
+            });
+            const languageResult = await (0, postgres_1.query)(`
+        SELECT language, COUNT(*) as count
+        FROM ${this.TABLE_NAME}
+        GROUP BY language
+      `);
+            const byLanguage = {};
+            languageResult.rows.forEach(row => {
+                byLanguage[row.language] = parseInt(row.count);
+            });
             const SEVEN_DAYS_AGO = new Date();
             SEVEN_DAYS_AGO.setDate(SEVEN_DAYS_AGO.getDate() - 7);
-            const { count: recentCount, error: recentError } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .select('*', { count: 'exact', head: true })
-                .gte('created_at', SEVEN_DAYS_AGO.toISOString());
-            if (recentError) {
-                return {
-                    success: false,
-                    error: recentError.message,
-                    statusCode: 400
-                };
-            }
-            const byTech = techData?.reduce((acc, item) => {
-                acc[item.tech] = (acc[item.tech] || 0) + 1;
-                return acc;
-            }, {}) || {};
-            const byLanguage = languageData?.reduce((acc, item) => {
-                acc[item.language] = (acc[item.language] || 0) + 1;
-                return acc;
-            }, {}) || {};
+            const recentResult = await (0, postgres_1.query)(`
+        SELECT COUNT(*) as recent
+        FROM ${this.TABLE_NAME}
+        WHERE created_at >= $1
+      `, [SEVEN_DAYS_AGO.toISOString()]);
+            const recentCount = parseInt(recentResult.rows[0].recent);
             return {
                 success: true,
                 data: {
-                    total: total || 0,
+                    total,
                     byTech,
                     byLanguage,
-                    recentCount: recentCount || 0
+                    recentCount
                 },
                 statusCode: 200
             };
@@ -331,18 +349,20 @@ class CardFeatureModel {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }));
-            const { data, error } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .insert(insertData)
-                .select();
-            if (error) {
-                return {
-                    success: false,
-                    error: error.message,
-                    statusCode: 400
-                };
-            }
-            const transformedData = data?.map(row => this.transformToResponse(row)) || [];
+            const values = insertData.map((item, index) => {
+                const baseIndex = index * 8;
+                return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, $${baseIndex + 5}, $${baseIndex + 6}, $${baseIndex + 7}, $${baseIndex + 8})`;
+            }).join(', ');
+            const params = [];
+            insertData.forEach(item => {
+                params.push(item.id, item.title, item.tech, item.language, item.description, JSON.stringify(item.screens), item.created_at, item.updated_at);
+            });
+            const result = await (0, postgres_1.query)(`
+        INSERT INTO ${this.TABLE_NAME} (id, title, tech, language, description, screens, created_at, updated_at)
+        VALUES ${values}
+        RETURNING *
+      `, params);
+            const transformedData = result.rows.map(row => this.transformToResponse(row));
             return {
                 success: true,
                 data: transformedData,
@@ -361,20 +381,14 @@ class CardFeatureModel {
     }
     static async bulkDelete(ids) {
         try {
-            const { error, count } = await supabase_1.supabaseTyped
-                .from(this.TABLE_NAME)
-                .delete({ count: 'exact' })
-                .in('id', ids);
-            if (error) {
-                return {
-                    success: false,
-                    error: error.message,
-                    statusCode: 400
-                };
-            }
+            const placeholders = ids.map((_, index) => `$${index + 1}`).join(', ');
+            const result = await (0, postgres_1.query)(`
+        DELETE FROM ${this.TABLE_NAME}
+        WHERE id IN (${placeholders})
+      `, ids);
             return {
                 success: true,
-                data: { deletedCount: count || 0 },
+                data: { deletedCount: result.rowCount || 0 },
                 statusCode: 200
             };
         }
