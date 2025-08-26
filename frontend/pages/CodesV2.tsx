@@ -143,6 +143,36 @@ export default function CodesV2({ platformState }: CodesV2Props) {
             </SelectContent>
           </Select>
           
+          {/* View Mode Toggle */}
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <Button
+              onClick={() => setViewMode('cards')}
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              className={`rounded-none border-0 ${
+                viewMode === 'cards'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Visualização em Cards"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => setViewMode('list')}
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className={`rounded-none border-0 border-l border-gray-300 ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+
           {/* Create Button */}
           <Button
             onClick={cardFeatures.startCreating}

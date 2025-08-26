@@ -14,14 +14,14 @@ Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alter
 - [x] Adicionar estado `openModalId` para controlar modal de expansão
 
 ### 🎯 **Fase 2: Header e Controles**
-- [ ] **Layout na tela**: Adicionar grupo de 2 botões no header (lado direito, após o botão "Novo CardFeature")
-- [ ] **Button Group**: Criar grupo visual com bordas conectadas, botão ativo destacado
-- [ ] Implementar ícones apropriados:
+- [x] **Layout na tela**: Adicionar grupo de 2 botões no header (lado direito, antes do botão "Novo CardFeature")
+- [x] **Button Group**: Criar grupo visual com bordas conectadas, botão ativo destacado
+- [x] Implementar ícones apropriados:
   - `LayoutGrid` para view por cards (grid 2x2)
   - `List` para view por linha (3 linhas horizontais)
-- [ ] **Estado visual**: Botão ativo com background azul, inativo com background cinza claro
-- [ ] Implementar handlers `setViewMode('cards')` e `setViewMode('list')`
-- [ ] **Tooltips**: "Visualização em Cards" e "Visualização em Lista"
+- [x] **Estado visual**: Botão ativo com background azul, inativo com background cinza claro
+- [x] Implementar handlers `setViewMode('cards')` e `setViewMode('list')`
+- [x] **Tooltips**: "Visualização em Cards" e "Visualização em Lista"
 
 ### 🎯 **Fase 3: Renderização Condicional**
 - [ ] Substituir a seção de conteúdo atual por renderização condicional
