@@ -24,10 +24,10 @@ Unificar as páginas `Codes.tsx` e `CodesV2.tsx` em uma única página com alter
 - [x] **Tooltips**: "Visualização em Cards" e "Visualização em Lista"
 
 ### 🎯 **Fase 3: Renderização Condicional**
-- [ ] Substituir a seção de conteúdo atual por renderização condicional
-- [ ] **View 'list'** (padrão): Manter layout atual com `CardFeatureCompact`
-- [ ] **View 'cards'**: Implementar grid 2 colunas com `CardFeature`
-- [ ] Manter handlers existentes funcionando em ambas as views
+- [x] Substituir a seção de conteúdo atual por renderização condicional
+- [x] **View 'list'** (padrão): Manter layout atual com `CardFeatureCompact`
+- [x] **View 'cards'**: Implementar grid 2 colunas com `CardFeature`
+- [x] Manter handlers existentes funcionando em ambas as views
 
 ### 🎯 **Fase 4: Modal de Expansão**
 - [ ] Adicionar `CardFeatureModal` (só ativo na view por cards)

@@ -229,19 +229,38 @@ export default function CodesV2({ platformState }: CodesV2Props) {
         </div>
       )}
 
-      {/* ===== CONTEÚDO PRINCIPAL - Lista de Cards em Layout Vertical ===== */}
-      {/* Lista de Cards (Layout Vertical) */}
+      {/* ===== CONTEÚDO PRINCIPAL - Renderização Condicional por View Mode ===== */}
       {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length > 0 && (
-        <div className="space-y-4">
-          {codeSnippets.map((snippet) => (
-            <CardFeatureCompact
-              key={snippet.id}
-              snippet={snippet}
-              onEdit={(snippet) => cardFeatures.startEditing(snippet)}
-              onDelete={handleDeleteClick}
-            />
-          ))}
-        </div>
+        <>
+          {/* View Lista (Padrão) - Layout Vertical */}
+          {viewMode === 'list' && (
+            <div className="space-y-4">
+              {codeSnippets.map((snippet) => (
+                <CardFeatureCompact
+                  key={snippet.id}
+                  snippet={snippet}
+                  onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+                  onDelete={handleDeleteClick}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* View Cards - Layout Grid 2 Colunas */}
+          {viewMode === 'cards' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {codeSnippets.map((snippet) => (
+                <CardFeature
+                  key={snippet.id}
+                  snippet={snippet}
+                  onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+                  onExpand={(snippetId) => setOpenModalId(snippetId)}
+                  onDelete={handleDeleteClick}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* ===== MODAIS - Formulários e Confirmações ===== */}
