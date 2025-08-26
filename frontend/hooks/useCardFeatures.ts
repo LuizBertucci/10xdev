@@ -11,7 +11,12 @@ import type {
 } from '@/types'
 
 // Hook principal para gerenciar CardFeatures com API
-export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFeaturesReturn {
+export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFilters?: {
+  searchTerm?: string
+  selectedTech?: string
+  setSearchTerm?: (term: string) => void
+  setSelectedTech?: (tech: string) => void
+}): UseCardFeaturesReturn {
   const [state, setState] = useState<CardFeatureState>({
     // Dados principais
     items: [],
@@ -49,22 +54,27 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFe
     totalCount: 0
   })
 
-  // FILTROS - Filtrar itens localmente
+  // FILTROS - Filtrar itens localmente (usando filtros externos se fornecidos)
   const filteredItems = useMemo(() => {
     if (!state.items || !Array.isArray(state.items)) {
       return []
     }
+    
+    // Usar filtros externos se fornecidos, senão usar filtros internos
+    const searchTerm = externalFilters?.searchTerm ?? state.searchTerm
+    const selectedTech = externalFilters?.selectedTech ?? state.selectedTech
+    
     return state.items.filter(item => {
-      const matchesSearch = state.searchTerm === '' || 
-        item.title.toLowerCase().includes(state.searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(state.searchTerm.toLowerCase())
+      const matchesSearch = searchTerm === '' || 
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchTerm.toLowerCase())
       
-      const matchesTech = state.selectedTech === 'all' || 
-        item.tech.toLowerCase() === state.selectedTech.toLowerCase()
+      const matchesTech = selectedTech === 'all' || 
+        item.tech.toLowerCase() === selectedTech.toLowerCase()
       
       return matchesSearch && matchesTech
     })
-  }, [state.items, state.searchTerm, state.selectedTech])
+  }, [state.items, state.searchTerm, state.selectedTech, externalFilters?.searchTerm, externalFilters?.selectedTech])
 
   // Atualizar filteredItems quando mudar
   useEffect(() => {
@@ -446,6 +456,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFe
   const setSearchTerm = useCallback((term: string) => {
     setState(prev => ({ ...prev, searchTerm: term }))
     
+    // Atualizar filtro externo se fornecido
+    if (externalFilters?.setSearchTerm) {
+      externalFilters.setSearchTerm(term)
+    }
+    
     // Auto-search após delay
     const timeoutId = setTimeout(() => {
       if (term.trim()) {
@@ -456,10 +471,15 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFe
     }, 500)
 
     return () => clearTimeout(timeoutId)
-  }, [searchCardFeatures, fetchCardFeatures])
+  }, [searchCardFeatures, fetchCardFeatures, externalFilters])
 
   const setSelectedTech = useCallback((tech: string) => {
     setState(prev => ({ ...prev, selectedTech: tech }))
+    
+    // Atualizar filtro externo se fornecido
+    if (externalFilters?.setSelectedTech) {
+      externalFilters.setSelectedTech(tech)
+    }
     
     // Re-fetch com novo filtro
     fetchCardFeatures({
@@ -468,7 +488,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFe
       tech: tech !== 'all' ? tech : undefined,
       search: state.searchTerm || undefined
     })
-  }, [state.searchTerm, fetchCardFeatures])
+  }, [state.searchTerm, fetchCardFeatures, externalFilters])
 
   const clearSelection = useCallback(() => {
     setState(prev => ({ 
@@ -481,6 +501,16 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}): UseCardFe
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }))
   }, [])
+
+  // Sincronizar filtros externos com estado interno
+  useEffect(() => {
+    if (externalFilters?.searchTerm !== undefined && externalFilters.searchTerm !== state.searchTerm) {
+      setState(prev => ({ ...prev, searchTerm: externalFilters.searchTerm || '' }))
+    }
+    if (externalFilters?.selectedTech !== undefined && externalFilters.selectedTech !== state.selectedTech) {
+      setState(prev => ({ ...prev, selectedTech: externalFilters.selectedTech || 'all' }))
+    }
+  }, [externalFilters?.searchTerm, externalFilters?.selectedTech, state.searchTerm, state.selectedTech])
 
   // Carregar dados na inicialização
   useEffect(() => {

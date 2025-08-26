@@ -31,8 +31,13 @@ export default function Codes({ platformState }: CodesProps) {
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   
-  // Hook principal para operações CRUD e dados da API
-  const cardFeatures = useCardFeatures()
+  // Hook principal para operações CRUD e dados da API com filtros do platformState
+  const cardFeatures = useCardFeatures({}, {
+    searchTerm: platformState.searchTerm,
+    selectedTech: platformState.selectedTech,
+    setSearchTerm: platformState.setSearchTerm,
+    setSelectedTech: platformState.setSelectedTech
+  })
 
   // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems
