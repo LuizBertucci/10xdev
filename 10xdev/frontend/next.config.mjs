@@ -1,0 +1,23 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'standalone',
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  images: {
+    unoptimized: true,
+  },
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
+  webpack: (config) => {
+    // Exclude pages/ folder from being treated as Next.js pages
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
+    return config;
+  },
+}
+
+export default nextConfig

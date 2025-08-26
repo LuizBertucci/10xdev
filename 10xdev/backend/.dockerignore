@@ -1,0 +1,73 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build outputs
+dist
+build
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+.nyc_output
+coverage
+jest.config.js
+__tests__
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+
+# Development and IDE files
+.vscode
+.idea
+.swp
+.swo
+nodemon.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CHANGELOG.md
+*.md
+
+# Lock files (keep only package-lock.json)
+yarn.lock
+pnpm-lock.yaml
+
+# ESLint
+.eslintrc*
+.eslintignore
+
+# Temporary files
+tmp
+temp
+
+# Note: src and tsconfig.json are needed for build stage

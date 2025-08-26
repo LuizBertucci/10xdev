@@ -1,0 +1,367 @@
+name: Azure Container Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+          - staging
+
+env:
+  AZURE_RESOURCE_GROUP: rg-10xdev-prod
+  AZURE_LOCATION: eastus
+  ACR_NAME: acr10xdevprod
+  CONTAINER_NAME_BACKEND: 10xdev-backend
+  CONTAINER_NAME_FRONTEND: 10xdev-frontend
+
+jobs:
+  # Security and Quality Checks
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Build and Test Backend
+  build-backend:
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './10xdev/backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./10xdev/backend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ./10xdev/backend
+        run: npm test
+
+      - name: Run linting
+        working-directory: ./10xdev/backend
+        run: npm run lint
+
+      - name: Build TypeScript
+        working-directory: ./10xdev/backend
+        run: npm run build
+
+  # Build and Test Frontend
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies
+        working-directory: ./10xdev/frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linting
+        working-directory: ./10xdev/frontend
+        run: pnpm lint
+
+      - name: Build Next.js application
+        working-directory: ./10xdev/frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://placeholder-api.azurecontainer.io/api
+        run: pnpm build
+
+  # Deploy Infrastructure
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    outputs:
+      acr-login-server: ${{ steps.deploy-infra.outputs.containerRegistryLoginServer }}
+      keyvault-name: ${{ steps.deploy-infra.outputs.keyVaultName }}
+      postgres-connection: ${{ steps.deploy-infra.outputs.postgresConnectionString }}
+      subnet-id: ${{ steps.deploy-infra.outputs.containersSubnetId }}
+      gateway-fqdn: ${{ steps.deploy-infra.outputs.applicationGatewayFqdn }}
+      container-app-environment-id: ${{ steps.deploy-infra.outputs.containerAppEnvironmentId }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Resource Group
+        run: |
+          az group create \
+            --name ${{ env.AZURE_RESOURCE_GROUP }} \
+            --location ${{ env.AZURE_LOCATION }}
+
+      - name: Deploy Infrastructure
+        id: deploy-infra
+        run: |
+          DEPLOYMENT_OUTPUT=$(az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file ./azure-infrastructure.bicep \
+            --parameters \
+              namePrefix=10xdev \
+              environment=prod \
+              location=${{ env.AZURE_LOCATION }} \
+              postgresAdminLogin=${{ secrets.POSTGRES_ADMIN_LOGIN }} \
+              postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }} \
+              jwtSecret=${{ secrets.JWT_SECRET }} \
+            --output json)
+          
+          echo "containerRegistryLoginServer=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.containerRegistryLoginServer.value')" >> $GITHUB_OUTPUT
+          echo "keyVaultName=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.keyVaultName.value')" >> $GITHUB_OUTPUT
+          echo "postgresConnectionString=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.postgresConnectionString.value')" >> $GITHUB_OUTPUT
+          echo "containersSubnetId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.containersSubnetId.value')" >> $GITHUB_OUTPUT
+          echo "applicationGatewayFqdn=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.applicationGatewayFqdn.value')" >> $GITHUB_OUTPUT
+          echo "containerAppEnvironmentId=$(echo $DEPLOYMENT_OUTPUT | jq -r '.properties.outputs.containerAppEnvironmentId.value')" >> $GITHUB_OUTPUT
+
+  # Build and Push Container Images
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Get ACR credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username --output tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query passwords[0].value --output tsv)
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Backend Image
+        working-directory: ./10xdev
+        run: |
+          docker build -t ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }} \
+                      -t ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_BACKEND }}:latest \
+                      ./backend
+          docker push ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_BACKEND }}:${{ github.sha }}
+          docker push ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_BACKEND }}:latest
+
+      - name: Build and Push Frontend Image
+        working-directory: ./10xdev
+        run: |
+          docker build -t ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }} \
+                      -t ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest \
+                      ./frontend
+          docker push ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_FRONTEND }}:${{ github.sha }}
+          docker push ${{ needs.deploy-infrastructure.outputs.acr-login-server }}/${{ env.CONTAINER_NAME_FRONTEND }}:latest
+
+  # Deploy Containers
+  deploy-containers:
+    runs-on: ubuntu-latest
+    needs: [deploy-infrastructure, build-and-push-images]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get ACR credentials
+        id: acr-creds
+        run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query username --output tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query passwords[0].value --output tsv)
+          echo "username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+          echo "password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Get JWT Secret from Key Vault
+        id: get-secrets
+        run: |
+          JWT_SECRET=$(az keyvault secret show --vault-name ${{ needs.deploy-infrastructure.outputs.keyvault-name }} --name jwt-secret --query value --output tsv)
+          echo "jwt-secret=$JWT_SECRET" >> $GITHUB_OUTPUT
+
+      - name: Deploy Container Instances
+        run: |
+          az deployment group create \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --template-file ./azure-containers.bicep \
+            --parameters \
+              namePrefix=10xdev \
+              environment=prod \
+              location=${{ env.AZURE_LOCATION }} \
+              containerRegistryLoginServer=${{ needs.deploy-infrastructure.outputs.acr-login-server }} \
+              containerRegistryUsername=${{ steps.acr-creds.outputs.username }} \
+              containerRegistryPassword=${{ steps.acr-creds.outputs.password }} \
+              backendImageTag=${{ github.sha }} \
+              frontendImageTag=${{ github.sha }} \
+              postgresConnectionString="${{ needs.deploy-infrastructure.outputs.postgres-connection }}" \
+              jwtSecret=${{ steps.get-secrets.outputs.jwt-secret }} \
+              containerAppEnvironmentId=${{ needs.deploy-infrastructure.outputs.container-app-environment-id }}
+
+  # Run Database Migrations
+  run-migrations:
+    runs-on: ubuntu-latest
+    needs: [deploy-containers]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run database migrations
+        env:
+          PGPASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          # Get postgres server name
+          POSTGRES_SERVER=$(az postgres flexible-server list \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[0].fullyQualifiedDomainName" \
+            --output tsv)
+          
+          # Run migrations
+          psql -h $POSTGRES_SERVER \
+               -U ${{ secrets.POSTGRES_ADMIN_LOGIN }} \
+               -d tenxdev \
+               -f ./10xdev/backend/src/database/migrations.sql
+
+  # Health Check and Validation
+  health-check:
+    runs-on: ubuntu-latest
+    needs: [run-migrations]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get container URLs
+        id: get-urls
+        run: |
+          BACKEND_URL=$(az container show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ci-10xdev-backend-prod \
+            --query ipAddress.fqdn \
+            --output tsv)
+          
+          FRONTEND_URL=$(az container show \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ci-10xdev-frontend-prod \
+            --query ipAddress.fqdn \
+            --output tsv)
+          
+          echo "backend-url=https://$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "frontend-url=https://$FRONTEND_URL" >> $GITHUB_OUTPUT
+
+      - name: Health Check Backend
+        run: |
+          for i in {1..10}; do
+            if curl -f ${{ steps.get-urls.outputs.backend-url }}/api/health; then
+              echo "Backend health check passed"
+              break
+            else
+              echo "Backend health check failed, attempt $i/10"
+              if [ $i -eq 10 ]; then
+                echo "Backend health check failed after 10 attempts"
+                exit 1
+              fi
+              sleep 30
+            fi
+          done
+
+      - name: Health Check Frontend
+        run: |
+          for i in {1..10}; do
+            if curl -f ${{ steps.get-urls.outputs.frontend-url }}; then
+              echo "Frontend health check passed"
+              break
+            else
+              echo "Frontend health check failed, attempt $i/10"
+              if [ $i -eq 10 ]; then
+                echo "Frontend health check failed after 10 attempts"
+                exit 1
+              fi
+              sleep 30
+            fi
+          done
+
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Backend URL:** ${{ steps.get-urls.outputs.backend-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Frontend URL:** ${{ steps.get-urls.outputs.frontend-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Application Gateway:** https://${{ needs.deploy-infrastructure.outputs.gateway-fqdn }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🏗️ **Infrastructure deployed successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "🐳 **Containers deployed and healthy**" >> $GITHUB_STEP_SUMMARY
+          echo "🗄️ **Database migrations completed**" >> $GITHUB_STEP_SUMMARY

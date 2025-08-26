@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14.1-alpine
+    container_name: 10xdev-postgres
+    environment:
+      POSTGRES_DB: tenxdev
+      POSTGRES_USER: tenxdev_user
+      POSTGRES_PASSWORD: tenxdev_password123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/migrations.sql:/docker-entrypoint-initdb.d/01-migrations.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tenxdev_user -d tenxdev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tenxdev-network
+
+  # Backend API
+  core-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: 10xdev-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # Database configuration for direct PostgreSQL connection
+      DATABASE_URL: postgresql://tenxdev_user:tenxdev_password123@postgres:5432/tenxdev?sslmode=disable
+      # CORS configuration
+      CORS_ORIGIN: "*"
+      # Rate limiting
+      RATE_LIMIT_MAX_REQUESTS: 100
+      # JWT secret (you should change this in production)
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      # Supabase configuration (required by the code)
+      SUPABASE_URL: https://placeholder.supabase.co
+      SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tenxdev-network
+    restart: unless-stopped
+
+  # Frontend Application
+  client-app:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: 10xdev-frontend
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://core-api:3001/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+    networks:
+      - tenxdev-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  tenxdev-network:
+    driver: bridge
