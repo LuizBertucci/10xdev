@@ -8,6 +8,8 @@ const corsOptions = {
       'https://10xdev.vercel.app',
       'https://v0-10xdev.vercel.app',
       'https://ca-txdev-frontend-prod.yellowmeadow-a6a67a6f.eastus.azurecontainerapps.io',
+      'http://txdev-app-prod.eastus.cloudapp.azure.com',
+      'https://txdev-app-prod.eastus.cloudapp.azure.com',
       process.env.CORS_ORIGIN
     ].filter(Boolean)
 

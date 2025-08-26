@@ -217,7 +217,12 @@ export class CardFeatureController {
 
       // Validate each item
       for (let i = 0; i < items.length; i++) {
-        const validationError = validateCardFeatureData(items[i], `Item ${i + 1}`)
+        const item = items[i]
+        if (!item) {
+          sendValidationError(res, `Item ${i + 1} is null or undefined`)
+          return
+        }
+        const validationError = validateCardFeatureData(item, `Item ${i + 1}`)
         if (validationError) {
           sendValidationError(res, validationError)
           return

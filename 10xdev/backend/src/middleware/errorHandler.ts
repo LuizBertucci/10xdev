@@ -85,10 +85,11 @@ export const uncaughtErrorHandler = (): void => {
 // Middleware para validar Content-Type
 export const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   if (['POST', 'PUT', 'PATCH'].includes(req.method) && !req.is('application/json')) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Content-Type deve ser application/json'
     })
+    return
   }
   next()
 }
@@ -114,7 +115,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
 
   // Sanitiza body e query em uma única operação
   ;['body', 'query'].forEach(prop => {
-    if (req[prop]) req[prop] = sanitizeObject(req[prop])
+    if ((req as any)[prop]) (req as any)[prop] = sanitizeObject((req as any)[prop])
   })
   
   next()
