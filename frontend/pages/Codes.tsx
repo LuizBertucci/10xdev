@@ -17,10 +17,11 @@ interface PlatformState {
   selectedTech: string
   setSelectedTech: (tech: string) => void
   filteredSnippets: (snippets: CardFeatureType[]) => CardFeatureType[]
+  setActiveTab?: (tab: string) => void
 }
 
 interface CodesProps {
-  platformState: PlatformState
+  platformState?: PlatformState
 }
 
 export default function Codes({ platformState }: CodesProps) {
@@ -31,12 +32,24 @@ export default function Codes({ platformState }: CodesProps) {
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   
+  // Create default platformState for SSG compatibility
+  const defaultPlatformState = {
+    searchTerm: '',
+    setSearchTerm: () => {},
+    selectedTech: 'all',
+    setSelectedTech: () => {},
+    filteredSnippets: (snippets: CardFeatureType[]) => snippets,
+    setActiveTab: () => {}
+  }
+  
+  const safePlatformState = platformState || defaultPlatformState
+  
   // Hook principal para operações CRUD e dados da API com filtros do platformState
   const cardFeatures = useCardFeatures({}, {
-    searchTerm: platformState.searchTerm,
-    selectedTech: platformState.selectedTech,
-    setSearchTerm: platformState.setSearchTerm,
-    setSelectedTech: platformState.setSelectedTech
+    searchTerm: safePlatformState.searchTerm,
+    selectedTech: safePlatformState.selectedTech,
+    setSearchTerm: safePlatformState.setSearchTerm,
+    setSelectedTech: safePlatformState.setSelectedTech
   })
 
   // Dados filtrados vindos da API
@@ -91,7 +104,7 @@ export default function Codes({ platformState }: CodesProps) {
         <div>
           <div className="flex items-center space-x-2 text-sm mb-2">
             <button
-              onClick={() => platformState.setActiveTab("home")}
+              onClick={() => safePlatformState.setActiveTab("home")}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Início

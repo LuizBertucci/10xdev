@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Backend API
+  core-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: 10xdev-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # CORS configuration
+      CORS_ORIGIN: "*"
+      # Rate limiting
+      RATE_LIMIT_MAX_REQUESTS: 100
+      # JWT secret (you should change this in production)
+      JWT_SECRET: 3379a427cf0cf9861c97a7f2f513f9233f04903fd88c4f869abad333e1e61832
+      # Supabase configuration (required by the code)
+      SUPABASE_URL: https://xgpzbolfhgjhrydtcvug.supabase.co
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhncHpib2xmaGdqaHJ5ZHRjdnVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0ODA4NDksImV4cCI6MjA2OTA1Njg0OX0.9MIlV9aeOQg0NGV2Q38U5o8lzPSXtUuGlqSTSDFGyh8
+      SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhncHpib2xmaGdqaHJ5ZHRjdnVnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MzQ4MDg0OSwiZXhwIjoyMDY5MDU2ODQ5fQ.5hR7b7t-TUNiaKqs4WOj4a3N5nFxOryqlajgUkOOd6c
+    ports:
+      - "3001:3001"
+    networks:
+      - tenxdev-network
+    restart: unless-stopped
+
+  # Frontend Application
+  client-app:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: 10xdev-frontend
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://host.docker.internal:3001/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+    networks:
+      - tenxdev-network
+    restart: unless-stopped
+
+networks:
+  tenxdev-network:
+    driver: bridge
