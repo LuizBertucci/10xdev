@@ -10,18 +10,18 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependências de produção
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # Development stage
 FROM base AS dev
-RUN npm ci
+RUN npm install
 COPY . .
 EXPOSE 3001
 CMD ["npm", "run", "dev"]
 
 # Build stage
 FROM base AS builder
-RUN npm ci
+RUN npm install
 COPY . .
 
 # Build da aplicação TypeScript

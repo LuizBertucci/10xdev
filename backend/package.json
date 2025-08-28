@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "nodemon src/server.ts",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "start": "node dist/server.js",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
@@ -32,6 +32,7 @@
     "morgan": "^1.10.0",
     "nanoid": "^3.3.11",
     "pg": "^8.11.3",
+    "tsc-alias": "^1.8.16",
     "zod": "^3.22.4"
   },
   "devDependencies": {

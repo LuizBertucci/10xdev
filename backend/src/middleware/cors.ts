@@ -10,6 +10,7 @@ const corsOptions = {
       'http://127.0.0.1:3000',       // Alternative localhost
       'https://10xdev.vercel.app',    // Production frontend
       'https://v0-10xdev.vercel.app', // Current Vercel deployment
+      'https://web-frontend-10xdev.azurewebsites.net', // Azure frontend
       process.env.CORS_ORIGIN         // Origem do .env
     ].filter(Boolean) // Remove undefined values
 
