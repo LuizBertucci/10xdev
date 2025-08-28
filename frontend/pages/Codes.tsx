@@ -12,6 +12,8 @@ import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface PlatformState {
+  activeTab?: string
+  setActiveTab?: (tab: string) => void
   searchTerm: string
   setSearchTerm: (term: string) => void
   selectedTech: string
@@ -20,10 +22,22 @@ interface PlatformState {
 }
 
 interface CodesProps {
-  platformState: PlatformState
+  platformState?: PlatformState
 }
 
 export default function Codes({ platformState }: CodesProps) {
+  // Default platform state for when component is rendered without props
+  const defaultPlatformState: PlatformState = {
+    activeTab: 'codes',
+    setActiveTab: () => {},
+    searchTerm: '',
+    setSearchTerm: () => {},
+    selectedTech: 'all',
+    setSelectedTech: () => {},
+    filteredSnippets: (snippets: CardFeatureType[]) => snippets
+  }
+  
+  const activePlatformState = platformState || defaultPlatformState
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
   // ================================================
@@ -33,10 +47,10 @@ export default function Codes({ platformState }: CodesProps) {
   
   // Hook principal para operações CRUD e dados da API com filtros do platformState
   const cardFeatures = useCardFeatures({}, {
-    searchTerm: platformState.searchTerm,
-    selectedTech: platformState.selectedTech,
-    setSearchTerm: platformState.setSearchTerm,
-    setSelectedTech: platformState.setSelectedTech
+    searchTerm: activePlatformState.searchTerm,
+    selectedTech: activePlatformState.selectedTech,
+    setSearchTerm: activePlatformState.setSearchTerm,
+    setSelectedTech: activePlatformState.setSelectedTech
   })
 
   // Dados filtrados vindos da API
@@ -91,7 +105,7 @@ export default function Codes({ platformState }: CodesProps) {
         <div>
           <div className="flex items-center space-x-2 text-sm mb-2">
             <button
-              onClick={() => platformState.setActiveTab("home")}
+              onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Início
@@ -316,3 +330,11 @@ export default function Codes({ platformState }: CodesProps) {
     </div>
   )
 }
+
+// Disable static generation for this page
+export async function getServerSideProps() {
+  return {
+    props: {}
+  }
+}
+

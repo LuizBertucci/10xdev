@@ -11,18 +11,18 @@ COPY package*.json ./
 COPY pnpm-lock.yaml* ./
 
 # Instalar dependências
-RUN npm ci --only=production
+RUN npm install --omit=dev --legacy-peer-deps
 
 # Development stage
 FROM base AS dev
-RUN npm ci
+RUN npm install --legacy-peer-deps
 COPY . .
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
 # Build stage
 FROM base AS builder
-RUN npm ci
+RUN npm install --legacy-peer-deps
 COPY . .
 
 # Definir variáveis de ambiente para build
