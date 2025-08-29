@@ -1,0 +1,81 @@
+# Workflow automatizado para deploy Docker + Azure
+# Executa build das imagens Docker e deploy para Azure Container Registry + Web Apps
+
+name: Deploy Docker to Azure - 10xDev
+
+on:
+  push:
+    branches:
+      - main  # Executa quando há push na branch main
+  workflow_dispatch:  # Permite execução manual via interface do GitHub
+
+jobs:
+  docker-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read          # Necessário para checkout do código
+      id-token: write        # Necessário para autenticação Azure
+
+    steps:
+      # STEP 1: Baixar código do repositório
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # STEP 2: Fazer login no Azure usando service principal
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # STEP 3: Fazer login no Azure Container Registry
+      - name: Login to Azure Container Registry
+        run: |
+          # Faz login no registry crg10xdev para poder fazer push das imagens
+          az acr login --name crg10xdev
+
+      # STEP 4: Build e push da imagem do backend
+      - name: Build and push backend Docker image
+        run: |
+          # Constrói a imagem Docker do backend a partir do ./backend/Dockerfile
+          docker build -t crg10xdev.azurecr.io/10xdev-backend:latest ./backend
+          
+          # Faz push da imagem para o Azure Container Registry
+          docker push crg10xdev.azurecr.io/10xdev-backend:latest
+
+      # STEP 5: Build e push da imagem do frontend
+      - name: Build and push frontend Docker image
+        run: |
+          # Constrói a imagem Docker do frontend a partir do ./frontend/Dockerfile
+          docker build -t crg10xdev.azurecr.io/10xdev-frontend:latest ./frontend
+          
+          # Faz push da imagem para o Azure Container Registry
+          docker push crg10xdev.azurecr.io/10xdev-frontend:latest
+
+      # STEP 6: Atualizar containers nos Azure Web Apps
+      - name: Deploy containers to Azure Web Apps
+        run: |
+          # Configura o Web App do backend para usar a nova imagem Docker
+          az webapp config container set \
+            --name web-backend-10xdev \
+            --resource-group resource-10xdev \
+            --docker-custom-image-name crg10xdev.azurecr.io/10xdev-backend:latest
+          
+          # Configura o Web App do frontend para usar a nova imagem Docker
+          az webapp config container set \
+            --name web-frontend-10xdev \
+            --resource-group resource-10xdev \
+            --docker-custom-image-name crg10xdev.azurecr.io/10xdev-frontend:latest
+
+      # STEP 7: Restart dos Web Apps para garantir que usem as novas imagens
+      - name: Restart Azure Web Apps
+        run: |
+          # Reinicia o backend para carregar a nova imagem
+          az webapp restart --name web-backend-10xdev --resource-group resource-10xdev
+          
+          # Reinicia o frontend para carregar a nova imagem
+          az webapp restart --name web-frontend-10xdev --resource-group resource-10xdev
+          
+          echo "✅ Deploy automatizado concluído com sucesso!"
+          
