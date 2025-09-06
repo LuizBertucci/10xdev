@@ -84,21 +84,21 @@ class CardFeatureService {
   // READ
   // ================================================
 
-  async getAll(params?: CardFeatureQueryParams): Promise<ApiResponse<CardFeatureListResponse>> {
-    return apiClient.get<CardFeatureListResponse>(this.endpoint, params)
+  async getAll(params?: CardFeatureQueryParams): Promise<ApiResponse<CardFeature[]>> {
+    return apiClient.get<CardFeature[]>(this.endpoint, params)
   }
 
   async getById(id: string): Promise<ApiResponse<CardFeature>> {
     return apiClient.get<CardFeature>(`${this.endpoint}/${id}`)
   }
 
-  async search(searchTerm: string, params?: Omit<CardFeatureQueryParams, 'search'>): Promise<ApiResponse<CardFeatureListResponse>> {
+  async search(searchTerm: string, params?: Omit<CardFeatureQueryParams, 'search'>): Promise<ApiResponse<CardFeature[]>> {
     const searchParams = { ...params, q: searchTerm }
-    return apiClient.get<CardFeatureListResponse>(`${this.endpoint}/search`, searchParams)
+    return apiClient.get<CardFeature[]>(`${this.endpoint}/search`, searchParams)
   }
 
-  async getByTech(tech: string, params?: Omit<CardFeatureQueryParams, 'tech'>): Promise<ApiResponse<CardFeatureListResponse>> {
-    return apiClient.get<CardFeatureListResponse>(`${this.endpoint}/tech/${tech}`, params)
+  async getByTech(tech: string, params?: Omit<CardFeatureQueryParams, 'tech'>): Promise<ApiResponse<CardFeature[]>> {
+    return apiClient.get<CardFeature[]>(`${this.endpoint}/tech/${tech}`, params)
   }
 
   async getStats(): Promise<ApiResponse<CardFeatureStats>> {
@@ -138,7 +138,7 @@ class CardFeatureService {
     language?: string
     page?: number
     limit?: number
-  }): Promise<ApiResponse<CardFeatureListResponse>> {
+  }): Promise<ApiResponse<CardFeature[]>> {
     const { searchTerm, ...params } = filters
 
     if (searchTerm) {
@@ -153,14 +153,14 @@ class CardFeatureService {
   /**
    * Busca CardFeatures paginados
    */
-  async getPaginated(page: number = 1, limit: number = 10): Promise<ApiResponse<CardFeatureListResponse>> {
+  async getPaginated(page: number = 1, limit: number = 10): Promise<ApiResponse<CardFeature[]>> {
     return this.getAll({ page, limit })
   }
 
   /**
    * Busca CardFeatures recentes
    */
-  async getRecent(limit: number = 5): Promise<ApiResponse<CardFeatureListResponse>> {
+  async getRecent(limit: number = 5): Promise<ApiResponse<CardFeature[]>> {
     return this.getAll({ 
       limit, 
       sortBy: 'created_at', 
@@ -179,9 +179,9 @@ class CardFeatureService {
     
     results.forEach(result => {
       if (result.status === 'fulfilled' && result.value.success) {
-        const response = result.value as ApiResponse<CardFeatureListResponse>
-        if (response.data?.data) {
-          allCardFeatures.push(...response.data.data)
+        const response = result.value as ApiResponse<CardFeature[]>
+        if (response.data && Array.isArray(response.data)) {
+          allCardFeatures.push(...response.data)
         }
       }
     })

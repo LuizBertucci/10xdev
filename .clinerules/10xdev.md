@@ -74,13 +74,6 @@ Backend:
 
 #### **🔴 BUGS CRÍTICOS**
 
-**1. Memory Leak no Hook useCardFeatures**
-- **Arquivo**: `frontend/hooks/useCardFeatures.ts:473`
-- **Problema**: Cleanup do timeout não está sendo usado corretamente
-- **Código**: `return () => clearTimeout(timeoutId)` retorna cleanup mas não é usado
-- **Impacto**: Memory leak com múltiplas buscas
-- **Prioridade**: ALTA
-
 **2. Inconsistência na Resposta da API**
 - **Arquivo**: `frontend/hooks/useCardFeatures.ts:169`
 - **Problema**: Diferentes endpoints retornam formatos diferentes

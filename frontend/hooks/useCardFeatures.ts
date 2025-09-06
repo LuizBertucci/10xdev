@@ -168,8 +168,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       const response = await cardFeatureService.getAll(params)
       
       if (response.success && response.data) {
-        // A API retorna os itens diretamente em response.data, não em response.data.data
-        const items = Array.isArray(response.data) ? response.data : response.data.data || []
+        // ✅ CORRIGIDO: API padronizada - todos os endpoints retornam data como array
+        const items = Array.isArray(response.data) ? response.data : []
         setState(prev => ({
           ...prev,
           items: items,
@@ -205,15 +205,17 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       })
       
       if (response.success && response.data) {
+        // ✅ CORRIGIDO: API padronizada - search também retorna data como array
+        const items = Array.isArray(response.data) ? response.data : []
         setState(prev => ({
           ...prev,
-          items: response.data!.data,
+          items: items,
           loading: false,
-          currentPage: response.data!.currentPage,
-          totalPages: response.data!.totalPages,
-          hasNextPage: response.data!.hasNextPage,
-          hasPrevPage: response.data!.hasPrevPage,
-          totalCount: response.data!.count
+          currentPage: response.currentPage || 1,
+          totalPages: response.totalPages || 1,
+          hasNextPage: response.hasNextPage || false,
+          hasPrevPage: response.hasPrevPage || false,
+          totalCount: response.count || items.length
         }))
       } else {
         throw new Error(response.error || 'Erro na busca')
