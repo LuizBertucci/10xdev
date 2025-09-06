@@ -371,7 +371,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
       search: state.searchTerm || undefined
     })
-  }, [state.totalPages, state.selectedTech, state.searchTerm, fetchCardFeatures])
+  }, [state.totalPages, state.selectedTech, state.searchTerm])
 
   const nextPage = useCallback(async () => {
     if (state.hasNextPage) {
@@ -392,7 +392,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
       search: state.searchTerm || undefined
     })
-  }, [state.currentPage, state.selectedTech, state.searchTerm, fetchCardFeatures])
+  }, [state.currentPage, state.selectedTech, state.searchTerm])
 
   // ================================================
   // UI ACTIONS
@@ -480,7 +480,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }
       searchTimeoutRef.current = null // Limpar referência após execução
     }, 500)
-  }, [searchCardFeatures, fetchCardFeatures, externalFilters])
+  }, [searchCardFeatures, externalFilters])
 
   const setSelectedTech = useCallback((tech: string) => {
     setState(prev => ({ ...prev, selectedTech: tech }))
@@ -497,7 +497,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       tech: tech !== 'all' ? tech : undefined,
       search: state.searchTerm || undefined
     })
-  }, [state.searchTerm, fetchCardFeatures, externalFilters])
+  }, [state.searchTerm, externalFilters])
 
   const clearSelection = useCallback(() => {
     setState(prev => ({ 
@@ -524,7 +524,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   // Carregar dados na inicialização
   useEffect(() => {
     fetchCardFeatures()
-  }, [fetchCardFeatures])
+  }, [])
 
   // ✅ ADICIONADO: Cleanup do timeout quando o componente desmonta
   useEffect(() => {
