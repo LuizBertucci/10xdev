@@ -74,19 +74,6 @@ Backend:
 
 #### **🔴 BUGS CRÍTICOS**
 
-**2. Inconsistência na Resposta da API**
-- **Arquivo**: `frontend/hooks/useCardFeatures.ts:169`
-- **Problema**: Diferentes endpoints retornam formatos diferentes
-- **Código**: `const items = Array.isArray(response.data) ? response.data : response.data.data || []`
-- **Impacto**: Código defensivo necessário, possíveis erros
-- **Prioridade**: ALTA
-
-**3. Debug Console Logs em Produção**
-- **Arquivo**: `frontend/components/CardFeature.tsx:23-28`
-- **Problema**: Console.logs deixados no código
-- **Impacto**: Performance e informações expostas
-- **Prioridade**: MÉDIA
-
 #### **🟡 PROBLEMAS DE PERFORMANCE**
 
 **4. useEffect com Dependency Loop**

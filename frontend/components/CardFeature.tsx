@@ -19,14 +19,6 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const [activeTab, setActiveTab] = useState(0)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
 
-  // Debug: verificar quantas screens temos
-  console.log(`CardFeature ${snippet.title}:`, {
-    totalScreens: snippet.screens.length,
-    screenNames: snippet.screens.map(s => s.name),
-    activeTab,
-    activeScreenName: activeScreen?.name
-  })
-
   return (
     <TooltipProvider>
       <Card className="shadow-lg hover:shadow-xl transition-shadow h-[32rem]">
