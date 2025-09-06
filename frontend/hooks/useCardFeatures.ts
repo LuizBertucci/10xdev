@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { cardFeatureService } from '@/services'
 import type {
   CardFeature,
@@ -17,6 +17,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   setSearchTerm?: (term: string) => void
   setSelectedTech?: (tech: string) => void
 }): UseCardFeaturesReturn {
+  // Ref para armazenar o timeout ID
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   const [state, setState] = useState<CardFeatureState>({
     // Dados principais
     items: [],
@@ -461,16 +464,20 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       externalFilters.setSearchTerm(term)
     }
     
+    // ✅ CORRIGIDO: Limpar timeout anterior antes de criar novo
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+    
     // Auto-search após delay
-    const timeoutId = setTimeout(() => {
+    searchTimeoutRef.current = setTimeout(() => {
       if (term.trim()) {
         searchCardFeatures(term.trim())
       } else {
         fetchCardFeatures()
       }
+      searchTimeoutRef.current = null // Limpar referência após execução
     }, 500)
-
-    return () => clearTimeout(timeoutId)
   }, [searchCardFeatures, fetchCardFeatures, externalFilters])
 
   const setSelectedTech = useCallback((tech: string) => {
@@ -516,6 +523,16 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   useEffect(() => {
     fetchCardFeatures()
   }, [fetchCardFeatures])
+
+  // ✅ ADICIONADO: Cleanup do timeout quando o componente desmonta
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+        searchTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   // Retorna estado e ações para os componentes
   return {
