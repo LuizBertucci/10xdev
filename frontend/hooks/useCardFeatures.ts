@@ -152,25 +152,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }
   }, [])
 
-  // READ ALL - Buscar todos os CardFeatures (simplificado)
-  const fetchCardFeatures = useCallback(async (params?: QueryParams) => {
-    // ✅ SIMPLIFICADO: Usar função de paginação para manter compatibilidade
-    await fetchCardFeaturesWithPagination({
-      page: params?.page || 1,
-      limit: params?.limit || 10,
-      ...params
-    })
-  }, [fetchCardFeaturesWithPagination])
-
-  // SEARCH - Usar fetchCardFeaturesWithPagination
-  const searchCardFeatures = useCallback(async (searchTerm: string) => {
-    await fetchCardFeaturesWithPagination({
-      page: 1,
-      limit: 10,
-      search: searchTerm.trim() || undefined,
-      tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
-    })
-  }, [fetchCardFeaturesWithPagination, state.selectedTech])
+  // ✅ UNIFICADO: Uma única função que aceita todos os parâmetros
+  const fetchCardFeatures = fetchCardFeaturesWithPagination
 
   // UPDATE - Atualizar CardFeature existente
   const updateCardFeature = useCallback(async (id: string, data: UpdateCardFeatureData): Promise<CardFeature | null> => {
@@ -281,7 +264,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     updateCardFeature,
     deleteCardFeature,
     fetchCardFeatures,
-    searchCardFeatures,
     
 
     setSearchTerm,

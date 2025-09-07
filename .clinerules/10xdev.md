@@ -111,7 +111,7 @@ Backend:
 - [x] **3. Inconsistência de estado** (linha 44): Search definido como undefined mas usado em outras funções  
 - [x] **4. Estado duplicado**: totalCount existe tanto no hook quanto na paginação
 - [x] **5. Eliminar estado duplicado** - usar apenas o estado da paginação  
-- [ ] **6. Simplificar o fetch** - uma única função que aceita todos os parâmetros
+- [x] **6. Simplificar o fetch** - uma única função que aceita todos os parâmetros
 - [ ] **7. Consolidar lógica** - busca e filtragem em uma única estratégia
 - [ ] **8. Dependência circular**: fetchCardFeaturesWithPagination depende de state.selectedTech mas não pode incluir search.debouncedSearchTerm nas dependências
 - [ ] **9. Separar responsabilidades** - filtros externos em hook separado
