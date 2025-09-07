@@ -124,66 +124,6 @@ class CardFeatureService {
     return uniqueCardFeatures
   }
 
-  /**
-   * Valida dados antes de criar/atualizar
-   */
-  validateCardFeatureData(data: CreateCardFeatureData | UpdateCardFeatureData): {
-    isValid: boolean
-    errors: string[]
-  } {
-    const errors: string[] = []
-    
-    if ('title' in data) {
-      if (!data.title || data.title.trim().length === 0) {
-        errors.push('Título é obrigatório')
-      } else if (data.title.length > 255) {
-        errors.push('Título deve ter no máximo 255 caracteres')
-      }
-    }
-    
-    if ('tech' in data) {
-      if (!data.tech || data.tech.trim().length === 0) {
-        errors.push('Tecnologia é obrigatória')
-      }
-    }
-    
-    if ('language' in data) {
-      if (!data.language || data.language.trim().length === 0) {
-        errors.push('Linguagem é obrigatória')
-      }
-    }
-    
-    if ('description' in data) {
-      if (!data.description || data.description.trim().length === 0) {
-        errors.push('Descrição é obrigatória')
-      } else if (data.description.length > 1000) {
-        errors.push('Descrição deve ter no máximo 1000 caracteres')
-      }
-    }
-    
-    if ('screens' in data && data.screens) {
-      if (!Array.isArray(data.screens) || data.screens.length === 0) {
-        errors.push('Pelo menos uma tela/arquivo é obrigatório')
-      } else {
-        data.screens.forEach((screen, index) => {
-          if (!screen.name?.trim()) {
-            errors.push(`Tela ${index + 1}: Nome é obrigatório`)
-          }
-          if (!screen.description?.trim()) {
-            errors.push(`Tela ${index + 1}: Descrição é obrigatória`)
-          }
-          if (!screen.code?.trim()) {
-            errors.push(`Tela ${index + 1}: Código é obrigatório`)
-          }
-        })
-      }
-    }
-    
-    return {
-      isValid: errors.length === 0,
-      errors
-    }
-  }
 
   /**
    * Formata CardFeature para exibição
