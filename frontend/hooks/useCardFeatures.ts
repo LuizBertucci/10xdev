@@ -27,9 +27,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     error: null,
     lastError: null,
 
-    selectedTech: 'all',
-    
-    totalCount: 0
+    selectedTech: 'all'
   })
 
 
@@ -40,8 +38,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     try {
       const queryParams: QueryParams = {
         ...params,
-        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-        search: undefined // será definido depois
+        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
       }
       
       const response = await cardFeatureService.getAll(queryParams)
@@ -51,8 +48,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         setState(prev => ({
           ...prev,
           items: items,
-          loading: false,
-          totalCount: response.count || items.length
+          loading: false
         }))
         
         // O usePagination atualizará automaticamente suas informações
@@ -113,8 +109,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         setState(prev => ({
           ...prev,
           items: [response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
-          creating: false,
-          totalCount: prev.totalCount + 1
+          creating: false
         }))
         return response.data
       } else {
@@ -219,8 +214,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         setState(prev => ({
           ...prev,
           items: (Array.isArray(prev.items) ? prev.items : []).filter(item => item.id !== id),
-          deleting: false,
-          totalCount: Math.max(0, prev.totalCount - 1)
+          deleting: false
         }))
         return true
       } else {
