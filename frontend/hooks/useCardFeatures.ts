@@ -27,16 +27,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     error: null,
     lastError: null,
 
-    // Estados de UI
-    selectedItem: null,
-    editingItem: null,
-    isCreating: false,
-    isEditing: false,
-    showDeleteConfirm: false,
-    deleteItemId: null,
-
-    // Controles de interface
-    activeTab: '',
     selectedTech: 'all',
     
     totalCount: 0
@@ -147,7 +137,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           ...prev,
           items: [response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
           creating: false,
-          isCreating: false,
           totalCount: prev.totalCount + 1
         }))
         return response.data
@@ -240,9 +229,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           items: (Array.isArray(prev.items) ? prev.items : []).map(item => 
             item.id === id ? response.data! : item
           ),
-          updating: false,
-          isEditing: false,
-          editingItem: null
+          updating: false
         }))
         return response.data
       } else {
@@ -272,8 +259,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           ...prev,
           items: (Array.isArray(prev.items) ? prev.items : []).filter(item => item.id !== id),
           deleting: false,
-          showDeleteConfirm: false,
-          deleteItemId: null,
           totalCount: Math.max(0, prev.totalCount - 1)
         }))
         return true
@@ -290,134 +275,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       return false
     }
-  }, [])
-
-  // ================================================
-  // BULK OPERATIONS
-  // ================================================
-
-  const bulkCreate = useCallback(async (items: CreateCardFeatureData[]): Promise<CardFeature[]> => {
-    setState(prev => ({ ...prev, creating: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.bulkCreate(items)
-      
-      if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: [...response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
-          creating: false,
-          totalCount: prev.totalCount + response.data!.length
-        }))
-        return response.data
-      } else {
-        throw new Error(response.error || 'Erro ao criar CardFeatures em lote')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar CardFeatures em lote'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        creating: false
-      }))
-      return []
-    }
-  }, [])
-
-  const bulkDelete = useCallback(async (ids: string[]): Promise<number> => {
-    setState(prev => ({ ...prev, deleting: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.bulkDelete(ids)
-      
-      if (response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          items: (Array.isArray(prev.items) ? prev.items : []).filter(item => !ids.includes(item.id)),
-          deleting: false,
-          totalCount: Math.max(0, prev.totalCount - response.data!.deletedCount)
-        }))
-        return response.data.deletedCount
-      } else {
-        throw new Error(response.error || 'Erro ao remover CardFeatures em lote')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao remover CardFeatures em lote'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        deleting: false
-      }))
-      return 0
-    }
-  }, [])
-
-  // ✅ REMOVIDO: Paginação movida para usePagination hook
-
-  // ================================================
-  // UI ACTIONS
-  // ================================================
-
-  const startCreating = useCallback(() => {
-    setState(prev => ({ ...prev, isCreating: true }))
-  }, [])
-
-  const cancelCreating = useCallback(() => {
-    setState(prev => ({ ...prev, isCreating: false }))
-  }, [])
-
-  const startEditing = useCallback((item: CardFeature) => {
-    setState(prev => ({ 
-      ...prev, 
-      isEditing: true, 
-      editingItem: item 
-    }))
-  }, [])
-
-  const cancelEditing = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      isEditing: false, 
-      editingItem: null 
-    }))
-  }, [])
-
-  const updateEditingItem = useCallback((updatedItem: CardFeature) => {
-    setState(prev => ({
-      ...prev,
-      editingItem: updatedItem
-    }))
-  }, [])
-
-  const selectCardFeature = useCallback((id: string) => {
-    const item = state.items.find(item => item.id === id)
-    setState(prev => ({ 
-      ...prev, 
-      selectedItem: item || null,
-      activeTab: item?.screens[0]?.name || '' 
-    }))
-  }, [state.items])
-
-  const setActiveTab = useCallback((tabName: string) => {
-    setState(prev => ({ ...prev, activeTab: tabName }))
-  }, [])
-
-  const showDeleteConfirmation = useCallback((id: string) => {
-    setState(prev => ({ 
-      ...prev, 
-      showDeleteConfirm: true, 
-      deleteItemId: id 
-    }))
-  }, [])
-
-  const cancelDelete = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      showDeleteConfirm: false, 
-      deleteItemId: null 
-    }))
   }, [])
 
   // Wrapper para manter compatibilidade
@@ -447,13 +304,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     })
   }, [search.debouncedSearchTerm, externalFilters, fetchCardFeatures])
 
-  const clearSelection = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      selectedItem: null, 
-      activeTab: '' 
-    }))
-  }, [])
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }))
@@ -470,7 +320,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   }, [externalFilters?.searchTerm, externalFilters?.selectedTech, search, state.selectedTech])
 
   // Carregar dados na inicialização
-  // ✅ CORRIGIDO: Dependency array explícito para evitar re-execuções
   useEffect(() => {
     fetchCardFeatures()
   }, [fetchCardFeatures])
@@ -487,13 +336,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     deleting: state.deleting,
     fetching: state.fetching,
     error: state.error,
-    selectedItem: state.selectedItem,
-    editingItem: state.editingItem,
-    isCreating: state.isCreating,
-    isEditing: state.isEditing,
-    showDeleteConfirm: state.showDeleteConfirm,
-    deleteItemId: state.deleteItemId,
-    activeTab: state.activeTab,
     searchTerm: search.searchTerm,
     selectedTech: state.selectedTech,
     
@@ -512,23 +354,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     fetchCardFeatures,
     searchCardFeatures,
     
-    // Bulk Operations
-    bulkCreate,
-    bulkDelete,
 
-    // UI Actions
-    startCreating,
-    cancelCreating,
-    startEditing,
-    cancelEditing,
-    updateEditingItem,
-    selectCardFeature,
-    setActiveTab,
-    showDeleteConfirmation,
-    cancelDelete,
     setSearchTerm,
     setSelectedTech,
-    clearSelection,
     clearError,
     
     // Paginação - usando usePagination hook
