@@ -59,6 +59,13 @@ export type {
   CacheConfig
 } from './api'
 
+// Pagination types
+export type {
+  PaginationConfig,
+  FetchParams,
+  UsePaginationReturn
+} from '../hooks/usePagination'
+
 // Re-export enums
 export {
   SupportedTech,

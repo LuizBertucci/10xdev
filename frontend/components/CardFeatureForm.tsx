@@ -4,20 +4,30 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { X, Loader2, Plus, Save } from "lucide-react"
-import type { CardFeature } from "@/types"
+import type { CardFeature, CreateScreenData } from "@/types"
 
-interface ScreenData {
-  name: string
-  description: string
-  code: string
+const DEFAULT_FORM_DATA: FormData = {
+  title: '',
+  tech: 'React',
+  language: 'typescript',
+  description: '',
+  screens: [
+    {
+      name: 'Main',
+      description: 'Arquivo principal',
+      code: ''
+    }
+  ]
 }
+
+type ScreenData = CreateScreenData
 
 interface FormData {
   title: string
   tech: string
   language: string
   description: string
-  screens: ScreenData[]
+  screens: CreateScreenData[]
 }
 
 interface CardFeatureFormProps {
@@ -47,69 +57,15 @@ export default function CardFeatureForm({
         screens: initialData.screens
       }
     }
-    return {
-      title: '',
-      tech: 'React',
-      language: 'typescript',
-      description: '',
-      screens: [
-        {
-          name: 'Main',
-          description: 'Arquivo principal',
-          code: ''
-        }
-      ]
-    }
+    return { ...DEFAULT_FORM_DATA }
   })
 
-  // Atualizar formulário quando initialData mudar (fix para modo edição)
-  useEffect(() => {
-    if (mode === 'edit' && initialData) {
-      console.log('=== DADOS DO BACKEND ===')
-      console.log('initialData.screens:', initialData.screens)
-      console.log('Primeiro código vem com HTML?', initialData.screens[0]?.code.includes('<span'))
-      console.log('Primeiro código:', initialData.screens[0]?.code)
-      
-      setFormData({
-        title: initialData.title,
-        tech: initialData.tech,
-        language: initialData.language,
-        description: initialData.description,
-        screens: initialData.screens
-      })
-    } else if (mode === 'create') {
-      // Reset para criação
-      setFormData({
-        title: '',
-        tech: 'React',
-        language: 'typescript',
-        description: '',
-        screens: [
-          {
-            name: 'Main',
-            description: 'Arquivo principal',
-            code: ''
-          }
-        ]
-      })
-    }
-  }, [mode, initialData])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleScreenChange = (index: number, field: string, value: string) => {
-    // Debug: verificar se HTML está sendo inserido via input
-    if (field === 'code' && value.includes('<span')) {
-      console.error('PROBLEMA DETECTADO - HTML sendo inserido via handleScreenChange:', {
-        index,
-        field,
-        value,
-        hasHtml: value.includes('<span')
-      })
-    }
-    
     setFormData(prev => ({
       ...prev,
       screens: prev.screens.map((screen, i) => 
@@ -135,23 +91,9 @@ export default function CardFeatureForm({
   }
 
   const handleSubmit = async () => {
-    console.log('CardFeatureForm handleSubmit - dados sendo enviados:', {
-      mode,
-      formData,
-      // Debug: verificar se o código tem HTML antes de enviar
-      firstScreenCode: formData.screens[0]?.code,
-      hasHtmlTags: formData.screens[0]?.code.includes('<span')
-    })
-    
     await onSubmit(formData)
     if (mode === 'create') {
-      setFormData({
-        title: '',
-        tech: 'React',
-        language: 'typescript',
-        description: '',
-        screens: [{ name: 'Main', description: 'Arquivo principal', code: '' }]
-      })
+      setFormData({ ...DEFAULT_FORM_DATA })
     }
   }
 

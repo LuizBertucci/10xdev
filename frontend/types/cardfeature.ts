@@ -79,7 +79,7 @@ export interface CreateScreenData {
 export interface CardFeatureState {
   // Dados principais
   items: CardFeature[]
-  filteredItems: CardFeature[]
+  // ✅ REMOVIDO: filteredItems (agora calculado via useMemo)
   
   // Estados de loading
   loading: boolean
@@ -92,25 +92,10 @@ export interface CardFeatureState {
   error: string | null
   lastError: Date | null
 
-  // Estados de UI
-  selectedItem: CardFeature | null    // Item sendo visualizado no modal
-  editingItem: CardFeature | null     // Item sendo editado
-  isCreating: boolean                 // Modo criação ativo
-  isEditing: boolean                  // Modo edição ativo
-  showDeleteConfirm: boolean          // Modal de confirmação de delete
-  deleteItemId: string | null         // ID do item a ser deletado
-
-  // Controles de interface
-  activeTab: string                   // Aba ativa no modal
-  searchTerm: string                  // Termo de busca
   selectedTech: string                // Filtro de tecnologia selecionado
   
-  // Paginação
-  currentPage: number
-  totalPages: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
-  totalCount: number
+  // ✅ REMOVIDO: Paginação movida para usePagination hook
+  totalCount: number                  // Mantido apenas para compatibilidade
 }
 
 // ================================================
@@ -256,20 +241,13 @@ export interface CardFeatureMetadata {
 export interface UseCardFeaturesReturn {
   // Estado
   items: CardFeature[]
-  filteredItems: CardFeature[]
+  filteredItems: CardFeature[] // ✅ MANTIDO: retornado pelo hook via useMemo
   loading: boolean
   creating: boolean
   updating: boolean
   deleting: boolean
   fetching: boolean
   error: string | null
-  selectedItem: CardFeature | null
-  editingItem: CardFeature | null
-  isCreating: boolean
-  isEditing: boolean
-  showDeleteConfirm: boolean
-  deleteItemId: string | null
-  activeTab: string
   searchTerm: string
   selectedTech: string
   
@@ -288,22 +266,9 @@ export interface UseCardFeaturesReturn {
   fetchCardFeatures: (params?: import('./api').QueryParams) => Promise<void>
   searchCardFeatures: (searchTerm: string) => Promise<void>
   
-  // Bulk Operations
-  bulkCreate: (items: CreateCardFeatureData[]) => Promise<CardFeature[]>
-  bulkDelete: (ids: string[]) => Promise<number>
 
-  // UI Actions
-  startCreating: () => void
-  cancelCreating: () => void
-  startEditing: (item: CardFeature) => void
-  cancelEditing: () => void
-  selectCardFeature: (id: string) => void
-  setActiveTab: (tabName: string) => void
-  showDeleteConfirmation: (id: string) => void
-  cancelDelete: () => void
   setSearchTerm: (term: string) => void
   setSelectedTech: (tech: string) => void
-  clearSelection: () => void
   clearError: () => void
   
   // Paginação
