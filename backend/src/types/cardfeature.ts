@@ -2,10 +2,20 @@
 // DATABASE TYPES - Supabase/PostgreSQL
 // ================================================
 
+// Adicionar enum para tipos de conteúdo
+export enum ContentType {
+  CODE = 'code',
+  TEXT = 'text', 
+  TERMINAL = 'terminal'
+}
+
 export interface CardFeatureScreen {
   name: string
   description: string
-  code: string
+  content: string              // Renomear 'code' para 'content'
+  content_type: ContentType    // Novo campo
+  language?: string           // Opcional para text/terminal
+  route?: string             // Opcional
 }
 
 export interface CardFeatureRow {
@@ -14,6 +24,7 @@ export interface CardFeatureRow {
   tech: string
   language: string
   description: string
+  content_type: ContentType    // Novo campo principal
   screens: CardFeatureScreen[]
   created_at: string
   updated_at: string
@@ -25,6 +36,7 @@ export interface CardFeatureInsert {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
   created_at?: string
   updated_at?: string
@@ -36,6 +48,7 @@ export interface CardFeatureUpdate {
   tech?: string
   language?: string
   description?: string
+  content_type?: ContentType
   screens?: CardFeatureScreen[]
   updated_at?: string
 }
@@ -49,6 +62,7 @@ export interface CreateCardFeatureRequest {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
 }
 
@@ -60,6 +74,7 @@ export interface CardFeatureResponse {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
   createdAt: string
   updatedAt: string
@@ -86,6 +101,7 @@ export interface CardFeatureQueryParams {
   limit?: number
   tech?: string
   language?: string
+  content_type?: string
   search?: string
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'

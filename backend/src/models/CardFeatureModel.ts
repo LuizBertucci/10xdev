@@ -9,7 +9,8 @@ import type {
   CardFeatureFilters,
   ModelResult,
   ModelListResult,
-  CreateCardFeatureRequest
+  CreateCardFeatureRequest,
+  ContentType
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
@@ -26,6 +27,7 @@ export class CardFeatureModel {
       tech: row.tech,
       language: row.language,
       description: row.description,
+      content_type: row.content_type,  // Adicionar campo
       screens: row.screens,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -44,6 +46,11 @@ export class CardFeatureModel {
 
     if (params.language && params.language !== 'all') {
       query = query.ilike('language', params.language)
+    }
+
+    // Adicionar filtro por content_type
+    if (params.content_type && params.content_type !== 'all') {
+      query = query.eq('content_type', params.content_type)
     }
 
     if (params.search) {
@@ -77,6 +84,7 @@ export class CardFeatureModel {
         tech: data.tech,
         language: data.language,
         description: data.description,
+        content_type: data.content_type,
         screens: data.screens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -414,6 +422,7 @@ export class CardFeatureModel {
         tech: item.tech,
         language: item.language,
         description: item.description,
+        content_type: item.content_type,
         screens: item.screens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

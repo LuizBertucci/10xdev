@@ -182,7 +182,7 @@ interface ContentRendererProps {
 
 #### **FASE 1: Backend Foundation**
 
-- [ ] 1. Alterar schema do banco (migration)
+- [x] 1. Alterar schema do banco (migration)
 ```sql
 -- Adicionar campo 'content_type' na tabela card_features
 ALTER TABLE card_features 
@@ -192,7 +192,7 @@ ADD COLUMN content_type VARCHAR(20) DEFAULT 'code' CHECK (content_type IN ('code
 UPDATE card_features SET content_type = 'code' WHERE content_type IS NULL;
 ```
 
-- [ ] 2. Atualizar types e enums
+- [x] 2. Atualizar types e enums 
 ```typescript
 // backend/src/types/cardfeature.ts
 export enum ContentType {
@@ -223,7 +223,7 @@ export interface CardFeatureRow {
 }
 ```
 
-- [ ] 3. Modificar CardFeatureModel
+- [x] 3. Modificar CardFeatureModel
 ```typescript
 // backend/src/models/CardFeatureModel.ts
 private static transformToResponse(row: CardFeatureRow): CardFeatureResponse {
@@ -254,7 +254,7 @@ private static buildQuery(params: CardFeatureQueryParams = {}) {
 }
 ```
 
-- [ ] 4. Atualizar controller e validações
+- [x] 4. Atualizar controller e validações
 ```typescript
 // backend/src/controllers/CardFeatureController.ts
 // Adicionar validação de content_type

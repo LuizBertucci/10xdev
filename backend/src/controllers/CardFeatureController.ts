@@ -3,7 +3,8 @@ import { CardFeatureModel } from '@/models/CardFeatureModel'
 import type {
   CreateCardFeatureRequest,
   UpdateCardFeatureRequest,
-  CardFeatureQueryParams
+  CardFeatureQueryParams,
+  ContentType
 } from '@/types/cardfeature'
 
 export class CardFeatureController {
@@ -16,11 +17,11 @@ export class CardFeatureController {
     try {
       const data: CreateCardFeatureRequest = req.body
 
-      // Validação básica
-      if (!data.title || !data.tech || !data.language || !data.description || !data.screens) {
+      // Validação básica (incluindo content_type)
+      if (!data.title || !data.tech || !data.language || !data.description || !data.screens || !data.content_type) {
         res.status(400).json({
           success: false,
-          error: 'Campos obrigatórios: title, tech, language, description, screens'
+          error: 'Campos obrigatórios: title, tech, language, description, content_type, screens'
         })
         return
       }
@@ -35,10 +36,10 @@ export class CardFeatureController {
 
       // Validar cada screen
       for (const screen of data.screens) {
-        if (!screen.name || !screen.description || !screen.code) {
+        if (!screen.name || !screen.description || !screen.content) {
           res.status(400).json({
             success: false,
-            error: 'Cada screen deve ter name, description e code'
+            error: 'Cada screen deve ter name, description e content'
           })
           return
         }
@@ -82,6 +83,7 @@ export class CardFeatureController {
         limit,
         tech: req.query.tech as string,
         language: req.query.language as string,
+        content_type: req.query.content_type as string,
         search: req.query.search as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
@@ -182,6 +184,7 @@ export class CardFeatureController {
         limit,
         tech: req.query.tech as string,
         language: req.query.language as string,
+        content_type: req.query.content_type as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
       }
@@ -241,6 +244,7 @@ export class CardFeatureController {
         page,
         limit,
         language: req.query.language as string,
+        content_type: req.query.content_type as string,
         search: req.query.search as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
@@ -306,10 +310,10 @@ export class CardFeatureController {
         }
 
         for (const screen of data.screens) {
-          if (!screen.name || !screen.description || !screen.code) {
+          if (!screen.name || !screen.description || !screen.content) {
             res.status(400).json({
               success: false,
-              error: 'Cada screen deve ter name, description e code'
+              error: 'Cada screen deve ter name, description e content'
             })
             return
           }
@@ -427,10 +431,10 @@ export class CardFeatureController {
       // Validar cada item
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
-        if (!item?.title || !item?.tech || !item?.language || !item?.description || !item?.screens) {
+        if (!item?.title || !item?.tech || !item?.language || !item?.description || !item?.content_type || !item?.screens) {
           res.status(400).json({
             success: false,
-            error: `Item ${i + 1}: Campos obrigatórios: title, tech, language, description, screens`
+            error: `Item ${i + 1}: Campos obrigatórios: title, tech, language, description, content_type, screens`
           })
           return
         }
