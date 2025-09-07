@@ -79,7 +79,7 @@ export interface CreateScreenData {
 export interface CardFeatureState {
   // Dados principais
   items: CardFeature[]
-  filteredItems: CardFeature[]
+  // ✅ REMOVIDO: filteredItems (agora calculado via useMemo)
   
   // Estados de loading
   loading: boolean
@@ -256,7 +256,7 @@ export interface CardFeatureMetadata {
 export interface UseCardFeaturesReturn {
   // Estado
   items: CardFeature[]
-  filteredItems: CardFeature[]
+  filteredItems: CardFeature[] // ✅ MANTIDO: retornado pelo hook via useMemo
   loading: boolean
   creating: boolean
   updating: boolean
@@ -297,6 +297,7 @@ export interface UseCardFeaturesReturn {
   cancelCreating: () => void
   startEditing: (item: CardFeature) => void
   cancelEditing: () => void
+  updateEditingItem: (updatedItem: CardFeature) => void
   selectCardFeature: (id: string) => void
   setActiveTab: (tabName: string) => void
   showDeleteConfirmation: (id: string) => void

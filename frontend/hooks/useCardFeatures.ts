@@ -23,7 +23,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   const [state, setState] = useState<CardFeatureState>({
     // Dados principais
     items: [],
-    filteredItems: [],
     
     // Estados de loading
     loading: false,
@@ -58,14 +57,18 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   })
 
   // FILTROS - Filtrar itens localmente (usando filtros externos se fornecidos)
+  // ✅ OTIMIZADO: Estabilizar dependências de filtros externos
+  const externalSearchTerm = externalFilters?.searchTerm
+  const externalSelectedTech = externalFilters?.selectedTech
+  
   const filteredItems = useMemo(() => {
     if (!state.items || !Array.isArray(state.items)) {
       return []
     }
     
     // Usar filtros externos se fornecidos, senão usar filtros internos
-    const searchTerm = externalFilters?.searchTerm ?? state.searchTerm
-    const selectedTech = externalFilters?.selectedTech ?? state.selectedTech
+    const searchTerm = externalSearchTerm ?? state.searchTerm
+    const selectedTech = externalSelectedTech ?? state.selectedTech
     
     return state.items.filter(item => {
       const matchesSearch = searchTerm === '' || 
@@ -77,12 +80,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       
       return matchesSearch && matchesTech
     })
-  }, [state.items, state.searchTerm, state.selectedTech, externalFilters?.searchTerm, externalFilters?.selectedTech])
+  }, [state.items, state.searchTerm, state.selectedTech, externalSearchTerm, externalSelectedTech])
 
-  // Atualizar filteredItems quando mudar
-  useEffect(() => {
-    setState(prev => ({ ...prev, filteredItems }))
-  }, [filteredItems])
+  // ✅ REMOVIDO: useEffect redundante que causava re-renderizações extras
 
   // ================================================
   // CRUD OPERATIONS - Usando API
@@ -522,9 +522,10 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   }, [externalFilters?.searchTerm, externalFilters?.selectedTech, state.searchTerm, state.selectedTech])
 
   // Carregar dados na inicialização
+  // ✅ CORRIGIDO: Dependency array explícito para evitar re-execuções
   useEffect(() => {
     fetchCardFeatures()
-  }, [])
+  }, [fetchCardFeatures])
 
   // ✅ ADICIONADO: Cleanup do timeout quando o componente desmonta
   useEffect(() => {
@@ -540,7 +541,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   return {
     // Estado
     items: state.items,
-    filteredItems: state.filteredItems,
+    filteredItems, // ✅ OTIMIZADO: Usar filteredItems do useMemo diretamente
     loading: state.loading,
     creating: state.creating,
     updating: state.updating,

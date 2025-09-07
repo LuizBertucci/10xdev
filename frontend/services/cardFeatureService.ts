@@ -1,76 +1,8 @@
-// ================================================
-// CARD FEATURE SERVICE - API calls for CardFeatures
-// ================================================
-
 import { apiClient, ApiResponse } from './apiClient'
-
-// ================================================
-// INTERFACES (temporárias - serão movidas para types)
-// ================================================
-
-interface CardFeatureScreen {
-  name: string
-  description: string
-  code: string
-}
-
-interface CardFeature {
-  id: string
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: CardFeatureScreen[]
-  createdAt: string
-  updatedAt: string
-}
-
-interface CreateCardFeatureData {
-  title: string
-  tech: string
-  language: string
-  description: string
-  screens: CardFeatureScreen[]
-}
-
-interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
-
-interface CardFeatureQueryParams {
-  page?: number
-  limit?: number
-  tech?: string
-  language?: string
-  search?: string
-  sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
-  sortOrder?: 'asc' | 'desc'
-}
-
-interface CardFeatureListResponse {
-  data: CardFeature[]
-  count: number
-  totalPages: number
-  currentPage: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
-}
-
-interface CardFeatureStats {
-  total: number
-  byTech: Record<string, number>
-  byLanguage: Record<string, number>
-  recentCount: number
-}
-
-// ================================================
-// CARD FEATURE SERVICE CLASS
-// ================================================
+import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats } from '@/types'
 
 class CardFeatureService {
   private readonly endpoint = '/card-features'
-
-  // ================================================
-  // CREATE
-  // ================================================
 
   async create(data: CreateCardFeatureData): Promise<ApiResponse<CardFeature>> {
     return apiClient.post<CardFeature>(this.endpoint, data)
@@ -84,7 +16,7 @@ class CardFeatureService {
   // READ
   // ================================================
 
-  async getAll(params?: CardFeatureQueryParams): Promise<ApiResponse<CardFeature[]>> {
+  async getAll(params?: QueryParams): Promise<ApiResponse<CardFeature[]>> {
     return apiClient.get<CardFeature[]>(this.endpoint, params)
   }
 
@@ -92,12 +24,12 @@ class CardFeatureService {
     return apiClient.get<CardFeature>(`${this.endpoint}/${id}`)
   }
 
-  async search(searchTerm: string, params?: Omit<CardFeatureQueryParams, 'search'>): Promise<ApiResponse<CardFeature[]>> {
+  async search(searchTerm: string, params?: Omit<QueryParams, 'search'>): Promise<ApiResponse<CardFeature[]>> {
     const searchParams = { ...params, q: searchTerm }
     return apiClient.get<CardFeature[]>(`${this.endpoint}/search`, searchParams)
   }
 
-  async getByTech(tech: string, params?: Omit<CardFeatureQueryParams, 'tech'>): Promise<ApiResponse<CardFeature[]>> {
+  async getByTech(tech: string, params?: Omit<QueryParams, 'tech'>): Promise<ApiResponse<CardFeature[]>> {
     return apiClient.get<CardFeature[]>(`${this.endpoint}/tech/${tech}`, params)
   }
 
@@ -122,16 +54,14 @@ class CardFeatureService {
   }
 
   async bulkDelete(ids: string[]): Promise<ApiResponse<{ deletedCount: number }>> {
-    return apiClient.delete<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
+    return apiClient.deleteWithBody<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
   }
 
   // ================================================
   // UTILITY METHODS
   // ================================================
 
-  /**
-   * Busca CardFeatures com filtros inteligentes
-   */
+  /** Busca CardFeatures com filtros inteligentes */
   async searchWithFilters(filters: {
     searchTerm?: string
     tech?: string
@@ -281,7 +211,7 @@ export type {
   CardFeatureScreen,
   CreateCardFeatureData,
   UpdateCardFeatureData,
-  CardFeatureQueryParams,
+  QueryParams,
   CardFeatureListResponse,
   CardFeatureStats
 }
