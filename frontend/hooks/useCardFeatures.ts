@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { cardFeatureService } from '@/services'
+import { usePagination } from './usePagination'
 import type {
   CardFeature,
   CardFeatureState,
@@ -7,7 +8,8 @@ import type {
   UpdateCardFeatureData,
   UseCardFeaturesReturn,
   UseCardFeaturesOptions,
-  QueryParams
+  QueryParams,
+  FetchParams
 } from '@/types'
 
 // Hook principal para gerenciar CardFeatures com API
@@ -48,12 +50,57 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     searchTerm: '',
     selectedTech: 'all',
     
-    // Paginação
-    currentPage: 1,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPrevPage: false,
+    // ✅ REMOVIDO: Paginação movida para usePagination hook
     totalCount: 0
+  })
+
+  // ✅ NOVO: Função de fetch com paginação para o usePagination hook
+  const fetchCardFeaturesWithPagination = useCallback(async (params: FetchParams) => {
+    setState(prev => ({ ...prev, loading: true, error: null }))
+    
+    try {
+      const queryParams: QueryParams = {
+        ...params,
+        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
+        search: state.searchTerm || undefined
+      }
+      
+      const response = await cardFeatureService.getAll(queryParams)
+      
+      if (response.success && response.data) {
+        const items = Array.isArray(response.data) ? response.data : []
+        setState(prev => ({
+          ...prev,
+          items: items,
+          loading: false,
+          totalCount: response.count || items.length
+        }))
+        
+        // O usePagination atualizará automaticamente suas informações
+        return response
+      } else {
+        throw new Error(response.error || 'Erro ao carregar CardFeatures')
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar CardFeatures'
+      setState(prev => ({
+        ...prev,
+        error: errorMessage,
+        lastError: new Date(),
+        loading: false
+      }))
+      throw error
+    }
+  }, [state.selectedTech, state.searchTerm])
+
+  // Hook de paginação - função simplificada
+  const paginationFetchFn = useCallback(async (params: FetchParams) => {
+    await fetchCardFeaturesWithPagination(params)
+  }, [fetchCardFeaturesWithPagination])
+
+  const pagination = usePagination(paginationFetchFn, {
+    itemsPerPage: 10,
+    initialPage: 1
   })
 
   // FILTROS - Filtrar itens localmente (usando filtros externos se fornecidos)
@@ -158,63 +205,43 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }
   }, [state.items])
 
-  // READ ALL - Buscar todos os CardFeatures
+  // READ ALL - Buscar todos os CardFeatures (simplificado)
   const fetchCardFeatures = useCallback(async (params?: QueryParams) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.getAll(params)
-      
-      if (response.success && response.data) {
-        // ✅ CORRIGIDO: API padronizada - todos os endpoints retornam data como array
-        const items = Array.isArray(response.data) ? response.data : []
-        setState(prev => ({
-          ...prev,
-          items: items,
-          loading: false,
-          currentPage: response.currentPage || 1,
-          totalPages: response.totalPages || 1,
-          hasNextPage: response.hasNextPage || false,
-          hasPrevPage: response.hasPrevPage || false,
-          totalCount: response.count || items.length
-        }))
-      } else {
-        throw new Error(response.error || 'Erro ao carregar CardFeatures')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar CardFeatures'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        loading: false
-      }))
-    }
-  }, [])
+    // ✅ SIMPLIFICADO: Usar função de paginação para manter compatibilidade
+    await fetchCardFeaturesWithPagination({
+      page: params?.page || 1,
+      limit: params?.limit || 10,
+      ...params
+    })
+  }, [fetchCardFeaturesWithPagination])
 
-  // SEARCH - Buscar CardFeatures
+  // SEARCH - Buscar CardFeatures (simplificado)
   const searchCardFeatures = useCallback(async (searchTerm: string) => {
     setState(prev => ({ ...prev, loading: true, error: null }))
     
     try {
       const response = await cardFeatureService.search(searchTerm, {
-        page: state.currentPage,
+        page: pagination.currentPage,
         limit: 10
       })
       
       if (response.success && response.data) {
-        // ✅ CORRIGIDO: API padronizada - search também retorna data como array
         const items = Array.isArray(response.data) ? response.data : []
         setState(prev => ({
           ...prev,
           items: items,
           loading: false,
-          currentPage: response.currentPage || 1,
-          totalPages: response.totalPages || 1,
-          hasNextPage: response.hasNextPage || false,
-          hasPrevPage: response.hasPrevPage || false,
           totalCount: response.count || items.length
         }))
+        
+        // Atualizar paginação
+        pagination.updatePaginationInfo({
+          totalCount: response.count || items.length,
+          currentPage: response.currentPage || pagination.currentPage,
+          totalPages: response.totalPages,
+          hasNextPage: response.hasNextPage,
+          hasPrevPage: response.hasPrevPage
+        })
       } else {
         throw new Error(response.error || 'Erro na busca')
       }
@@ -227,7 +254,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         loading: false
       }))
     }
-  }, [state.currentPage])
+  }, [pagination])
 
   // UPDATE - Atualizar CardFeature existente
   const updateCardFeature = useCallback(async (id: string, data: UpdateCardFeatureData): Promise<CardFeature | null> => {
@@ -356,41 +383,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }
   }, [])
 
-  // ================================================
-  // PAGINAÇÃO
-  // ================================================
-
-  const goToPage = useCallback(async (page: number) => {
-    if (page < 1 || page > state.totalPages) return
-    
-    await fetchCardFeatures({
-      page,
-      limit: 10,
-      tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-      search: state.searchTerm || undefined
-    })
-  }, [state.totalPages, state.selectedTech, state.searchTerm])
-
-  const nextPage = useCallback(async () => {
-    if (state.hasNextPage) {
-      await goToPage(state.currentPage + 1)
-    }
-  }, [state.hasNextPage, state.currentPage, goToPage])
-
-  const prevPage = useCallback(async () => {
-    if (state.hasPrevPage) {
-      await goToPage(state.currentPage - 1)
-    }
-  }, [state.hasPrevPage, state.currentPage, goToPage])
-
-  const refreshData = useCallback(async () => {
-    await fetchCardFeatures({
-      page: state.currentPage,
-      limit: 10,
-      tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-      search: state.searchTerm || undefined
-    })
-  }, [state.currentPage, state.selectedTech, state.searchTerm])
+  // ✅ REMOVIDO: Paginação movida para usePagination hook
 
   // ================================================
   // UI ACTIONS
@@ -556,12 +549,12 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     searchTerm: state.searchTerm,
     selectedTech: state.selectedTech,
     
-    // Paginação
-    currentPage: state.currentPage,
-    totalPages: state.totalPages,
-    hasNextPage: state.hasNextPage,
-    hasPrevPage: state.hasPrevPage,
-    totalCount: state.totalCount,
+    // Paginação - usando usePagination hook
+    currentPage: pagination.currentPage,
+    totalPages: pagination.totalPages,
+    hasNextPage: pagination.hasNextPage,
+    hasPrevPage: pagination.hasPrevPage,
+    totalCount: pagination.totalCount,
 
     // CRUD Operations
     createCardFeature,
@@ -590,11 +583,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     clearSelection,
     clearError,
     
-    // Paginação
-    goToPage,
-    nextPage,
-    prevPage,
-    refreshData
+    // Paginação - usando usePagination hook
+    goToPage: pagination.goToPage,
+    nextPage: pagination.nextPage,
+    prevPage: pagination.prevPage,
+    refreshData: pagination.refreshData
   }
 }
 

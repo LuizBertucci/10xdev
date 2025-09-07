@@ -105,12 +105,8 @@ export interface CardFeatureState {
   searchTerm: string                  // Termo de busca
   selectedTech: string                // Filtro de tecnologia selecionado
   
-  // Paginação
-  currentPage: number
-  totalPages: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
-  totalCount: number
+  // ✅ REMOVIDO: Paginação movida para usePagination hook
+  totalCount: number                  // Mantido apenas para compatibilidade
 }
 
 // ================================================
