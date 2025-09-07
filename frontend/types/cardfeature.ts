@@ -102,7 +102,6 @@ export interface CardFeatureState {
 
   // Controles de interface
   activeTab: string                   // Aba ativa no modal
-  searchTerm: string                  // Termo de busca
   selectedTech: string                // Filtro de tecnologia selecionado
   
   // ✅ REMOVIDO: Paginação movida para usePagination hook

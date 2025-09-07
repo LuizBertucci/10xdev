@@ -2,16 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { cardFeatureService } from '@/services'
 import { usePagination } from './usePagination'
 import { useDebounceSearch } from './useDebounceSearch'
-import type {
-  CardFeature,
-  CardFeatureState,
-  CreateCardFeatureData,
-  UpdateCardFeatureData,
-  UseCardFeaturesReturn,
-  UseCardFeaturesOptions,
-  QueryParams,
-  FetchParams
-} from '@/types'
+import type { CardFeature, CardFeatureState, CreateCardFeatureData, UpdateCardFeatureData, UseCardFeaturesReturn, UseCardFeaturesOptions, QueryParams, FetchParams } from '@/types'
 
 // Hook principal para gerenciar CardFeatures com API
 export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFilters?: {
@@ -48,9 +39,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     activeTab: '',
     selectedTech: 'all',
     
-    // ✅ REMOVIDO: Paginação movida para usePagination hook
     totalCount: 0
   })
+
 
   // ✅ NOVO: Função de fetch com paginação para o usePagination hook
   const fetchCardFeaturesWithPagination = useCallback(async (params: FetchParams) => {
@@ -60,7 +51,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       const queryParams: QueryParams = {
         ...params,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-        search: search.debouncedSearchTerm || undefined
+        search: undefined // será definido depois
       }
       
       const response = await cardFeatureService.getAll(queryParams)
@@ -89,9 +80,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       throw error
     }
-  }, [state.selectedTech, search.debouncedSearchTerm])
+  }, [state.selectedTech]) // removido search.debouncedSearchTerm por ordem de declaração
 
-  // Hook de paginação - função simplificada
+  // Wrapper para usePagination (precisa retornar void)
   const paginationFetchFn = useCallback(async (params: FetchParams) => {
     await fetchCardFeaturesWithPagination(params)
   }, [fetchCardFeaturesWithPagination])
@@ -100,6 +91,19 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     itemsPerPage: 10,
     initialPage: 1
   })
+
+  // ✅ NOVO: Hook de busca com debounce - usa fetchCardFeaturesWithPagination
+  const search = useDebounceSearch(
+    useCallback(async (term: string) => {
+      await fetchCardFeaturesWithPagination({
+        page: 1,
+        limit: 10,
+        search: term.trim() || undefined,
+        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
+      })
+    }, [fetchCardFeaturesWithPagination, state.selectedTech]),
+    { delay: 500 }
+  )
 
   // FILTROS - Filtrar itens localmente (usando filtros externos se fornecidos)
   // ✅ OTIMIZADO: Estabilizar dependências de filtros externos
@@ -213,46 +217,15 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     })
   }, [fetchCardFeaturesWithPagination])
 
-  // SEARCH - Buscar CardFeatures (simplificado)
+  // SEARCH - Usar fetchCardFeaturesWithPagination
   const searchCardFeatures = useCallback(async (searchTerm: string) => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
-    
-    try {
-      const response = await cardFeatureService.search(searchTerm, {
-        page: pagination.currentPage,
-        limit: 10
-      })
-      
-      if (response.success && response.data) {
-        const items = Array.isArray(response.data) ? response.data : []
-        setState(prev => ({
-          ...prev,
-          items: items,
-          loading: false,
-          totalCount: response.count || items.length
-        }))
-        
-        // Atualizar paginação
-        pagination.updatePaginationInfo({
-          totalCount: response.count || items.length,
-          currentPage: response.currentPage || pagination.currentPage,
-          totalPages: response.totalPages,
-          hasNextPage: response.hasNextPage,
-          hasPrevPage: response.hasPrevPage
-        })
-      } else {
-        throw new Error(response.error || 'Erro na busca')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro na busca'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        lastError: new Date(),
-        loading: false
-      }))
-    }
-  }, [pagination])
+    await fetchCardFeaturesWithPagination({
+      page: 1,
+      limit: 10,
+      search: searchTerm.trim() || undefined,
+      tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
+    })
+  }, [fetchCardFeaturesWithPagination, state.selectedTech])
 
   // UPDATE - Atualizar CardFeature existente
   const updateCardFeature = useCallback(async (id: string, data: UpdateCardFeatureData): Promise<CardFeature | null> => {
@@ -446,18 +419,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       deleteItemId: null 
     }))
   }, [])
-
-  // ✅ NOVO: Hook de busca com debounce
-  const search = useDebounceSearch(
-    useCallback(async (term: string) => {
-      if (term.trim()) {
-        await searchCardFeatures(term.trim())
-      } else {
-        await fetchCardFeatures()
-      }
-    }, [searchCardFeatures, fetchCardFeatures]),
-    { delay: 500 }
-  )
 
   // Wrapper para manter compatibilidade
   const setSearchTerm = useCallback((term: string) => {
