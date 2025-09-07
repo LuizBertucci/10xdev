@@ -157,29 +157,13 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
 
   // READ - Buscar CardFeature por ID
   const getCardFeature = useCallback(async (id: string): Promise<CardFeature | null> => {
-    // Primeiro tentar buscar localmente
-    const localItem = state.items.find(item => item.id === id)
-    if (localItem) {
-      return localItem
-    }
-
-    // Se não encontrar localmente, buscar na API
     setState(prev => ({ ...prev, fetching: true, error: null }))
     
     try {
       const response = await cardFeatureService.getById(id)
       
       if (response.success && response.data) {
-        // Adicionar ao estado local se não existir
-        setState(prev => {
-          const items = Array.isArray(prev.items) ? prev.items : []
-          const exists = items.some(item => item.id === id)
-          return {
-            ...prev,
-            items: exists ? items : [...items, response.data!],
-            fetching: false
-          }
-        })
+        setState(prev => ({ ...prev, fetching: false }))
         return response.data
       } else {
         throw new Error(response.error || 'CardFeature não encontrado')
@@ -194,7 +178,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       return null
     }
-  }, [state.items])
+  }, [])
 
   // READ ALL - Buscar todos os CardFeatures (simplificado)
   const fetchCardFeatures = useCallback(async (params?: QueryParams) => {
@@ -277,47 +261,21 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }
   }, [])
 
-  // Wrapper para manter compatibilidade
+  // Filtros - Funções otimizadas para controlar busca e tecnologia
   const setSearchTerm = useCallback((term: string) => {
     search.setSearchTerm(term)
-    
-    // Atualizar filtro externo se fornecido
-    if (externalFilters?.setSearchTerm) {
-      externalFilters.setSearchTerm(term)
-    }
-  }, [search, externalFilters])
+    externalFilters?.setSearchTerm?.(term)
+  }, [search.setSearchTerm, externalFilters?.setSearchTerm])
 
   const setSelectedTech = useCallback((tech: string) => {
     setState(prev => ({ ...prev, selectedTech: tech }))
-    
-    // Atualizar filtro externo se fornecido
-    if (externalFilters?.setSelectedTech) {
-      externalFilters.setSelectedTech(tech)
-    }
-    
-    // Re-fetch com novo filtro
-    fetchCardFeatures({
-      page: 1,
-      limit: 10,
-      tech: tech !== 'all' ? tech : undefined,
-      search: search.debouncedSearchTerm || undefined
-    })
-  }, [search.debouncedSearchTerm, externalFilters, fetchCardFeatures])
+    externalFilters?.setSelectedTech?.(tech)
+  }, [externalFilters?.setSelectedTech])
 
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }))
   }, [])
-
-  // Sincronizar filtros externos com estado interno
-  useEffect(() => {
-    if (externalFilters?.searchTerm !== undefined && externalFilters.searchTerm !== search.searchTerm) {
-      search.setSearchTerm(externalFilters.searchTerm || '')
-    }
-    if (externalFilters?.selectedTech !== undefined && externalFilters.selectedTech !== state.selectedTech) {
-      setState(prev => ({ ...prev, selectedTech: externalFilters.selectedTech || 'all' }))
-    }
-  }, [externalFilters?.searchTerm, externalFilters?.selectedTech, search, state.selectedTech])
 
   // Carregar dados na inicialização
   useEffect(() => {
