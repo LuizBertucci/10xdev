@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { cardFeatureService } from '@/services'
 import { usePagination } from './usePagination'
 import { useDebounceSearch } from './useDebounceSearch'
@@ -27,7 +27,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     error: null,
     lastError: null,
 
-    selectedTech: 'all'
+    selectedTech: 'all',
+    totalCount: 0
   })
 
 
@@ -233,8 +234,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
 
   // Carregar dados na inicialização
   useEffect(() => {
-    fetchCardFeatures()
-  }, [fetchCardFeatures])
+    fetchCardFeaturesWithPagination({ page: 1, limit: 10 })
+  }, [fetchCardFeaturesWithPagination])
 
 
   // Retorna estado e ações para os componentes
@@ -263,8 +264,21 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     getCardFeature,
     updateCardFeature,
     deleteCardFeature,
-    fetchCardFeatures,
-    
+    fetchCardFeatures: useCallback(async (params?: QueryParams) => {
+      await fetchCardFeaturesWithPagination({
+        page: params?.page || 1,
+        limit: params?.limit || 10,
+        search: params?.search,
+        tech: params?.tech
+      })
+    }, [fetchCardFeaturesWithPagination]),
+    searchCardFeatures: useCallback(async (searchTerm: string) => {
+      await fetchCardFeaturesWithPagination({
+        page: 1,
+        limit: 10,
+        search: searchTerm.trim() || undefined
+      })
+    }, [fetchCardFeaturesWithPagination]),
 
     setSearchTerm,
     setSelectedTech,

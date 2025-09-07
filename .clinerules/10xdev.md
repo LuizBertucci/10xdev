@@ -45,18 +45,29 @@ Frontend:
 **Arquivos Relacionados:**
 Frontend:
 - `frontend/pages/Codes.tsx` - Página principal
-- `frontend/hooks/useCardFeatures.ts` - Hook para gerenciamento de estado
+
+- `frontend/hooks/useCardFeatures.ts` - Hook principal (simplificado pós-refatoração)
+- `frontend/hooks/usePagination.ts` - Hook de paginação separado
+- `frontend/hooks/useDebounceSearch.ts` - Hook de busca com debounce
+
 - `frontend/components/CardFeature.tsx` - Componente de card expandido
 - `frontend/components/CardFeatureCompact.tsx` - Componente de lista compacta
 - `frontend/components/CardFeatureForm.tsx` - Modal para criar/editar
 - `frontend/components/CardFeatureModal.tsx` - Modal expandido
 - `frontend/components/DeleteConfirmationDialog.tsx` - Confirmação de exclusão
-- `frontend/services/cardFeatureService.ts` - Cliente da API 
+- `frontend/components/SyntaxHighlighter.tsx` - Renderizador de código
+
+- `frontend/types/cardfeature.ts` - Types do frontend
+- `frontend/types/api.ts` - Types da API
+
+- `frontend/services/cardFeatureService.ts` - Cliente da API
 
 Backend:
 - `backend/src/routes/cardFeatureRoutes.ts` - Definição das rotas
 - `backend/src/controllers/CardFeatureController.ts` - Lógica de controle
 - `backend/src/models/CardFeatureModel.ts` - Model/ORM do CardFeature
+- `backend/src/types/cardfeature.ts` - Types do backend
+- `backend/src/database/supabase.ts` - Cliente Supabase
 
 **Rotas Backend (API):**
 - `GET /api/card-features` - Listar todos os snippets
@@ -70,54 +81,15 @@ Backend:
 - `POST /api/card-features/bulk` - Criação em lote
 - `DELETE /api/card-features/bulk` - Exclusão em lote
 
-
-#### **🔵 PROBLEMAS DE CÓDIGO**
-
-**9. Filtro ilike Incorreto no Backend**
-- **Arquivo**: `backend/src/models/CardFeatureModel.ts:42`
-- **Problema**: Usa `ilike` para match exato ao invés de `eq`
-- **Código**: `query = query.ilike('tech', params.tech)`
-- **Impacto**: Filtros podem retornar resultados inesperados
-- **Prioridade**: MÉDIA 
-
-**10. Tratamento de Erro Inconsistente**
-- **Backend**: Alguns métodos retornam `statusCode`, outros não
-- **Frontend**: Hook mistura `error` e `lastError`
-- **Impacto**: Debugging difícil, UX inconsistente
-- **Prioridade**: BAIXA
-
-### 📋 Recomendações de Correção
-#### **🔴 Arquivos com Alta Complexidade (Necessitam Refatoração)**
-
-**11. Hook useCardFeatures.ts - 611 linhas**
-- **Arquivo**: `frontend/hooks/useCardFeatures.ts:1-611`
-- **Problema**: Hook monolítico com responsabilidades múltiplas
-- **Complexidades identificadas**:
-  - **CRUD Operations** (90+ linhas) - Create, Read, Update, Delete
-  - **UI State Management** (50+ linhas) - Estados de loading, modais, seleções
-  - **Pagination Logic** (30+ linhas) - Controle de páginas e navegação
-  - **Filter Management** (40+ linhas) - Filtros internos e externos
-  - **Search & Debounce** (20+ linhas) - Busca com delay e debounce
-- **Duplicações**: Try/catch repetitivo, setState patterns similares, error handling idêntico
-- **Dependencies circulares**: `fetchCardFeatures` com dependência circular (linha 526)
-- **Performance**: Re-renders desnecessários por dependências mal gerenciadas
-- **Prioridade**: MÉDIA
-
 ### 🔧 Problemas Críticos Identificados - useCardFeatures
 
 #### Refatoração Recomendada (por ordem de prioridade):
-- [x] **1. Dupla filtragem desnecessária** (linhas 103-122): Filtragem local de dados que já deveriam vir filtrados da API
-- [x] **2. Remover filtros locais** - deixar a API fazer toda filtragem
-- [x] **3. Inconsistência de estado** (linha 44): Search definido como undefined mas usado em outras funções  
-- [x] **4. Estado duplicado**: totalCount existe tanto no hook quanto na paginação
-- [x] **5. Eliminar estado duplicado** - usar apenas o estado da paginação  
-- [x] **6. Simplificar o fetch** - uma única função que aceita todos os parâmetros
-- [ ] **7. Consolidar lógica** - busca e filtragem em uma única estratégia
-- [ ] **8. Dependência circular**: fetchCardFeaturesWithPagination depende de state.selectedTech mas não pode incluir search.debouncedSearchTerm nas dependências
-- [ ] **9. Separar responsabilidades** - filtros externos em hook separado
-- [ ] **10. Complexidade excessiva**: Mistura filtros externos, internos, paginação e busca na mesma função
-
-
+- [ ] **1. Dupla filtragem desnecessária** (linhas 103-122): Filtragem local de dados que já deveriam vir filtrados da API
+- [ ] **2. Remover filtros locais** - deixar a API fazer toda filtragem
+- [ ] **3. Inconsistência de estado** (linha 44): Search definido como undefined mas usado em outras funções  
+- [ ] **4. Estado duplicado**: totalCount existe tanto no hook quanto na paginação
+- [ ] **5. Eliminar estado duplicado** - usar apenas o estado da paginação  
+- [ ] **6. Simplificar o fetch** - uma única função que aceita todos os parâmetros 
 
 
 
