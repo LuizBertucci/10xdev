@@ -82,8 +82,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     })
   }, [state.items, state.searchTerm, state.selectedTech, externalSearchTerm, externalSelectedTech])
 
-  // ✅ REMOVIDO: useEffect redundante que causava re-renderizações extras
-
   // ================================================
   // CRUD OPERATIONS - Usando API
   // ================================================

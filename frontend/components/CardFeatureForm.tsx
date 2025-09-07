@@ -4,20 +4,30 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { X, Loader2, Plus, Save } from "lucide-react"
-import type { CardFeature } from "@/types"
+import type { CardFeature, CreateScreenData } from "@/types"
 
-interface ScreenData {
-  name: string
-  description: string
-  code: string
+const DEFAULT_FORM_DATA: FormData = {
+  title: '',
+  tech: 'React',
+  language: 'typescript',
+  description: '',
+  screens: [
+    {
+      name: 'Main',
+      description: 'Arquivo principal',
+      code: ''
+    }
+  ]
 }
+
+type ScreenData = CreateScreenData
 
 interface FormData {
   title: string
   tech: string
   language: string
   description: string
-  screens: ScreenData[]
+  screens: CreateScreenData[]
 }
 
 interface CardFeatureFormProps {
@@ -47,48 +57,9 @@ export default function CardFeatureForm({
         screens: initialData.screens
       }
     }
-    return {
-      title: '',
-      tech: 'React',
-      language: 'typescript',
-      description: '',
-      screens: [
-        {
-          name: 'Main',
-          description: 'Arquivo principal',
-          code: ''
-        }
-      ]
-    }
+    return { ...DEFAULT_FORM_DATA }
   })
 
-  // Atualizar formulário quando initialData mudar (fix para modo edição)
-  useEffect(() => {
-    if (mode === 'edit' && initialData) {
-      setFormData({
-        title: initialData.title,
-        tech: initialData.tech,
-        language: initialData.language,
-        description: initialData.description,
-        screens: initialData.screens
-      })
-    } else if (mode === 'create') {
-      // Reset para criação
-      setFormData({
-        title: '',
-        tech: 'React',
-        language: 'typescript',
-        description: '',
-        screens: [
-          {
-            name: 'Main',
-            description: 'Arquivo principal',
-            code: ''
-          }
-        ]
-      })
-    }
-  }, [mode, initialData])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -122,13 +93,7 @@ export default function CardFeatureForm({
   const handleSubmit = async () => {
     await onSubmit(formData)
     if (mode === 'create') {
-      setFormData({
-        title: '',
-        tech: 'React',
-        language: 'typescript',
-        description: '',
-        screens: [{ name: 'Main', description: 'Arquivo principal', code: '' }]
-      })
+      setFormData({ ...DEFAULT_FORM_DATA })
     }
   }
 
