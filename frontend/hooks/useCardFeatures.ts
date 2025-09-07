@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { cardFeatureService } from '@/services'
 import { usePagination } from './usePagination'
+import { useDebounceSearch } from './useDebounceSearch'
 import type {
   CardFeature,
   CardFeatureState,
@@ -19,8 +20,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   setSearchTerm?: (term: string) => void
   setSelectedTech?: (tech: string) => void
 }): UseCardFeaturesReturn {
-  // Ref para armazenar o timeout ID
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const [state, setState] = useState<CardFeatureState>({
     // Dados principais
@@ -47,7 +46,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
 
     // Controles de interface
     activeTab: '',
-    searchTerm: '',
     selectedTech: 'all',
     
     // ✅ REMOVIDO: Paginação movida para usePagination hook
@@ -62,7 +60,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       const queryParams: QueryParams = {
         ...params,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
-        search: state.searchTerm || undefined
+        search: search.debouncedSearchTerm || undefined
       }
       
       const response = await cardFeatureService.getAll(queryParams)
@@ -91,7 +89,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       throw error
     }
-  }, [state.selectedTech, state.searchTerm])
+  }, [state.selectedTech, search.debouncedSearchTerm])
 
   // Hook de paginação - função simplificada
   const paginationFetchFn = useCallback(async (params: FetchParams) => {
@@ -114,7 +112,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }
     
     // Usar filtros externos se fornecidos, senão usar filtros internos
-    const searchTerm = externalSearchTerm ?? state.searchTerm
+    const searchTerm = externalSearchTerm ?? search.debouncedSearchTerm
     const selectedTech = externalSelectedTech ?? state.selectedTech
     
     return state.items.filter(item => {
@@ -127,7 +125,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       
       return matchesSearch && matchesTech
     })
-  }, [state.items, state.searchTerm, state.selectedTech, externalSearchTerm, externalSelectedTech])
+  }, [state.items, search.debouncedSearchTerm, state.selectedTech, externalSearchTerm, externalSelectedTech])
 
   // ================================================
   // CRUD OPERATIONS - Usando API
@@ -449,29 +447,27 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }))
   }, [])
 
+  // ✅ NOVO: Hook de busca com debounce
+  const search = useDebounceSearch(
+    useCallback(async (term: string) => {
+      if (term.trim()) {
+        await searchCardFeatures(term.trim())
+      } else {
+        await fetchCardFeatures()
+      }
+    }, [searchCardFeatures, fetchCardFeatures]),
+    { delay: 500 }
+  )
+
+  // Wrapper para manter compatibilidade
   const setSearchTerm = useCallback((term: string) => {
-    setState(prev => ({ ...prev, searchTerm: term }))
+    search.setSearchTerm(term)
     
     // Atualizar filtro externo se fornecido
     if (externalFilters?.setSearchTerm) {
       externalFilters.setSearchTerm(term)
     }
-    
-    // ✅ CORRIGIDO: Limpar timeout anterior antes de criar novo
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-    
-    // Auto-search após delay
-    searchTimeoutRef.current = setTimeout(() => {
-      if (term.trim()) {
-        searchCardFeatures(term.trim())
-      } else {
-        fetchCardFeatures()
-      }
-      searchTimeoutRef.current = null // Limpar referência após execução
-    }, 500)
-  }, [searchCardFeatures, externalFilters])
+  }, [search, externalFilters])
 
   const setSelectedTech = useCallback((tech: string) => {
     setState(prev => ({ ...prev, selectedTech: tech }))
@@ -486,9 +482,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       page: 1,
       limit: 10,
       tech: tech !== 'all' ? tech : undefined,
-      search: state.searchTerm || undefined
+      search: search.debouncedSearchTerm || undefined
     })
-  }, [state.searchTerm, externalFilters])
+  }, [search.debouncedSearchTerm, externalFilters, fetchCardFeatures])
 
   const clearSelection = useCallback(() => {
     setState(prev => ({ 
@@ -504,13 +500,13 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
 
   // Sincronizar filtros externos com estado interno
   useEffect(() => {
-    if (externalFilters?.searchTerm !== undefined && externalFilters.searchTerm !== state.searchTerm) {
-      setState(prev => ({ ...prev, searchTerm: externalFilters.searchTerm || '' }))
+    if (externalFilters?.searchTerm !== undefined && externalFilters.searchTerm !== search.searchTerm) {
+      search.setSearchTerm(externalFilters.searchTerm || '')
     }
     if (externalFilters?.selectedTech !== undefined && externalFilters.selectedTech !== state.selectedTech) {
       setState(prev => ({ ...prev, selectedTech: externalFilters.selectedTech || 'all' }))
     }
-  }, [externalFilters?.searchTerm, externalFilters?.selectedTech, state.searchTerm, state.selectedTech])
+  }, [externalFilters?.searchTerm, externalFilters?.selectedTech, search, state.selectedTech])
 
   // Carregar dados na inicialização
   // ✅ CORRIGIDO: Dependency array explícito para evitar re-execuções
@@ -518,15 +514,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     fetchCardFeatures()
   }, [fetchCardFeatures])
 
-  // ✅ ADICIONADO: Cleanup do timeout quando o componente desmonta
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-        searchTimeoutRef.current = null
-      }
-    }
-  }, [])
 
   // Retorna estado e ações para os componentes
   return {
@@ -546,7 +533,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     showDeleteConfirm: state.showDeleteConfirm,
     deleteItemId: state.deleteItemId,
     activeTab: state.activeTab,
-    searchTerm: state.searchTerm,
+    searchTerm: search.searchTerm,
     selectedTech: state.selectedTech,
     
     // Paginação - usando usePagination hook
