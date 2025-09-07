@@ -6,6 +6,33 @@ Expandir o sistema atual de CardFeatures para suportar **3 tipos de conteúdo**:
 - **Texto** (novo) - conteúdo markdown/rich text para documentação
 - **Terminal** (novo) - comandos e outputs simulados
 
+### 🔄 MUDANÇA ARQUITETURAL IMPORTANTE
+
+**NOVA PROPOSTA**: Cada aba pode ter **múltiplos blocos de conteúdo** ao invés de um conteúdo único.
+
+#### Exemplo de uma aba "Setup Completo":
+```
+# Como configurar o projeto  [TEXTO]
+
+Primeiro, clone o repositório:  [TEXTO]
+$ git clone https://github.com/user/repo.git  [TERMINAL]
+$ cd repo  [TERMINAL]
+
+Configure o arquivo de ambiente:  [TEXTO]
+// .env  [CÓDIGO - javascript]
+DATABASE_URL="postgresql://..."
+API_KEY="your-api-key"
+
+Execute o projeto:  [TEXTO]
+$ npm run dev  [TERMINAL]
+```
+
+#### Vantagens:
+- **Documentação rica**: Misturar explicações, comandos e código
+- **Flexibilidade total**: Cada bloco tem seu tipo específico
+- **UX melhor**: Usuário constrói passo-a-paso a documentação
+- **Casos de uso reais**: Tutoriais, guias de setup, troubleshooting
+
 ### 🏗️ Análise da Arquitetura Atual
 
 #### Estrutura Existente:
@@ -14,17 +41,83 @@ Expandir o sistema atual de CardFeatures para suportar **3 tipos de conteúdo**:
 - **Frontend**: UI otimizada para exibição de código com SyntaxHighlighter
 - **Types**: Interface focada em linguagens de programação
 
+#### Nova Estrutura Necessária:
+
+```typescript
+// Bloco individual de conteúdo
+interface ContentBlock {
+  id: string                    // UUID único do bloco
+  type: ContentType            // 'code' | 'text' | 'terminal'
+  content: string              // Conteúdo do bloco
+  language?: string            // Para código: 'typescript', 'javascript', etc
+  title?: string               // Título opcional do bloco
+  order: number                // Ordem do bloco na aba
+}
+
+// Screen/Aba atualizada
+interface CardFeatureScreen {
+  name: string                 // Nome da aba
+  description: string          // Descrição da aba  
+  blocks: ContentBlock[]       // Array de blocos de conteúdo
+  route?: string              // Rota opcional
+}
+
+// CardFeature atualizado
+interface CardFeature {
+  id: string
+  title: string
+  tech: string
+  language: string            // Linguagem principal (para compatibilidade)
+  description: string
+  content_type: ContentType   // Tipo principal (para filtros/organização)
+  screens: CardFeatureScreen[]
+  createdAt: string
+  updatedAt: string
+}
+```
+
 ### 🔄 Mudanças Necessárias
 
 #### 1. **DATABASE SCHEMA** - Supabase Table Update
 
 ```sql
--- Adicionar campo 'content_type' na tabela card_features
+-- Adicionar campo 'content_type' na tabela card_features (JÁ FEITO)
 ALTER TABLE card_features 
 ADD COLUMN content_type VARCHAR(20) DEFAULT 'code' CHECK (content_type IN ('code', 'text', 'terminal'));
 
 -- Atualizar estrutura do campo screens (JSONB)
--- Novo formato: screens: [{ name, description, content, content_type, language?, route? }]
+-- NOVA estrutura com blocos múltiplos:
+-- screens: [{ 
+--   name: string, 
+--   description: string, 
+--   blocks: [
+--     { id: string, type: ContentType, content: string, language?: string, title?: string, order: number }
+--   ],
+--   route?: string 
+-- }]
+
+-- Script de migração para converter dados existentes
+UPDATE card_features 
+SET screens = (
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'name', screen->>'name',
+      'description', screen->>'description', 
+      'route', screen->>'route',
+      'blocks', jsonb_build_array(
+        jsonb_build_object(
+          'id', gen_random_uuid()::text,
+          'type', 'code',
+          'content', screen->>'code',
+          'language', screen->>'language',
+          'order', 0
+        )
+      )
+    )
+  )
+  FROM jsonb_array_elements(screens) AS screen
+)
+WHERE screens IS NOT NULL;
 ```
 
 #### 2. **BACKEND CHANGES**
@@ -33,32 +126,40 @@ ADD COLUMN content_type VARCHAR(20) DEFAULT 'code' CHECK (content_type IN ('code
 
 **`backend/src/types/cardfeature.ts`**:
 ```typescript
-// Adicionar enum para tipos de conteúdo
+// Enum para tipos de conteúdo (JÁ FEITO)
 export enum ContentType {
   CODE = 'code',
   TEXT = 'text', 
   TERMINAL = 'terminal'
 }
 
-// Atualizar CardFeatureScreen
-export interface CardFeatureScreen {
-  name: string
-  description: string
-  content: string              // Renomear 'code' para 'content'
-  content_type: ContentType    // Novo campo
-  language?: string           // Opcional para text/terminal
-  route?: string             // Opcional
+// NOVA estrutura - Bloco individual de conteúdo
+export interface ContentBlock {
+  id: string                    // UUID único
+  type: ContentType            // Tipo do bloco
+  content: string              // Conteúdo
+  language?: string            // Linguagem (para código)
+  title?: string               // Título opcional
+  order: number                // Ordem do bloco
 }
 
-// Atualizar CardFeatureRow
+// ATUALIZAR CardFeatureScreen - agora com blocos múltiplos
+export interface CardFeatureScreen {
+  name: string                 // Nome da aba
+  description: string          // Descrição da aba
+  blocks: ContentBlock[]       // Array de blocos ao invés de content único
+  route?: string              // Rota opcional
+}
+
+// CardFeatureRow permanece igual (JÁ ATUALIZADO)
 export interface CardFeatureRow {
   id: string
   title: string
   tech: string
   language: string
   description: string
-  content_type: ContentType    // Novo campo principal
-  screens: CardFeatureScreen[]
+  content_type: ContentType    // Campo principal
+  screens: CardFeatureScreen[] // Agora com nova estrutura de blocks
   created_at: string
   updated_at: string
 }
@@ -192,7 +293,7 @@ ADD COLUMN content_type VARCHAR(20) DEFAULT 'code' CHECK (content_type IN ('code
 UPDATE card_features SET content_type = 'code' WHERE content_type IS NULL;
 ```
 
-- [x] 2. Atualizar types e enums 
+- [x] 2. Atualizar types e enums (ATUALIZADO para blocos múltiplos) 
 ```typescript
 // backend/src/types/cardfeature.ts
 export enum ContentType {
@@ -254,7 +355,7 @@ private static buildQuery(params: CardFeatureQueryParams = {}) {
 }
 ```
 
-- [x] 4. Atualizar controller e validações
+- [x] 4. Atualizar controller e validações (ATUALIZADO para blocos múltiplos)
 ```typescript
 // backend/src/controllers/CardFeatureController.ts
 // Adicionar validação de content_type
@@ -332,7 +433,7 @@ export interface CardFeature {
 }
 ```
 
-- [ ] 2. Criar ContentRenderer base
+- [x] 2. Criar ContentRenderer base (CRIADO com suporte a blocos múltiplos)
 ```typescript
 // frontend/components/ContentRenderer.tsx
 import React from 'react'
@@ -384,7 +485,7 @@ export default function ContentRenderer({
 }
 ```
 
-- [ ] 3. Modificar CardFeature component
+- [x] 3. Modificar CardFeature component (ATUALIZADO para usar ContentRenderer com blocos)
 ```typescript
 // frontend/components/CardFeature.tsx - Principais mudanças
 import ContentRenderer from './ContentRenderer'

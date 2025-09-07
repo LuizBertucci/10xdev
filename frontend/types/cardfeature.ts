@@ -16,14 +16,24 @@ export enum ContentType {
 }
 
 /**
+ * Bloco individual de conteúdo
+ */
+export interface ContentBlock {
+  id: string                    // UUID único do bloco
+  type: ContentType            // Tipo do bloco
+  content: string              // Conteúdo do bloco
+  language?: string            // Linguagem (para código)
+  title?: string               // Título opcional do bloco
+  order: number                // Ordem do bloco na aba
+}
+
+/**
  * Representa uma aba/arquivo dentro de um CardFeature
  */
 export interface CardFeatureScreen {
-  name: string        // Nome da aba (ex: "Model", "Controller", "Routes")
-  description: string // Descrição do que o arquivo faz
-  content: string     // Conteúdo do arquivo (renomeado de 'code')
-  content_type: ContentType  // Tipo do conteúdo
-  language?: string   // Linguagem (opcional para text/terminal)
+  name: string        // Nome da aba (ex: "Setup", "API", "Deploy")
+  description: string // Descrição do que a aba contém
+  blocks: ContentBlock[]  // Array de blocos de conteúdo
   route?: string      // Rota do arquivo (opcional)
 }
 
@@ -78,14 +88,22 @@ export interface CreateCardFeatureData {
 export interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
 
 /**
+ * Dados mínimos para criar um novo bloco
+ */
+export interface CreateBlockData {
+  type: ContentType
+  content: string
+  language?: string
+  title?: string
+}
+
+/**
  * Dados mínimos para criar uma nova aba/screen
  */
 export interface CreateScreenData {
   name: string
   description: string
-  content: string
-  content_type: ContentType
-  language?: string
+  blocks: CreateBlockData[]
   route?: string
 }
 

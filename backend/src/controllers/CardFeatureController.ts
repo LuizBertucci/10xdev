@@ -36,12 +36,23 @@ export class CardFeatureController {
 
       // Validar cada screen
       for (const screen of data.screens) {
-        if (!screen.name || !screen.description || !screen.content) {
+        if (!screen.name || !screen.description || !screen.blocks || !Array.isArray(screen.blocks)) {
           res.status(400).json({
             success: false,
-            error: 'Cada screen deve ter name, description e content'
+            error: 'Cada screen deve ter name, description e blocks (array)'
           })
           return
+        }
+
+        // Validar cada bloco
+        for (const block of screen.blocks) {
+          if (!block.type || !block.content) {
+            res.status(400).json({
+              success: false,
+              error: 'Cada bloco deve ter type e content'
+            })
+            return
+          }
         }
       }
 
@@ -310,12 +321,23 @@ export class CardFeatureController {
         }
 
         for (const screen of data.screens) {
-          if (!screen.name || !screen.description || !screen.content) {
+          if (!screen.name || !screen.description || !screen.blocks || !Array.isArray(screen.blocks)) {
             res.status(400).json({
               success: false,
-              error: 'Cada screen deve ter name, description e content'
+              error: 'Cada screen deve ter name, description e blocks (array)'
             })
             return
+          }
+
+          // Validar cada bloco
+          for (const block of screen.blocks) {
+            if (!block.type || !block.content) {
+              res.status(400).json({
+                success: false,
+                error: 'Cada bloco deve ter type e content'
+              })
+              return
+            }
           }
         }
       }

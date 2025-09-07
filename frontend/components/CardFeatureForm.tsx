@@ -4,29 +4,38 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { X, Loader2, Plus, Save } from "lucide-react"
-import type { CardFeature, CreateScreenData } from "@/types"
+import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
+import { ContentType } from "@/types"
 
-const DEFAULT_FORM_DATA: FormData = {
+const DEFAULT_FORM_DATA: CardFeatureFormData = {
   title: '',
   tech: 'React',
   language: 'typescript',
   description: '',
+  content_type: ContentType.CODE,
   screens: [
     {
       name: 'Main',
-      description: 'Arquivo principal',
-      code: ''
+      description: 'Conteúdo principal',
+      blocks: [
+        {
+          type: ContentType.CODE,
+          content: '',
+          language: 'typescript'
+        }
+      ]
     }
   ]
 }
 
 type ScreenData = CreateScreenData
 
-interface FormData {
+interface CardFeatureFormData {
   title: string
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CreateScreenData[]
 }
 
@@ -36,7 +45,7 @@ interface CardFeatureFormProps {
   initialData?: CardFeature
   isLoading: boolean
   onClose: () => void
-  onSubmit: (data: FormData) => Promise<void>
+  onSubmit: (data: CardFeatureFormData) => Promise<void>
 }
 
 export default function CardFeatureForm({ 
@@ -47,13 +56,14 @@ export default function CardFeatureForm({
   onClose, 
   onSubmit 
 }: CardFeatureFormProps) {
-  const [formData, setFormData] = useState<FormData>(() => {
+  const [formData, setFormData] = useState<CardFeatureFormData>(() => {
     if (mode === 'edit' && initialData) {
       return {
         title: initialData.title,
         tech: initialData.tech,
         language: initialData.language,
         description: initialData.description,
+        content_type: initialData.content_type,
         screens: initialData.screens
       }
     }
@@ -74,10 +84,63 @@ export default function CardFeatureForm({
     }))
   }
 
+  // Funções para gerenciar blocos
+  const addBlock = (screenIndex: number, type: ContentType = ContentType.CODE) => {
+    const newBlock: CreateBlockData = {
+      type,
+      content: '',
+      language: type === ContentType.CODE ? 'typescript' : undefined
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      screens: prev.screens.map((screen, i) => 
+        i === screenIndex 
+          ? { ...screen, blocks: [...screen.blocks, newBlock] }
+          : screen
+      )
+    }))
+  }
+
+  const removeBlock = (screenIndex: number, blockIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      screens: prev.screens.map((screen, i) => 
+        i === screenIndex 
+          ? { ...screen, blocks: screen.blocks.filter((_, j) => j !== blockIndex) }
+          : screen
+      )
+    }))
+  }
+
+  const handleBlockChange = (screenIndex: number, blockIndex: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      screens: prev.screens.map((screen, i) => 
+        i === screenIndex 
+          ? {
+              ...screen,
+              blocks: screen.blocks.map((block, j) => 
+                j === blockIndex ? { ...block, [field]: value } : block
+              )
+            }
+          : screen
+      )
+    }))
+  }
+
   const addScreen = () => {
     setFormData(prev => ({
       ...prev,
-      screens: [...prev.screens, { name: '', description: '', code: '' }]
+      screens: [...prev.screens, { 
+        name: '', 
+        description: '', 
+        blocks: [{
+          type: ContentType.CODE,
+          content: '',
+          language: 'typescript'
+        }]
+      }]
     }))
   }
 
@@ -174,6 +237,25 @@ export default function CardFeatureForm({
                   </SelectContent>
                 </Select>
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo Principal *
+                </label>
+                <Select
+                  value={formData.content_type}
+                  onValueChange={(value) => handleInputChange('content_type', value as ContentType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ContentType.CODE}>💻 Código</SelectItem>
+                    <SelectItem value={ContentType.TEXT}>📄 Texto</SelectItem>
+                    <SelectItem value={ContentType.TERMINAL}>⚡ Terminal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div>
@@ -246,17 +328,114 @@ export default function CardFeatureForm({
                       </div>
                     </div>
                     
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Código
-                      </label>
-                      <Textarea
-                        placeholder="Cole seu código aqui..."
-                        value={screen.code}
-                        onChange={(e) => handleScreenChange(index, 'code', e.target.value)}
-                        rows={mode === 'edit' ? 10 : 8}
-                        className="font-mono text-sm"
-                      />
+                    {/* Blocos de Conteúdo */}
+                    <div className="mt-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Conteúdo
+                        </label>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.CODE)}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            💻 Código
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.TEXT)}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            📄 Texto
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.TERMINAL)}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            ⚡ Terminal
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {screen.blocks.map((block, blockIndex) => (
+                          <div key={blockIndex} className="border rounded p-3 bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  {block.type === ContentType.CODE ? '💻 Código' : 
+                                   block.type === ContentType.TEXT ? '📄 Texto' : '⚡ Terminal'}
+                                </span>
+                                {block.type === ContentType.CODE && (
+                                  <Select
+                                    value={block.language || 'typescript'}
+                                    onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
+                                  >
+                                    <SelectTrigger className="w-32 h-7">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="typescript">TS</SelectItem>
+                                      <SelectItem value="javascript">JS</SelectItem>
+                                      <SelectItem value="python">Python</SelectItem>
+                                      <SelectItem value="html">HTML</SelectItem>
+                                      <SelectItem value="css">CSS</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                              {screen.blocks.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeBlock(index, blockIndex)}
+                                  className="text-red-600 hover:text-red-800 h-7 w-7 p-0"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                            
+                            {/* Título opcional */}
+                            <div className="mb-2">
+                              <Input
+                                placeholder="Título do bloco (opcional)"
+                                value={block.title || ''}
+                                onChange={(e) => handleBlockChange(index, blockIndex, 'title', e.target.value)}
+                                className="text-xs"
+                              />
+                            </div>
+
+                            {/* Conteúdo */}
+                            <Textarea
+                              placeholder={
+                                block.type === ContentType.CODE ? 'Cole seu código aqui...' :
+                                block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
+                                '$ comando terminal...'
+                              }
+                              value={block.content}
+                              onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                              rows={6}
+                              className={block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-sm' : 'text-sm'}
+                            />
+                          </div>
+                        ))}
+                        
+                        {screen.blocks.length === 0 && (
+                          <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded">
+                            Nenhum bloco adicionado. Use os botões acima para adicionar conteúdo.
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -9,13 +9,22 @@ export enum ContentType {
   TERMINAL = 'terminal'
 }
 
+// NOVA estrutura - Bloco individual de conteúdo
+export interface ContentBlock {
+  id: string                    // UUID único
+  type: ContentType            // Tipo do bloco
+  content: string              // Conteúdo
+  language?: string            // Linguagem (para código)
+  title?: string               // Título opcional
+  order: number                // Ordem do bloco
+}
+
+// ATUALIZAR CardFeatureScreen - agora com blocos múltiplos
 export interface CardFeatureScreen {
-  name: string
-  description: string
-  content: string              // Renomear 'code' para 'content'
-  content_type: ContentType    // Novo campo
-  language?: string           // Opcional para text/terminal
-  route?: string             // Opcional
+  name: string                 // Nome da aba
+  description: string          // Descrição da aba
+  blocks: ContentBlock[]       // Array de blocos ao invés de content único
+  route?: string              // Rota opcional
 }
 
 export interface CardFeatureRow {

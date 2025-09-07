@@ -10,7 +10,8 @@ import type {
   ModelResult,
   ModelListResult,
   CreateCardFeatureRequest,
-  ContentType
+  ContentType,
+  ContentBlock
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
@@ -78,6 +79,16 @@ export class CardFeatureModel {
 
   static async create(data: CreateCardFeatureRequest): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Processar screens para adicionar IDs e order aos blocos
+      const processedScreens = data.screens.map(screen => ({
+        ...screen,
+        blocks: screen.blocks.map((block, index) => ({
+          ...block,
+          id: randomUUID(),
+          order: block.order || index
+        }))
+      }))
+
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
         title: data.title,
@@ -85,7 +96,7 @@ export class CardFeatureModel {
         language: data.language,
         description: data.description,
         content_type: data.content_type,
-        screens: data.screens,
+        screens: processedScreens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }

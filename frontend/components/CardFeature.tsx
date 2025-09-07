@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Expand, Edit, Trash2 } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
-import SyntaxHighlighter from "./SyntaxHighlighter"
+import ContentRenderer from "./ContentRenderer"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureProps {
@@ -166,9 +166,9 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
               </div>
               
               <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
-                <SyntaxHighlighter
-                  code={activeScreen.code}
-                  language={snippet.language}
+                <ContentRenderer
+                  blocks={activeScreen.blocks || []}
+                  className="h-full"
                 />
               </div>
               {/* <div className="absolute inset-0 opacity-60 group-hover:opacity-30 transition-opacity" style={{background: 'linear-gradient(to top, #374151 0%, transparent 50%, transparent 100%)'}}></div> */}
