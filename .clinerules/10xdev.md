@@ -103,105 +103,22 @@ Backend:
 - **Performance**: Re-renders desnecessários por dependências mal gerenciadas
 - **Prioridade**: MÉDIA
 
-**Soluções recomendadas**:
-```typescript
-// Separar responsabilidades em hooks específicos
-- useCardFeaturesCRUD.ts     // Apenas operações CRUD (150 linhas)
-- useCardFeaturesUI.ts       // Apenas estado de UI (100 linhas) 
-- useCardFeaturesPagination.ts // Apenas paginação (80 linhas)
-- useCardFeaturesSearch.ts   // Apenas busca/filtros (100 linhas)
-- useAsyncOperation.ts       // Hook para centralizar API calls
-```
+### 🔧 Problemas Críticos Identificados - useCardFeatures
+
+#### Refatoração Recomendada (por ordem de prioridade):
+- [x] **1. Dupla filtragem desnecessária** (linhas 103-122): Filtragem local de dados que já deveriam vir filtrados da API
+- [x] **2. Remover filtros locais** - deixar a API fazer toda filtragem
+- [ ] **3. Inconsistência de estado** (linha 44): Search definido como undefined mas usado em outras funções  
+- [ ] **4. Estado duplicado**: totalCount existe tanto no hook quanto na paginação
+- [ ] **5. Eliminar estado duplicado** - usar apenas o estado da paginação  
+- [ ] **6. Simplificar o fetch** - uma única função que aceita todos os parâmetros
+- [ ] **7. Consolidar lógica** - busca e filtragem em uma única estratégia
+- [ ] **8. Dependência circular**: fetchCardFeaturesWithPagination depende de state.selectedTech mas não pode incluir search.debouncedSearchTerm nas dependências
+- [ ] **9. Separar responsabilidades** - filtros externos em hook separado
+- [ ] **10. Complexidade excessiva**: Mistura filtros externos, internos, paginação e busca na mesma função
 
 
 
-### 🎯 Análise de Responsabilidades - useCardFeatures.ts
-
-#### **✅ O que DEVERIA ficar no hook (Core Responsibilities)**
-```typescript
-// useCardFeatures.ts (~200 linhas) - Focado apenas em dados
-- items: CardFeature[]           // Estado principal dos dados
-- loading, creating, updating, deleting  // Estados de loading das operações
-- error: string | null           // Tratamento de erros
-- filteredItems                  // Filtros locais (useMemo)
-
-// CRUD Operations - Responsabilidade central do hook
-- createCardFeature()           // Criar novo item
-- updateCardFeature()           // Atualizar item existente  
-- deleteCardFeature()           // Remover item
-- fetchCardFeatures()           // Buscar todos os itens
-- getCardFeature()              // Buscar item por ID
-- bulkCreate(), bulkDelete()    // Operações em lote
-```
-
-#### **❌ O que NÃO deveria estar no hook (Responsabilidades mal colocadas)**
-
-**1. UI State Management (50+ linhas) - Mover para COMPONENTES**
-```typescript
-// Estes estados pertencem aos componentes que os usam
-❌ selectedItem, editingItem      // Estado do modal de visualização
-❌ isCreating, isEditing          // Estado do formulário
-❌ showDeleteConfirm, deleteItemId // Estado do modal de confirmação  
-❌ activeTab                      // Estado das abas do modal
-```
-
-**2. Pagination Logic (30+ linhas) - Extrair para `usePagination`**
-```typescript
-// Hook separado: usePagination.ts (~50 linhas)
-❌ currentPage, totalPages, hasNextPage, hasPrevPage
-❌ goToPage(), nextPage(), prevPage()
-❌ refreshData()
-```
-
-**3. Search & Debounce (20+ linhas) - Extrair para `useDebounceSearch`**
-```typescript
-// Hook separado: useDebounceSearch.ts (~30 linhas)  
-❌ setSearchTerm() com setTimeout // Lógica de debounce
-❌ searchTimeoutRef               // Controle do timeout
-❌ searchCardFeatures()           // Pode usar o CRUD do hook principal
-```
-
-**4. External Filters Sync (30+ linhas) - Responsabilidade do COMPONENTE PAI**
-```typescript
-// Isso é responsabilidade de quem usa o hook
-❌ externalFilters logic          // Sincronização com filtros externos
-❌ setSearchTerm(), setSelectedTech() // Com lógica de sincronização externa
-❌ useEffect para sync externos    // Componente pai deve gerenciar
-```
-
-#### **🏗️ Arquitetura Ideal Proposta**
-
-```typescript
-// ✅ hooks/useCardFeatures.ts (~200 linhas)
-// APENAS: dados, CRUD, filtros locais
-export function useCardFeatures() {
-  // Estado core: items, loading, error
-  // CRUD operations: create, read, update, delete  
-  // Filtros locais: filteredItems
-}
-
-// ✅ hooks/usePagination.ts (~50 linhas)
-// APENAS: lógica de paginação reutilizável
-export function usePagination(totalItems, itemsPerPage) {
-  // currentPage, totalPages, navigation
-}
-
-// ✅ hooks/useDebounceSearch.ts (~30 linhas)  
-// APENAS: busca com debounce reutilizável
-export function useDebounceSearch(searchFn, delay = 500) {
-  // searchTerm, debounced execution
-}
-
-// ✅ components/CodesPage.tsx
-// Gerencia PRÓPRIO estado de UI: modals, seleções, tabs
-function CodesPage() {
-  const [selectedItem, setSelectedItem] = useState(null)  // UI state aqui
-  const [showModal, setShowModal] = useState(false)       // UI state aqui
-  const cardFeatures = useCardFeatures()                  // Apenas dados
-  const pagination = usePagination(cardFeatures.totalCount, 10)
-  const search = useDebounceSearch(cardFeatures.search)
-}
-```
 
 
 ---

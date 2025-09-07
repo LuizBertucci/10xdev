@@ -95,31 +95,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     { delay: 500 }
   )
 
-  // FILTROS - Filtrar itens localmente (usando filtros externos se fornecidos)
-  // ✅ OTIMIZADO: Estabilizar dependências de filtros externos
-  const externalSearchTerm = externalFilters?.searchTerm
-  const externalSelectedTech = externalFilters?.selectedTech
-  
-  const filteredItems = useMemo(() => {
-    if (!state.items || !Array.isArray(state.items)) {
-      return []
-    }
-    
-    // Usar filtros externos se fornecidos, senão usar filtros internos
-    const searchTerm = externalSearchTerm ?? search.debouncedSearchTerm
-    const selectedTech = externalSelectedTech ?? state.selectedTech
-    
-    return state.items.filter(item => {
-      const matchesSearch = searchTerm === '' || 
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase())
-      
-      const matchesTech = selectedTech === 'all' || 
-        item.tech.toLowerCase() === selectedTech.toLowerCase()
-      
-      return matchesSearch && matchesTech
-    })
-  }, [state.items, search.debouncedSearchTerm, state.selectedTech, externalSearchTerm, externalSelectedTech])
+  // A API já retorna os dados filtrados
+  const filteredItems = state.items
 
   // ================================================
   // CRUD OPERATIONS - Usando API
@@ -287,7 +264,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   return {
     // Estado
     items: state.items,
-    filteredItems, // ✅ OTIMIZADO: Usar filteredItems do useMemo diretamente
+    filteredItems, // ✅ SIMPLIFICADO: Items já vêm filtrados da API
     loading: state.loading,
     creating: state.creating,
     updating: state.updating,
