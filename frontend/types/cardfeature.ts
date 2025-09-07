@@ -2,13 +2,29 @@
 // INTERFACES PRINCIPAIS - Sincronizadas com Backend
 // ================================================
 
+// ================================================
+// ENUMS
+// ================================================
+
+/**
+ * Tipos de conteúdo suportados
+ */
+export enum ContentType {
+  CODE = 'code',
+  TEXT = 'text',
+  TERMINAL = 'terminal'
+}
+
 /**
  * Representa uma aba/arquivo dentro de um CardFeature
  */
 export interface CardFeatureScreen {
   name: string        // Nome da aba (ex: "Model", "Controller", "Routes")
   description: string // Descrição do que o arquivo faz
-  code: string       // Código do arquivo
+  content: string     // Conteúdo do arquivo (renomeado de 'code')
+  content_type: ContentType  // Tipo do conteúdo
+  language?: string   // Linguagem (opcional para text/terminal)
+  route?: string      // Rota do arquivo (opcional)
 }
 
 /**
@@ -21,6 +37,7 @@ export interface CardFeature {
   tech: string           // Tecnologia principal (React, Node.js, Python, etc.)
   language: string       // Linguagem de programação (typescript, javascript, python)
   description: string    // Descrição do que o código faz
+  content_type: ContentType    // Tipo de conteúdo principal
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
@@ -50,6 +67,7 @@ export interface CreateCardFeatureData {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
 }
 
@@ -65,7 +83,10 @@ export interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
 export interface CreateScreenData {
   name: string
   description: string
-  code: string
+  content: string
+  content_type: ContentType
+  language?: string
+  route?: string
 }
 
 // ================================================

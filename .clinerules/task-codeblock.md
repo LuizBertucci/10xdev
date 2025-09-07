@@ -278,7 +278,7 @@ static async create(req: Request, res: Response) {
 }
 ```
 
-- [ ] 5. Testes das APIs
+- [ ] 5. Testes das APIs (pular por enquanto)
 ```typescript
 // Exemplo de teste para novo endpoint
 describe('CardFeature API with ContentType', () => {
@@ -301,7 +301,7 @@ describe('CardFeature API with ContentType', () => {
 
 #### **FASE 2: Frontend Core** 
 
-- [ ] 1. Atualizar types do frontend
+- [x] 1. Atualizar types do frontend
 ```typescript
 // frontend/types/cardfeature.ts
 export enum ContentType {
