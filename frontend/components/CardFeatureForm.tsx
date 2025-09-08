@@ -22,7 +22,8 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
         {
           type: ContentType.CODE,
           content: '',
-          language: 'typescript'
+          language: 'typescript',
+          order: 0
         }
       ]
     }
@@ -109,7 +110,8 @@ export default function CardFeatureForm({
     const newBlock: CreateBlockData = {
       type,
       content: '',
-      language: type === ContentType.CODE ? 'typescript' : undefined
+      language: type === ContentType.CODE ? 'typescript' : undefined,
+      order: formData.screens[screenIndex]?.blocks?.length || 0
     }
 
     setFormData(prev => ({
@@ -158,8 +160,8 @@ export default function CardFeatureForm({
             ? {
                 ...screen,
                 blocks: screen.blocks.map((block, j) => {
-                  if (j === blockIndex) return screen.blocks[blockIndex - 1]
-                  if (j === blockIndex - 1) return screen.blocks[blockIndex]
+                  if (j === blockIndex) return { ...screen.blocks[blockIndex - 1], order: blockIndex }
+                  if (j === blockIndex - 1) return { ...screen.blocks[blockIndex], order: blockIndex - 1 }
                   return block
                 })
               }
@@ -170,21 +172,24 @@ export default function CardFeatureForm({
   }
 
   const moveBlockDown = (screenIndex: number, blockIndex: number) => {
-    setFormData(prev => ({
-      ...prev,
-      screens: prev.screens.map((screen, i) => 
-        i === screenIndex 
-          ? {
-              ...screen,
-              blocks: screen.blocks.map((block, j) => {
-                if (j === blockIndex) return screen.blocks[blockIndex + 1]
-                if (j === blockIndex + 1) return screen.blocks[blockIndex]
-                return block
-              })
-            }
-          : screen
-      )
-    }))
+    const screen = formData.screens[screenIndex]
+    if (blockIndex < screen.blocks.length - 1) {
+      setFormData(prev => ({
+        ...prev,
+        screens: prev.screens.map((screen, i) => 
+          i === screenIndex 
+            ? {
+                ...screen,
+                blocks: screen.blocks.map((block, j) => {
+                  if (j === blockIndex) return { ...screen.blocks[blockIndex + 1], order: blockIndex }
+                  if (j === blockIndex + 1) return { ...screen.blocks[blockIndex], order: blockIndex + 1 }
+                  return block
+                })
+              }
+            : screen
+        )
+      }))
+    }
   }
 
   const addScreen = () => {
@@ -197,7 +202,8 @@ export default function CardFeatureForm({
         blocks: [{
           type: ContentType.CODE,
           content: '',
-          language: 'typescript'
+          language: 'typescript',
+          order: 0
         }]
       }]
     }))

@@ -18,6 +18,13 @@ interface CardFeatureProps {
 export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: CardFeatureProps) {
   const [activeTab, setActiveTab] = useState(0)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
+  
+  // Helper para buscar routes dos blocos CODE
+  const getCodeBlockRoutes = (blocks: any[]) => {
+    const codeBlocks = blocks?.filter(block => block.type === 'code' || block.type === 'CODE')
+    const routes = codeBlocks?.map(block => block.route).filter(Boolean)
+    return routes?.length > 0 ? routes.join(' • ') : 'Sem rota definida'
+  }
 
   return (
     <TooltipProvider>
@@ -125,7 +132,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 {/* Rota do arquivo (lado esquerdo) - Card */}
                 <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex-1 mr-2">
                   <span className="text-xs text-gray-600 font-mono truncate block">
-                    {activeScreen.route || 'Sem rota definida'}
+                    {getCodeBlockRoutes(activeScreen.blocks)}
                   </span>
                 </div>
                 

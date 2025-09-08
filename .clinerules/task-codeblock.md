@@ -232,24 +232,152 @@ Sistema completo de CardFeatures que suporta 3 tipos de conteúdo em estrutura d
   - [ ] Manter compatibilidade com dados antigos
   - [ ] Verificação de integridade pós-migração
 
-### 📦 FASE 6: Deploy e Documentação - [PENDENTE]
+### 🚧 FASE 6: Correção de Bugs Críticos - [EM ANDAMENTO]
 
-#### 6.1 Build e Deploy
+#### 6.1 Problemas de Disconnect Form ↔ Index
+- [X] **Análise completa dos problemas**
+  - [X] Investigar routes não aparecendo no Index
+  - [X] Analisar ordenação de blocos incorreta  
+  - [X] Entender separação de tipos de conteúdo
+
+#### 6.2 Fixes Estruturais Identificados
+- [ ] **Fix #1: Route Storage Mismatch**
+  - [ ] Form armazena routes em `ContentBlock.route`
+  - [ ] Display procura routes em `CardFeatureScreen.route`
+  - [ ] **Solução:** Modificar display components para ler de ContentBlocks
+
+- [ ] **Fix #2: Block Ordering Missing**
+  - [ ] Form nunca define campo `order` ao criar blocos
+  - [ ] Display depende do campo `order` para ordenação
+  - [ ] **Solução:** Atualizar form para atribuir `order` sequencial
+
+- [ ] **Fix #3: Code-Only Display Mode**
+  - [ ] ContentRenderer mostra todos os tipos com títulos/ícones
+  - [ ] User quer "código apenas código" na área de display
+  - [ ] **Solução:** Criar modo "code-only" no ContentRenderer
+
+### 📦 FASE 7: Deploy e Documentação - [PENDENTE]
+
+#### 7.1 Build e Deploy
 - [ ] **Verificar builds**
   - [ ] Backend compila sem erros TypeScript
   - [ ] Frontend builda com novas dependências
   - [ ] Testes de produção
 
-#### 6.2 Documentação
+#### 7.2 Documentação
 - [ ] **README atualizado**
   - [ ] Documentar novos tipos de conteúdo
   - [ ] Exemplos de uso para cada tipo
   - [ ] Screenshots dos novos componentes
 
+---
+
+## 🔥 PLANO DE AÇÃO URGENTE - DISCONNECT FORM ↔ INDEX
+
+### **PROBLEMA IDENTIFICADO:**
+Existe uma desconexão estrutural entre como o Form salva os dados e como o Index exibe. Três issues críticos:
+
+1. **🚨 ROUTES NÃO APARECEM:** Form salva `block.route`, Index procura `screen.route`
+2. **🚨 BLOCOS FORA DE ORDEM:** Form não atribui campo `order`, Index ordena por esse campo
+3. **🚨 CÓDIGO MISTURADO:** ContentRenderer mostra todos os tipos, user quer só código na área de código
+
+### **ANÁLISE TÉCNICA DETALHADA:**
+
+#### **Issue #1: Route Storage Mismatch**
+```typescript
+// ❌ FORM: Armazena em ContentBlock (CardFeatureForm.tsx:517)
+value={block.route || ''}
+onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
+
+// ❌ INDEX: Procura em Screen (CardFeature.tsx:128)
+{activeScreen.route || 'Sem rota definida'}
+```
+
+#### **Issue #2: Missing Order Assignment** 
+```typescript  
+// ❌ FORM: Nunca define order (CardFeatureForm.tsx:109-113)
+const newBlock: CreateBlockData = {
+  type,
+  content: '',
+  language: type === ContentType.CODE ? 'typescript' : undefined
+  // 🚫 FALTANDO: order field!
+}
+
+// ✅ INDEX: Tenta ordenar por order (ContentRenderer.tsx:87)
+const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order)
+```
+
+#### **Issue #3: Content Type Separation**
+```typescript
+// 🔄 CURRENT: Mostra todos os tipos com títulos (ContentRenderer.tsx:21-25)
+<div className="flex items-center gap-2 text-sm font-medium text-gray-600 mb-2">
+  {getBlockIcon(block.type)}
+  <span>{getBlockTitle(block.type)}</span>
+</div>
+
+// 🎯 DESIRED: Área de código só código, sem títulos/ícones para CODE blocks
+```
+
+### **PLANO DE IMPLEMENTAÇÃO:**
+
+#### **✅ FASE 6A: Route Display Fix**
+1. **Modificar CardFeature.tsx lines 125-130**
+   - Trocar `activeScreen.route` por lógica que busca routes dos blocks CODE
+   - Implementar `getCodeBlockRoutes(blocks)` helper
+   
+2. **Modificar CardFeatureCompact.tsx lines 170-177**  
+   - Mesma lógica de buscar routes dos ContentBlocks
+   - Exibir múltiplas routes se houver múltiplos blocos CODE
+
+#### **✅ FASE 6B: Block Ordering Fix**
+1. **Modificar CardFeatureForm.tsx addBlock function (line 108)**
+   - Calcular próximo índice sequencial
+   - Atribuir `order: screen.blocks.length` ao criar bloco
+   
+2. **Modificar moveBlockUp/moveBlockDown functions (lines 152-188)**
+   - Atualizar campos `order` após reordenação
+   - Garantir sequência contínua 0, 1, 2, 3...
+
+#### **✅ FASE 6C: Renderização Sequencial com Containers Específicos**
+1. **Modificar ContentRenderer.tsx - Renderização por Ordem**
+   - **MANTER** ordenação sequencial por campo `order` (não agrupar por tipo)
+   - Iterar pelos blocos ordenados e renderizar cada um em seu container específico
+   - Preservar ordem exata do Form: texto → terminal → código (se for essa a ordem)
+   
+2. **Criar Componentes de Container Específicos**
+   - **CodeBlockContainer**: Área azul clara (#f8f8ff) + syntax highlighting
+   - **TextBlockContainer**: Área branca + tipografia prose/markdown  
+   - **TerminalBlockContainer**: Área preta/verde + font mono
+   
+3. **Implementar Renderização Individual**
+   - Remover títulos/ícones globais (💻, 📄, ⚡)
+   - Para cada block: `switch(block.type)` → renderizar no container correto
+   - Manter separação visual, mas **ordem do Form**
+   
+4. **Layout da Renderização Final (Exemplo)**
+   ```
+   Se Form tem ordem: texto → terminal → código
+   
+   [TEXT BLOCK - Área Branca]
+   texto aqui...
+   
+   [TERMINAL BLOCK - Área Preta/Verde] 
+   $ comando aqui...
+   
+   [CODE BLOCK - Área Azul Clara]
+   código aqui...
+   ```
+
+5. **Detalhes de Implementação**
+   - **Ordenação**: `sortedBlocks.map(block => renderByType(block))`
+   - **CodeBlockContainer**: SyntaxHighlighter + fundo azul (atual) sem título
+   - **TextBlockContainer**: ReactMarkdown ou pre + fundo branco + prose
+   - **TerminalBlockContainer**: Pre + fundo preto + texto verde + font mono
+   - **Espaçamento**: Gap entre containers para separação visual clara
 
 ```
 
-## ✅ Status Atual: FASE 1 e 2 CONCLUÍDAS
+## ⚡ Status Atual: FASE 1, 2 CONCLUÍDAS + BUGS CRÍTICOS IDENTIFICADOS
 
 **O que está funcionando:**
 - ✅ Sistema de tipos de conteúdo implementado
@@ -260,4 +388,9 @@ Sistema completo de CardFeatures que suporta 3 tipos de conteúdo em estrutura d
 - ✅ Validações removidas (campos opcionais)
 - ✅ Navegação corrigida (permanece em "codes")
 
-**Próximo passo:** FASE 3 - Implementar MarkdownRenderer e TerminalRenderer para renderização completa dos novos tipos de conteúdo.
+**🔥 Problemas Críticos Identificados:**
+- ✅ Routes do Form não aparecem no Index (RESOLVIDO - FASE 6A)
+- ✅ Ordenação de blocos não preservada (RESOLVIDO - FASE 6B)
+- 🚨 Área de código mostra todos os tipos (EM ANDAMENTO - FASE 6C)
+
+**Próximo passo:** FASE 6C - Separar visualização por tipo de conteúdo (cada tipo em seu próprio container visual).
