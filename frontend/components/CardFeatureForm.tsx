@@ -509,6 +509,18 @@ export default function CardFeatureForm({
                                 </div>
                               </div>
                               
+                              {/* Campo Rota (só para código) */}
+                              {block.type === ContentType.CODE && (
+                                <div className="mb-2">
+                                  <Input
+                                    placeholder="src/components/Header.tsx"
+                                    value={block.route || ''}
+                                    onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
+                                    className="text-xs font-mono placeholder:text-gray-400 placeholder:font-normal"
+                                  />
+                                </div>
+                              )}
+                              
                               {/* Conteúdo */}
                               <Textarea
                                 placeholder={
