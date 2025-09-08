@@ -71,8 +71,8 @@ export default function CardFeatureForm({
     return { ...DEFAULT_FORM_DATA }
   })
   
-  // Estado para controlar aba ativa
-  const [activeScreenIndex, setActiveScreenIndex] = useState<number>(0)
+  // Estado para controlar aba ativa (-1 = descrição, 0+ = arquivos)
+  const [activeTab, setActiveTab] = useState<number>(-1)
 
   // Atualizar formulário quando initialData mudar
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function CardFeatureForm({
       }]
     }))
     // Ativar a nova aba criada
-    setActiveScreenIndex(newScreenIndex)
+    setActiveTab(newScreenIndex)
   }
 
   const removeScreen = (index: number) => {
@@ -174,8 +174,10 @@ export default function CardFeatureForm({
         screens: prev.screens.filter((_, i) => i !== index)
       }))
       // Ajustar aba ativa se necessário
-      if (activeScreenIndex >= index && activeScreenIndex > 0) {
-        setActiveScreenIndex(activeScreenIndex - 1)
+      if (activeTab >= index && activeTab > 0) {
+        setActiveTab(activeTab - 1)
+      } else if (activeTab === index) {
+        setActiveTab(-1) // Volta para descrição
       }
     }
   }
@@ -266,19 +268,7 @@ export default function CardFeatureForm({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Descrição
-              </label>
-              <Textarea
-                placeholder="Descreva o que este código faz... (opcional)"
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            {/* Screens/Files */}
+            {/* Screens/Files with Description Tab */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <label className="block text-sm font-medium text-gray-700">
@@ -295,9 +285,18 @@ export default function CardFeatureForm({
                 </Button>
               </div>
 
-              <Tabs value={activeScreenIndex.toString()} onValueChange={(value) => setActiveScreenIndex(parseInt(value))}>
+              <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))}>
                 {/* Lista de abas */}
-                <TabsList className="grid w-full h-auto p-1" style={{ gridTemplateColumns: `repeat(${formData.screens.length}, 1fr)` }}>
+                <TabsList className="grid w-full h-auto p-1" style={{ gridTemplateColumns: `1fr repeat(${formData.screens.length}, 1fr)` }}>
+                  {/* Aba Descrição fixa */}
+                  <TabsTrigger 
+                    value="-1" 
+                    className="flex-1"
+                  >
+                    📝 Descrição
+                  </TabsTrigger>
+                  
+                  {/* Abas dos arquivos */}
                   {formData.screens.map((screen, index) => (
                     <div key={index} className="flex items-center">
                       <TabsTrigger 
@@ -324,10 +323,28 @@ export default function CardFeatureForm({
                   ))}
                 </TabsList>
 
-                {/* Conteúdo das abas */}
+                {/* Conteúdo da aba Descrição */}
+                <TabsContent value="-1" className="mt-4">
+                  <div className="border rounded-lg p-4 h-80">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Descrição do CardFeature
+                      </label>
+                      <Textarea
+                        placeholder="Descreva o que este CardFeature faz, quando usar, exemplos de uso... (opcional)"
+                        value={formData.description}
+                        onChange={(e) => handleInputChange('description', e.target.value)}
+                        rows={12}
+                        className="resize-none"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Conteúdo das abas dos arquivos */}
                 {formData.screens.map((screen, index) => (
                   <TabsContent key={index} value={index.toString()} className="mt-4">
-                    <div className="border rounded-lg p-4">
+                    <div className="border rounded-lg p-4 h-80 overflow-y-auto">
                       {/* Campos do arquivo */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                         <div>
@@ -342,7 +359,7 @@ export default function CardFeatureForm({
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Descrição
+                            Descrição do Arquivo
                           </label>
                           <Input
                             placeholder="Ex: Classe User com métodos..."
@@ -429,16 +446,6 @@ export default function CardFeatureForm({
                                 )}
                               </div>
                               
-                              {/* Título opcional */}
-                              <div className="mb-2">
-                                <Input
-                                  placeholder="Título do bloco (opcional)"
-                                  value={block.title || ''}
-                                  onChange={(e) => handleBlockChange(index, blockIndex, 'title', e.target.value)}
-                                  className="text-xs"
-                                />
-                              </div>
-
                               {/* Conteúdo */}
                               <Textarea
                                 placeholder={
