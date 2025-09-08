@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
-import SyntaxHighlighter from "./SyntaxHighlighter"
+import ContentRenderer from "./ContentRenderer"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -146,7 +146,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               {/* Área do Código com Syntax Highlighting */}
               <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-96 overflow-y-auto relative group" 
                 style={{
-                  backgroundColor: 'rgb(248, 249, 250)', 
+                  backgroundColor: '#f8f8ff', 
                   fontFamily: 'Fira Code, Consolas, Monaco, monospace'
                 }}
               >
@@ -166,19 +166,21 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
-                  {activeScreen?.blocks && activeScreen.blocks.length > 0 ? (
-                    activeScreen.blocks.map((block, index) => (
-                      <div key={index} className="mb-4">
-                        <SyntaxHighlighter
-                          code={block.content || ''}
-                          language={block.language || snippet.language}
-                        />
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-gray-500 italic">Nenhum código disponível</div>
-                  )}
+
+                {/* Rota do arquivo - Card no topo */}
+                <div className="absolute top-2 left-4 right-4 z-20">
+                  <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
+                    <span className="text-xs text-gray-600 font-mono truncate block">
+                      {activeScreen.route || 'Sem rota definida'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
+                  <ContentRenderer
+                    blocks={activeScreen.blocks || []}
+                    className="h-full"
+                  />
                 </div>
               </div>
             </div>
