@@ -62,7 +62,14 @@ export default function Codes({ platformState }: CodesProps) {
   
   // Handler para criação de novo CardFeature
   const handleCreateSubmit = async (formData: any) => {
-    await cardFeatures.createCardFeature(formData)
+    try {
+      const result = await cardFeatures.createCardFeature(formData)
+      if (result) {
+        console.log('CardFeature criado com sucesso:', result)
+      }
+    } catch (error) {
+      console.error('Erro no handleCreateSubmit:', error)
+    }
   }
 
   // Handler para edição de CardFeature existente

@@ -167,10 +167,18 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                   }
                 `}</style>
                 <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
-                  <SyntaxHighlighter
-                    code={activeScreen.code}
-                    language={snippet.language}
-                  />
+                  {activeScreen?.blocks && activeScreen.blocks.length > 0 ? (
+                    activeScreen.blocks.map((block, index) => (
+                      <div key={index} className="mb-4">
+                        <SyntaxHighlighter
+                          code={block.content || ''}
+                          language={block.language || snippet.language}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500 italic">Nenhum código disponível</div>
+                  )}
                 </div>
               </div>
             </div>

@@ -290,6 +290,11 @@ export interface UseCardFeaturesReturn {
   searchTerm: string
   selectedTech: string
   
+  // Estados dos modais
+  isCreating: boolean
+  isEditing: boolean
+  editingItem: CardFeature | null
+  
   // Paginação
   currentPage: number
   totalPages: number
@@ -309,6 +314,12 @@ export interface UseCardFeaturesReturn {
   setSearchTerm: (term: string) => void
   setSelectedTech: (tech: string) => void
   clearError: () => void
+  
+  // Controle dos modais
+  startCreating: () => void
+  cancelCreating: () => void
+  startEditing: (item: CardFeature) => void
+  cancelEditing: () => void
   
   // Paginação
   goToPage: (page: number) => Promise<void>

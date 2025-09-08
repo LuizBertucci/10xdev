@@ -31,6 +31,13 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     totalCount: 0
   })
 
+  // Estados dos modais
+  const [modalState, setModalState] = useState({
+    isCreating: false,
+    isEditing: false,
+    editingItem: null as CardFeature | null
+  })
+
 
   // ✅ NOVO: Função de fetch com paginação para o usePagination hook
   const fetchCardFeaturesWithPagination = useCallback(async (params: FetchParams) => {
@@ -104,7 +111,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     setState(prev => ({ ...prev, creating: true, error: null }))
     
     try {
+      console.log('Criando CardFeature:', data)
       const response = await cardFeatureService.create(data)
+      console.log('Resposta da API:', response)
       
       if (response.success && response.data) {
         setState(prev => ({
@@ -112,12 +121,21 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           items: [response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
           creating: false
         }))
+        setModalState(prev => ({ ...prev, isCreating: false }))
         return response.data
       } else {
         throw new Error(response.error || 'Erro ao criar CardFeature')
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar CardFeature'
+      console.error('Erro ao criar CardFeature:', error)
+      let errorMessage = 'Erro ao criar CardFeature'
+      
+      if (error && typeof error === 'object' && 'error' in error) {
+        errorMessage = (error as any).error || errorMessage
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -171,6 +189,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           ),
           updating: false
         }))
+        setModalState(prev => ({ ...prev, isEditing: false, editingItem: null }))
         return response.data
       } else {
         throw new Error(response.error || 'Erro ao atualizar CardFeature')
@@ -232,6 +251,26 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     setState(prev => ({ ...prev, error: null }))
   }, [])
 
+  // ================================================
+  // MODAL CONTROL FUNCTIONS - Controle dos modais
+  // ================================================
+
+  const startCreating = useCallback(() => {
+    setModalState(prev => ({ ...prev, isCreating: true, isEditing: false, editingItem: null }))
+  }, [])
+
+  const cancelCreating = useCallback(() => {
+    setModalState(prev => ({ ...prev, isCreating: false }))
+  }, [])
+
+  const startEditing = useCallback((item: CardFeature) => {
+    setModalState(prev => ({ ...prev, isEditing: true, isCreating: false, editingItem: item }))
+  }, [])
+
+  const cancelEditing = useCallback(() => {
+    setModalState(prev => ({ ...prev, isEditing: false, editingItem: null }))
+  }, [])
+
   // Carregar dados na inicialização
   useEffect(() => {
     fetchCardFeaturesWithPagination({ page: 1, limit: 10 })
@@ -251,6 +290,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     error: state.error,
     searchTerm: search.searchTerm,
     selectedTech: state.selectedTech,
+    
+    // Estados dos modais
+    isCreating: modalState.isCreating,
+    isEditing: modalState.isEditing,
+    editingItem: modalState.editingItem,
     
     // Paginação - usando usePagination hook
     currentPage: pagination.currentPage,
@@ -283,6 +327,12 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     setSearchTerm,
     setSelectedTech,
     clearError,
+    
+    // Controle dos modais
+    startCreating,
+    cancelCreating,
+    startEditing,
+    cancelEditing,
     
     // Paginação - usando usePagination hook
     goToPage: pagination.goToPage,

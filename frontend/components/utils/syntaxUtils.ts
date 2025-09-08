@@ -20,6 +20,11 @@ export const detectLanguage = (language: string): string => {
 
 // Aplicar highlighting básico usando regex (versão com tokens)
 export const applyBasicHighlighting = (code: string, language: string): string => {
+  // Verificar se code não é undefined ou null
+  if (!code || typeof code !== 'string') {
+    return ''
+  }
+
   const lang = detectLanguage(language)
   
   // Escape HTML primeiro para evitar conflitos
