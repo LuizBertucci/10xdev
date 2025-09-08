@@ -393,21 +393,7 @@ export default function CardFeatureForm({
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Descrição do Arquivo
-                          </label>
-                          <Input
-                            placeholder="Ex: Classe User com métodos..."
-                            value={screen.description}
-                            onChange={(e) => handleScreenChange(index, 'description', e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Blocos de Conteúdo */}
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Conteúdo
+                            Adicionar Bloco
                           </label>
                           <div className="flex gap-2">
                             <Button
@@ -438,6 +424,15 @@ export default function CardFeatureForm({
                               ⚡ Terminal
                             </Button>
                           </div>
+                        </div>
+                      </div>
+                      
+                      {/* Blocos de Conteúdo */}
+                      <div>
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Conteúdo
+                          </label>
                         </div>
 
                         <div className="space-y-3">
