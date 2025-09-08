@@ -73,7 +73,5 @@ export {
   ContentType,
   SupportedTech,
   SupportedLanguage,
-  CrudStatus,
-  SortOrder,
-  SortBy
+  CrudStatus
 } from './cardfeature'

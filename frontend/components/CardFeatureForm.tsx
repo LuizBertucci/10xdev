@@ -70,6 +70,22 @@ export default function CardFeatureForm({
     return { ...DEFAULT_FORM_DATA }
   })
 
+  // Atualizar formulário quando initialData mudar
+  useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        title: initialData.title,
+        tech: initialData.tech,
+        language: initialData.language,
+        description: initialData.description,
+        content_type: initialData.content_type,
+        screens: initialData.screens
+      })
+    } else if (mode === 'create') {
+      setFormData({ ...DEFAULT_FORM_DATA })
+    }
+  }, [mode, initialData])
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -260,10 +276,10 @@ export default function CardFeatureForm({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Descrição *
+                Descrição
               </label>
               <Textarea
-                placeholder="Descreva o que este código faz..."
+                placeholder="Descreva o que este código faz... (opcional)"
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={3}

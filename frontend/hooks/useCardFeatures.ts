@@ -179,9 +179,22 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     setState(prev => ({ ...prev, updating: true, error: null }))
     
     try {
+      console.log('Atualizando CardFeature:', id)
+      console.log('Dados sendo enviados:', JSON.stringify(data, null, 2))
+      console.log('Screens:', data.screens)
+      if (data.screens && data.screens.length > 0) {
+        data.screens.forEach((screen, index) => {
+          console.log(`Screen ${index}:`, screen)
+          console.log(`Screen ${index} has name:`, !!screen.name)
+          console.log(`Screen ${index} has description:`, !!screen.description)
+          console.log(`Screen ${index} has blocks:`, !!screen.blocks, Array.isArray(screen.blocks))
+        })
+      }
       const response = await cardFeatureService.update(id, data)
+      console.log('Resposta da API (update):', response)
       
       if (response.success && response.data) {
+        console.log('CardFeature atualizado com sucesso! Fechando modal...')
         setState(prev => ({
           ...prev,
           items: (Array.isArray(prev.items) ? prev.items : []).map(item => 
@@ -190,12 +203,21 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           updating: false
         }))
         setModalState(prev => ({ ...prev, isEditing: false, editingItem: null }))
+        console.log('Modal fechado, retornando dados:', response.data)
         return response.data
       } else {
         throw new Error(response.error || 'Erro ao atualizar CardFeature')
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar CardFeature'
+      console.error('Erro ao atualizar CardFeature:', error)
+      let errorMessage = 'Erro ao atualizar CardFeature'
+      
+      if (error && typeof error === 'object' && 'error' in error) {
+        errorMessage = (error as any).error || errorMessage
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      
       setState(prev => ({
         ...prev,
         error: errorMessage,

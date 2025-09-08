@@ -91,11 +91,11 @@ export class CardFeatureModel {
 
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
-        title: data.title,
-        tech: data.tech,
-        language: data.language,
-        description: data.description,
-        content_type: data.content_type,
+        title: data.title || '',
+        tech: data.tech || 'React',
+        language: data.language || 'typescript',
+        description: data.description || '',
+        content_type: data.content_type || 'code',
         screens: processedScreens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

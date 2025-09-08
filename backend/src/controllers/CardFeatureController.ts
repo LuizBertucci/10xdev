@@ -17,44 +17,7 @@ export class CardFeatureController {
     try {
       const data: CreateCardFeatureRequest = req.body
 
-      // Validação básica (incluindo content_type)
-      if (!data.title || !data.tech || !data.language || !data.description || !data.screens || !data.content_type) {
-        res.status(400).json({
-          success: false,
-          error: 'Campos obrigatórios: title, tech, language, description, content_type, screens'
-        })
-        return
-      }
-
-      if (!Array.isArray(data.screens) || data.screens.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'O campo screens deve ser um array com pelo menos um item'
-        })
-        return
-      }
-
-      // Validar cada screen
-      for (const screen of data.screens) {
-        if (!screen.name || !screen.description || !screen.blocks || !Array.isArray(screen.blocks)) {
-          res.status(400).json({
-            success: false,
-            error: 'Cada screen deve ter name, description e blocks (array)'
-          })
-          return
-        }
-
-        // Validar cada bloco
-        for (const block of screen.blocks) {
-          if (!block.type || !block.content) {
-            res.status(400).json({
-              success: false,
-              error: 'Cada bloco deve ter type e content'
-            })
-            return
-          }
-        }
-      }
+      // Remover todas as validações obrigatórias - permitir campos vazios
 
       const result = await CardFeatureModel.create(data)
 
@@ -310,37 +273,7 @@ export class CardFeatureController {
         return
       }
 
-      // Validar screens se fornecido
-      if (data.screens) {
-        if (!Array.isArray(data.screens) || data.screens.length === 0) {
-          res.status(400).json({
-            success: false,
-            error: 'O campo screens deve ser um array com pelo menos um item'
-          })
-          return
-        }
-
-        for (const screen of data.screens) {
-          if (!screen.name || !screen.description || !screen.blocks || !Array.isArray(screen.blocks)) {
-            res.status(400).json({
-              success: false,
-              error: 'Cada screen deve ter name, description e blocks (array)'
-            })
-            return
-          }
-
-          // Validar cada bloco
-          for (const block of screen.blocks) {
-            if (!block.type || !block.content) {
-              res.status(400).json({
-                success: false,
-                error: 'Cada bloco deve ter type e content'
-              })
-              return
-            }
-          }
-        }
-      }
+      // Remover todas as validações obrigatórias - permitir campos vazios
 
       const result = await CardFeatureModel.update(id, data)
 
@@ -450,25 +383,7 @@ export class CardFeatureController {
         return
       }
 
-      // Validar cada item
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        if (!item?.title || !item?.tech || !item?.language || !item?.description || !item?.content_type || !item?.screens) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: Campos obrigatórios: title, tech, language, description, content_type, screens`
-          })
-          return
-        }
-
-        if (!Array.isArray(item?.screens) || item?.screens.length === 0) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: O campo screens deve ser um array com pelo menos um item`
-          })
-          return
-        }
-      }
+      // Remover todas as validações obrigatórias - permitir campos vazios
 
       const result = await CardFeatureModel.bulkCreate(items)
 
