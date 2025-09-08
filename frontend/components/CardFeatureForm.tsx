@@ -336,28 +336,24 @@ export default function CardFeatureForm({
                   
                   {/* Abas dos arquivos */}
                   {formData.screens.map((screen, index) => (
-                    <div key={index} className="flex items-center">
-                      <TabsTrigger 
-                        value={index.toString()} 
-                        className="flex-1 relative"
-                      >
-                        {screen.name || `Arquivo ${index + 1}`}
-                      </TabsTrigger>
+                    <TabsTrigger 
+                      key={index}
+                      value={index.toString()} 
+                      className="flex items-center justify-between gap-2 relative"
+                    >
+                      <span>{screen.name || `Arquivo ${index + 1}`}</span>
                       {formData.screens.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
+                        <span
                           onClick={(e) => {
                             e.stopPropagation()
                             removeScreen(index)
                           }}
-                          className="ml-1 h-6 w-6 p-0 text-gray-500 hover:text-red-600"
+                          className="h-4 w-4 p-0 text-gray-500 hover:text-red-600 cursor-pointer rounded flex items-center justify-center transition-colors"
                         >
                           <X className="h-3 w-3" />
-                        </Button>
+                        </span>
                       )}
-                    </div>
+                    </TabsTrigger>
                   ))}
                 </TabsList>
 
