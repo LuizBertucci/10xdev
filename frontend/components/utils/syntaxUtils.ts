@@ -13,6 +13,8 @@ export const detectLanguage = (language: string): string => {
       return 'css'
     case 'json':
       return 'json'
+    case 'ruby':
+      return 'ruby'
     default:
       return 'javascript'
   }
@@ -27,11 +29,8 @@ export const applyBasicHighlighting = (code: string, language: string): string =
 
   const lang = detectLanguage(language)
   
-  // Escape HTML primeiro para evitar conflitos
+  // Não fazer escape HTML - mostrar código exatamente como foi digitado
   let highlightedCode = code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
   
   if (lang === 'typescript' || lang === 'javascript') {
     const tokens: { token: string, replacement: string }[] = []
