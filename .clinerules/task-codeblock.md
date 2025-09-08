@@ -246,33 +246,7 @@ Sistema completo de CardFeatures que suporta 3 tipos de conteúdo em estrutura d
   - [ ] Exemplos de uso para cada tipo
   - [ ] Screenshots dos novos componentes
 
-## 🔧 Comandos Úteis
 
-### Backend
-```bash
-cd backend
-npm run dev          # Desenvolvimento
-npm run build        # Compilar TypeScript
-npm run start        # Produção
-```
-
-### Frontend  
-```bash
-cd frontend
-npm run dev          # Desenvolvimento
-npm run build        # Build produção
-npm run lint         # Linter
-```
-
-### Database
-```sql
--- Verificar estrutura atual
-SELECT column_name, data_type FROM information_schema.columns 
-WHERE table_name = 'card_features';
-
--- Testar novos tipos
-INSERT INTO card_features (title, content_type, ...) 
-VALUES ('Teste Terminal', 'terminal', ...);
 ```
 
 ## ✅ Status Atual: FASE 1 e 2 CONCLUÍDAS

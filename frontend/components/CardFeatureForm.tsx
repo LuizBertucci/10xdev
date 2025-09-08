@@ -197,80 +197,61 @@ export default function CardFeatureForm({
         <div className="flex-1 overflow-auto p-6">
           <div className="space-y-6">
             {/* Basic Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Título *
-                </label>
-                <Input
-                  placeholder="Ex: Sistema de Autenticação JWT"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tecnologia *
-                </label>
-                <Select
-                  value={formData.tech}
-                  onValueChange={(value) => handleInputChange('tech', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="React">React</SelectItem>
-                    <SelectItem value="Node.js">Node.js</SelectItem>
-                    <SelectItem value="Python">Python</SelectItem>
-                    <SelectItem value="JavaScript">JavaScript</SelectItem>
-                    <SelectItem value="Vue.js">Vue.js</SelectItem>
-                    <SelectItem value="Angular">Angular</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Linguagem *
-                </label>
-                <Select
-                  value={formData.language}
-                  onValueChange={(value) => handleInputChange('language', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="typescript">TypeScript</SelectItem>
-                    <SelectItem value="javascript">JavaScript</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="html">HTML</SelectItem>
-                    <SelectItem value="css">CSS</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo Principal *
-                </label>
-                <Select
-                  value={formData.content_type}
-                  onValueChange={(value) => handleInputChange('content_type', value as ContentType)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ContentType.CODE}>💻 Código</SelectItem>
-                    <SelectItem value={ContentType.TEXT}>📄 Texto</SelectItem>
-                    <SelectItem value={ContentType.TERMINAL}>⚡ Terminal</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Título *
+                  </label>
+                  <Input
+                    placeholder="Ex: Sistema de Autenticação JWT"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tecnologia *
+                  </label>
+                  <Select
+                    value={formData.tech}
+                    onValueChange={(value) => handleInputChange('tech', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="React">React</SelectItem>
+                      <SelectItem value="Node.js">Node.js</SelectItem>
+                      <SelectItem value="Python">Python</SelectItem>
+                      <SelectItem value="JavaScript">JavaScript</SelectItem>
+                      <SelectItem value="Vue.js">Vue.js</SelectItem>
+                      <SelectItem value="Angular">Angular</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Linguagem *
+                  </label>
+                  <Select
+                    value={formData.language}
+                    onValueChange={(value) => handleInputChange('language', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="typescript">TypeScript</SelectItem>
+                      <SelectItem value="javascript">JavaScript</SelectItem>
+                      <SelectItem value="python">Python</SelectItem>
+                      <SelectItem value="html">HTML</SelectItem>
+                      <SelectItem value="css">CSS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
