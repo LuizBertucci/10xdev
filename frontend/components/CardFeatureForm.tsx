@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X, Loader2, Plus, Save } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType } from "@/types"
@@ -69,6 +70,9 @@ export default function CardFeatureForm({
     }
     return { ...DEFAULT_FORM_DATA }
   })
+  
+  // Estado para controlar aba ativa
+  const [activeScreenIndex, setActiveScreenIndex] = useState<number>(0)
 
   // Atualizar formulário quando initialData mudar
   useEffect(() => {
@@ -146,6 +150,7 @@ export default function CardFeatureForm({
   }
 
   const addScreen = () => {
+    const newScreenIndex = formData.screens.length
     setFormData(prev => ({
       ...prev,
       screens: [...prev.screens, { 
@@ -158,6 +163,8 @@ export default function CardFeatureForm({
         }]
       }]
     }))
+    // Ativar a nova aba criada
+    setActiveScreenIndex(newScreenIndex)
   }
 
   const removeScreen = (index: number) => {
@@ -166,6 +173,10 @@ export default function CardFeatureForm({
         ...prev,
         screens: prev.screens.filter((_, i) => i !== index)
       }))
+      // Ajustar aba ativa se necessário
+      if (activeScreenIndex >= index && activeScreenIndex > 0) {
+        setActiveScreenIndex(activeScreenIndex - 1)
+      }
     }
   }
 
@@ -284,159 +295,176 @@ export default function CardFeatureForm({
                 </Button>
               </div>
 
-              <div className="space-y-4">
-                {formData.screens.map((screen, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium">Arquivo {index + 1}</h4>
+              <Tabs value={activeScreenIndex.toString()} onValueChange={(value) => setActiveScreenIndex(parseInt(value))}>
+                {/* Lista de abas */}
+                <TabsList className="grid w-full h-auto p-1" style={{ gridTemplateColumns: `repeat(${formData.screens.length}, 1fr)` }}>
+                  {formData.screens.map((screen, index) => (
+                    <div key={index} className="flex items-center">
+                      <TabsTrigger 
+                        value={index.toString()} 
+                        className="flex-1 relative"
+                      >
+                        {screen.name || `Arquivo ${index + 1}`}
+                      </TabsTrigger>
                       {formData.screens.length > 1 && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeScreen(index)}
-                          className="text-red-600 hover:text-red-800"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeScreen(index)
+                          }}
+                          className="ml-1 h-6 w-6 p-0 text-gray-500 hover:text-red-600"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Nome do Arquivo
-                        </label>
-                        <Input
-                          placeholder="Ex: Model, Controller, Routes"
-                          value={screen.name}
-                          onChange={(e) => handleScreenChange(index, 'name', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Descrição
-                        </label>
-                        <Input
-                          placeholder="Ex: Classe User com métodos..."
-                          value={screen.description}
-                          onChange={(e) => handleScreenChange(index, 'description', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Blocos de Conteúdo */}
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Conteúdo
-                        </label>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addBlock(index, ContentType.CODE)}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            💻 Código
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addBlock(index, ContentType.TEXT)}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            📄 Texto
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addBlock(index, ContentType.TERMINAL)}
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            ⚡ Terminal
-                          </Button>
+                  ))}
+                </TabsList>
+
+                {/* Conteúdo das abas */}
+                {formData.screens.map((screen, index) => (
+                  <TabsContent key={index} value={index.toString()} className="mt-4">
+                    <div className="border rounded-lg p-4">
+                      {/* Campos do arquivo */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Nome do Arquivo
+                          </label>
+                          <Input
+                            placeholder="Ex: Model, Controller, Routes"
+                            value={screen.name}
+                            onChange={(e) => handleScreenChange(index, 'name', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Descrição
+                          </label>
+                          <Input
+                            placeholder="Ex: Classe User com métodos..."
+                            value={screen.description}
+                            onChange={(e) => handleScreenChange(index, 'description', e.target.value)}
+                          />
                         </div>
                       </div>
+                      
+                      {/* Blocos de Conteúdo */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Conteúdo
+                          </label>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addBlock(index, ContentType.CODE)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              💻 Código
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addBlock(index, ContentType.TEXT)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              📄 Texto
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addBlock(index, ContentType.TERMINAL)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              ⚡ Terminal
+                            </Button>
+                          </div>
+                        </div>
 
-                      <div className="space-y-3">
-                        {screen.blocks.map((block, blockIndex) => (
-                          <div key={blockIndex} className="border rounded p-3 bg-gray-50">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">
-                                  {block.type === ContentType.CODE ? '💻 Código' : 
-                                   block.type === ContentType.TEXT ? '📄 Texto' : '⚡ Terminal'}
-                                </span>
-                                {block.type === ContentType.CODE && (
-                                  <Select
-                                    value={block.language || 'typescript'}
-                                    onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
+                        <div className="space-y-3">
+                          {screen.blocks.map((block, blockIndex) => (
+                            <div key={blockIndex} className="border rounded p-3 bg-gray-50">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">
+                                    {block.type === ContentType.CODE ? '💻 Código' : 
+                                     block.type === ContentType.TEXT ? '📄 Texto' : '⚡ Terminal'}
+                                  </span>
+                                  {block.type === ContentType.CODE && (
+                                    <Select
+                                      value={block.language || 'typescript'}
+                                      onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
+                                    >
+                                      <SelectTrigger className="w-32 h-7">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="typescript">TS</SelectItem>
+                                        <SelectItem value="javascript">JS</SelectItem>
+                                        <SelectItem value="python">Python</SelectItem>
+                                        <SelectItem value="html">HTML</SelectItem>
+                                        <SelectItem value="css">CSS</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+                                {screen.blocks.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeBlock(index, blockIndex)}
+                                    className="text-red-600 hover:text-red-800 h-7 w-7 p-0"
                                   >
-                                    <SelectTrigger className="w-32 h-7">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="typescript">TS</SelectItem>
-                                      <SelectItem value="javascript">JS</SelectItem>
-                                      <SelectItem value="python">Python</SelectItem>
-                                      <SelectItem value="html">HTML</SelectItem>
-                                      <SelectItem value="css">CSS</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                    <X className="h-3 w-3" />
+                                  </Button>
                                 )}
                               </div>
-                              {screen.blocks.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeBlock(index, blockIndex)}
-                                  className="text-red-600 hover:text-red-800 h-7 w-7 p-0"
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                            
-                            {/* Título opcional */}
-                            <div className="mb-2">
-                              <Input
-                                placeholder="Título do bloco (opcional)"
-                                value={block.title || ''}
-                                onChange={(e) => handleBlockChange(index, blockIndex, 'title', e.target.value)}
-                                className="text-xs"
+                              
+                              {/* Título opcional */}
+                              <div className="mb-2">
+                                <Input
+                                  placeholder="Título do bloco (opcional)"
+                                  value={block.title || ''}
+                                  onChange={(e) => handleBlockChange(index, blockIndex, 'title', e.target.value)}
+                                  className="text-xs"
+                                />
+                              </div>
+
+                              {/* Conteúdo */}
+                              <Textarea
+                                placeholder={
+                                  block.type === ContentType.CODE ? 'Cole seu código aqui...' :
+                                  block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
+                                  '$ comando terminal...'
+                                }
+                                value={block.content}
+                                onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                rows={6}
+                                className={block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-sm' : 'text-sm'}
                               />
                             </div>
-
-                            {/* Conteúdo */}
-                            <Textarea
-                              placeholder={
-                                block.type === ContentType.CODE ? 'Cole seu código aqui...' :
-                                block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
-                                '$ comando terminal...'
-                              }
-                              value={block.content}
-                              onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                              rows={6}
-                              className={block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-sm' : 'text-sm'}
-                            />
-                          </div>
-                        ))}
-                        
-                        {screen.blocks.length === 0 && (
-                          <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded">
-                            Nenhum bloco adicionado. Use os botões acima para adicionar conteúdo.
-                          </div>
-                        )}
+                          ))}
+                          
+                          {screen.blocks.length === 0 && (
+                            <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded">
+                              Nenhum bloco adicionado. Use os botões acima para adicionar conteúdo.
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </TabsContent>
                 ))}
-              </div>
+              </Tabs>
             </div>
           </div>
         </div>
