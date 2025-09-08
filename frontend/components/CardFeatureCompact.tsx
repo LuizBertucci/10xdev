@@ -27,13 +27,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
 
   // Screen ativa baseada na tab selecionada
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
-  
-  // Helper para buscar routes dos blocos CODE
-  const getCodeBlockRoutes = (blocks: any[]) => {
-    const codeBlocks = blocks?.filter(block => block.type === 'code' || block.type === 'CODE')
-    const routes = codeBlocks?.map(block => block.route).filter(Boolean)
-    return routes?.length > 0 ? routes.join(' • ') : 'Sem rota definida'
-  }
 
   return (
     <TooltipProvider>
@@ -150,12 +143,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 ))}
               </div>
 
-              {/* Área do Código com Syntax Highlighting */}
-              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-96 overflow-y-auto relative group" 
-                style={{
-                  backgroundColor: '#f8f8ff', 
-                  fontFamily: 'Fira Code, Consolas, Monaco, monospace'
-                }}
+              {/* Área do Conteúdo com Containers Específicos */}
+              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-96 overflow-y-auto relative group bg-white"
               >
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
@@ -174,16 +163,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                   }
                 `}</style>
 
-                {/* Rota do arquivo - Card no topo */}
-                <div className="absolute top-2 left-4 right-4 z-20">
-                  <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-                    <span className="text-xs text-gray-600 font-mono truncate block">
-                      {getCodeBlockRoutes(activeScreen.blocks)}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
                     className="h-full"

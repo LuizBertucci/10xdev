@@ -2,6 +2,46 @@ import React from 'react'
 import SyntaxHighlighter from './SyntaxHighlighter'
 import { ContentType, ContentBlock } from '@/types'
 
+// ===== CONTAINERS ESPECÍFICOS POR TIPO =====
+
+// Container para blocos CODE - área azul clara
+function CodeBlockContainer({ children, route, className }: { children: React.ReactNode, route?: string, className?: string }) {
+  return (
+    <div className={`code-container rounded-lg p-4 mb-4 ${className}`} 
+         style={{ backgroundColor: '#f8f8ff', fontFamily: 'Fira Code, Consolas, Monaco, monospace' }}>
+      {/* Rota específica do bloco */}
+      {route && (
+        <div className="mb-3">
+          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm inline-block">
+            <span className="text-xs text-gray-600 font-mono">
+              {route}
+            </span>
+          </div>
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+// Container para blocos TEXT - área branca com prose
+function TextBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
+  return (
+    <div className={`text-container bg-white border border-gray-200 rounded-lg p-4 mb-4 prose prose-sm max-w-none ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// Container para blocos TERMINAL - área preta/verde
+function TerminalBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
+  return (
+    <div className={`terminal-container bg-gray-900 text-green-400 rounded-lg p-4 mb-4 font-mono text-sm ${className}`}>
+      {children}
+    </div>
+  )
+}
+
 interface ContentRendererProps {
   blocks: ContentBlock[]
   className?: string
@@ -12,56 +52,33 @@ interface SingleBlockRendererProps {
   className?: string
 }
 
-// Renderizador para um bloco individual
+// Renderizador para um bloco individual - SEM TÍTULOS/ÍCONES
 function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
   switch (block.type) {
     case ContentType.CODE:
       return (
-        <div className="code-block mb-4">
-          {block.title && (
-            <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-              <span className="mr-2">💻</span>
-              {block.title}
-            </div>
-          )}
+        <CodeBlockContainer route={block.route} className={className}>
           <SyntaxHighlighter
             code={block.content}
             language={block.language}
-            className={className}
           />
-        </div>
+        </CodeBlockContainer>
       )
     
     case ContentType.TEXT:
       return (
-        <div className="text-block mb-4">
-          {block.title && (
-            <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-              <span className="mr-2">📄</span>
-              {block.title}
-            </div>
-          )}
-          <div className={`text-content ${className}`}>
-            <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed">
-              {block.content}
-            </pre>
-          </div>
-        </div>
+        <TextBlockContainer className={className}>
+          <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed text-sm">
+            {block.content}
+          </pre>
+        </TextBlockContainer>
       )
     
     case ContentType.TERMINAL:
       return (
-        <div className="terminal-block mb-4">
-          {block.title && (
-            <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-              <span className="mr-2">⚡</span>
-              {block.title}
-            </div>
-          )}
-          <div className={`terminal-content bg-gray-900 text-green-400 p-4 rounded font-mono text-sm ${className}`}>
-            <pre className="whitespace-pre-wrap">{block.content}</pre>
-          </div>
-        </div>
+        <TerminalBlockContainer className={className}>
+          <pre className="whitespace-pre-wrap">{block.content}</pre>
+        </TerminalBlockContainer>
       )
     
     default:
@@ -89,9 +106,9 @@ export default function ContentRenderer({ blocks, className }: ContentRendererPr
 
   return (
     <div className={`content-renderer ${className}`}>
-      {sortedBlocks.map((block) => (
+      {sortedBlocks.map((block, index) => (
         <SingleBlockRenderer
-          key={block.id}
+          key={block.id || `block-${index}-${block.type}`}
           block={block}
           className="block-item"
         />

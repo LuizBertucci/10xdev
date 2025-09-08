@@ -338,42 +338,42 @@ const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order)
    - Atualizar campos `order` após reordenação
    - Garantir sequência contínua 0, 1, 2, 3...
 
-#### **✅ FASE 6C: Renderização Sequencial com Containers Específicos**
-1. **Modificar ContentRenderer.tsx - Renderização por Ordem**
-   - **MANTER** ordenação sequencial por campo `order` (não agrupar por tipo)
-   - Iterar pelos blocos ordenados e renderizar cada um em seu container específico
-   - Preservar ordem exata do Form: texto → terminal → código (se for essa a ordem)
+#### **🚧 FASE 6C: Renderização Sequencial com Containers Específicos**
+- [X] **1. Modificar ContentRenderer.tsx - Renderização por Ordem**
+  - [X] **MANTER** ordenação sequencial por campo `order` (não agrupar por tipo)
+  - [X] Iterar pelos blocos ordenados e renderizar cada um em seu container específico
+  - [X] Preservar ordem exata do Form: texto → terminal → código (se for essa a ordem)
    
-2. **Criar Componentes de Container Específicos**
-   - **CodeBlockContainer**: Área azul clara (#f8f8ff) + syntax highlighting
-   - **TextBlockContainer**: Área branca + tipografia prose/markdown  
-   - **TerminalBlockContainer**: Área preta/verde + font mono
+- [X] **2. Criar Componentes de Container Específicos**
+  - [X] **CodeBlockContainer**: Área azul clara (#f8f8ff) + syntax highlighting
+  - [X] **TextBlockContainer**: Área branca + tipografia prose/markdown  
+  - [X] **TerminalBlockContainer**: Área preta/verde + font mono
    
-3. **Implementar Renderização Individual**
-   - Remover títulos/ícones globais (💻, 📄, ⚡)
-   - Para cada block: `switch(block.type)` → renderizar no container correto
-   - Manter separação visual, mas **ordem do Form**
+- [X] **3. Implementar Renderização Individual**
+  - [X] Remover títulos/ícones globais (💻, 📄, ⚡)
+  - [X] Para cada block: `switch(block.type)` → renderizar no container correto
+  - [X] Manter separação visual, mas **ordem do Form**
    
-4. **Layout da Renderização Final (Exemplo)**
-   ```
-   Se Form tem ordem: texto → terminal → código
-   
-   [TEXT BLOCK - Área Branca]
-   texto aqui...
-   
-   [TERMINAL BLOCK - Área Preta/Verde] 
-   $ comando aqui...
-   
-   [CODE BLOCK - Área Azul Clara]
-   código aqui...
-   ```
+- [ ] **4. Layout da Renderização Final (Exemplo)**
+  ```
+  Se Form tem ordem: texto → terminal → código
+  
+  [TEXT BLOCK - Área Branca]
+  texto aqui...
+  
+  [TERMINAL BLOCK - Área Preta/Verde] 
+  $ comando aqui...
+  
+  [CODE BLOCK - Área Azul Clara]
+  código aqui...
+  ```
 
-5. **Detalhes de Implementação**
-   - **Ordenação**: `sortedBlocks.map(block => renderByType(block))`
-   - **CodeBlockContainer**: SyntaxHighlighter + fundo azul (atual) sem título
-   - **TextBlockContainer**: ReactMarkdown ou pre + fundo branco + prose
-   - **TerminalBlockContainer**: Pre + fundo preto + texto verde + font mono
-   - **Espaçamento**: Gap entre containers para separação visual clara
+- [ ] **5. Detalhes de Implementação**
+  - [ ] **Ordenação**: `sortedBlocks.map(block => renderByType(block))`
+  - [ ] **CodeBlockContainer**: SyntaxHighlighter + fundo azul (atual) sem título
+  - [ ] **TextBlockContainer**: ReactMarkdown ou pre + fundo branco + prose
+  - [ ] **TerminalBlockContainer**: Pre + fundo preto + texto verde + font mono
+  - [ ] **Espaçamento**: Gap entre containers para separação visual clara
 
 ```
 
