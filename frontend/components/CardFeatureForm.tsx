@@ -471,7 +471,7 @@ export default function CardFeatureForm({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isLoading || !formData.title || !formData.description}
+            disabled={isLoading || !formData.title}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isLoading ? (
