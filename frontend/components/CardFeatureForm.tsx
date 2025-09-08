@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType } from "@/types"
 
@@ -143,6 +143,44 @@ export default function CardFeatureForm({
               blocks: screen.blocks.map((block, j) => 
                 j === blockIndex ? { ...block, [field]: value } : block
               )
+            }
+          : screen
+      )
+    }))
+  }
+
+  const moveBlockUp = (screenIndex: number, blockIndex: number) => {
+    if (blockIndex > 0) {
+      setFormData(prev => ({
+        ...prev,
+        screens: prev.screens.map((screen, i) => 
+          i === screenIndex 
+            ? {
+                ...screen,
+                blocks: screen.blocks.map((block, j) => {
+                  if (j === blockIndex) return screen.blocks[blockIndex - 1]
+                  if (j === blockIndex - 1) return screen.blocks[blockIndex]
+                  return block
+                })
+              }
+            : screen
+        )
+      }))
+    }
+  }
+
+  const moveBlockDown = (screenIndex: number, blockIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      screens: prev.screens.map((screen, i) => 
+        i === screenIndex 
+          ? {
+              ...screen,
+              blocks: screen.blocks.map((block, j) => {
+                if (j === blockIndex) return screen.blocks[blockIndex + 1]
+                if (j === blockIndex + 1) return screen.blocks[blockIndex]
+                return block
+              })
             }
           : screen
       )
@@ -433,17 +471,51 @@ export default function CardFeatureForm({
                                     </Select>
                                   )}
                                 </div>
-                                {screen.blocks.length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeBlock(index, blockIndex)}
-                                    className="text-red-600 hover:text-red-800 h-7 w-7 p-0"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
+                                
+                                {/* Controles de ordem e remoção */}
+                                <div className="flex items-center gap-1">
+                                  {screen.blocks.length > 1 && (
+                                    <>
+                                      {/* Botão mover para cima */}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => moveBlockUp(index, blockIndex)}
+                                        disabled={blockIndex === 0}
+                                        className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 disabled:opacity-30"
+                                        title="Mover para cima"
+                                      >
+                                        <ChevronUp className="h-3 w-3" />
+                                      </Button>
+                                      
+                                      {/* Botão mover para baixo */}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => moveBlockDown(index, blockIndex)}
+                                        disabled={blockIndex === screen.blocks.length - 1}
+                                        className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 disabled:opacity-30"
+                                        title="Mover para baixo"
+                                      >
+                                        <ChevronDown className="h-3 w-3" />
+                                      </Button>
+                                      
+                                      {/* Botão remover */}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeBlock(index, blockIndex)}
+                                        className="h-7 w-7 p-0 text-red-600 hover:text-red-800 ml-1"
+                                        title="Remover bloco"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                               
                               {/* Conteúdo */}
