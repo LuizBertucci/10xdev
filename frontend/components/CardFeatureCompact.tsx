@@ -125,20 +125,36 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
           {isExpanded && (
             <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
               {/* Sistema de Tabs */}
-              <div className="flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+              <div className="compact-tabs-scroll flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg overflow-x-auto">
+                <style>{`
+                  .compact-tabs-scroll::-webkit-scrollbar {
+                    height: 6px;
+                  }
+                  .compact-tabs-scroll::-webkit-scrollbar-track {
+                    background: rgba(0, 0, 0, 0.1);
+                    border-radius: 3px;
+                  }
+                  .compact-tabs-scroll::-webkit-scrollbar-thumb {
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 3px;
+                  }
+                  .compact-tabs-scroll::-webkit-scrollbar-thumb:hover {
+                    background: rgba(0, 0, 0, 0.5);
+                  }
+                `}</style>
                 {snippet.screens.map((screen, index) => (
                   <button
                     key={index}
                     onClick={() => setActiveTab(index)}
                     className={`
-                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative
-                      ${activeTab === index 
-                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
+                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative flex-shrink-0 whitespace-nowrap
+                      ${activeTab === index
+                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
                         : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
                       }
                     `}
                   >
-                    {screen.name}
+                    {screen.name || `Aba ${index + 1}`}
                   </button>
                 ))}
               </div>
