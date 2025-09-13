@@ -3,7 +3,8 @@ import { CardFeatureModel } from '@/models/CardFeatureModel'
 import type {
   CreateCardFeatureRequest,
   UpdateCardFeatureRequest,
-  CardFeatureQueryParams
+  CardFeatureQueryParams,
+  ContentType
 } from '@/types/cardfeature'
 
 export class CardFeatureController {
@@ -16,33 +17,7 @@ export class CardFeatureController {
     try {
       const data: CreateCardFeatureRequest = req.body
 
-      // Validação básica
-      if (!data.title || !data.tech || !data.language || !data.description || !data.screens) {
-        res.status(400).json({
-          success: false,
-          error: 'Campos obrigatórios: title, tech, language, description, screens'
-        })
-        return
-      }
-
-      if (!Array.isArray(data.screens) || data.screens.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'O campo screens deve ser um array com pelo menos um item'
-        })
-        return
-      }
-
-      // Validar cada screen
-      for (const screen of data.screens) {
-        if (!screen.name || !screen.description || !screen.code) {
-          res.status(400).json({
-            success: false,
-            error: 'Cada screen deve ter name, description e code'
-          })
-          return
-        }
-      }
+      // Remover todas as validações obrigatórias - permitir campos vazios
 
       const result = await CardFeatureModel.create(data)
 
@@ -82,6 +57,7 @@ export class CardFeatureController {
         limit,
         tech: req.query.tech as string,
         language: req.query.language as string,
+        content_type: req.query.content_type as string,
         search: req.query.search as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
@@ -182,6 +158,7 @@ export class CardFeatureController {
         limit,
         tech: req.query.tech as string,
         language: req.query.language as string,
+        content_type: req.query.content_type as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
       }
@@ -241,6 +218,7 @@ export class CardFeatureController {
         page,
         limit,
         language: req.query.language as string,
+        content_type: req.query.content_type as string,
         search: req.query.search as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
@@ -295,26 +273,7 @@ export class CardFeatureController {
         return
       }
 
-      // Validar screens se fornecido
-      if (data.screens) {
-        if (!Array.isArray(data.screens) || data.screens.length === 0) {
-          res.status(400).json({
-            success: false,
-            error: 'O campo screens deve ser um array com pelo menos um item'
-          })
-          return
-        }
-
-        for (const screen of data.screens) {
-          if (!screen.name || !screen.description || !screen.code) {
-            res.status(400).json({
-              success: false,
-              error: 'Cada screen deve ter name, description e code'
-            })
-            return
-          }
-        }
-      }
+      // Remover todas as validações obrigatórias - permitir campos vazios
 
       const result = await CardFeatureModel.update(id, data)
 
@@ -424,25 +383,7 @@ export class CardFeatureController {
         return
       }
 
-      // Validar cada item
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        if (!item?.title || !item?.tech || !item?.language || !item?.description || !item?.screens) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: Campos obrigatórios: title, tech, language, description, screens`
-          })
-          return
-        }
-
-        if (!Array.isArray(item?.screens) || item?.screens.length === 0) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: O campo screens deve ser um array com pelo menos um item`
-          })
-          return
-        }
-      }
+      // Remover todas as validações obrigatórias - permitir campos vazios
 
       const result = await CardFeatureModel.bulkCreate(items)
 

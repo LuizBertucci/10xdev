@@ -9,7 +9,9 @@ import type {
   CardFeatureFilters,
   ModelResult,
   ModelListResult,
-  CreateCardFeatureRequest
+  CreateCardFeatureRequest,
+  ContentType,
+  ContentBlock
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
@@ -26,6 +28,7 @@ export class CardFeatureModel {
       tech: row.tech,
       language: row.language,
       description: row.description,
+      content_type: row.content_type,  // Adicionar campo
       screens: row.screens,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -44,6 +47,11 @@ export class CardFeatureModel {
 
     if (params.language && params.language !== 'all') {
       query = query.ilike('language', params.language)
+    }
+
+    // Adicionar filtro por content_type
+    if (params.content_type && params.content_type !== 'all') {
+      query = query.eq('content_type', params.content_type)
     }
 
     if (params.search) {
@@ -71,13 +79,24 @@ export class CardFeatureModel {
 
   static async create(data: CreateCardFeatureRequest): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Processar screens para adicionar IDs e order aos blocos
+      const processedScreens = data.screens.map(screen => ({
+        ...screen,
+        blocks: screen.blocks.map((block, index) => ({
+          ...block,
+          id: randomUUID(),
+          order: block.order || index
+        }))
+      }))
+
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
-        title: data.title,
-        tech: data.tech,
-        language: data.language,
-        description: data.description,
-        screens: data.screens,
+        title: data.title || '',
+        tech: data.tech || 'React',
+        language: data.language || 'typescript',
+        description: data.description || '',
+        content_type: data.content_type || 'code',
+        screens: processedScreens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -414,6 +433,7 @@ export class CardFeatureModel {
         tech: item.tech,
         language: item.language,
         description: item.description,
+        content_type: item.content_type,
         screens: item.screens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

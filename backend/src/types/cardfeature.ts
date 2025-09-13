@@ -2,10 +2,29 @@
 // DATABASE TYPES - Supabase/PostgreSQL
 // ================================================
 
+// Adicionar enum para tipos de conteúdo
+export enum ContentType {
+  CODE = 'code',
+  TEXT = 'text', 
+  TERMINAL = 'terminal'
+}
+
+// NOVA estrutura - Bloco individual de conteúdo
+export interface ContentBlock {
+  id: string                    // UUID único
+  type: ContentType            // Tipo do bloco
+  content: string              // Conteúdo
+  language?: string            // Linguagem (para código)
+  title?: string               // Título opcional
+  order: number                // Ordem do bloco
+}
+
+// ATUALIZAR CardFeatureScreen - agora com blocos múltiplos
 export interface CardFeatureScreen {
-  name: string
-  description: string
-  code: string
+  name: string                 // Nome da aba
+  description: string          // Descrição da aba
+  blocks: ContentBlock[]       // Array de blocos ao invés de content único
+  route?: string              // Rota opcional
 }
 
 export interface CardFeatureRow {
@@ -14,6 +33,7 @@ export interface CardFeatureRow {
   tech: string
   language: string
   description: string
+  content_type: ContentType    // Novo campo principal
   screens: CardFeatureScreen[]
   created_at: string
   updated_at: string
@@ -25,6 +45,7 @@ export interface CardFeatureInsert {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
   created_at?: string
   updated_at?: string
@@ -36,6 +57,7 @@ export interface CardFeatureUpdate {
   tech?: string
   language?: string
   description?: string
+  content_type?: ContentType
   screens?: CardFeatureScreen[]
   updated_at?: string
 }
@@ -49,6 +71,7 @@ export interface CreateCardFeatureRequest {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
 }
 
@@ -60,6 +83,7 @@ export interface CardFeatureResponse {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
   createdAt: string
   updatedAt: string
@@ -86,6 +110,7 @@ export interface CardFeatureQueryParams {
   limit?: number
   tech?: string
   language?: string
+  content_type?: string
   search?: string
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'

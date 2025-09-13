@@ -2,13 +2,40 @@
 // INTERFACES PRINCIPAIS - Sincronizadas com Backend
 // ================================================
 
+// ================================================
+// ENUMS
+// ================================================
+
+/**
+ * Tipos de conteúdo suportados
+ */
+export enum ContentType {
+  CODE = 'code',
+  TEXT = 'text',
+  TERMINAL = 'terminal'
+}
+
+/**
+ * Bloco individual de conteúdo
+ */
+export interface ContentBlock {
+  id: string                    // UUID único do bloco
+  type: ContentType            // Tipo do bloco
+  content: string              // Conteúdo do bloco
+  language?: string            // Linguagem (para código)
+  title?: string               // Título opcional do bloco
+  route?: string               // Rota/caminho do arquivo (para blocos de código)
+  order: number                // Ordem do bloco na aba
+}
+
 /**
  * Representa uma aba/arquivo dentro de um CardFeature
  */
 export interface CardFeatureScreen {
-  name: string        // Nome da aba (ex: "Model", "Controller", "Routes")
-  description: string // Descrição do que o arquivo faz
-  code: string       // Código do arquivo
+  name: string        // Nome da aba (ex: "Setup", "API", "Deploy")
+  description: string // Descrição do que a aba contém
+  blocks: ContentBlock[]  // Array de blocos de conteúdo
+  route?: string      // Rota do arquivo (opcional)
 }
 
 /**
@@ -21,6 +48,7 @@ export interface CardFeature {
   tech: string           // Tecnologia principal (React, Node.js, Python, etc.)
   language: string       // Linguagem de programação (typescript, javascript, python)
   description: string    // Descrição do que o código faz
+  content_type: ContentType    // Tipo de conteúdo principal
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
@@ -50,6 +78,7 @@ export interface CreateCardFeatureData {
   tech: string
   language: string
   description: string
+  content_type: ContentType
   screens: CardFeatureScreen[]
 }
 
@@ -60,12 +89,23 @@ export interface CreateCardFeatureData {
 export interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
 
 /**
+ * Dados mínimos para criar um novo bloco
+ */
+export interface CreateBlockData {
+  type: ContentType
+  content: string
+  language?: string
+  title?: string
+}
+
+/**
  * Dados mínimos para criar uma nova aba/screen
  */
 export interface CreateScreenData {
   name: string
   description: string
-  code: string
+  blocks: CreateBlockData[]
+  route?: string
 }
 
 // ================================================
@@ -251,6 +291,11 @@ export interface UseCardFeaturesReturn {
   searchTerm: string
   selectedTech: string
   
+  // Estados dos modais
+  isCreating: boolean
+  isEditing: boolean
+  editingItem: CardFeature | null
+  
   // Paginação
   currentPage: number
   totalPages: number
@@ -270,6 +315,12 @@ export interface UseCardFeaturesReturn {
   setSearchTerm: (term: string) => void
   setSelectedTech: (tech: string) => void
   clearError: () => void
+  
+  // Controle dos modais
+  startCreating: () => void
+  cancelCreating: () => void
+  startEditing: (item: CardFeature) => void
+  cancelEditing: () => void
   
   // Paginação
   goToPage: (page: number) => Promise<void>

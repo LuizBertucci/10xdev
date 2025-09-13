@@ -125,6 +125,8 @@ class ApiClient {
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     try {
       const url = this.buildURL(endpoint)
+      console.log('PUT request URL:', url)
+      console.log('PUT request data:', data)
       
       const response = await fetch(url, {
         method: 'PUT',
@@ -133,8 +135,11 @@ class ApiClient {
         credentials: 'include'
       })
 
+      console.log('PUT response status:', response.status)
+      console.log('PUT response ok:', response.ok)
       return await this.handleResponse<T>(response)
     } catch (error) {
+      console.error('PUT request error:', error)
       if (error && typeof error === 'object' && 'success' in error) {
         throw error
       }

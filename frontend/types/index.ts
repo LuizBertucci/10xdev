@@ -10,6 +10,8 @@ export type {
   CreateCardFeatureData,
   UpdateCardFeatureData,
   CreateScreenData,
+  CreateBlockData,
+  ContentBlock,
   CardFeatureState,
   CardFeatureProps,
   CardFeatureModalProps,
@@ -68,9 +70,8 @@ export type {
 
 // Re-export enums
 export {
+  ContentType,
   SupportedTech,
   SupportedLanguage,
-  CrudStatus,
-  SortOrder,
-  SortBy
+  CrudStatus
 } from './cardfeature'

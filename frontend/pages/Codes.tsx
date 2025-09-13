@@ -62,13 +62,30 @@ export default function Codes({ platformState }: CodesProps) {
   
   // Handler para criação de novo CardFeature
   const handleCreateSubmit = async (formData: any) => {
-    await cardFeatures.createCardFeature(formData)
+    try {
+      const result = await cardFeatures.createCardFeature(formData)
+      if (result) {
+        console.log('CardFeature criado com sucesso:', result)
+        // Modal já fechará automaticamente via hook
+      }
+    } catch (error) {
+      console.error('Erro no handleCreateSubmit:', error)
+    }
   }
 
   // Handler para edição de CardFeature existente
   const handleEditSubmit = async (formData: any) => {
-    if (cardFeatures.editingItem) {
-      await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, formData)
+    try {
+      if (cardFeatures.editingItem) {
+        console.log('Editando CardFeature:', cardFeatures.editingItem.id, formData)
+        const result = await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, formData)
+        if (result) {
+          console.log('CardFeature editado com sucesso:', result)
+          // Modal já fechará automaticamente via hook
+        }
+      }
+    } catch (error) {
+      console.error('Erro no handleEditSubmit:', error)
     }
   }
 

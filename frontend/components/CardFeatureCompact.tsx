@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
-import SyntaxHighlighter from "./SyntaxHighlighter"
+import ContentRenderer from "./ContentRenderer"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -143,12 +143,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 ))}
               </div>
 
-              {/* Área do Código com Syntax Highlighting */}
-              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 p-6 h-96 overflow-y-auto relative group" 
-                style={{
-                  backgroundColor: 'rgb(248, 249, 250)', 
-                  fontFamily: 'Fira Code, Consolas, Monaco, monospace'
-                }}
+              {/* Área do Conteúdo com Containers Específicos */}
+              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 px-6 pt-6 pb-4 h-96 overflow-y-auto relative group bg-white"
               >
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
@@ -166,10 +162,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6">
-                  <SyntaxHighlighter
-                    code={activeScreen.code}
-                    language={snippet.language}
+
+
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-0">
+                  <ContentRenderer
+                    blocks={activeScreen.blocks || []}
+                    className="h-full"
                   />
                 </div>
               </div>

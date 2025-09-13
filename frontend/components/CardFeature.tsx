@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Expand, Edit, Trash2 } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
-import SyntaxHighlighter from "./SyntaxHighlighter"
+import ContentRenderer from "./ContentRenderer"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureProps {
@@ -99,10 +99,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
               </div>
             </div>
 
-            {/* Preview do Código - Aba Ativa com Syntax Highlighting */}
-            <div className="rounded-xl shadow-xl p-6 h-[19rem] overflow-y-auto relative group" 
-            style={{backgroundColor: '#f8f8ff', 
-            fontFamily: 'Fira Code, Consolas, Monaco, monospace'}}>
+            {/* Preview do Conteúdo - Aba Ativa com Containers Específicos */}
+            <div className="rounded-xl shadow-xl px-6 pt-6 pb-4 h-[19rem] overflow-y-auto relative group bg-white border border-gray-200">
               <style>{`
                 .codeblock-scroll::-webkit-scrollbar {
                   width: 8px;
@@ -120,17 +118,9 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 }
               `}</style>
               
-              {/* Flex container para rota (esquerda) e botões (direita) */}
-              <div className="absolute top-2 left-4 right-4 z-20 flex justify-between items-start">
-                {/* Rota do arquivo (lado esquerdo) - Card */}
-                <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex-1 mr-2">
-                  <span className="text-xs text-gray-600 font-mono truncate block">
-                    {activeScreen.route || 'Sem rota definida'}
-                  </span>
-                </div>
-                
-                {/* Botões (lado direito) */}
-                <div className="flex space-x-1 ml-auto">
+              {/* Botões no canto superior direito */}
+              <div className="absolute top-2 right-4 z-20">
+                <div className="flex space-x-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -165,10 +155,10 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 </div>
               </div>
               
-              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
-                <SyntaxHighlighter
-                  code={activeScreen.code}
-                  language={snippet.language}
+              <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-2">
+                <ContentRenderer
+                  blocks={activeScreen.blocks || []}
+                  className="h-full"
                 />
               </div>
               {/* <div className="absolute inset-0 opacity-60 group-hover:opacity-30 transition-opacity" style={{background: 'linear-gradient(to top, #374151 0%, transparent 50%, transparent 100%)'}}></div> */}
