@@ -93,7 +93,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                       }
                     `}
                   >
-                    {screen.name}
+                    {screen.name || `Aba ${index + 1}`}
                   </button>
                 ))}
               </div>

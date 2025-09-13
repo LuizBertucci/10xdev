@@ -96,6 +96,8 @@ export interface CreateBlockData {
   content: string
   language?: string
   title?: string
+  route?: string               // Rota/caminho do arquivo (para blocos de código)
+  order: number                // Ordem do bloco na aba
 }
 
 /**
