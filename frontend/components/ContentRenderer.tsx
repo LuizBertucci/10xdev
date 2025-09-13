@@ -4,15 +4,15 @@ import { ContentType, ContentBlock } from '@/types'
 
 // ===== CONTAINERS ESPECÍFICOS POR TIPO =====
 
-// Container para blocos CODE - área azul clara
+// Container para blocos CODE - área azul clara com borda e sombra
 function CodeBlockContainer({ children, route, className }: { children: React.ReactNode, route?: string, className?: string }) {
   return (
-    <div className={`code-container rounded-lg p-4 mb-4 ${className}`} 
+    <div className={`code-container rounded-lg p-4 mb-6 border border-gray-200 shadow-md hover:shadow-lg transition-shadow ${className}`}
          style={{ backgroundColor: '#f8f8ff', fontFamily: 'Fira Code, Consolas, Monaco, monospace' }}>
       {/* Rota específica do bloco */}
       {route && (
         <div className="mb-3">
-          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm inline-block">
+          <div className="bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm inline-block">
             <span className="text-xs text-gray-600 font-mono">
               {route}
             </span>
@@ -24,10 +24,10 @@ function CodeBlockContainer({ children, route, className }: { children: React.Re
   )
 }
 
-// Container para blocos TEXT - área branca com prose
+// Container para blocos TEXT - apenas texto sem bordas
 function TextBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
   return (
-    <div className={`text-container bg-white border border-gray-200 rounded-lg p-4 mb-4 prose prose-sm max-w-none ${className}`}>
+    <div className={`text-container mb-4 prose prose-sm max-w-none ${className}`}>
       {children}
     </div>
   )
@@ -60,7 +60,7 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
         <CodeBlockContainer route={block.route} className={className}>
           <SyntaxHighlighter
             code={block.content}
-            language={block.language}
+            language={block.language || 'javascript'}
           />
         </CodeBlockContainer>
       )
@@ -105,7 +105,7 @@ export default function ContentRenderer({ blocks, className }: ContentRendererPr
   const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order)
 
   return (
-    <div className={`content-renderer ${className}`}>
+    <div className={`content-renderer pb-4 ${className}`}>
       {sortedBlocks.map((block, index) => (
         <SingleBlockRenderer
           key={block.id || `block-${index}-${block.type}`}

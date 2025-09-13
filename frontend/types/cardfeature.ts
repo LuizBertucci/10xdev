@@ -24,6 +24,7 @@ export interface ContentBlock {
   content: string              // Conteúdo do bloco
   language?: string            // Linguagem (para código)
   title?: string               // Título opcional do bloco
+  route?: string               // Rota/caminho do arquivo (para blocos de código)
   order: number                // Ordem do bloco na aba
 }
 

@@ -100,7 +100,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
             </div>
 
             {/* Preview do Conteúdo - Aba Ativa com Containers Específicos */}
-            <div className="rounded-xl shadow-xl p-6 h-[19rem] overflow-y-auto relative group bg-white border border-gray-200">
+            <div className="rounded-xl shadow-xl px-6 pt-6 pb-4 h-[19rem] overflow-y-auto relative group bg-white border border-gray-200">
               <style>{`
                 .codeblock-scroll::-webkit-scrollbar {
                   width: 8px;
