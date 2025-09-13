@@ -331,21 +331,37 @@ export default function CardFeatureForm({
 
               <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))}>
                 {/* Lista de abas */}
-                <TabsList className="grid w-full h-auto p-1" style={{ gridTemplateColumns: `1fr repeat(${formData.screens.length}, 1fr)` }}>
+                <TabsList className="form-tabs-scroll flex w-full h-auto p-1 overflow-x-auto justify-start">
+                  <style>{`
+                    .form-tabs-scroll::-webkit-scrollbar {
+                      height: 6px;
+                    }
+                    .form-tabs-scroll::-webkit-scrollbar-track {
+                      background: rgba(0, 0, 0, 0.1);
+                      border-radius: 3px;
+                    }
+                    .form-tabs-scroll::-webkit-scrollbar-thumb {
+                      background: rgba(0, 0, 0, 0.3);
+                      border-radius: 3px;
+                    }
+                    .form-tabs-scroll::-webkit-scrollbar-thumb:hover {
+                      background: rgba(0, 0, 0, 0.5);
+                    }
+                  `}</style>
                   {/* Aba Descrição fixa */}
-                  <TabsTrigger 
-                    value="-1" 
-                    className="flex-1"
+                  <TabsTrigger
+                    value="-1"
+                    className="flex-shrink-0"
                   >
                     📝 Descrição
                   </TabsTrigger>
-                  
+
                   {/* Abas dos arquivos */}
                   {formData.screens.map((screen, index) => (
-                    <TabsTrigger 
+                    <TabsTrigger
                       key={index}
-                      value={index.toString()} 
-                      className="flex items-center justify-between gap-2 relative"
+                      value={index.toString()}
+                      className="flex items-center justify-between gap-2 relative flex-shrink-0"
                     >
                       <span>{screen.name || `Arquivo ${index + 1}`}</span>
                       {formData.screens.length > 1 && (
