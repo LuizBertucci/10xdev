@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { X, Edit, Trash2 } from "lucide-react"
 import SyntaxHighlighter from "./SyntaxHighlighter"
 import type { CardFeature } from "@/types"
+import { ContentType } from "@/types"
 
 interface CardFeatureModalProps {
   snippet: CardFeature | null
@@ -106,10 +107,38 @@ export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onD
                   </div>
                   
                   <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-8">
-                    <SyntaxHighlighter
-                      code={screen.code}
-                      language={snippet.language}
-                    />
+                    <div className="space-y-4">
+                      {screen.blocks.map((block, blockIndex) => (
+                        <div key={blockIndex} className="border rounded-lg p-4 bg-white shadow-sm">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-medium text-gray-600">
+                              {block.type === ContentType.CODE ? '💻 Código' : 
+                               block.type === ContentType.TEXT ? '📄 Texto' : '⚡ Terminal'}
+                            </span>
+                            {block.route && (
+                              <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
+                                {block.route}
+                              </span>
+                            )}
+                          </div>
+                          {block.type === ContentType.CODE ? (
+                            <SyntaxHighlighter
+                              code={block.content}
+                              language={block.language || snippet.language}
+                            />
+                          ) : (
+                            <pre className="whitespace-pre-wrap text-sm font-mono bg-gray-50 p-3 rounded">
+                              {block.content}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                      {screen.blocks.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          Nenhum conteúdo disponível
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
