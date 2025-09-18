@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType } from "@/types"
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const DEFAULT_FORM_DATA: CardFeatureFormData = {
   title: '',
@@ -39,6 +43,66 @@ interface CardFeatureFormData {
   description: string
   content_type: ContentType
   screens: CreateScreenData[]
+}
+
+// Componente para aba arrastável
+interface SortableTabProps {
+  screen: CreateScreenData
+  index: number
+  isActive: boolean
+  onRemove: () => void
+  onSelect: () => void
+  canRemove: boolean
+}
+
+function SortableTab({ screen, index, isActive, onRemove, onSelect, canRemove }: SortableTabProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `screen-${index}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <TabsTrigger
+      ref={setNodeRef}
+      style={style}
+      value={index.toString()}
+      className="flex items-center justify-between gap-2 relative flex-shrink-0"
+      onClick={onSelect}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-gray-100"
+          title="Arrastar para reordenar"
+        >
+          <GripVertical className="h-3 w-3 text-gray-400" />
+        </div>
+        <span>{screen.name || `Arquivo ${index + 1}`}</span>
+      </div>
+      {canRemove && (
+        <span
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
+          className="h-4 w-4 p-0 text-gray-500 hover:text-red-600 cursor-pointer rounded flex items-center justify-center transition-colors"
+        >
+          <X className="h-3 w-3" />
+        </span>
+      )}
+    </TabsTrigger>
+  )
 }
 
 interface CardFeatureFormProps {
@@ -74,6 +138,14 @@ export default function CardFeatureForm({
   
   // Estado para controlar aba ativa (-1 = descrição, 0+ = arquivos)
   const [activeTab, setActiveTab] = useState<number>(-1)
+
+  // Sensores para drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Atualizar formulário quando initialData mudar
   useEffect(() => {
@@ -226,6 +298,32 @@ export default function CardFeatureForm({
     }
   }
 
+  // Função para reordenar abas via drag and drop
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = parseInt(active.id.toString().replace('screen-', ''))
+      const newIndex = parseInt(over.id.toString().replace('screen-', ''))
+
+      setFormData(prev => ({
+        ...prev,
+        screens: arrayMove(prev.screens, oldIndex, newIndex)
+      }))
+
+      // Ajustar aba ativa se necessário
+      if (activeTab === oldIndex) {
+        setActiveTab(newIndex)
+      } else if (activeTab === newIndex) {
+        setActiveTab(oldIndex)
+      } else if (activeTab > oldIndex && activeTab <= newIndex) {
+        setActiveTab(activeTab - 1)
+      } else if (activeTab < oldIndex && activeTab >= newIndex) {
+        setActiveTab(activeTab + 1)
+      }
+    }
+  }
+
   const handleSubmit = async () => {
     await onSubmit(formData)
     if (mode === 'create') {
@@ -330,54 +428,57 @@ export default function CardFeatureForm({
               </div>
 
               <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))}>
-                {/* Lista de abas */}
-                <TabsList className="form-tabs-scroll flex w-full h-auto p-1 overflow-x-auto justify-start">
-                  <style>{`
-                    .form-tabs-scroll::-webkit-scrollbar {
-                      height: 6px;
-                    }
-                    .form-tabs-scroll::-webkit-scrollbar-track {
-                      background: rgba(0, 0, 0, 0.1);
-                      border-radius: 3px;
-                    }
-                    .form-tabs-scroll::-webkit-scrollbar-thumb {
-                      background: rgba(0, 0, 0, 0.3);
-                      border-radius: 3px;
-                    }
-                    .form-tabs-scroll::-webkit-scrollbar-thumb:hover {
-                      background: rgba(0, 0, 0, 0.5);
-                    }
-                  `}</style>
-                  {/* Aba Descrição fixa */}
-                  <TabsTrigger
-                    value="-1"
-                    className="flex-shrink-0"
-                  >
-                    📝 Descrição
-                  </TabsTrigger>
-
-                  {/* Abas dos arquivos */}
-                  {formData.screens.map((screen, index) => (
+                {/* Lista de abas com drag and drop */}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <TabsList className="form-tabs-scroll flex w-full h-auto p-1 overflow-x-auto justify-start">
+                    <style>{`
+                      .form-tabs-scroll::-webkit-scrollbar {
+                        height: 6px;
+                      }
+                      .form-tabs-scroll::-webkit-scrollbar-track {
+                        background: rgba(0, 0, 0, 0.1);
+                        border-radius: 3px;
+                      }
+                      .form-tabs-scroll::-webkit-scrollbar-thumb {
+                        background: rgba(0, 0, 0, 0.3);
+                        border-radius: 3px;
+                      }
+                      .form-tabs-scroll::-webkit-scrollbar-thumb:hover {
+                        background: rgba(0, 0, 0, 0.5);
+                      }
+                    `}</style>
+                    
+                    {/* Aba Descrição fixa */}
                     <TabsTrigger
-                      key={index}
-                      value={index.toString()}
-                      className="flex items-center justify-between gap-2 relative flex-shrink-0"
+                      value="-1"
+                      className="flex-shrink-0"
                     >
-                      <span>{screen.name || `Arquivo ${index + 1}`}</span>
-                      {formData.screens.length > 1 && (
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeScreen(index)
-                          }}
-                          className="h-4 w-4 p-0 text-gray-500 hover:text-red-600 cursor-pointer rounded flex items-center justify-center transition-colors"
-                        >
-                          <X className="h-3 w-3" />
-                        </span>
-                      )}
+                      📝 Descrição
                     </TabsTrigger>
-                  ))}
-                </TabsList>
+
+                    {/* Abas dos arquivos com drag and drop */}
+                    <SortableContext
+                      items={formData.screens.map((_, index) => `screen-${index}`)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {formData.screens.map((screen, index) => (
+                        <SortableTab
+                          key={index}
+                          screen={screen}
+                          index={index}
+                          isActive={activeTab === index}
+                          onRemove={() => removeScreen(index)}
+                          onSelect={() => setActiveTab(index)}
+                          canRemove={formData.screens.length > 1}
+                        />
+                      ))}
+                    </SortableContext>
+                  </TabsList>
+                </DndContext>
 
                 {/* Conteúdo da aba Descrição */}
                 <TabsContent value="-1" className="mt-4">

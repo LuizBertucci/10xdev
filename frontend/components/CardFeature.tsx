@@ -74,11 +74,18 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
               <div className="tabs-scroll flex gap-2 overflow-x-auto pb-1">
                 <style>{`
                   .tabs-scroll::-webkit-scrollbar {
-                    display: none;
+                    height: 6px;
                   }
-                  .tabs-scroll {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
+                  .tabs-scroll::-webkit-scrollbar-track {
+                    background: rgba(0, 0, 0, 0.1);
+                    border-radius: 3px;
+                  }
+                  .tabs-scroll::-webkit-scrollbar-thumb {
+                    background: rgba(0, 0, 0, 0.3);
+                    border-radius: 3px;
+                  }
+                  .tabs-scroll::-webkit-scrollbar-thumb:hover {
+                    background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
                 {snippet.screens.map((screen, index) => (
