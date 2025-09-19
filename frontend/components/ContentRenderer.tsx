@@ -7,13 +7,13 @@ import { ContentType, ContentBlock } from '@/types'
 // Container para blocos CODE - área azul clara com borda e sombra
 function CodeBlockContainer({ children, route, className }: { children: React.ReactNode, route?: string, className?: string }) {
   return (
-    <div className={`code-container rounded-lg p-4 mb-6 border border-gray-200 shadow-md hover:shadow-lg transition-shadow ${className}`}
+    <div className={`code-container rounded-lg p-2 sm:p-3 md:p-4 mb-4 sm:mb-6 border border-gray-200 shadow-md hover:shadow-lg transition-shadow w-full overflow-hidden ${className}`}
          style={{ backgroundColor: '#f8f8ff', fontFamily: 'Fira Code, Consolas, Monaco, monospace' }}>
       {/* Rota específica do bloco */}
       {route && (
-        <div className="mb-3">
-          <div className="bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm inline-block">
-            <span className="text-xs text-gray-600 font-mono">
+        <div className="mb-2 sm:mb-3">
+          <div className="bg-white border border-gray-300 rounded-lg px-2 sm:px-3 py-2 shadow-sm inline-block w-full overflow-hidden">
+            <span className="text-xs text-gray-600 font-mono break-all">
               {route}
             </span>
           </div>
@@ -27,7 +27,7 @@ function CodeBlockContainer({ children, route, className }: { children: React.Re
 // Container para blocos TEXT - apenas texto sem bordas
 function TextBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
   return (
-    <div className={`text-container mb-4 prose prose-sm max-w-none ${className}`}>
+    <div className={`text-container mb-4 prose prose-sm max-w-none w-full overflow-hidden ${className}`}>
       {children}
     </div>
   )
@@ -36,8 +36,15 @@ function TextBlockContainer({ children, className }: { children: React.ReactNode
 // Container para blocos TERMINAL - área preta/verde
 function TerminalBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
   return (
-    <div className={`terminal-container bg-gray-900 text-green-400 rounded-lg p-4 mb-4 font-mono text-sm ${className}`}>
-      {children}
+    <div className={`terminal-container bg-gray-900 text-green-400 rounded-lg p-2 sm:p-3 md:p-4 mb-4 font-mono text-sm w-full overflow-hidden ${className}`}
+         style={{
+           boxSizing: 'border-box',
+           minWidth: 0,
+           maxWidth: '100%'
+         }}>
+      <div className="w-full overflow-x-auto" style={{minWidth: 0}}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -77,7 +84,9 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
     case ContentType.TERMINAL:
       return (
         <TerminalBlockContainer className={className}>
-          <pre className="whitespace-pre-wrap">{block.content}</pre>
+          <pre className="whitespace-pre-wrap break-words overflow-wrap-anywhere" style={{wordBreak: 'break-all', overflowWrap: 'anywhere'}}>
+            {block.content}
+          </pre>
         </TerminalBlockContainer>
       )
     

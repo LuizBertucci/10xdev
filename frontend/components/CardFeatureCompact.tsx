@@ -30,165 +30,190 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
 
   return (
     <TooltipProvider>
-      <Card className="shadow-sm hover:shadow-md transition-shadow">
-        <CardContent className="p-4">
-          {/* Layout Horizontal */}
-          <div className="flex items-center justify-between gap-4">
-            
-            {/* Seção de Informações + Badges */}
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              
-              {/* Informações */}
+      <Card className="shadow-sm hover:shadow-md transition-shadow w-full h-[32rem]">
+        <CardContent className="p-2 sm:p-3 md:p-4 w-full overflow-hidden">
+          {/* Layout Responsivo */}
+          <div className="space-y-2 sm:space-y-3 w-full">
+
+            {/* Header: Título + Toggle - Card clicável */}
+            <div
+              className="flex items-start justify-between gap-3 cursor-pointer"
+              onClick={toggleExpanded}
+            >
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
-                <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+                <p className="text-sm text-gray-600 line-clamp-2">{snippet.description}</p>
               </div>
 
-              {/* Badges */}
-              <div className="flex gap-2 flex-shrink-0">
-                <Badge 
-                  className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                >
-                  <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                  {snippet.tech}
-                </Badge>
-                <Badge 
-                  className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                >
-                  <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                  {snippet.language}
-                </Badge>
+              {/* Toggle Indicator */}
+              <div className="flex-shrink-0">
+                {isExpanded ? (
+                  <ChevronUp className="h-5 w-5 text-gray-400" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                )}
               </div>
             </div>
 
-            {/* Seção de Actions */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              
-              {/* Edit Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEdit(snippet)}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Editar CardFeature</p>
-                </TooltipContent>
-              </Tooltip>
+            {/* Área de Código Condicional */}
+            {isExpanded && (
+            <div className="mt-4 space-y-3 animate-in slide-in-from-top-2 duration-300 w-full overflow-hidden">
 
-              {/* Delete Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDelete(snippet.id)}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Excluir CardFeature</p>
-                </TooltipContent>
-              </Tooltip>
+              {/* Actions Row - Edit e Delete */}
+              <div className="flex items-center justify-start gap-2 pt-2 border-t border-gray-100">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(snippet)
+                      }}
+                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Editar CardFeature</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {/* Toggle Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleExpanded}
-                    className="text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-2"
-                  >
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isExpanded ? "Recolher código" : "Expandir código"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-          
-          {/* Área de Código Condicional */}
-          {isExpanded && (
-            <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
-              {/* Sistema de Tabs */}
-              <div className="compact-tabs-scroll flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg overflow-x-auto">
-                <style>{`
-                  .compact-tabs-scroll::-webkit-scrollbar {
-                    height: 6px;
-                  }
-                  .compact-tabs-scroll::-webkit-scrollbar-track {
-                    background: rgba(0, 0, 0, 0.1);
-                    border-radius: 3px;
-                  }
-                  .compact-tabs-scroll::-webkit-scrollbar-thumb {
-                    background: rgba(0, 0, 0, 0.3);
-                    border-radius: 3px;
-                  }
-                  .compact-tabs-scroll::-webkit-scrollbar-thumb:hover {
-                    background: rgba(0, 0, 0, 0.5);
-                  }
-                `}</style>
-                {snippet.screens.map((screen, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setActiveTab(index)}
-                    className={`
-                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative flex-shrink-0 whitespace-nowrap
-                      ${activeTab === index
-                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
-                      }
-                    `}
-                  >
-                    {screen.name || `Aba ${index + 1}`}
-                  </button>
-                ))}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDelete(snippet.id)
+                      }}
+                      className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Excluir CardFeature</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
 
-              {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 px-6 pt-6 pb-4 h-96 overflow-y-auto relative group bg-white"
+              {/* Sistema de Tabs - IGUAL AO CardFeature.tsx */}
+              <div className="p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg overflow-hidden">
+                <div className="tabs-scroll flex gap-2 overflow-x-auto pb-1">
+                  <style>{`
+                    .tabs-scroll::-webkit-scrollbar {
+                      height: 6px;
+                    }
+                    .tabs-scroll::-webkit-scrollbar-track {
+                      background: rgba(0, 0, 0, 0.1);
+                      border-radius: 3px;
+                    }
+                    .tabs-scroll::-webkit-scrollbar-thumb {
+                      background: rgba(0, 0, 0, 0.3);
+                      border-radius: 3px;
+                    }
+                    .tabs-scroll::-webkit-scrollbar-thumb:hover {
+                      background: rgba(0, 0, 0, 0.5);
+                    }
+                  `}</style>
+                  {snippet.screens.map((screen, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setActiveTab(index)}
+                      className={`
+                        px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative whitespace-nowrap flex-shrink-0
+                        ${activeTab === index
+                          ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
+                        }
+                      `}
+                    >
+                      {screen.name || `Aba ${index + 1}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Área do Conteúdo - COM SCROLL VERTICAL */}
+              <div className="rounded-lg border border-gray-200 transition-shadow duration-200 px-2 sm:px-3 pt-3 pb-2 h-[19rem] overflow-y-auto relative group bg-gray-50 w-full"
               >
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
-                    width: 8px;
+                    width: 6px;
                   }
                   .codeblock-scroll::-webkit-scrollbar-track {
                     background: rgba(0, 0, 0, 0.1);
-                    border-radius: 4px;
+                    border-radius: 3px;
                   }
                   .codeblock-scroll::-webkit-scrollbar-thumb {
                     background: rgba(0, 0, 0, 0.3);
-                    border-radius: 4px;
+                    border-radius: 3px;
                   }
                   .codeblock-scroll::-webkit-scrollbar-thumb:hover {
                     background: rgba(0, 0, 0, 0.5);
                   }
+
+                  /* Mobile-first responsive rules */
+                  .codeblock-scroll {
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                  }
+
+                  .codeblock-scroll pre,
+                  .codeblock-scroll code {
+                    max-width: 100%;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                  }
+
+                  .codeblock-scroll .terminal-container {
+                    max-width: 100%;
+                  }
+
+                  .codeblock-scroll .terminal-container pre {
+                    max-width: 100%;
+                    white-space: pre;
+                  }
+
+                  /* Ensure table responsiveness */
+                  .codeblock-scroll table {
+                    max-width: 100%;
+                    overflow-x: auto;
+                    display: block;
+                  }
+
+                  /* Terminal container specific rules */
+                  .codeblock-scroll .terminal-container {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    box-sizing: border-box !important;
+                  }
+
+                  .codeblock-scroll .terminal-container pre {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    white-space: pre-wrap !important;
+                    word-break: break-all !important;
+                    overflow-wrap: anywhere !important;
+                  }
                 `}</style>
 
 
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-0">
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-2 sm:-mx-3 px-2 sm:px-3 pt-0 w-full">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full"
+                    className="h-full w-full overflow-hidden break-words"
                   />
                 </div>
               </div>
             </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
     </TooltipProvider>
