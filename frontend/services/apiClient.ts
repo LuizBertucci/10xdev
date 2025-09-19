@@ -26,7 +26,13 @@ class ApiClient {
   private defaultHeaders: Record<string, string>
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+    // Configuração automática da URL da API baseada no ambiente
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+
+    this.baseURL = isLocalhost
+      ? 'http://localhost:3001/api'
+      : 'https://web-backend-10xdev.azurewebsites.net/api'
+
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
