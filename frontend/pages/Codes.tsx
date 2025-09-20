@@ -116,11 +116,11 @@ export default function Codes({ platformState }: CodesProps) {
   
   //* HEADER - Breadcrumb + Busca + Filtros + Botão Criar *//
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-screen max-w-full overflow-x-hidden box-border">
       {/* Header - Layout Responsivo */}
-      <div className="space-y-4">
+      <div className="space-y-4 w-full max-w-full overflow-x-hidden">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 text-sm">
+        <div className="flex items-center space-x-2 text-sm w-full max-w-full overflow-x-hidden">
           <button
             onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
             className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
@@ -146,9 +146,9 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
 
         {/* Search, Filters and Actions - Layout Mobile-First */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between w-full max-w-full overflow-hidden">
           {/* Search Input - Full width em mobile */}
-          <div className="relative flex-1 sm:max-w-xs">
+          <div className="relative w-full sm:flex-1 sm:max-w-xs min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Buscar snippets..."
@@ -160,7 +160,7 @@ export default function Codes({ platformState }: CodesProps) {
           </div>
 
           {/* Filters and Actions Row */}
-          <div className="flex gap-2 sm:gap-3 items-center justify-between sm:justify-end">
+          <div className="flex gap-2 sm:gap-3 items-center justify-between sm:justify-end w-full max-w-full overflow-hidden">
             {/* Tech Filter */}
             <Select
               value={cardFeatures.selectedTech}
@@ -181,7 +181,7 @@ export default function Codes({ platformState }: CodesProps) {
             </Select>
 
             {/* View Mode Toggle */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden flex-shrink-0">
               <Button
                 onClick={() => setViewMode('cards')}
                 variant={viewMode === 'cards' ? 'default' : 'ghost'}
@@ -214,7 +214,7 @@ export default function Codes({ platformState }: CodesProps) {
             <Button
               onClick={cardFeatures.startCreating}
               disabled={cardFeatures.loading || cardFeatures.creating}
-              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap flex-shrink-0"
             >
               <Plus className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">
@@ -274,7 +274,7 @@ export default function Codes({ platformState }: CodesProps) {
         <>
           {/* View Lista (Padrão) - Layout Vertical */}
           {viewMode === 'list' && (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full max-w-full overflow-hidden">
               {codeSnippets.map((snippet) => (
                 <CardFeatureCompact
                   key={snippet.id}
