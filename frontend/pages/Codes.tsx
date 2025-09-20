@@ -226,11 +226,10 @@ export default function Codes({ platformState }: CodesProps) {
       </div>
 
       {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
-      {/* Loading State */}
+      {/* Loading State - Barra horizontal azul */}
       {cardFeatures.loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-gray-600">Carregando snippets...</span>
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+          <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
         </div>
       )}
 
@@ -255,8 +254,8 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
       )}
 
-      {/* Empty State */}
-      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (
+      {/* Empty State - só mostra se não está carregando E tem filtros aplicados */}
+      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all') && (
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum snippet encontrado</h3>
