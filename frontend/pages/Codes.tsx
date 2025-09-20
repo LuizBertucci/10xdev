@@ -116,117 +116,120 @@ export default function Codes({ platformState }: CodesProps) {
   
   //* HEADER - Breadcrumb + Busca + Filtros + Botão Criar *//
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 w-screen max-w-full overflow-x-hidden box-border">
+      {/* Header - Layout Responsivo */}
+      <div className="space-y-4 w-full max-w-full overflow-x-hidden">
         {/* Breadcrumb Navigation */}
-        <div>
-          <div className="flex items-center space-x-2 text-sm mb-2">
-            <button
-              onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              Início
-            </button>
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-            <button
-              onClick={() => {
-                cardFeatures.setSelectedTech("all")
-                cardFeatures.setSearchTerm("")
-              }}
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              Blocos de Códigos
-            </button>
-            {cardFeatures.selectedTech !== "all" && (
-              <>
-                <ChevronRight className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-900 font-medium capitalize">{cardFeatures.selectedTech}</span>
-              </>
-            )}
-          </div>
+        <div className="flex items-center space-x-2 text-sm w-full max-w-full overflow-x-hidden">
+          <button
+            onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
+            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            Início
+          </button>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+          <button
+            onClick={() => {
+              cardFeatures.setSelectedTech("all")
+              cardFeatures.setSearchTerm("")
+            }}
+            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          >
+            Blocos de Códigos
+          </button>
+          {cardFeatures.selectedTech !== "all" && (
+            <>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+              <span className="text-gray-900 font-medium capitalize">{cardFeatures.selectedTech}</span>
+            </>
+          )}
         </div>
-        
-        {/* Search, Filters and Actions */}
-        <div className="flex space-x-4">
-          {/* Search Input */}
-          <div className="relative">
+
+        {/* Search, Filters and Actions - Layout Mobile-First */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between w-full max-w-full overflow-hidden">
+          {/* Search Input - Full width em mobile */}
+          <div className="relative w-full sm:flex-1 sm:max-w-xs min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Buscar snippets..."
               value={cardFeatures.searchTerm}
               onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 w-full"
               disabled={cardFeatures.loading}
             />
           </div>
 
-          {/* Tech Filter */}
-          <Select 
-            value={cardFeatures.selectedTech} 
-            onValueChange={cardFeatures.setSelectedTech}
-            disabled={cardFeatures.loading}
-          >
-            <SelectTrigger className="w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              <SelectItem value="react">React</SelectItem>
-              <SelectItem value="node.js">Node.js</SelectItem>
-              <SelectItem value="python">Python</SelectItem>
-              <SelectItem value="javascript">JavaScript</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {/* View Mode Toggle */}
-          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-            <Button
-              onClick={() => setViewMode('cards')}
-              variant={viewMode === 'cards' ? 'default' : 'ghost'}
-              size="sm"
-              className={`rounded-none border-0 ${
-                viewMode === 'cards'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-              title="Visualização em Cards"
+          {/* Filters and Actions Row */}
+          <div className="flex gap-2 sm:gap-3 items-center justify-between sm:justify-end w-full max-w-full overflow-hidden">
+            {/* Tech Filter */}
+            <Select
+              value={cardFeatures.selectedTech}
+              onValueChange={cardFeatures.setSelectedTech}
+              disabled={cardFeatures.loading}
             >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
+              <SelectTrigger className="w-32 sm:w-40">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="react">React</SelectItem>
+                <SelectItem value="node.js">Node.js</SelectItem>
+                <SelectItem value="python">Python</SelectItem>
+                <SelectItem value="javascript">JavaScript</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* View Mode Toggle */}
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden flex-shrink-0">
+              <Button
+                onClick={() => setViewMode('cards')}
+                variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                size="sm"
+                className={`rounded-none border-0 ${
+                  viewMode === 'cards'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Visualização em Cards"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={() => setViewMode('list')}
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                className={`rounded-none border-0 border-l border-gray-300 ${
+                  viewMode === 'list'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+                title="Visualização em Lista"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Create Button */}
             <Button
-              onClick={() => setViewMode('list')}
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              className={`rounded-none border-0 border-l border-gray-300 ${
-                viewMode === 'list'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-              title="Visualização em Lista"
+              onClick={cardFeatures.startCreating}
+              disabled={cardFeatures.loading || cardFeatures.creating}
+              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap flex-shrink-0"
             >
-              <List className="h-4 w-4" />
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">
+                {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
+              </span>
             </Button>
           </div>
-
-          {/* Create Button */}
-          <Button
-            onClick={cardFeatures.startCreating}
-            disabled={cardFeatures.loading || cardFeatures.creating}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
-          </Button>
         </div>
       </div>
 
       {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
-      {/* Loading State */}
+      {/* Loading State - Barra horizontal azul */}
       {cardFeatures.loading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-gray-600">Carregando snippets...</span>
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+          <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
         </div>
       )}
 
@@ -251,8 +254,8 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
       )}
 
-      {/* Empty State */}
-      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (
+      {/* Empty State - só mostra se não está carregando E tem filtros aplicados */}
+      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all') && (
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum snippet encontrado</h3>
@@ -270,7 +273,7 @@ export default function Codes({ platformState }: CodesProps) {
         <>
           {/* View Lista (Padrão) - Layout Vertical */}
           {viewMode === 'list' && (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full max-w-full overflow-hidden">
               {codeSnippets.map((snippet) => (
                 <CardFeatureCompact
                   key={snippet.id}

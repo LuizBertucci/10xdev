@@ -25,45 +25,84 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
     setIsExpanded(!isExpanded)
   }
 
+  // Função para lidar com cliques no card (mobile)
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Previne o toggle se clicou em um botão (desktop)
+    if ((e.target as HTMLElement).closest('button')) {
+      return
+    }
+    toggleExpanded()
+  }
+
   // Screen ativa baseada na tab selecionada
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
 
   return (
     <TooltipProvider>
-      <Card className="shadow-sm hover:shadow-md transition-shadow">
-        <CardContent className="p-4">
-          {/* Layout Horizontal */}
-          <div className="flex items-center justify-between gap-4">
-            
+      <Card className="shadow-sm hover:shadow-md transition-shadow w-full max-w-full overflow-hidden">
+        <CardContent className="p-3 md:p-4">
+          {/* Layout Horizontal - Clicável no mobile */}
+          <div
+            className="flex items-center justify-between gap-4 cursor-pointer md:cursor-default"
+            onClick={handleCardClick}
+          >
+
             {/* Seção de Informações + Badges */}
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              
-              {/* Informações */}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
-                <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+            <div className="flex-1 min-w-0">
+              {/* Layout Desktop - Horizontal */}
+              <div className="hidden md:flex items-center gap-4">
+                {/* Informações */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
+                  <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+                </div>
+
+                {/* Badges */}
+                <div className="flex gap-2 flex-shrink-0">
+                  <Badge
+                    className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                  >
+                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                    {snippet.tech}
+                  </Badge>
+                  <Badge
+                    className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                  >
+                    <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                    {snippet.language}
+                  </Badge>
+                </div>
               </div>
 
-              {/* Badges */}
-              <div className="flex gap-2 flex-shrink-0">
-                <Badge 
-                  className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                >
-                  <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                  {snippet.tech}
-                </Badge>
-                <Badge 
-                  className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                >
-                  <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                  {snippet.language}
-                </Badge>
+              {/* Layout Mobile - Vertical */}
+              <div className="md:hidden">
+                {/* Informações */}
+                <div className="mb-2">
+                  <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
+                  <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+                </div>
+
+                {/* Badges */}
+                <div className="flex gap-2">
+                  <Badge
+                    className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                  >
+                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                    {snippet.tech}
+                  </Badge>
+                  <Badge
+                    className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                  >
+                    <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                    {snippet.language}
+                  </Badge>
+                </div>
               </div>
             </div>
 
-            {/* Seção de Actions */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              
+            {/* Seção de Actions - Visível apenas no desktop */}
+            <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+
               {/* Edit Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -119,11 +158,42 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 </TooltipContent>
               </Tooltip>
             </div>
+
+            {/* Indicador de expansão para mobile */}
+            <div className="md:hidden flex items-center text-gray-400">
+              {isExpanded ? (
+                <ChevronUp className="h-5 w-5" />
+              ) : (
+                <ChevronDown className="h-5 w-5" />
+              )}
+            </div>
           </div>
           
           {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+            <div className="mt-3 md:mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+              {/* Botões de ação para mobile */}
+              <div className="md:hidden flex justify-start gap-2 mb-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onEdit(snippet)}
+                  className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 transition-all duration-200"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(snippet.id)}
+                  className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50 transition-all duration-200"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir
+                </Button>
+              </div>
+
               {/* Sistema de Tabs */}
               <div className="compact-tabs-scroll flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg overflow-x-auto">
                 <style>{`
@@ -160,7 +230,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 px-6 pt-6 pb-4 h-96 overflow-y-auto relative group bg-white"
+              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4 h-64 md:h-96 overflow-y-auto relative group bg-white"
               >
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
@@ -180,7 +250,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 `}</style>
 
 
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-0">
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-4 md:-mx-6 px-4 md:px-6 pt-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
                     className="h-full"
