@@ -75,12 +75,11 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
     case ContentType.TEXT:
       return (
         <TextBlockContainer className={className}>
-          <pre className="whitespace-pre-wrap font-sans text-gray-800 leading-relaxed text-sm">
+          <div className="whitespace-pre-wrap break-words">
             {block.content}
-          </pre>
+          </div>
         </TextBlockContainer>
-      )
-    
+      )    
     case ContentType.TERMINAL:
       return (
         <TerminalBlockContainer className={className}>
