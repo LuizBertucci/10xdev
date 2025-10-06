@@ -118,7 +118,7 @@ export default function Codes({ platformState }: CodesProps) {
   return (
     <div className="space-y-6 w-screen max-w-full overflow-x-hidden box-border">
       {/* Header - Layout Responsivo */}
-      <div className="space-y-4 w-full max-w-full overflow-x-hidden">
+      <div className="space-y-4 w-full max-w-full overflow-x-hidden max-w-[900px] mx-auto">
         {/* Breadcrumb Navigation */}
         <div className="flex items-center space-x-2 text-sm w-full max-w-full overflow-x-hidden">
           <button
@@ -145,83 +145,80 @@ export default function Codes({ platformState }: CodesProps) {
           )}
         </div>
 
-        {/* Search, Filters and Actions - Layout Mobile-First */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between w-full max-w-full overflow-hidden">
-          {/* Search Input - Full width em mobile */}
-          <div className="relative w-full sm:flex-1 sm:max-w-xs min-w-0">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar snippets..."
-              value={cardFeatures.searchTerm}
-              onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
-              className="pl-10 w-full"
-              disabled={cardFeatures.loading}
-            />
-          </div>
+        {/* Filters and Actions Row - Alinhados à direita */}
+        <div className="flex justify-end gap-2 sm:gap-3 items-center w-full max-w-full overflow-hidden md:mb-3">
+          {/* Tech Filter */}
+          <Select
+            value={cardFeatures.selectedTech}
+            onValueChange={cardFeatures.setSelectedTech}
+            disabled={cardFeatures.loading}
+          >
+            <SelectTrigger className="w-32 sm:w-40">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              <SelectItem value="react">React</SelectItem>
+              <SelectItem value="node.js">Node.js</SelectItem>
+              <SelectItem value="python">Python</SelectItem>
+              <SelectItem value="javascript">JavaScript</SelectItem>
+            </SelectContent>
+          </Select>
 
-          {/* Filters and Actions Row */}
-          <div className="flex gap-2 sm:gap-3 items-center justify-between sm:justify-end w-full max-w-full overflow-hidden">
-            {/* Tech Filter */}
-            <Select
-              value={cardFeatures.selectedTech}
-              onValueChange={cardFeatures.setSelectedTech}
-              disabled={cardFeatures.loading}
-            >
-              <SelectTrigger className="w-32 sm:w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="react">React</SelectItem>
-                <SelectItem value="node.js">Node.js</SelectItem>
-                <SelectItem value="python">Python</SelectItem>
-                <SelectItem value="javascript">JavaScript</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* View Mode Toggle */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden flex-shrink-0">
-              <Button
-                onClick={() => setViewMode('cards')}
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                className={`rounded-none border-0 ${
-                  viewMode === 'cards'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-                title="Visualização em Cards"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={() => setViewMode('list')}
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                className={`rounded-none border-0 border-l border-gray-300 ${
-                  viewMode === 'list'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-                title="Visualização em Lista"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Create Button */}
+          {/* View Mode Toggle */}
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden flex-shrink-0">
             <Button
-              onClick={cardFeatures.startCreating}
-              disabled={cardFeatures.loading || cardFeatures.creating}
-              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap flex-shrink-0"
+              onClick={() => setViewMode('cards')}
+              variant={viewMode === 'cards' ? 'default' : 'ghost'}
+              size="sm"
+              className={`rounded-none border-0 ${
+                viewMode === 'cards'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Visualização em Cards"
             >
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">
-                {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
-              </span>
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => setViewMode('list')}
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className={`rounded-none border-0 border-l border-gray-300 ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Visualização em Lista"
+            >
+              <List className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Create Button */}
+          <Button
+            onClick={cardFeatures.startCreating}
+            disabled={cardFeatures.loading || cardFeatures.creating}
+            className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap flex-shrink-0"
+          >
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">
+              {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
+            </span>
+          </Button>
+        </div>
+
+        {/* Search Input - Linha separada abaixo */}
+        <div className="relative w-full min-w-0 mb-3">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Buscar snippets..."
+            value={cardFeatures.searchTerm}
+            onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
+            className="pl-10 w-full"
+            disabled={cardFeatures.loading}
+          />
         </div>
       </div>
 
@@ -273,7 +270,7 @@ export default function Codes({ platformState }: CodesProps) {
         <>
           {/* View Lista (Padrão) - Layout Vertical */}
           {viewMode === 'list' && (
-            <div className="space-y-4 w-full max-w-full overflow-hidden">
+            <div className="space-y-4 w-full max-w-full overflow-hidden max-w-[900px] mx-auto">
               {codeSnippets.map((snippet) => (
                 <CardFeatureCompact
                   key={snippet.id}

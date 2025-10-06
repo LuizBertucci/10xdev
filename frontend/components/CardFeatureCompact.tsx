@@ -39,25 +39,25 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
 
   return (
     <TooltipProvider>
-      <Card className="shadow-sm hover:shadow-md transition-shadow w-full max-w-full overflow-hidden">
-        <CardContent className="p-3 md:p-4">
+      <Card className="shadow-sm hover:shadow-md transition-shadow w-full max-w-[900px] mx-auto overflow-hidden">
+        <CardContent className="p-2 md:p-3">
           {/* Layout Horizontal - Clicável no mobile */}
           <div
-            className="flex items-center justify-between gap-4 cursor-pointer md:cursor-default"
+            className="flex items-center justify-between gap-2 md:gap-8 cursor-pointer md:cursor-default"
             onClick={handleCardClick}
           >
 
             {/* Seção de Informações + Badges */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pr-2 md:pr-6 overflow-hidden">
               {/* Layout Desktop - Horizontal */}
-              <div className="hidden md:flex items-center gap-4">
+              <div className="hidden md:flex flex-col gap-2">
                 {/* Informações */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pb-1 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
-                  <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+                  <p className="text-sm text-gray-600 whitespace-normal">{snippet.description}</p>
                 </div>
 
-                {/* Badges */}
+                {/* Badges - Própria linha abaixo */}
                 <div className="flex gap-2 flex-shrink-0">
                   <Badge
                     className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
@@ -75,15 +75,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Layout Mobile - Vertical */}
-              <div className="md:hidden">
+              <div className="md:hidden space-y-2">
                 {/* Informações */}
-                <div className="mb-2">
+                <div className="pb-1 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
                   <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
                 </div>
 
-                {/* Badges */}
-                <div className="flex gap-2">
+                {/* Badges - Própria linha abaixo */}
+                <div className="flex gap-2 pt-1">
                   <Badge
                     className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
                   >
@@ -171,9 +171,9 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
           
           {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-3 md:mt-4 space-y-2 animate-in slide-in-from-top-2 duration-300">
+            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300">
               {/* Botões de ação para mobile */}
-              <div className="md:hidden flex justify-start gap-2 mb-3">
+              <div className="md:hidden flex justify-start gap-1.5 mb-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -195,7 +195,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Sistema de Tabs */}
-              <div className="compact-tabs-scroll flex gap-2 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg overflow-x-auto">
+              <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto">
                 <style>{`
                   .compact-tabs-scroll::-webkit-scrollbar {
                     height: 6px;
@@ -230,7 +230,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-200 px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4 h-64 md:h-96 overflow-y-auto relative group bg-white"
+              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-3 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 h-48 md:h-72 overflow-y-auto relative group bg-white"
               >
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
