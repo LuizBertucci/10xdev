@@ -58,19 +58,31 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 </div>
 
                 {/* Badges - Própria linha abaixo */}
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex items-center justify-between gap-2 flex-shrink-0">
+                  {/* Autor à esquerda */}
                   <Badge
-                    className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                    variant="secondary"
+                    className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
                   >
-                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                    {snippet.tech}
+                    <span className="mr-1">👤</span>
+                    {snippet.author || 'Anônimo'}
                   </Badge>
-                  <Badge
-                    className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                  >
-                    <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                    {snippet.language}
-                  </Badge>
+                  
+                  {/* Badges tech/language à direita */}
+                  <div className="flex gap-2 ml-auto">
+                    <Badge
+                      className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                    >
+                      <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                      {snippet.tech}
+                    </Badge>
+                    <Badge
+                      className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                    >
+                      <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                      {snippet.language}
+                    </Badge>
+                  </div>
                 </div>
               </div>
 
@@ -83,19 +95,31 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 </div>
 
                 {/* Badges - Própria linha abaixo */}
-                <div className="flex gap-2 pt-1">
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  {/* Autor à esquerda */}
                   <Badge
-                    className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                    variant="secondary"
+                    className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
                   >
-                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                    {snippet.tech}
+                    <span className="mr-1">👤</span>
+                    {snippet.author || 'Anônimo'}
                   </Badge>
-                  <Badge
-                    className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                  >
-                    <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                    {snippet.language}
-                  </Badge>
+                  
+                  {/* Badges tech/language à direita */}
+                  <div className="flex gap-2 ml-auto">
+                    <Badge
+                      className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                    >
+                      <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                      {snippet.tech}
+                    </Badge>
+                    <Badge
+                      className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                    >
+                      <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                      {snippet.language}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </div>
