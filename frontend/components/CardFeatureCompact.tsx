@@ -171,7 +171,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
           
           {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden">
               {/* Botões de ação para mobile */}
               <div className="md:hidden flex justify-start gap-1.5 mb-2">
                 <Button
@@ -195,7 +195,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Sistema de Tabs */}
-              <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto">
+              <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden">
                 <style>{`
                   .compact-tabs-scroll::-webkit-scrollbar {
                     height: 6px;
@@ -230,8 +230,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-3 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 h-48 md:h-72 overflow-y-auto relative group bg-white"
-              >
+              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-3 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 h-48 md:h-72 overflow-hidden relative group bg-white">
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
                     width: 8px;
@@ -249,11 +248,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                   }
                 `}</style>
 
-
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-4 md:-mx-6 px-4 md:px-6 pt-0">
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto overflow-x-hidden -mx-3 md:-mx-4 px-3 md:px-4 pt-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full"
+                    className="h-full max-w-full"
                   />
                 </div>
               </div>
