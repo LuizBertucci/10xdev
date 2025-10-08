@@ -48,10 +48,9 @@ export function extractYouTubeVideoId(url: string): string | null {
 
 /**
  * Componente para exibir vídeos do YouTube
- * Suporta modo preview (thumbnail) e embed (player completo)
+ * Sempre mostra o iframe embed para evitar problemas de re-renderização
  */
 export default function YouTubeVideo({ url, mode = "embed", className = "" }: YouTubeVideoProps) {
-  const [isPlaying, setIsPlaying] = useState(false)
   const videoId = extractYouTubeVideoId(url)
 
   if (!videoId) {
@@ -62,42 +61,13 @@ export default function YouTubeVideo({ url, mode = "embed", className = "" }: Yo
     )
   }
 
-  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`
+  const embedUrl = `https://www.youtube.com/embed/${videoId}`
 
-  // Modo Preview - mostra thumbnail clicável
-  if (mode === "preview" && !isPlaying) {
-    return (
-      <div
-        className={`relative cursor-pointer group overflow-hidden rounded-lg ${className}`}
-        onClick={() => setIsPlaying(true)}
-      >
-        <img
-          src={thumbnailUrl}
-          alt="YouTube video thumbnail"
-          className="w-full h-full object-cover transition-transform group-hover:scale-105"
-        />
-        {/* Play button overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 group-hover:bg-opacity-40 transition-all">
-          <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-            <svg
-              className="w-8 h-8 text-white ml-1"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Modo Embed - mostra player do YouTube
+  // Sempre mostra o iframe - mais estável e sem problemas de estado
   return (
     <div className={`relative w-full ${className}`} style={{ paddingBottom: "56.25%" }}>
       <iframe
-        src={isPlaying ? embedUrl : `https://www.youtube.com/embed/${videoId}`}
+        src={embedUrl}
         title="YouTube video player"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
         allowFullScreen
