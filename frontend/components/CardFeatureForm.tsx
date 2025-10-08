@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
-import { ContentType } from "@/types"
+import { ContentType, CardType } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -18,6 +18,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   language: 'typescript',
   description: '',
   content_type: ContentType.CODE,
+  card_type: CardType.CODIGOS,
   screens: [
     {
       name: 'Main',
@@ -42,6 +43,7 @@ interface CardFeatureFormData {
   language: string
   description: string
   content_type: ContentType
+  card_type: CardType
   screens: CreateScreenData[]
 }
 
@@ -130,6 +132,7 @@ export default function CardFeatureForm({
         language: initialData.language,
         description: initialData.description,
         content_type: initialData.content_type,
+        card_type: initialData.card_type,
         screens: initialData.screens
       }
     }
@@ -156,6 +159,7 @@ export default function CardFeatureForm({
         language: initialData.language,
         description: initialData.description,
         content_type: initialData.content_type,
+        card_type: initialData.card_type,
         screens: initialData.screens
       })
     } else if (mode === 'create') {
@@ -364,7 +368,26 @@ export default function CardFeatureForm({
                     onChange={(e) => handleInputChange('title', e.target.value)}
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo do Card *
+                  </label>
+                  <Select
+                    value={formData.card_type}
+                    onValueChange={(value) => handleInputChange('card_type', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dicas">Dicas</SelectItem>
+                      <SelectItem value="codigos">Códigos</SelectItem>
+                      <SelectItem value="workflows">Workflows</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tecnologia *
@@ -386,7 +409,9 @@ export default function CardFeatureForm({
                     </SelectContent>
                   </Select>
                 </div>
-                
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Linguagem *
