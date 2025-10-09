@@ -7,12 +7,21 @@
 // ================================================
 
 /**
- * Tipos de conteúdo suportados
+ * Tipos de conteúdo suportados (para blocos)
  */
 export enum ContentType {
   CODE = 'code',
   TEXT = 'text',
   TERMINAL = 'terminal'
+}
+
+/**
+ * Tipos de card suportados
+ */
+export enum CardType {
+  DICAS = 'dicas',
+  CODIGOS = 'codigos',
+  WORKFLOWS = 'workflows'
 }
 
 /**
@@ -48,7 +57,8 @@ export interface CardFeature {
   tech: string           // Tecnologia principal (React, Node.js, Python, etc.)
   language: string       // Linguagem de programação (typescript, javascript, python)
   description: string    // Descrição do que o código faz
-  content_type: ContentType    // Tipo de conteúdo principal
+  content_type: ContentType    // Tipo de conteúdo dos blocos
+  card_type: CardType    // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
@@ -79,6 +89,7 @@ export interface CreateCardFeatureData {
   language: string
   description: string
   content_type: ContentType
+  card_type: CardType
   screens: CardFeatureScreen[]
 }
 

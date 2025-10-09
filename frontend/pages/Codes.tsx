@@ -36,7 +36,7 @@ export default function Codes({ platformState }: CodesProps) {
     setSelectedTech: () => {},
     filteredSnippets: (snippets: CardFeatureType[]) => snippets
   }
-  
+
   const activePlatformState = platformState || defaultPlatformState
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
@@ -44,6 +44,7 @@ export default function Codes({ platformState }: CodesProps) {
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('list')
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
+  const [selectedCardType, setSelectedCardType] = useState<string>('all')
   
   // Hook principal para operações CRUD e dados da API com filtros do platformState
   const cardFeatures = useCardFeatures({}, {
@@ -54,7 +55,9 @@ export default function Codes({ platformState }: CodesProps) {
   })
 
   // Dados filtrados vindos da API
-  const codeSnippets = cardFeatures.filteredItems
+  const codeSnippets = cardFeatures.filteredItems.filter(item =>
+    selectedCardType === 'all' || item.card_type === selectedCardType
+  )
 
   // ================================================
   // EVENT HANDLERS - Funções para lidar com ações do usuário
@@ -178,6 +181,31 @@ export default function Codes({ platformState }: CodesProps) {
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
               title="Visualização em Cards"
+          {/* Filters and Actions Row */}
+          <div className="flex gap-2 sm:gap-3 items-center justify-between sm:justify-end w-full max-w-full overflow-hidden">
+            {/* Card Type Filter */}
+            <Select
+              value={selectedCardType}
+              onValueChange={setSelectedCardType}
+              disabled={cardFeatures.loading}
+            >
+              <SelectTrigger className="w-32 sm:w-40">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="dicas">Dicas</SelectItem>
+                <SelectItem value="codigos">Códigos</SelectItem>
+                <SelectItem value="workflows">Workflows</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Tech Filter */}
+            <Select
+              value={cardFeatures.selectedTech}
+              onValueChange={cardFeatures.setSelectedTech}
+              disabled={cardFeatures.loading}
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
