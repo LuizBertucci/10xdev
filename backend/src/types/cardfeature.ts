@@ -2,11 +2,18 @@
 // DATABASE TYPES - Supabase/PostgreSQL
 // ================================================
 
-// Adicionar enum para tipos de conteúdo
+// Adicionar enum para tipos de conteúdo (blocos)
 export enum ContentType {
   CODE = 'code',
-  TEXT = 'text', 
+  TEXT = 'text',
   TERMINAL = 'terminal'
+}
+
+// Enum para tipo de card
+export enum CardType {
+  DICAS = 'dicas',
+  CODIGOS = 'codigos',
+  WORKFLOWS = 'workflows'
 }
 
 // NOVA estrutura - Bloco individual de conteúdo
@@ -33,7 +40,8 @@ export interface CardFeatureRow {
   tech: string
   language: string
   description: string
-  content_type: ContentType    // Novo campo principal
+  content_type: ContentType    // Tipo de conteúdo dos blocos
+  card_type: CardType          // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]
   created_at: string
   updated_at: string
@@ -46,6 +54,7 @@ export interface CardFeatureInsert {
   language: string
   description: string
   content_type: ContentType
+  card_type: CardType
   screens: CardFeatureScreen[]
   created_at?: string
   updated_at?: string
@@ -58,6 +67,7 @@ export interface CardFeatureUpdate {
   language?: string
   description?: string
   content_type?: ContentType
+  card_type?: CardType
   screens?: CardFeatureScreen[]
   updated_at?: string
 }
@@ -72,6 +82,7 @@ export interface CreateCardFeatureRequest {
   language: string
   description: string
   content_type: ContentType
+  card_type: CardType
   screens: CardFeatureScreen[]
 }
 
@@ -84,6 +95,7 @@ export interface CardFeatureResponse {
   language: string
   description: string
   content_type: ContentType
+  card_type: CardType
   screens: CardFeatureScreen[]
   createdAt: string
   updatedAt: string
@@ -111,6 +123,7 @@ export interface CardFeatureQueryParams {
   tech?: string
   language?: string
   content_type?: string
+  card_type?: string
   search?: string
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'

@@ -141,6 +141,41 @@ app.get('/', (req, res) => {
 app.use('/api', apiRoutes)
 
 // ================================================
+// YOUTUBE THUMBNAIL PROXY
+// ================================================
+
+// Rota para proxy de thumbnails do YouTube
+app.get('/api/youtube-thumbnail/:videoId', async (req, res) => {
+  try {
+    const { videoId } = req.params
+    const thumbnailUrls = [
+      `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+      `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+      `https://img.youtube.com/vi/${videoId}/default.jpg`
+    ]
+
+    for (const url of thumbnailUrls) {
+      try {
+        const response = await fetch(url)
+        if (response.ok) {
+          const buffer = await response.arrayBuffer()
+          res.set('Content-Type', 'image/jpeg')
+          res.set('Cache-Control', 'public, max-age=3600')
+          res.send(Buffer.from(buffer))
+          return
+        }
+      } catch (error) {
+        continue
+      }
+    }
+    res.status(404).json({ error: 'Thumbnail not found' })
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// ================================================
 // ERROR HANDLING
 // ================================================
 

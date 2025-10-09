@@ -10,6 +10,7 @@ import {
   Brain,
   Star,
   BarChart3,
+  GraduationCap,
 } from "lucide-react"
 
 import {
@@ -51,6 +52,12 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       icon: Play,
       key: "lessons",
       description: "Videoaulas e trilhas",
+    },
+    {
+      title: "Treinamentos",
+      icon: GraduationCap,
+      key: "trainings",
+      description: "Cursos e certificações",
     },
     {
       title: "Projetos",

@@ -71,6 +71,7 @@ export type {
 // Re-export enums
 export {
   ContentType,
+  CardType,
   SupportedTech,
   SupportedLanguage,
   CrudStatus

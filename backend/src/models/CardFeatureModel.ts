@@ -28,7 +28,8 @@ export class CardFeatureModel {
       tech: row.tech,
       language: row.language,
       description: row.description,
-      content_type: row.content_type,  // Adicionar campo
+      content_type: row.content_type,
+      card_type: row.card_type,
       screens: row.screens,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -52,6 +53,11 @@ export class CardFeatureModel {
     // Adicionar filtro por content_type
     if (params.content_type && params.content_type !== 'all') {
       query = query.eq('content_type', params.content_type)
+    }
+
+    // Adicionar filtro por card_type
+    if (params.card_type && params.card_type !== 'all') {
+      query = query.eq('card_type', params.card_type)
     }
 
     if (params.search) {
@@ -96,6 +102,7 @@ export class CardFeatureModel {
         language: data.language || 'typescript',
         description: data.description || '',
         content_type: data.content_type || 'code',
+        card_type: data.card_type || 'codigos',
         screens: processedScreens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -434,6 +441,7 @@ export class CardFeatureModel {
         language: item.language,
         description: item.description,
         content_type: item.content_type,
+        card_type: item.card_type || 'codigos',
         screens: item.screens,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
