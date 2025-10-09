@@ -116,14 +116,14 @@ export default function Codes({ platformState }: CodesProps) {
   // ================================================
   // RENDER - Interface do usuário da página
   // ================================================
-  
-  //* HEADER - Breadcrumb + Busca + Filtros + Botão Criar *//
+
+  // HEADER - Breadcrumb + Busca + Filtros + Botão Criar
   return (
-    <div className="space-y-6 w-screen max-w-full overflow-x-hidden box-border">
+    <div className="space-y-6 w-full overflow-x-hidden">
       {/* Header - Layout Responsivo */}
-      <div className="space-y-4 w-full max-w-full overflow-x-hidden max-w-[900px] mx-auto">
+      <div className="space-y-4 w-full max-w-[900px] mx-auto px-4">
         {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 text-sm w-full max-w-full overflow-x-hidden">
+        <div className="flex items-center space-x-2 text-sm">
           <button
             onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
             className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
@@ -149,7 +149,25 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
 
         {/* Filters and Actions Row - Alinhados à direita */}
-        <div className="flex justify-end gap-2 sm:gap-3 items-center w-full max-w-full overflow-hidden md:mb-3">
+        <div className="flex justify-end gap-2 sm:gap-3 items-center flex-wrap md:mb-3">
+          {/* Card Type Filter */}
+          <Select
+            value={selectedCardType}
+            onValueChange={setSelectedCardType}
+            disabled={cardFeatures.loading}
+          >
+            <SelectTrigger className="w-32 sm:w-40">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="dicas">Dicas</SelectItem>
+              <SelectItem value="codigos">Códigos</SelectItem>
+              <SelectItem value="workflows">Workflows</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Tech Filter */}
           <Select
             value={cardFeatures.selectedTech}
@@ -181,31 +199,6 @@ export default function Codes({ platformState }: CodesProps) {
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
               title="Visualização em Cards"
-          {/* Filters and Actions Row */}
-          <div className="flex gap-2 sm:gap-3 items-center justify-between sm:justify-end w-full max-w-full overflow-hidden">
-            {/* Card Type Filter */}
-            <Select
-              value={selectedCardType}
-              onValueChange={setSelectedCardType}
-              disabled={cardFeatures.loading}
-            >
-              <SelectTrigger className="w-32 sm:w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="dicas">Dicas</SelectItem>
-                <SelectItem value="codigos">Códigos</SelectItem>
-                <SelectItem value="workflows">Workflows</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Tech Filter */}
-            <Select
-              value={cardFeatures.selectedTech}
-              onValueChange={cardFeatures.setSelectedTech}
-              disabled={cardFeatures.loading}
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
