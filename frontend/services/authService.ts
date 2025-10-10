@@ -181,7 +181,7 @@ class AuthService {
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('id', userId)
       .single()
@@ -205,7 +205,7 @@ class AuthService {
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<AuthResult> {
     try {
       const { error } = await supabase
-        .from('profiles')
+        .from('users')
         .update({
           first_name: updates.firstName,
           last_name: updates.lastName,
