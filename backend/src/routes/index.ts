@@ -36,11 +36,7 @@ router.get('/', (req, res) => {
         register: 'POST /api/auth/register',
         login: 'POST /api/auth/login',
         logout: 'POST /api/auth/logout',
-        profile: 'GET /api/auth/profile',
-        updateProfile: 'PUT /api/auth/profile',
-        refresh: 'POST /api/auth/refresh',
-        forgotPassword: 'POST /api/auth/forgot-password',
-        resetPassword: 'POST /api/auth/reset-password'
+        profile: 'GET /api/auth/profile'
       },
       cardFeatures: {
         list: 'GET /api/card-features',

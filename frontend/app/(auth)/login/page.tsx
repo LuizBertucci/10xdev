@@ -1,24 +1,131 @@
-import { LoginForm } from '@/components/auth/LoginForm'
+'use client'
+
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
+import { Eye, EyeOff, Loader2, Lock } from 'lucide-react'
+import { z } from 'zod'
+import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Lock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+
+// Schema de validação inline
+const signInSchema = z.object({
+  email: z.string().email('Email inválido').toLowerCase().trim(),
+  password: z.string().min(1, 'Senha é obrigatória'),
+})
+
+type SignInFormData = z.infer<typeof signInSchema>
 
 export default function LoginPage() {
+  const { signIn } = useAuth()
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SignInFormData>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  })
+
+  const onSubmit = async (data: SignInFormData) => {
+    setError(null)
+    const result = await signIn(data.email, data.password)
+
+    if (result.error) {
+      setError(result.error.message || 'Erro ao fazer login')
+    }
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Card className="shadow-2xl border-0 backdrop-blur-sm bg-white/95 w-full max-w-md">
-        <CardHeader className="space-y-4 pb-8">
-          <div className="mx-auto w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <Lock className="h-7 w-7 text-white" />
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-2 text-center">
+          <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+            <Lock className="h-6 w-6 text-blue-600" />
           </div>
-          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Bem-vindo de volta!
-          </CardTitle>
-          <CardDescription className="text-center text-base text-gray-600">
-            Entre com suas credenciais para continuar
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">Bem-vindo de volta</CardTitle>
+          <CardDescription>Entre com suas credenciais para acessar sua conta</CardDescription>
         </CardHeader>
-        <CardContent className="pb-8">
-          <LoginForm />
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="seu@email.com"
+                autoComplete="email"
+                {...register('email')}
+                className={errors.email ? 'border-red-500' : ''}
+              />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••"
+                  autoComplete="current-password"
+                  {...register('password')}
+                  className={errors.password ? 'border-red-500' : ''}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                'Entrar'
+              )}
+            </Button>
+
+            <p className="text-center text-sm text-gray-600">
+              Não tem uma conta?{' '}
+              <Link href="/signup" className="text-blue-600 hover:underline font-medium">
+                Cadastre-se agora
+              </Link>
+            </p>
+          </form>
         </CardContent>
       </Card>
     </div>

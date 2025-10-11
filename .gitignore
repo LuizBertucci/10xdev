@@ -27,9 +27,9 @@ yarn-error.log*
 
 .cursor/
 
-# Claude Code internal files
-.claude/
-.clinerules/
+# Claude Code internal markdown files
+.claude/**/*.md
+.clinerules/**/*.md
 
 # typescript
 *.tsbuildinfo
