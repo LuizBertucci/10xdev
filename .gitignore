@@ -27,6 +27,10 @@ yarn-error.log*
 
 .cursor/
 
+# Claude Code internal files
+.claude/
+.clinerules/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
