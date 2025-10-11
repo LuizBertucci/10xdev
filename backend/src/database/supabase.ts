@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv'
+import * as dotenv from 'dotenv'
 
 dotenv.config()
 
@@ -22,7 +22,15 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
-// Tipos do banco de dados (será expandido)
+// Tipos do banco de dados
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export interface Database {
   public: {
     Tables: {
@@ -33,7 +41,9 @@ export interface Database {
           tech: string
           language: string
           description: string
-          screens: CardFeatureScreen[]
+          content_type: string
+          card_type: string
+          screens: Json
           created_at: string
           updated_at: string
         }
@@ -43,34 +53,45 @@ export interface Database {
           tech: string
           language: string
           description: string
-          screens: CardFeatureScreen[]
+          content_type: string
+          card_type: string
+          screens: Json
           created_at?: string
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: never
           title?: string
           tech?: string
           language?: string
           description?: string
-          screens?: CardFeatureScreen[]
-          created_at?: string
+          content_type?: string
+          card_type?: string
+          screens?: Json
+          created_at?: never
           updated_at?: string
         }
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
 
-export interface CardFeatureScreen {
-  name: string
-  description: string
-  code: string
-}
-
 // Cliente tipado
-export const supabaseTyped = createClient<Database>(supabaseUrl, supabaseAnonKey)
-export const supabaseAdminTyped = createClient<Database>(supabaseUrl, supabaseServiceKey, {
+export const supabaseTyped = createClient<Database>(supabaseUrl!, supabaseAnonKey!)
+export const supabaseAdminTyped = createClient<Database>(supabaseUrl!, supabaseServiceKey!, {
   auth: {
     autoRefreshToken: false,
     persistSession: false

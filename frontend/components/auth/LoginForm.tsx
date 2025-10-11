@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { signInSchema, SignInFormData } from '@/lib/validations/auth'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export function LoginForm() {
-  const { signIn, loading } = useAuth()
+  const { signIn } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,10 +33,10 @@ export function LoginForm() {
 
   const onSubmit = async (data: SignInFormData) => {
     setError(null)
-    const result = await signIn(data)
+    const result = await signIn(data.email, data.password)
 
-    if (!result.success) {
-      setError(result.error || 'Erro ao fazer login')
+    if (result.error) {
+      setError(result.error.message || 'Erro ao fazer login')
     }
   }
 
@@ -107,12 +107,12 @@ export function LoginForm() {
 
       <Button
         type="submit"
-        className="w-full"
-        disabled={isSubmitting || loading}
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium h-11 text-base transition-all duration-200"
+        disabled={isSubmitting}
       >
-        {isSubmitting || loading ? (
+        {isSubmitting ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Entrando...
           </>
         ) : (
@@ -120,10 +120,19 @@ export function LoginForm() {
         )}
       </Button>
 
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 bg-white text-gray-500">ou</span>
+        </div>
+      </div>
+
       <p className="text-center text-sm text-gray-600">
         Não tem uma conta?{' '}
-        <Link href="/signup" className="text-primary hover:underline">
-          Cadastre-se
+        <Link href="/signup" className="text-blue-600 hover:text-blue-800 font-medium hover:underline">
+          Cadastre-se agora
         </Link>
       </p>
     </form>

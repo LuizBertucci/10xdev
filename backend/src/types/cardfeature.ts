@@ -40,9 +40,9 @@ export interface CardFeatureRow {
   tech: string
   language: string
   description: string
-  content_type: ContentType    // Tipo de conteúdo dos blocos
-  card_type: CardType          // Tipo do card (dicas/codigos/workflows)
-  screens: CardFeatureScreen[]
+  content_type: string    // String do banco (será convertida para ContentType)
+  card_type: string       // String do banco (será convertida para CardType)
+  screens: any           // JSON do banco (será convertida para CardFeatureScreen[])
   created_at: string
   updated_at: string
 }
@@ -53,9 +53,9 @@ export interface CardFeatureInsert {
   tech: string
   language: string
   description: string
-  content_type: ContentType
-  card_type: CardType
-  screens: CardFeatureScreen[]
+  content_type: string
+  card_type: string
+  screens: any
   created_at?: string
   updated_at?: string
 }
@@ -66,9 +66,9 @@ export interface CardFeatureUpdate {
   tech?: string
   language?: string
   description?: string
-  content_type?: ContentType
-  card_type?: CardType
-  screens?: CardFeatureScreen[]
+  content_type?: string
+  card_type?: string
+  screens?: any
   updated_at?: string
 }
 

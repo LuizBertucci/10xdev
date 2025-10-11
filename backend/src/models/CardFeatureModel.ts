@@ -6,16 +6,13 @@ import type {
   CardFeatureUpdate,
   CardFeatureResponse,
   CardFeatureQueryParams,
-  CardFeatureFilters,
   ModelResult,
   ModelListResult,
-  CreateCardFeatureRequest,
-  ContentType,
-  ContentBlock
+  CreateCardFeatureRequest
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
-  private static tableName = 'card_features'
+  private static readonly tableName = 'card_features' as const
 
   // ================================================
   // PRIVATE HELPERS
@@ -28,9 +25,9 @@ export class CardFeatureModel {
       tech: row.tech,
       language: row.language,
       description: row.description,
-      content_type: row.content_type,
-      card_type: row.card_type,
-      screens: row.screens,
+      content_type: row.content_type as any,  // Cast de string do DB para ContentType
+      card_type: row.card_type as any,        // Cast de string do DB para CardType
+      screens: row.screens as any,            // Cast de JSON do DB para CardFeatureScreen[]
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
@@ -110,7 +107,7 @@ export class CardFeatureModel {
 
       const { data: result, error } = await supabaseTyped
         .from(this.tableName)
-        .insert(insertData)
+        .insert(insertData as any)
         .select()
         .single()
 
@@ -258,7 +255,7 @@ export class CardFeatureModel {
 
       const { data: result, error } = await supabaseTyped
         .from(this.tableName)
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', id)
         .select()
         .single()
