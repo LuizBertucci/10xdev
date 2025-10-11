@@ -40,42 +40,56 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       icon: Zap,
       key: "home",
       description: "Dashboard principal",
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-500/10",
     },
     {
       title: "Códigos",
       icon: Code2,
       key: "codes",
       description: "Snippets e exemplos",
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
     },
     {
       title: "Aulas",
       icon: Play,
       key: "lessons",
       description: "Videoaulas e trilhas",
+      color: "text-green-500",
+      bgColor: "bg-green-500/10",
     },
     {
       title: "Treinamentos",
       icon: GraduationCap,
       key: "trainings",
       description: "Cursos e certificações",
+      color: "text-purple-500",
+      bgColor: "bg-purple-500/10",
     },
     {
       title: "Projetos",
       icon: FolderOpen,
       key: "projects",
       description: "Templates completos",
+      color: "text-orange-500",
+      bgColor: "bg-orange-500/10",
     },
     {
       title: "IA",
       icon: Brain,
       key: "ai",
       description: "Integração com IA",
+      color: "text-pink-500",
+      bgColor: "bg-pink-500/10",
     },
     {
       title: "Dashboard",
       icon: BarChart3,
       key: "dashboard",
       description: "Analytics e métricas",
+      color: "text-cyan-500",
+      bgColor: "bg-cyan-500/10",
     },
   ]
 
@@ -113,7 +127,9 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                     isActive={platformState.activeTab === item.key}
                     tooltip={item.title}
                   >
-                    <item.icon className="size-4" />
+                    <div className={`flex items-center justify-center rounded-lg p-1.5 ${item.bgColor}`}>
+                      <item.icon className={`size-4 ${item.color}`} />
+                    </div>
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -129,19 +145,25 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton>
-                  <Heart className="size-4" />
+                  <div className="flex items-center justify-center rounded-lg p-1.5 bg-red-500/10">
+                    <Heart className="size-4 text-red-500" />
+                  </div>
                   <span>Meus Snippets</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton>
-                  <BookOpen className="size-4" />
+                  <div className="flex items-center justify-center rounded-lg p-1.5 bg-indigo-500/10">
+                    <BookOpen className="size-4 text-indigo-500" />
+                  </div>
                   <span>Aulas Salvas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton>
-                  <Star className="size-4" />
+                  <div className="flex items-center justify-center rounded-lg p-1.5 bg-amber-500/10">
+                    <Star className="size-4 text-amber-500" />
+                  </div>
                   <span>Projetos Favoritos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

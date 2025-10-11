@@ -1,0 +1,118 @@
+{
+  "title": "Via Claude Chat: Sistema de Autenticação Supabase Simplificado",
+  "tech": "React",
+  "language": "typescript",
+  "description": "Implementação direta e simplificada de autenticação usando Supabase Auth, sem camadas de adaptação ou migração híbrida. Sistema completo com Context API, hooks customizados e proteção de rotas.",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "frontend/src/lib/supabase.ts",
+      "description": "Cliente Supabase configurado",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "import { createClient } from '@supabase/supabase-js'\n\nconst supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!\nconst supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!\n\nif (!supabaseUrl || !supabaseAnonKey) {\n  throw new Error('Variáveis de ambiente do Supabase não configuradas')\n}\n\nexport const supabase = createClient(supabaseUrl, supabaseAnonKey)",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/src/contexts/AuthContext.tsx",
+      "description": "Context de autenticação com hooks",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "'use client'\n\nimport { createContext, useContext, useEffect, useState } from 'react'\nimport { User, Session } from '@supabase/supabase-js'\nimport { supabase } from '@/lib/supabase'\n\ninterface AuthContextType {\n  user: User | null\n  session: Session | null\n  loading: boolean\n  signUp: (email: string, password: string, name?: string) => Promise<void>\n  signIn: (email: string, password: string) => Promise<void>\n  signOut: () => Promise<void>\n}\n\nconst AuthContext = createContext<AuthContextType | undefined>(undefined)\n\nexport function AuthProvider({ children }: { children: React.ReactNode }) {\n  const [user, setUser] = useState<User | null>(null)\n  const [session, setSession] = useState<Session | null>(null)\n  const [loading, setLoading] = useState(true)\n\n  useEffect(() => {\n    supabase.auth.getSession().then(({ data: { session } }) => {\n      setSession(session)\n      setUser(session?.user ?? null)\n      setLoading(false)\n    })\n\n    const {\n      data: { subscription },\n    } = supabase.auth.onAuthStateChange((_event, session) => {\n      setSession(session)\n      setUser(session?.user ?? null)\n    })\n\n    return () => subscription.unsubscribe()\n  }, [])\n\n  const signUp = async (email: string, password: string, name?: string) => {\n    const { error } = await supabase.auth.signUp({\n      email,\n      password,\n      options: {\n        data: {\n          name: name || email.split('@')[0],\n        },\n      },\n    })\n\n    if (error) throw error\n  }\n\n  const signIn = async (email: string, password: string) => {\n    const { error } = await supabase.auth.signInWithPassword({\n      email,\n      password,\n    })\n\n    if (error) throw error\n  }\n\n  const signOut = async () => {\n    const { error } = await supabase.auth.signOut()\n    if (error) throw error\n  }\n\n  return (\n    <AuthContext.Provider\n      value={{\n        user,\n        session,\n        loading,\n        signUp,\n        signIn,\n        signOut,\n      }}\n    >\n      {children}\n    </AuthContext.Provider>\n  )\n}\n\nexport function useAuth() {\n  const context = useContext(AuthContext)\n  if (context === undefined) {\n    throw new Error('useAuth deve ser usado dentro de um AuthProvider')\n  }\n  return context\n}",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/src/app/login/page.tsx",
+      "description": "Página de login",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "'use client'\n\nimport { useState } from 'react'\nimport { useRouter } from 'next/navigation'\nimport { useAuth } from '@/contexts/AuthContext'\n\nexport default function LoginPage() {\n  const [email, setEmail] = useState('')\n  const [password, setPassword] = useState('')\n  const [error, setError] = useState('')\n  const [loading, setLoading] = useState(false)\n  const router = useRouter()\n  const { signIn } = useAuth()\n\n  const handleSubmit = async (e: React.FormEvent) => {\n    e.preventDefault()\n    setError('')\n    setLoading(true)\n\n    try {\n      await signIn(email, password)\n      router.push('/dashboard')\n    } catch (err: any) {\n      setError(err.message || 'Erro ao fazer login')\n    } finally {\n      setLoading(false)\n    }\n  }\n\n  return (\n    <div className=\"min-h-screen flex items-center justify-center bg-gray-50\">\n      <div className=\"max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow\">\n        <h2 className=\"text-3xl font-bold text-center\">Login</h2>\n\n        {error && (\n          <div className=\"bg-red-50 text-red-500 p-3 rounded\">\n            {error}\n          </div>\n        )}\n\n        <form onSubmit={handleSubmit} className=\"space-y-6\">\n          <div>\n            <label htmlFor=\"email\" className=\"block text-sm font-medium\">\n              Email\n            </label>\n            <input\n              id=\"email\"\n              type=\"email\"\n              required\n              value={email}\n              onChange={(e) => setEmail(e.target.value)}\n              className=\"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md\"\n            />\n          </div>\n\n          <div>\n            <label htmlFor=\"password\" className=\"block text-sm font-medium\">\n              Senha\n            </label>\n            <input\n              id=\"password\"\n              type=\"password\"\n              required\n              value={password}\n              onChange={(e) => setPassword(e.target.value)}\n              className=\"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md\"\n            />\n          </div>\n\n          <button\n            type=\"submit\"\n            disabled={loading}\n            className=\"w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50\"\n          >\n            {loading ? 'Entrando...' : 'Entrar'}\n          </button>\n        </form>\n\n        <p className=\"text-center text-sm\">\n          Não tem conta?{' '}\n          <a href=\"/registrar\" className=\"text-blue-600 hover:underline\">\n            Registre-se\n          </a>\n        </p>\n      </div>\n    </div>\n  )\n}",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/src/app/registrar/page.tsx",
+      "description": "Página de registro",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "'use client'\n\nimport { useState } from 'react'\nimport { useRouter } from 'next/navigation'\nimport { useAuth } from '@/contexts/AuthContext'\n\nexport default function RegisterPage() {\n  const [name, setName] = useState('')\n  const [email, setEmail] = useState('')\n  const [password, setPassword] = useState('')\n  const [confirmPassword, setConfirmPassword] = useState('')\n  const [error, setError] = useState('')\n  const [loading, setLoading] = useState(false)\n  const router = useRouter()\n  const { signUp } = useAuth()\n\n  const handleSubmit = async (e: React.FormEvent) => {\n    e.preventDefault()\n    setError('')\n\n    if (password !== confirmPassword) {\n      setError('As senhas não coincidem')\n      return\n    }\n\n    if (password.length < 6) {\n      setError('A senha deve ter pelo menos 6 caracteres')\n      return\n    }\n\n    setLoading(true)\n\n    try {\n      await signUp(email, password, name)\n      router.push('/login')\n    } catch (err: any) {\n      setError(err.message || 'Erro ao registrar')\n    } finally {\n      setLoading(false)\n    }\n  }\n\n  return (\n    <div className=\"min-h-screen flex items-center justify-center bg-gray-50\">\n      <div className=\"max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow\">\n        <h2 className=\"text-3xl font-bold text-center\">Registrar</h2>\n\n        {error && (\n          <div className=\"bg-red-50 text-red-500 p-3 rounded\">\n            {error}\n          </div>\n        )}\n\n        <form onSubmit={handleSubmit} className=\"space-y-6\">\n          <div>\n            <label htmlFor=\"name\" className=\"block text-sm font-medium\">\n              Nome\n            </label>\n            <input\n              id=\"name\"\n              type=\"text\"\n              required\n              value={name}\n              onChange={(e) => setName(e.target.value)}\n              className=\"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md\"\n            />\n          </div>\n\n          <div>\n            <label htmlFor=\"email\" className=\"block text-sm font-medium\">\n              Email\n            </label>\n            <input\n              id=\"email\"\n              type=\"email\"\n              required\n              value={email}\n              onChange={(e) => setEmail(e.target.value)}\n              className=\"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md\"\n            />\n          </div>\n\n          <div>\n            <label htmlFor=\"password\" className=\"block text-sm font-medium\">\n              Senha\n            </label>\n            <input\n              id=\"password\"\n              type=\"password\"\n              required\n              value={password}\n              onChange={(e) => setPassword(e.target.value)}\n              className=\"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md\"\n            />\n          </div>\n\n          <div>\n            <label htmlFor=\"confirmPassword\" className=\"block text-sm font-medium\">\n              Confirmar Senha\n            </label>\n            <input\n              id=\"confirmPassword\"\n              type=\"password\"\n              required\n              value={confirmPassword}\n              onChange={(e) => setConfirmPassword(e.target.value)}\n              className=\"mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md\"\n            />\n          </div>\n\n          <button\n            type=\"submit\"\n            disabled={loading}\n            className=\"w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50\"\n          >\n            {loading ? 'Registrando...' : 'Registrar'}\n          </button>\n        </form>\n\n        <p className=\"text-center text-sm\">\n          Já tem conta?{' '}\n          <a href=\"/login\" className=\"text-blue-600 hover:underline\">\n            Faça login\n          </a>\n        </p>\n      </div>\n    </div>\n  )\n}",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/src/components/ProtectedRoute.tsx",
+      "description": "Componente de proteção de rotas",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "'use client'\n\nimport { useEffect } from 'react'\nimport { useRouter } from 'next/navigation'\nimport { useAuth } from '@/contexts/AuthContext'\n\nexport default function ProtectedRoute({ children }: { children: React.ReactNode }) {\n  const { user, loading } = useAuth()\n  const router = useRouter()\n\n  useEffect(() => {\n    if (!loading && !user) {\n      router.push('/login')\n    }\n  }, [user, loading, router])\n\n  if (loading) {\n    return (\n      <div className=\"min-h-screen flex items-center justify-center\">\n        <div className=\"text-xl\">Carregando...</div>\n      </div>\n    )\n  }\n\n  if (!user) {\n    return null\n  }\n\n  return <>{children}</>\n}",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/src/middleware.ts",
+      "description": "Middleware de autenticação Next.js",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'\nimport { NextResponse } from 'next/server'\nimport type { NextRequest } from 'next/server'\n\nexport async function middleware(req: NextRequest) {\n  const res = NextResponse.next()\n  const supabase = createMiddlewareClient({ req, res })\n\n  const {\n    data: { session },\n  } = await supabase.auth.getSession()\n\n  if (req.nextUrl.pathname.startsWith('/dashboard')) {\n    if (!session) {\n      return NextResponse.redirect(new URL('/login', req.url))\n    }\n  }\n\n  if (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/registrar') {\n    if (session) {\n      return NextResponse.redirect(new URL('/dashboard', req.url))\n    }\n  }\n\n  return res\n}\n\nexport const config = {\n  matcher: ['/dashboard/:path*', '/login', '/registrar'],\n}",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/src/app/layout.tsx",
+      "description": "Layout raiz com AuthProvider",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "import { AuthProvider } from '@/contexts/AuthContext'\nimport './globals.css'\n\nexport default function RootLayout({\n  children,\n}: {\n  children: React.ReactNode\n}) {\n  return (\n    <html lang=\"pt-BR\">\n      <body>\n        <AuthProvider>\n          {children}\n        </AuthProvider>\n      </body>\n    </html>\n  )\n}",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/.env.local.example",
+      "description": "Variáveis de ambiente frontend",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co\nNEXT_PUBLIC_SUPABASE_ANON_KEY=sua-anon-key",
+          "language": "bash",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "frontend/package.json",
+      "description": "Dependências do frontend",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "{\n  \"dependencies\": {\n    \"@supabase/supabase-js\": \"^2.39.0\",\n    \"@supabase/auth-helpers-nextjs\": \"^0.8.7\",\n    \"next\": \"^14.0.4\",\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\"\n  }\n}",
+          "language": "json",
+          "order": 0
+        }
+      ]
+    }
+  ]
+}

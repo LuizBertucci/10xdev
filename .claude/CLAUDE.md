@@ -43,80 +43,7 @@ The core feature is a comprehensive CRUD system for managing code snippets with 
 - `CardFeatureScreen[]`: Array of tabs/files within each CardFeature
 - Each screen has: name, description, code content
 
-**API Endpoints** (`/api/card-features`):
-- `GET /` - List all with pagination, filtering, sorting
-- `GET /:id` - Get single CardFeature
-- `GET /search?q=term` - Search functionality
-- `GET /tech/:tech` - Filter by technology
-- `GET /stats` - System statistics
-- `POST /` - Create new CardFeature
-- `PUT /:id` - Update existing
-- `DELETE /:id` - Delete CardFeature
-- `POST /bulk` - Bulk create
-- `DELETE /bulk` - Bulk delete
 
-### Frontend Component Architecture
-- **Pages as Components**: Located in `/pages/` (not Next.js pages - custom component structure)
-- **Reusable UI**: shadcn/ui components in `/components/ui/`
-- **Business Components**: CardFeature, CardFeatureForm, CardFeatureModal
-- **Custom Hooks**: `useCardFeatures` for state management, `useApi` for HTTP client
-- **Services Layer**: Dedicated API clients in `/services/`
-
-### Backend Architecture
-**Controller → Model → Database** pattern:
-- **Controllers**: Request handling, validation, response formatting
-- **Models**: Business logic and database operations
-- **Database**: Supabase client with typed interfaces
-- **Middleware**: CORS, rate limiting, security headers, error handling
-- **Routes**: RESTful API organization
-
-### Type Safety
-Shared TypeScript interfaces between frontend and backend:
-- `CardFeature`, `CardFeatureScreen` interfaces
-- `CreateCardFeatureData`, `UpdateCardFeatureData` for mutations
-- `CardFeatureQueryParams` for filtering/pagination
-- Database types generated from Supabase schema
-
-### Syntax Highlighting System
-Custom implementation with:
-- `SyntaxHighlighter` component with theme support
-- Language-specific highlighting for TypeScript, JavaScript, Python, etc.
-- Tech badge system with icons and colors
-- Configurable syntax themes in `/components/utils/`
-
-## Development Environment Setup
-
-1. **Environment Variables**:
-   - Backend: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-   - CORS origin configuration
-   - Rate limiting settings
-
-2. **Database**: 
-   - Supabase PostgreSQL with `card_features` table
-   - JSONB field for screens array
-   - Indexes on tech, language, created_at
-
-3. **Development Flow**:
-   - Frontend runs on port 3000
-   - Backend runs on port 3001
-   - API proxy configuration in Next.js for development
-
-## Code Conventions
-
-### Frontend
-- React functional components with hooks
-- TypeScript strict mode enabled
-- Tailwind classes for styling
-- Custom hooks for business logic
-- Props interfaces for all components
-
-### Backend
-- Express router patterns
-- Async/await for database operations
-- Comprehensive error handling
-- Input validation on all endpoints
-- Rate limiting per operation type
-- Structured logging with Morgan
 
 ### Naming Conventions
 - **Components**: PascalCase (CardFeature.tsx)
@@ -138,22 +65,80 @@ Custom implementation with:
 - `frontend/hooks/useCardFeatures.ts` - Main state management
 - `backend/src/database/supabase.ts` - Database configuration
 
-## Common Tasks
 
-### Adding New CardFeature Fields
-1. Update interfaces in both `frontend/types/` and `backend/src/types/`
-2. Modify database schema in Supabase
-3. Update validation in CardFeatureController
-4. Update form components and display components
+## Creating CardFeatures via API
 
-### Adding New Technology Support
-1. Update `SupportedTech` enum in type definitions
-2. Add tech configuration in `frontend/components/utils/techConfigs.ts`
-3. Update badges and icons system
+### Data Structure (UPDATED Schema)
 
-### API Rate Limiting
-Different limits for different operations:
-- General: 100 req/15min
-- Write operations: 50 req/15min  
-- Bulk operations: 10 req/15min
-- Search: 200 req/15min
+O schema atual usa uma estrutura de **blocos** (`ContentBlock[]`) dentro de cada tela (`CardFeatureScreen`).
+
+**Estrutura correta do JSON**:
+
+```json
+{
+  "title": "Título do Card",
+  "tech": "React",
+  "language": "typescript",
+  "description": "Descrição completa do card",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "caminho/do/arquivo.ts",
+      "description": "Descrição da aba",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "código aqui...",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Campos obrigatórios**:
+- `title`: string (título do card)
+- `tech`: string (deve ser um valor de `SupportedTech` enum - ex: "React", "Node.js")
+- `language`: string (deve ser um valor de `SupportedLanguage` enum - ex: "typescript", "javascript")
+- `description`: string (descrição do card)
+- `content_type`: "code" | "text" | "terminal" (tipo de conteúdo - geralmente "code")
+- `card_type`: "dicas" | "codigos" | "workflows" (tipo do card - geralmente "codigos")
+- `screens`: array de objetos com:
+  - `name`: string (nome do arquivo/aba)
+  - `description`: string (descrição da aba)
+  - `blocks`: array de objetos com:
+    - `type`: "code" | "text" | "terminal" (tipo do bloco)
+    - `content`: string (conteúdo do bloco)
+    - `language`: string (linguagem - obrigatório para type="code")
+    - `order`: number (ordem do bloco, começa em 0)
+
+**Nota importante**: O model adiciona automaticamente `id` e `order` aos blocos se não fornecidos.
+
+### Como criar via curl com arquivo JSON
+
+```bash
+# 1. Crie o arquivo JSON com a estrutura correta
+# exemplo: meu-card.json
+
+# 2. Execute o POST
+curl -X POST http://localhost:3001/api/card-features \
+  -H "Content-Type: application/json" \
+  -d @meu-card.json
+```
+
+### Valores válidos para enums
+
+**SupportedTech** (usar exatamente como mostrado):
+- `"React"`, `"Node.js"`, `"Python"`, `"JavaScript"`, `"Vue.js"`, `"Angular"`, `"Django"`, `"FastAPI"`, `"Express"`
+
+**SupportedLanguage**:
+- `"typescript"`, `"javascript"`, `"python"`, `"html"`, `"css"`, `"json"`, `"yaml"`, `"sql"`
+
+**ContentType**:
+- `"code"`, `"text"`, `"terminal"`
+
+**CardType**:
+- `"dicas"`, `"codigos"`, `"workflows"`
