@@ -1,3 +1,85 @@
+## Creating CardFeatures via API
+
+### Data Structure (UPDATED Schema)
+
+O schema atual usa uma estrutura de **blocos** (`ContentBlock[]`) dentro de cada tela (`CardFeatureScreen`).
+
+**Estrutura correta do JSON**:
+
+```json
+{
+  "title": "Título do Card",
+  "tech": "React",
+  "language": "typescript",
+  "description": "Descrição completa do card",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "caminho/do/arquivo.ts",
+      "description": "Descrição da aba",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "código aqui...",
+          "language": "typescript",
+          "order": 0
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Campos obrigatórios**:
+- `title`: string (título do card)
+- `tech`: string (deve ser um valor de `SupportedTech` enum - ex: "React", "Node.js")
+- `language`: string (deve ser um valor de `SupportedLanguage` enum - ex: "typescript", "javascript")
+- `description`: string (descrição do card)
+- `content_type`: "code" | "text" | "terminal" (tipo de conteúdo - geralmente "code")
+- `card_type`: "dicas" | "codigos" | "workflows" (tipo do card - geralmente "codigos")
+- `screens`: array de objetos com:
+  - `name`: string (nome do arquivo/aba)
+  - `description`: string (descrição da aba)
+  - `blocks`: array de objetos com:
+    - `type`: "code" | "text" | "terminal" (tipo do bloco)
+    - `content`: string (conteúdo do bloco)
+    - `language`: string (linguagem - obrigatório para type="code")
+    - `order`: number (ordem do bloco, começa em 0)
+
+**Nota importante**: O model adiciona automaticamente `id` e `order` aos blocos se não fornecidos.
+
+### Como criar via curl com arquivo JSON
+
+```bash
+# 1. Crie o arquivo JSON com a estrutura correta
+# exemplo: meu-card.json
+
+# 2. Execute o POST
+curl -X POST http://localhost:3001/api/card-features \
+  -H "Content-Type: application/json" \
+  -d @meu-card.json
+```
+
+### Valores válidos para enums
+
+**SupportedTech** (usar exatamente como mostrado):
+- `"React"`, `"Node.js"`, `"Python"`, `"JavaScript"`, `"Vue.js"`, `"Angular"`, `"Django"`, `"FastAPI"`, `"Express"`
+
+**SupportedLanguage**:
+- `"typescript"`, `"javascript"`, `"python"`, `"html"`, `"css"`, `"json"`, `"yaml"`, `"sql"`
+
+**ContentType**:
+- `"code"`, `"text"`, `"terminal"`
+
+**CardType**:
+- `"dicas"`, `"codigos"`, `"workflows"`
+
+## Exemplo Completo de JSON
+
+Exemplo real de um card com 9 screens que foi criado com sucesso:
+
+```json
 {
   "title": "Via Claude Chat: Sistema de Autenticação Supabase Simplificado",
   "tech": "React",
@@ -116,3 +198,4 @@
     }
   ]
 }
+```
