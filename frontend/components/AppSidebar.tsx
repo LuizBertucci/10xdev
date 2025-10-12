@@ -11,6 +11,8 @@ import {
   Star,
   BarChart3,
   GraduationCap,
+  LogOut,
+  User,
 } from "lucide-react"
 
 import {
@@ -27,13 +29,24 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/hooks/useAuth"
 
 interface AppSidebarProps {
   platformState: any
 }
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {
+  const { user, logout } = useAuth()
   const menuItems = [
     {
       title: "Início",
@@ -153,13 +166,56 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Avatar className="size-6">
-                <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                <AvatarFallback>DV</AvatarFallback>
-              </Avatar>
-              <span>Developer</span>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <Avatar className="size-8 rounded-lg">
+                    <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
+                    <AvatarFallback className="rounded-lg bg-blue-600 text-white">
+                      {user?.name?.substring(0, 2).toUpperCase() || 'DV'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">{user?.name || 'Developer'}</span>
+                    <span className="truncate text-xs">{user?.email || 'user@10xdev.com'}</span>
+                  </div>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                side="bottom"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                    <Avatar className="size-8 rounded-lg">
+                      <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
+                      <AvatarFallback className="rounded-lg bg-blue-600 text-white">
+                        {user?.name?.substring(0, 2).toUpperCase() || 'DV'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">{user?.name || 'Developer'}</span>
+                      <span className="truncate text-xs">{user?.email || 'user@10xdev.com'}</span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="size-4 mr-2" />
+                  Perfil
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="text-red-600">
+                  <LogOut className="size-4 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

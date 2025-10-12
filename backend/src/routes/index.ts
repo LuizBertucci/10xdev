@@ -33,10 +33,20 @@ router.get('/', (req, res) => {
     endpoints: {
       health: 'GET /api/health',
       auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        logout: 'POST /api/auth/logout',
-        profile: 'GET /api/auth/profile'
+        registrations: {
+          show: 'GET /api/auth/registrations',
+          create: 'POST /api/auth/registrations'
+        },
+        sessions: {
+          show: 'GET /api/auth/sessions',
+          login: 'POST /api/auth/sessions',
+          logout: 'DELETE /api/auth/sessions'
+        },
+        members: {
+          profile: 'GET /api/auth/members',
+          update: 'PUT /api/auth/members',
+          delete: 'DELETE /api/auth/members'
+        }
       },
       cardFeatures: {
         list: 'GET /api/card-features',

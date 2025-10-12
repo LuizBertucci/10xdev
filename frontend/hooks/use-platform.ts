@@ -60,9 +60,9 @@ export function usePlatform() {
       params.set('tab', tab);
     }
     const queryString = params.toString();
-    const newUrl = queryString ? `/?${queryString}` : '/';
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
     router.push(newUrl, { scroll: false });
-  }, [router, searchParams]);
+  }, [router, searchParams, pathname]);
 
   // Listen to URL changes and update tab accordingly
   useEffect(() => {

@@ -1,15 +1,21 @@
 import { Router } from 'express'
-import { authController } from '../controllers/AuthController'
-import { authMiddleware } from '../middleware/authMiddleware'
+import { AuthController } from '../controllers/AuthController'
+import { supabaseMiddleware } from '../middleware/supabaseMiddleware'
 
 const router = Router()
 
-// Public routes
-router.post('/register', authController.register)
-router.post('/login', authController.login)
+// Registration routes
+router.get('/registrations', AuthController.showRegister)
+router.post('/registrations', AuthController.register)
 
-// Protected routes
-router.post('/logout', authMiddleware, authController.logout)
-router.get('/profile', authMiddleware, authController.getProfile)
+// Session routes (login/logout)
+router.get('/sessions', AuthController.showSessions)
+router.post('/sessions', AuthController.login)
+router.delete('/sessions', supabaseMiddleware, AuthController.logout)
+
+// Member routes (authenticated user profile)
+router.get('/members', supabaseMiddleware, AuthController.showProfile)
+router.put('/members', supabaseMiddleware, AuthController.updateProfile)
+router.delete('/members', supabaseMiddleware, AuthController.deleteAccount)
 
 export default router
