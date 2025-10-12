@@ -22,7 +22,6 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
-    // Validation
     if (!name.trim()) {
       setError('Nome é obrigatório')
       return

@@ -5,17 +5,6 @@ const adapter = new SupabaseAuthAdapter()
 
 export class AuthController {
   /**
-   * GET /api/auth/registrations
-   * Show registration page info
-   */
-  static async showRegister(req: Request, res: Response): Promise<void> {
-    res.json({
-      message: 'Endpoint de registro',
-      fields: ['name', 'email', 'password']
-    })
-  }
-
-  /**
    * POST /api/auth/registrations
    * Register new user
    */
@@ -23,7 +12,6 @@ export class AuthController {
     try {
       const { name, email, password } = req.body
 
-      // Validation
       if (!name || !email || !password) {
         res.status(400).json({
           error: 'Nome, email e senha são obrigatórios'
@@ -38,9 +26,7 @@ export class AuthController {
         return
       }
 
-      // Register via adapter
       const result = await adapter.register(email, password, name)
-
       res.status(201).json(result)
     } catch (error: any) {
       console.error('Register error:', error)
@@ -51,17 +37,6 @@ export class AuthController {
   }
 
   /**
-   * GET /api/auth/sessions
-   * Show login page info
-   */
-  static async showSessions(req: Request, res: Response): Promise<void> {
-    res.json({
-      message: 'Endpoint de login',
-      fields: ['email', 'password']
-    })
-  }
-
-  /**
    * POST /api/auth/sessions
    * Login user
    */
@@ -69,7 +44,6 @@ export class AuthController {
     try {
       const { email, password } = req.body
 
-      // Validation
       if (!email || !password) {
         res.status(400).json({
           error: 'Email e senha são obrigatórios'
@@ -77,9 +51,7 @@ export class AuthController {
         return
       }
 
-      // Login via adapter
       const result = await adapter.login(email, password)
-
       res.json(result)
     } catch (error: any) {
       console.error('Login error:', error)
@@ -91,32 +63,12 @@ export class AuthController {
 
   /**
    * DELETE /api/auth/sessions
-   * Logout user (add token to denylist)
+   * Logout user
    */
-  static async logout(req: Request, res: Response): Promise<void> {
-    try {
-      const user = (req as any).user
-
-      if (!user || !user.jti) {
-        res.status(400).json({
-          error: 'Token inválido'
-        })
-        return
-      }
-
-      // Add token to denylist
-      const exp = Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24h from now
-      await adapter.denyToken(user.jti, exp)
-
-      res.json({
-        message: 'Logout realizado com sucesso'
-      })
-    } catch (error: any) {
-      console.error('Logout error:', error)
-      res.status(500).json({
-        error: 'Erro ao fazer logout'
-      })
-    }
+  static async logout(_req: Request, res: Response): Promise<void> {
+    res.json({
+      message: 'Logout realizado com sucesso'
+    })
   }
 
   /**
@@ -134,7 +86,6 @@ export class AuthController {
         return
       }
 
-      // Get fresh user data
       const userData = await adapter.getUserByUUID(user.supabase_user_id)
 
       if (!userData) {
@@ -171,7 +122,6 @@ export class AuthController {
         return
       }
 
-      // Update via adapter
       const updatedUser = await adapter.updateUserProfile(user.supabase_user_id, {
         name,
         email
@@ -204,14 +154,7 @@ export class AuthController {
         return
       }
 
-      // Delete via adapter
       await adapter.deleteUser(user.supabase_user_id)
-
-      // Also add current token to denylist
-      if (user.jti) {
-        const exp = Math.floor(Date.now() / 1000) + (24 * 60 * 60)
-        await adapter.denyToken(user.jti, exp)
-      }
 
       res.json({
         message: 'Conta deletada com sucesso'

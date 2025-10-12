@@ -5,11 +5,9 @@ import { supabaseMiddleware } from '../middleware/supabaseMiddleware'
 const router = Router()
 
 // Registration routes
-router.get('/registrations', AuthController.showRegister)
 router.post('/registrations', AuthController.register)
 
 // Session routes (login/logout)
-router.get('/sessions', AuthController.showSessions)
 router.post('/sessions', AuthController.login)
 router.delete('/sessions', supabaseMiddleware, AuthController.logout)
 
