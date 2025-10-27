@@ -1,4 +1,4 @@
-import { supabaseTyped } from '@/database/supabase'
+import { supabase } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import type {
   CardFeatureRow,
@@ -37,7 +37,7 @@ export class CardFeatureModel {
   }
 
   private static buildQuery(params: CardFeatureQueryParams = {}) {
-    let query = supabaseTyped
+    let query = supabase
       .from(this.tableName)
       .select('*', { count: 'exact' })
 
@@ -108,7 +108,7 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result, error } = await supabaseTyped
+      const { data: result, error } = await (supabase as any)
         .from(this.tableName)
         .insert(insertData)
         .select()
@@ -144,7 +144,7 @@ export class CardFeatureModel {
 
   static async findById(id: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      const { data, error } = await supabaseTyped
+      const { data, error } = await supabase
         .from(this.tableName)
         .select('*')
         .eq('id', id)
@@ -193,7 +193,7 @@ export class CardFeatureModel {
         }
       }
 
-      const transformedData = data?.map(row => this.transformToResponse(row)) || []
+      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
 
       return {
         success: true,
@@ -256,7 +256,7 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result, error } = await supabaseTyped
+      const { data: result, error } = await (supabase as any)
         .from(this.tableName)
         .update(updateData)
         .eq('id', id)
@@ -302,7 +302,7 @@ export class CardFeatureModel {
         }
       }
 
-      const { error } = await supabaseTyped
+      const { error } = await supabase
         .from(this.tableName)
         .delete()
         .eq('id', id)
@@ -342,7 +342,7 @@ export class CardFeatureModel {
   }>> {
     try {
       // Total count
-      const { count: total, error: countError } = await supabaseTyped
+      const { count: total, error: countError } = await supabase
         .from(this.tableName)
         .select('*', { count: 'exact', head: true })
 
@@ -355,7 +355,7 @@ export class CardFeatureModel {
       }
 
       // Group by tech
-      const { data: techData, error: techError } = await supabaseTyped
+      const { data: techData, error: techError } = await supabase
         .from(this.tableName)
         .select('tech')
 
@@ -368,7 +368,7 @@ export class CardFeatureModel {
       }
 
       // Group by language
-      const { data: languageData, error: languageError } = await supabaseTyped
+      const { data: languageData, error: languageError } = await supabase
         .from(this.tableName)
         .select('language')
 
@@ -384,7 +384,7 @@ export class CardFeatureModel {
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-      const { count: recentCount, error: recentError } = await supabaseTyped
+      const { count: recentCount, error: recentError } = await supabase
         .from(this.tableName)
         .select('*', { count: 'exact', head: true })
         .gte('created_at', sevenDaysAgo.toISOString())
@@ -398,12 +398,12 @@ export class CardFeatureModel {
       }
 
       // Process counts
-      const byTech = techData?.reduce((acc, item) => {
+      const byTech = (techData as any)?.reduce((acc: any, item: any) => {
         acc[item.tech] = (acc[item.tech] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
 
-      const byLanguage = languageData?.reduce((acc, item) => {
+      const byLanguage = (languageData as any)?.reduce((acc: any, item: any) => {
         acc[item.language] = (acc[item.language] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
@@ -447,7 +447,7 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }))
 
-      const { data, error } = await supabaseTyped
+      const { data, error } = await (supabase as any)
         .from(this.tableName)
         .insert(insertData)
         .select()
@@ -460,7 +460,7 @@ export class CardFeatureModel {
         }
       }
 
-      const transformedData = data?.map(row => this.transformToResponse(row)) || []
+      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
 
       return {
         success: true,
@@ -480,7 +480,7 @@ export class CardFeatureModel {
 
   static async bulkDelete(ids: string[]): Promise<ModelResult<{ deletedCount: number }>> {
     try {
-      const { error, count } = await supabaseTyped
+      const { error, count } = await supabase
         .from(this.tableName)
         .delete({ count: 'exact' })
         .in('id', ids)

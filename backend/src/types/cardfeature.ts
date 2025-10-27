@@ -73,6 +73,26 @@ export interface CardFeatureUpdate {
 }
 
 // ================================================
+// SUPABASE DATABASE SCHEMA
+// ================================================
+
+/**
+ * Schema completo do banco de dados Supabase
+ * Define a estrutura de tipos para todas as tabelas
+ */
+export interface Database {
+  public: {
+    Tables: {
+      card_features: {
+        Row: CardFeatureRow
+        Insert: CardFeatureInsert
+        Update: CardFeatureUpdate
+      }
+    }
+  }
+}
+
+// ================================================
 // API REQUEST/RESPONSE TYPES
 // ================================================
 
