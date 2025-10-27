@@ -1,4 +1,4 @@
-import { supabase } from '@/database/supabase'
+import { supabase, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import type {
   CardFeatureRow,
@@ -108,32 +108,24 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result, error } = await (supabase as any)
-        .from(this.tableName)
-        .insert(insertData)
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Erro ao criar CardFeature:', error)
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      const { data: result } = await executeQuery(
+        (supabase as any)
+          .from(this.tableName)
+          .insert(insertData)
+          .select()
+          .single()
+      )
 
       return {
         success: true,
         data: this.transformToResponse(result),
         statusCode: 201
       }
-    } catch (error) {
-      console.error('Erro interno ao criar CardFeature:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
@@ -144,38 +136,24 @@ export class CardFeatureModel {
 
   static async findById(id: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      const { data, error } = await supabase
-        .from(this.tableName)
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return {
-            success: false,
-            error: 'CardFeature não encontrado',
-            statusCode: 404
-          }
-        }
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      const { data } = await executeQuery(
+        supabase
+          .from(this.tableName)
+          .select('*')
+          .eq('id', id)
+          .single()
+      )
 
       return {
         success: true,
         data: this.transformToResponse(data),
         statusCode: 200
       }
-    } catch (error) {
-      console.error('Erro interno ao buscar CardFeature:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
@@ -183,15 +161,7 @@ export class CardFeatureModel {
   static async findAll(params: CardFeatureQueryParams = {}): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const query = this.buildQuery(params)
-      const { data, error, count } = await query
-
-      if (error) {
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      const { data, count } = await executeQuery(query)
 
       const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
 
@@ -201,12 +171,11 @@ export class CardFeatureModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error) {
-      console.error('Erro interno ao listar CardFeatures:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
@@ -256,32 +225,25 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result, error } = await (supabase as any)
-        .from(this.tableName)
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) {
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      const { data: result } = await executeQuery(
+        (supabase as any)
+          .from(this.tableName)
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single()
+      )
 
       return {
         success: true,
         data: this.transformToResponse(result),
         statusCode: 200
       }
-    } catch (error) {
-      console.error('Erro interno ao atualizar CardFeature:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
@@ -302,30 +264,23 @@ export class CardFeatureModel {
         }
       }
 
-      const { error } = await supabase
-        .from(this.tableName)
-        .delete()
-        .eq('id', id)
-
-      if (error) {
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      await executeQuery(
+        supabase
+          .from(this.tableName)
+          .delete()
+          .eq('id', id)
+      )
 
       return {
         success: true,
         data: null,
         statusCode: 200
       }
-    } catch (error) {
-      console.error('Erro interno ao deletar CardFeature:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
@@ -342,60 +297,36 @@ export class CardFeatureModel {
   }>> {
     try {
       // Total count
-      const { count: total, error: countError } = await supabase
-        .from(this.tableName)
-        .select('*', { count: 'exact', head: true })
-
-      if (countError) {
-        return {
-          success: false,
-          error: countError.message,
-          statusCode: 400
-        }
-      }
+      const { count: total } = await executeQuery(
+        supabase
+          .from(this.tableName)
+          .select('*', { count: 'exact', head: true })
+      )
 
       // Group by tech
-      const { data: techData, error: techError } = await supabase
-        .from(this.tableName)
-        .select('tech')
-
-      if (techError) {
-        return {
-          success: false,
-          error: techError.message,
-          statusCode: 400
-        }
-      }
+      const { data: techData } = await executeQuery(
+        supabase
+          .from(this.tableName)
+          .select('tech')
+      )
 
       // Group by language
-      const { data: languageData, error: languageError } = await supabase
-        .from(this.tableName)
-        .select('language')
-
-      if (languageError) {
-        return {
-          success: false,
-          error: languageError.message,
-          statusCode: 400
-        }
-      }
+      const { data: languageData } = await executeQuery(
+        supabase
+          .from(this.tableName)
+          .select('language')
+      )
 
       // Recent count (last 7 days)
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-      const { count: recentCount, error: recentError } = await supabase
-        .from(this.tableName)
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', sevenDaysAgo.toISOString())
-
-      if (recentError) {
-        return {
-          success: false,
-          error: recentError.message,
-          statusCode: 400
-        }
-      }
+      const { count: recentCount } = await executeQuery(
+        supabase
+          .from(this.tableName)
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', sevenDaysAgo.toISOString())
+      )
 
       // Process counts
       const byTech = (techData as any)?.reduce((acc: any, item: any) => {
@@ -418,12 +349,11 @@ export class CardFeatureModel {
         },
         statusCode: 200
       }
-    } catch (error) {
-      console.error('Erro interno ao buscar estatísticas:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
@@ -447,18 +377,12 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }))
 
-      const { data, error } = await (supabase as any)
-        .from(this.tableName)
-        .insert(insertData)
-        .select()
-
-      if (error) {
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      const { data } = await executeQuery(
+        (supabase as any)
+          .from(this.tableName)
+          .insert(insertData)
+          .select()
+      )
 
       const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
 
@@ -468,42 +392,34 @@ export class CardFeatureModel {
         count: transformedData.length,
         statusCode: 201
       }
-    } catch (error) {
-      console.error('Erro interno ao criar CardFeatures em lote:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
 
   static async bulkDelete(ids: string[]): Promise<ModelResult<{ deletedCount: number }>> {
     try {
-      const { error, count } = await supabase
-        .from(this.tableName)
-        .delete({ count: 'exact' })
-        .in('id', ids)
-
-      if (error) {
-        return {
-          success: false,
-          error: error.message,
-          statusCode: 400
-        }
-      }
+      const { count } = await executeQuery(
+        supabase
+          .from(this.tableName)
+          .delete({ count: 'exact' })
+          .in('id', ids)
+      )
 
       return {
         success: true,
         data: { deletedCount: count || 0 },
         statusCode: 200
       }
-    } catch (error) {
-      console.error('Erro interno ao deletar CardFeatures em lote:', error)
+    } catch (error: any) {
       return {
         success: false,
-        error: 'Erro interno do servidor',
-        statusCode: 500
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
       }
     }
   }
