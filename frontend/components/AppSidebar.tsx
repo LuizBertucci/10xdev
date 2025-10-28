@@ -103,29 +103,55 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="overflow-y-hidden">
         <SidebarGroup>
           <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    onClick={() => platformState.setActiveTab(item.key)}
-                    isActive={platformState.activeTab === item.key}
-                    tooltip={item.title}
-                  >
-                    <item.icon className="size-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => platformState.setActiveTab("home")}
+                isActive={platformState.activeTab === "home"}
+                tooltip="Início"
+              >
+                <Zap className="size-4 text-yellow-500" />
+                <span>Início</span>
+              </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Conteúdo</SidebarGroupLabel>
+          <SidebarGroupLabel>Códigos</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => platformState.setActiveTab("codes")}
+                isActive={platformState.activeTab === "codes"}
+                tooltip="Códigos"
+              >
+                <Code2 className="size-4 text-green-500" />
+                <span>Códigos</span>
+              </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => platformState.setActiveTab("projects")}
+                  isActive={platformState.activeTab === "projects"}
+                  tooltip="Projetos"
+                >
+                  <FolderOpen className="size-4 text-purple-500" />
+                  <span>Projetos</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Conteúdos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -133,34 +159,81 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                   onClick={() => router.push('/educacional')}
                   tooltip="Educacional"
                 >
-                  <BookOpen className="size-4" />
+                  <GraduationCap className="size-4 text-blue-500" />
                   <span>Educacional</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => platformState.setActiveTab("lessons")}
+                  isActive={platformState.activeTab === "lessons"}
+                  tooltip="Aulas"
+                >
+                  <Play className="size-4 text-red-500" />
+                  <span>Aulas</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => platformState.setActiveTab("trainings")}
+                  isActive={platformState.activeTab === "trainings"}
+                  tooltip="Treinamentos"
+                >
+                  <BookOpen className="size-4 text-orange-500" />
+                  <span>Treinamentos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Ferramentas</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => platformState.setActiveTab("ai")}
+                  isActive={platformState.activeTab === "ai"}
+                  tooltip="IA"
+                >
+                  <Brain className="size-4 text-pink-500" />
+                  <span>IA</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => platformState.setActiveTab("dashboard")}
+                  isActive={platformState.activeTab === "dashboard"}
+                  tooltip="Dashboard"
+                >
+                  <BarChart3 className="size-4 text-indigo-500" />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Favoritos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Heart className="size-4" />
+                <SidebarMenuButton tooltip="Meus Snippets">
+                  <Heart className="size-4 text-red-400" />
                   <span>Meus Snippets</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <BookOpen className="size-4" />
+                <SidebarMenuButton tooltip="Aulas Salvas">
+                  <BookOpen className="size-4 text-emerald-500" />
                   <span>Aulas Salvas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Star className="size-4" />
+                <SidebarMenuButton tooltip="Projetos Favoritos">
+                  <Star className="size-4 text-yellow-400" />
                   <span>Projetos Favoritos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -9,6 +9,7 @@ export interface EducationalVideo {
   thumbnail: string
   category?: string
   tags?: string[]
+  selectedCardFeatureId?: string
   createdAt: string
   updatedAt: string
 }
@@ -41,11 +42,19 @@ async function deleteVideo(id: string) {
   return res
 }
 
+async function updateSelectedCardFeature(id: string, cardFeatureId: string | null) {
+  const res = await apiClient.patch<EducationalVideo>(`/educational/videos/${id}/card-feature`, {
+    cardFeatureId
+  })
+  return res
+}
+
 export const educationalService = {
   listVideos,
   getVideo,
   createVideo,
-  deleteVideo
+  deleteVideo,
+  updateSelectedCardFeature
 }
 
 export type { EducationalVideo, CreateEducationalVideoData }

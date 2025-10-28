@@ -69,6 +69,32 @@ export class EducationalVideoController {
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
+
+  static async updateSelectedCardFeature(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params
+      const { cardFeatureId } = req.body
+      
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do vídeo é obrigatório' })
+        return
+      }
+
+      const result = await EducationalVideoModel.updateSelectedCardFeature(id, cardFeatureId || null)
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        data: result.data, 
+        message: cardFeatureId ? 'CardFeature selecionado com sucesso' : 'CardFeature removido com sucesso' 
+      })
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
 }
 
 

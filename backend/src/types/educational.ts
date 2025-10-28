@@ -11,6 +11,7 @@ export interface EducationalVideoRow {
   thumbnail: string
   category?: string
   tags?: string[]
+  selected_card_feature_id?: string
   created_at: string
   updated_at: string
 }
@@ -24,6 +25,7 @@ export interface EducationalVideoInsert {
   thumbnail: string
   category?: string
   tags?: string[]
+  selected_card_feature_id?: string
   created_at?: string
   updated_at?: string
 }
@@ -36,6 +38,7 @@ export interface EducationalVideoUpdate {
   thumbnail?: string
   category?: string
   tags?: string[]
+  selected_card_feature_id?: string
   updated_at?: string
 }
 
@@ -56,6 +59,7 @@ export interface EducationalVideoResponse {
   thumbnail: string
   category?: string
   tags?: string[]
+  selectedCardFeatureId?: string
   createdAt: string
   updatedAt: string
 }

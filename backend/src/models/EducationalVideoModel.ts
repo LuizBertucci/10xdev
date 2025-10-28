@@ -58,6 +58,9 @@ export class EducationalVideoModel {
     if (row.tags !== undefined && row.tags !== null) {
       response.tags = row.tags
     }
+    if (row.selected_card_feature_id !== undefined && row.selected_card_feature_id !== null) {
+      response.selectedCardFeatureId = row.selected_card_feature_id
+    }
 
     return response
   }
@@ -153,6 +156,28 @@ export class EducationalVideoModel {
       }
 
       return { success: true, data: null, statusCode: 200 }
+    } catch {
+      return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
+    }
+  }
+
+  static async updateSelectedCardFeature(id: string, cardFeatureId: string | null): Promise<ModelResult<EducationalVideoResponse>> {
+    try {
+      const { data, error } = await supabaseTyped
+        .from(this.tableName)
+        .update({ 
+          selected_card_feature_id: cardFeatureId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (error) {
+        return { success: false, error: error.message, statusCode: 400 }
+      }
+
+      return { success: true, data: this.toResponse(data as unknown as EducationalVideoRow), statusCode: 200 }
     } catch {
       return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
     }
