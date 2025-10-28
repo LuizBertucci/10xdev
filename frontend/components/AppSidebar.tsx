@@ -12,6 +12,7 @@ import {
   BarChart3,
   GraduationCap,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
   Sidebar,
@@ -34,6 +35,7 @@ interface AppSidebarProps {
 }
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {
+  const router = useRouter()
   const menuItems = [
     {
       title: "Início",
@@ -118,6 +120,23 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Conteúdo</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push('/educacional')}
+                  tooltip="Educacional"
+                >
+                  <BookOpen className="size-4" />
+                  <span>Educacional</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
