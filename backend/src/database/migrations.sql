@@ -171,3 +171,40 @@ BEGIN
     END IF;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ================================================
+-- MIGRATION: Create Educational Videos table
+-- ================================================
+
+-- Create Educational Videos table
+CREATE TABLE IF NOT EXISTS educational_videos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    description TEXT,
+    youtube_url TEXT NOT NULL,
+    video_id TEXT NOT NULL,
+    thumbnail TEXT NOT NULL,
+    category TEXT,
+    tags TEXT[],
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for educational_videos
+CREATE INDEX IF NOT EXISTS idx_educational_videos_created_at ON educational_videos(created_at);
+CREATE INDEX IF NOT EXISTS idx_educational_videos_video_id ON educational_videos(video_id);
+
+-- Trigger function to update updated_at for educational_videos
+CREATE OR REPLACE FUNCTION update_educational_videos_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Trigger bind
+CREATE TRIGGER update_educational_videos_updated_at
+    BEFORE UPDATE ON educational_videos
+    FOR EACH ROW
+    EXECUTE FUNCTION update_educational_videos_updated_at_column();
