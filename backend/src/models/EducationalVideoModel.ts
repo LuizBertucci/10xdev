@@ -16,7 +16,8 @@ function extractYouTubeVideoId(url: string): string | null {
       return u.searchParams.get('v')
     }
     if (u.hostname === 'youtu.be') {
-      return u.pathname.slice(1).split('?')[0]
+      const videoId = u.pathname.slice(1).split('?')[0]
+      return videoId || null
     }
     if (u.hostname.includes('youtube.com') && u.pathname.includes('/embed/')) {
       return u.pathname.split('/embed/')[1]?.split('?')[0] || null
@@ -38,18 +39,27 @@ export class EducationalVideoModel {
   private static tableName = 'educational_videos'
 
   private static toResponse(row: EducationalVideoRow): EducationalVideoResponse {
-    return {
+    const response: EducationalVideoResponse = {
       id: row.id,
       title: row.title,
-      description: row.description || undefined,
       youtubeUrl: row.youtube_url,
       videoId: row.video_id,
       thumbnail: row.thumbnail,
-      category: row.category || undefined,
-      tags: row.tags || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
+
+    if (row.description !== undefined && row.description !== null) {
+      response.description = row.description
+    }
+    if (row.category !== undefined && row.category !== null) {
+      response.category = row.category
+    }
+    if (row.tags !== undefined && row.tags !== null) {
+      response.tags = row.tags
+    }
+
+    return response
   }
 
   static async list(): Promise<ModelListResult<EducationalVideoResponse>> {
@@ -98,14 +108,21 @@ export class EducationalVideoModel {
       const insertData: EducationalVideoInsert = {
         id: randomUUID(),
         title: payload.title,
-        description: payload.description,
         youtube_url: payload.youtubeUrl,
         video_id: videoId,
         thumbnail: getYouTubeThumbnail(videoId),
-        category: payload.category,
-        tags: payload.tags,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
+      }
+
+      if (payload.description !== undefined) {
+        insertData.description = payload.description
+      }
+      if (payload.category !== undefined) {
+        insertData.category = payload.category
+      }
+      if (payload.tags !== undefined) {
+        insertData.tags = payload.tags
       }
 
       const { data, error } = await supabaseTyped
