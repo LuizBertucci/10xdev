@@ -10,19 +10,22 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { educationalService, type EducationalVideo } from "@/services/educationalService"
 import { cardFeatureService, type CardFeature as CardFeatureType } from "@/services"
+import { useToast } from "@/hooks/use-toast"
 
 export default function EducationalVideoDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
+  const { toast } = useToast()
   const [video, setVideo] = useState<EducationalVideo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // CardFeatures state
   const [cardFeatures, setCardFeatures] = useState<CardFeatureType[]>([])
   const [selectedCardFeature, setSelectedCardFeature] = useState<CardFeatureType | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [loadingCards, setLoadingCards] = useState(false)
 
   useEffect(() => {
     const id = params?.id
@@ -61,13 +64,27 @@ export default function EducationalVideoDetailPage() {
   }, [params?.id])
 
   const fetchCardFeatures = async () => {
+    setLoadingCards(true)
     try {
-      const res = await cardFeatureService.getAll({ page: 1, limit: 100 })
+      const res = await cardFeatureService.getAll({ page: 1, limit: 500 })
       if (res.success && res.data) {
         setCardFeatures(res.data)
+      } else {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar CardFeatures.",
+          variant: "destructive",
+        })
       }
     } catch (e) {
       console.error('Erro ao buscar CardFeatures:', e)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar CardFeatures.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingCards(false)
     }
   }
 
@@ -77,27 +94,63 @@ export default function EducationalVideoDetailPage() {
   }
 
   const handleSelectCardFeature = async (cardFeature: CardFeatureType) => {
+    if (!video) {
+      toast({
+        title: "Erro",
+        description: "Vídeo não encontrado.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       // Salvar no banco de dados
-      await educationalService.updateSelectedCardFeature(video!.id, cardFeature.id)
-      
+      await educationalService.updateSelectedCardFeature(video.id, cardFeature.id)
+
       // Atualizar estado local
       setSelectedCardFeature(cardFeature)
       setIsSearchOpen(false)
+      toast({
+        title: "Sucesso!",
+        description: "CardFeature selecionado com sucesso.",
+      })
     } catch (e) {
       console.error('Erro ao salvar CardFeature selecionado:', e)
+      toast({
+        title: "Erro",
+        description: "Erro ao selecionar CardFeature.",
+        variant: "destructive",
+      })
     }
   }
 
   const handleRemoveCardFeature = async () => {
+    if (!video) {
+      toast({
+        title: "Erro",
+        description: "Vídeo não encontrado.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
       // Remover do banco de dados
-      await educationalService.updateSelectedCardFeature(video!.id, null)
-      
+      await educationalService.updateSelectedCardFeature(video.id, null)
+
       // Atualizar estado local
       setSelectedCardFeature(null)
+      toast({
+        title: "Sucesso!",
+        description: "CardFeature removido com sucesso.",
+      })
     } catch (e) {
       console.error('Erro ao remover CardFeature selecionado:', e)
+      toast({
+        title: "Erro",
+        description: "Erro ao remover CardFeature.",
+        variant: "destructive",
+      })
     }
   }
 
