@@ -55,6 +55,29 @@ export class EducationalVideoController {
     }
   }
 
+  static async update(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params
+      const body = req.body
+
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID é obrigatório' })
+        return
+      }
+
+      const result = await EducationalVideoModel.update(id, body)
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({ success: true, data: result.data, message: 'Vídeo educacional atualizado com sucesso' })
+    } catch (error) {
+      console.error('Erro no controller update:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
+
   static async delete(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params

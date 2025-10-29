@@ -7,6 +7,7 @@ const router = Router()
 router.get('/videos', EducationalVideoController.list)
 router.get('/videos/:id', EducationalVideoController.getById)
 router.post('/videos', EducationalVideoController.create)
+router.put('/videos/:id', EducationalVideoController.update)
 router.delete('/videos/:id', EducationalVideoController.delete)
 router.patch('/videos/:id/card-feature', EducationalVideoController.updateSelectedCardFeature)
 

@@ -144,6 +144,51 @@ export class EducationalVideoModel {
     }
   }
 
+  static async update(id: string, payload: Partial<CreateEducationalVideoRequest>): Promise<ModelResult<EducationalVideoResponse>> {
+    try {
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      }
+
+      if (payload.title !== undefined) {
+        updateData.title = payload.title
+      }
+      if (payload.description !== undefined) {
+        updateData.description = payload.description
+      }
+      if (payload.youtubeUrl !== undefined) {
+        const videoId = extractYouTubeVideoId(payload.youtubeUrl)
+        if (!videoId) {
+          return { success: false, error: 'URL do YouTube inválida', statusCode: 400 }
+        }
+        updateData.youtube_url = payload.youtubeUrl
+        updateData.video_id = videoId
+        updateData.thumbnail = getYouTubeThumbnail(videoId)
+      }
+      if (payload.category !== undefined) {
+        updateData.category = payload.category
+      }
+      if (payload.tags !== undefined) {
+        updateData.tags = payload.tags
+      }
+
+      const { data, error } = await supabaseTyped
+        .from(this.tableName)
+        .update(updateData)
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (error) {
+        return { success: false, error: error.message, statusCode: 400 }
+      }
+
+      return { success: true, data: this.toResponse(data as unknown as EducationalVideoRow), statusCode: 200 }
+    } catch {
+      return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
+    }
+  }
+
   static async delete(id: string): Promise<ModelResult<null>> {
     try {
       const { error } = await supabaseTyped

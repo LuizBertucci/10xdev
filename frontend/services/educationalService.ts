@@ -37,6 +37,11 @@ async function createVideo(data: CreateEducationalVideoData) {
   return res
 }
 
+async function updateVideo(id: string, data: Partial<CreateEducationalVideoData>) {
+  const res = await apiClient.put<EducationalVideo>(`/educational/videos/${id}`, data)
+  return res
+}
+
 async function deleteVideo(id: string) {
   const res = await apiClient.delete<{ success: boolean }>(`/educational/videos/${id}`)
   return res
@@ -53,6 +58,7 @@ export const educationalService = {
   listVideos,
   getVideo,
   createVideo,
+  updateVideo,
   deleteVideo,
   updateSelectedCardFeature
 }

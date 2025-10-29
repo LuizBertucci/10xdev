@@ -28,6 +28,7 @@ export default function EducacionalPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [editVideo, setEditVideo] = useState<EducationalVideo | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; videoId: string | null }>({
     isOpen: false,
     videoId: null
@@ -96,6 +97,47 @@ export default function EducacionalPage() {
       toast({
         title: "Erro",
         description: "Erro ao adicionar vídeo.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEdit = (video: any) => {
+    // Recebe o TrainingVideo mas precisamos buscar o EducationalVideo
+    const videoToEdit = videos.find(v => v.id === video.id)
+    if (videoToEdit) {
+      setEditVideo(videoToEdit)
+    }
+  }
+
+  const handleUpdate = async (data: { title: string; url: string; description?: string }) => {
+    if (!editVideo) return
+
+    try {
+      const res = await educationalService.updateVideo(editVideo.id, {
+        title: data.title,
+        youtubeUrl: data.url,
+        description: data.description
+      })
+      if (res.success && res.data) {
+        setVideos(prev => prev.map(v => v.id === editVideo.id ? res.data! : v))
+        setEditVideo(null)
+        toast({
+          title: "Sucesso!",
+          description: "Vídeo atualizado com sucesso.",
+        })
+      } else {
+        toast({
+          title: "Erro",
+          description: res.error || "Erro ao atualizar vídeo.",
+          variant: "destructive",
+        })
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar vídeo:', e)
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar vídeo.",
         variant: "destructive",
       })
     }
@@ -217,7 +259,7 @@ export default function EducacionalPage() {
                 updatedAt: video.updatedAt
               }}
               onView={handleView}
-              onEdit={() => {}} // Não implementado ainda
+              onEdit={handleEdit}
               onDelete={handleDelete}
             />
           ))}
@@ -229,6 +271,19 @@ export default function EducacionalPage() {
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         onSubmit={handleAdd}
+      />
+
+      {/* Edit Video Modal */}
+      <AddVideoSheet
+        isOpen={!!editVideo}
+        onClose={() => setEditVideo(null)}
+        onSubmit={handleUpdate}
+        editMode={true}
+        initialData={editVideo ? {
+          title: editVideo.title,
+          url: editVideo.youtubeUrl,
+          description: editVideo.description
+        } : undefined}
       />
 
       {/* Delete Confirmation Dialog */}
