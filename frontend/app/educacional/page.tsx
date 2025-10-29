@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation"
 import { Search, Plus, Video } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import AddVideoSheet from "@/components/add-video-sheet"
 import TrainingVideoCard from "@/components/TrainingVideoCard"
 import { educationalService, type EducationalVideo } from "@/services/educationalService"
@@ -18,6 +28,11 @@ export default function EducacionalPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; videoId: string | null }>({
+    isOpen: false,
+    videoId: null
+  })
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchVideos = async () => {
     setLoading(true)
@@ -76,12 +91,18 @@ export default function EducacionalPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este vídeo?')) return
+  const handleDelete = (id: string) => {
+    setDeleteConfirm({ isOpen: true, videoId: id })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.videoId) return
+
+    setIsDeleting(true)
     try {
-      const res = await educationalService.deleteVideo(id)
+      const res = await educationalService.deleteVideo(deleteConfirm.videoId)
       if (res.success) {
-        setVideos(prev => prev.filter(v => v.id !== id))
+        setVideos(prev => prev.filter(v => v.id !== deleteConfirm.videoId))
         toast({
           title: "Sucesso!",
           description: "Vídeo excluído com sucesso.",
@@ -100,6 +121,9 @@ export default function EducacionalPage() {
         description: "Erro ao excluir vídeo.",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
+      setDeleteConfirm({ isOpen: false, videoId: null })
     }
   }
 
@@ -196,6 +220,30 @@ export default function EducacionalPage() {
         onClose={() => setIsAddOpen(false)}
         onSubmit={handleAdd}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirm.isOpen} onOpenChange={(open) => !isDeleting && setDeleteConfirm({ isOpen: open, videoId: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este vídeo? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
