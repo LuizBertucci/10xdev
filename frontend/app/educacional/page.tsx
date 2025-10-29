@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button"
 import AddVideoSheet from "@/components/add-video-sheet"
 import TrainingVideoCard from "@/components/TrainingVideoCard"
 import { educationalService, type EducationalVideo } from "@/services/educationalService"
+import { useToast } from "@/hooks/use-toast"
 
 export default function EducacionalPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [videos, setVideos] = useState<EducationalVideo[]>([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
@@ -52,11 +54,25 @@ export default function EducacionalPage() {
       })
       if (res.success && res.data) {
         setVideos(prev => [res.data!, ...prev])
+        setIsAddOpen(false)
+        toast({
+          title: "Sucesso!",
+          description: "Vídeo educacional adicionado com sucesso.",
+        })
+      } else {
+        toast({
+          title: "Erro",
+          description: res.error || "Erro ao adicionar vídeo.",
+          variant: "destructive",
+        })
       }
     } catch (e) {
       console.error('Erro ao adicionar vídeo:', e)
-    } finally {
-      setIsAddOpen(false)
+      toast({
+        title: "Erro",
+        description: "Erro ao adicionar vídeo.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -66,9 +82,24 @@ export default function EducacionalPage() {
       const res = await educationalService.deleteVideo(id)
       if (res.success) {
         setVideos(prev => prev.filter(v => v.id !== id))
+        toast({
+          title: "Sucesso!",
+          description: "Vídeo excluído com sucesso.",
+        })
+      } else {
+        toast({
+          title: "Erro",
+          description: res.error || "Erro ao excluir vídeo.",
+          variant: "destructive",
+        })
       }
     } catch (e) {
       console.error('Erro ao deletar vídeo:', e)
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir vídeo.",
+        variant: "destructive",
+      })
     }
   }
 
