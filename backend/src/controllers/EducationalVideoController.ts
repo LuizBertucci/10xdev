@@ -12,6 +12,7 @@ export class EducationalVideoController {
       }
       res.status(200).json({ success: true, data: result.data, count: result.count })
     } catch (error) {
+      console.error('Erro no controller list:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
@@ -30,6 +31,7 @@ export class EducationalVideoController {
       }
       res.status(200).json({ success: true, data: result.data })
     } catch (error) {
+      console.error('Erro no controller getById:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
@@ -48,6 +50,7 @@ export class EducationalVideoController {
       }
       res.status(201).json({ success: true, data: result.data, message: 'Vídeo educacional criado com sucesso' })
     } catch (error) {
+      console.error('Erro no controller create:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
@@ -66,6 +69,7 @@ export class EducationalVideoController {
       }
       res.status(200).json({ success: true, message: 'Vídeo educacional removido com sucesso' })
     } catch (error) {
+      console.error('Erro no controller delete:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
@@ -86,12 +90,13 @@ export class EducationalVideoController {
         return
       }
       
-      res.status(200).json({ 
-        success: true, 
-        data: result.data, 
-        message: cardFeatureId ? 'CardFeature selecionado com sucesso' : 'CardFeature removido com sucesso' 
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        message: cardFeatureId ? 'CardFeature selecionado com sucesso' : 'CardFeature removido com sucesso'
       })
     } catch (error) {
+      console.error('Erro no controller updateSelectedCardFeature:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
