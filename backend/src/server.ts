@@ -117,6 +117,14 @@ app.use('/api/card-features/search', searchRateLimit)
 // Rate limiting para stats
 app.use('/api/card-features/stats', statsRateLimit)
 
+// Rate limiting para operações de escrita em educational videos
+app.use('/api/educational/videos', (req, res, next) => {
+  if (['POST', 'DELETE', 'PATCH'].includes(req.method)) {
+    return writeOperationsRateLimit(req, res, next)
+  }
+  next()
+})
+
 // ================================================
 // ROUTES
 // ================================================
