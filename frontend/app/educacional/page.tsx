@@ -34,25 +34,35 @@ export default function EducacionalPage() {
   })
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const fetchVideos = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await educationalService.listVideos()
-      if (res.success && res.data) {
-        setVideos(res.data)
-      } else {
-        setError(res.error || "Erro ao carregar vídeos")
-      }
-    } catch (e) {
-      setError("Erro ao carregar vídeos")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    fetchVideos()
+    let isMounted = true
+
+    const loadVideos = async () => {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await educationalService.listVideos()
+        if (isMounted) {
+          if (res.success && res.data) {
+            setVideos(res.data)
+          } else {
+            setError(res.error || "Erro ao carregar vídeos")
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao carregar vídeos:', e)
+        if (isMounted) {
+          setError("Erro ao carregar vídeos")
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadVideos()
+    return () => { isMounted = false }
   }, [])
 
   const filtered = videos.filter(v =>
