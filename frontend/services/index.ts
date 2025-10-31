@@ -17,3 +17,7 @@ export type {
   CardFeatureListResponse,
   CardFeatureStats
 } from './cardFeatureService'
+
+// Educational Service
+export { educationalService } from './educationalService'
+export type { EducationalVideo, CreateEducationalVideoData } from './educationalService'

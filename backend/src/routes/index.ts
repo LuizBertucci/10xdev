@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { cardFeatureRoutes } from './cardFeatureRoutes'
+import { educationalRoutes } from './educationalRoutes'
 
 const router = Router()
 
@@ -20,6 +21,9 @@ router.get('/health', (req, res) => {
 // CardFeatures routes
 router.use('/card-features', cardFeatureRoutes)
 
+// Educational videos routes
+router.use('/educational', educationalRoutes)
+
 // API Info endpoint
 router.get('/', (req, res) => {
   res.status(200).json({
@@ -39,6 +43,12 @@ router.get('/', (req, res) => {
         stats: 'GET /api/card-features/stats',
         bulkCreate: 'POST /api/card-features/bulk',
         bulkDelete: 'DELETE /api/card-features/bulk'
+      },
+      educational: {
+        list: 'GET /api/educational/videos',
+        getById: 'GET /api/educational/videos/:id',
+        create: 'POST /api/educational/videos',
+        delete: 'DELETE /api/educational/videos/:id'
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'

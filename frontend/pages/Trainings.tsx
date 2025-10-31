@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 export default function Trainings() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false)
-  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
 
   const trainingVideos = useTrainingVideos()
 

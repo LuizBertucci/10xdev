@@ -13,9 +13,15 @@ interface AddVideoSheetProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: { title: string; url: string; description?: string }) => Promise<void>
+  editMode?: boolean
+  initialData?: {
+    title: string
+    url: string
+    description?: string
+  }
 }
 
-export default function AddVideoSheet({ isOpen, onClose, onSubmit }: AddVideoSheetProps) {
+export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = false, initialData }: AddVideoSheetProps) {
   const [url, setUrl] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -23,6 +29,15 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit }: AddVideoShe
   const [isFetchingTitle, setIsFetchingTitle] = useState(false)
   const [previewThumbnail, setPreviewThumbnail] = useState<string | null>(null)
   const [urlError, setUrlError] = useState<string | null>(null)
+
+  // Load initial data in edit mode
+  useEffect(() => {
+    if (isOpen && editMode && initialData) {
+      setUrl(initialData.url)
+      setTitle(initialData.title)
+      setDescription(initialData.description || "")
+    }
+  }, [isOpen, editMode, initialData])
 
   // Reset form when modal closes
   useEffect(() => {
@@ -114,7 +129,7 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit }: AddVideoShe
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>Adicionar Vídeo do YouTube</DialogTitle>
+            <DialogTitle>{editMode ? 'Editar Vídeo' : 'Adicionar Vídeo do YouTube'}</DialogTitle>
             <Button
               variant="ghost"
               size="sm"
@@ -206,10 +221,10 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit }: AddVideoShe
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adicionando...
+                  {editMode ? 'Salvando...' : 'Adicionando...'}
                 </>
               ) : (
-                "Adicionar Vídeo"
+                editMode ? 'Salvar Alterações' : 'Adicionar Vídeo'
               )}
             </Button>
           </DialogFooter>
