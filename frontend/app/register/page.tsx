@@ -16,6 +16,7 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { getDefaultRoute } from '@/utils/routes'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -49,9 +50,9 @@ export default function RegisterPage() {
     try {
       await register({ name, email, password })
       toast.success('Conta criada com sucesso! Redirecionando...')
-      // Redirecionar para home com tab dashboard após registro bem-sucedido
+      // Redirecionar para home com tab dashboard (default após registro)
       setTimeout(() => {
-        router.push('/?tab=dashboard')
+        router.push(getDefaultRoute())
       }, 1000)
     } catch (error: any) {
       console.error('Erro no registro:', error)

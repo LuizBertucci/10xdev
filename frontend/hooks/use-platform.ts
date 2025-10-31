@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { CodeSnippet } from '@/types'; // Assuming a types file exists, adjust as needed
+import { CodeSnippet } from '@/types';
+import { normalizeTab, isValidTab, type TabKey } from '@/utils/routes';
 
 // Define the state and functions for the DevPlatform
 export function usePlatform() {
@@ -9,13 +10,13 @@ export function usePlatform() {
   const searchParams = useSearchParams();
   
   // Get initial tab from URL or default to 'home'
-  const getInitialTab = () => {
+  const getInitialTab = (): TabKey => {
     const tabFromUrl = searchParams.get('tab');
-    return tabFromUrl || 'home';
+    return normalizeTab(tabFromUrl);
   };
 
   // State for the active tab
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab());
+  const [activeTab, setActiveTab] = useState<TabKey>(getInitialTab());
 
   // State for search term
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -52,12 +53,15 @@ export function usePlatform() {
 
   // Enhanced setActiveTab that updates URL
   const setActiveTabWithUrl = useCallback((tab: string) => {
-    setActiveTab(tab);
+    // Normalizar a tab para garantir que é válida
+    const normalizedTab = normalizeTab(tab);
+    setActiveTab(normalizedTab);
+    
     const params = new URLSearchParams(searchParams.toString());
-    if (tab === 'home') {
+    if (normalizedTab === 'home') {
       params.delete('tab');
     } else {
-      params.set('tab', tab);
+      params.set('tab', normalizedTab);
     }
     const queryString = params.toString();
     const newUrl = queryString ? `/?${queryString}` : '/';
@@ -66,7 +70,7 @@ export function usePlatform() {
 
   // Listen to URL changes and update tab accordingly
   useEffect(() => {
-    const tabFromUrl = searchParams.get('tab') || 'home';
+    const tabFromUrl = normalizeTab(searchParams.get('tab'));
     if (tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }

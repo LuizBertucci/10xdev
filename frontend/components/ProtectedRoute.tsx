@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { getDefaultRoute } from '@/utils/routes'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -24,9 +25,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       
       const redirectUrl = currentPath !== '/' 
         ? `?redirect=${encodeURIComponent(currentPath)}` 
-        : '?redirect=' + encodeURIComponent('/?tab=dashboard')
+        : '?redirect=' + encodeURIComponent(getDefaultRoute())
       
-      router.push(`/login${redirectUrl}`)
+      // Usar replace ao invés de push para não criar entrada no histórico
+      router.replace(`/login${redirectUrl}`)
     }
   }, [isAuthenticated, isLoading, router, pathname, searchParams])
 

@@ -1,27 +1,63 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Default route após login (dashboard)
+const DEFAULT_ROUTE = '/?tab=dashboard'
+
 export async function middleware(request: NextRequest) {
-  // Rotas públicas que não precisam de autenticação
-  const publicPaths = ['/login', '/register']
   const { pathname } = request.nextUrl
 
-  // Permitir acesso a rotas públicas
-  if (publicPaths.includes(pathname)) {
-    return NextResponse.next()
-  }
+  // Rotas públicas que não precisam de autenticação
+  const publicPaths = ['/login', '/register']
 
-  // Permitir acesso a arquivos estáticos
+  // Permitir acesso a arquivos estáticos e APIs
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/static') ||
-    pathname.includes('.')
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js)$/)
   ) {
     return NextResponse.next()
   }
 
-  // Verificar autenticação para rotas protegidas
+  // Se for rota pública, permitir acesso
+  if (publicPaths.includes(pathname)) {
+    // Verificar se já está autenticado e redirecionar para home
+    try {
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get(name: string) {
+              return request.cookies.get(name)?.value
+            },
+            set() {},
+            remove() {},
+          },
+        }
+      )
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (user) {
+        // Usuário autenticado tentando acessar login/register, redirecionar para dashboard
+        const redirectUrl = request.nextUrl.clone()
+        redirectUrl.pathname = '/'
+        redirectUrl.search = '?tab=dashboard'
+        return NextResponse.redirect(redirectUrl)
+      }
+    } catch (error) {
+      // Em caso de erro, permitir acesso à rota pública
+      console.error('Erro ao verificar autenticação em rota pública:', error)
+    }
+
+    return NextResponse.next()
+  }
+
+  // Para todas as outras rotas, verificar autenticação
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -77,35 +113,38 @@ export async function middleware(request: NextRequest) {
 
     const {
       data: { user },
+      error,
     } = await supabase.auth.getUser()
 
-    // Se não autenticado e tentando acessar rota protegida, redirecionar para login
-    if (!user && pathname !== '/login' && pathname !== '/register') {
+    // Se não autenticado, redirecionar para login
+    if (!user || error) {
+      console.log('Usuário não autenticado, redirecionando para login. Pathname:', pathname)
       const redirectUrl = request.nextUrl.clone()
       redirectUrl.pathname = '/login'
-      redirectUrl.searchParams.set('redirect', pathname)
+      
+      // Preservar query params se existirem (ex: ?tab=dashboard)
+      if (pathname === '/' && request.nextUrl.search) {
+        redirectUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`)
+      } else if (pathname !== '/') {
+        redirectUrl.searchParams.set('redirect', pathname + request.nextUrl.search)
+      } else {
+        // Se não há query params e está na rota raiz, redirecionar para dashboard após login
+        redirectUrl.searchParams.set('redirect', DEFAULT_ROUTE)
+      }
+      
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Se autenticado e tentando acessar login/register, redirecionar para home
-    if (user && (pathname === '/login' || pathname === '/register')) {
-      const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = '/'
-      redirectUrl.searchParams.set('tab', 'dashboard')
-      return NextResponse.redirect(redirectUrl)
-    }
+    // Usuário autenticado, permitir acesso
+    return response
   } catch (error) {
     console.error('Erro no middleware:', error)
-    // Em caso de erro, redirecionar para login
-    if (pathname !== '/login' && pathname !== '/register') {
-      const redirectUrl = request.nextUrl.clone()
-      redirectUrl.pathname = '/login'
-      redirectUrl.searchParams.set('redirect', pathname)
-      return NextResponse.redirect(redirectUrl)
-    }
+    // Em caso de erro, redirecionar para login por segurança
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/login'
+    redirectUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(redirectUrl)
   }
-
-  return response
 }
 
 export const config = {

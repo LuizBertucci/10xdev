@@ -16,6 +16,7 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { getDefaultRoute } from '@/utils/routes'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -32,8 +33,8 @@ export default function LoginPage() {
       if (redirect) {
         router.push(redirect)
       } else {
-        // Redirecionar para home com tab dashboard
-        router.push('/?tab=dashboard')
+        // Redirecionar para home com tab dashboard (default após login)
+        router.push(getDefaultRoute())
       }
     }
   }, [isAuthenticated, isLoading, router, searchParams])
@@ -54,8 +55,8 @@ export default function LoginPage() {
       if (redirect) {
         router.push(redirect)
       } else {
-        // Redirecionar para home com tab dashboard
-        router.push('/?tab=dashboard')
+        // Redirecionar para home com tab dashboard (default após login)
+        router.push(getDefaultRoute())
       }
     } catch (error: any) {
       console.error('Erro no login:', error)
