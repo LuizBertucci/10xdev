@@ -3,15 +3,13 @@
 import {
   Code2,
   Play,
-  FolderOpen,
-  Heart,
-  BookOpen,
   Zap,
-  Brain,
-  Star,
-  BarChart3,
-  GraduationCap,
   LogOut,
+  Home,
+  BookOpenCheck,
+  FolderKanban,
+  Sparkles,
+  LayoutDashboard,
 } from "lucide-react"
 
 import {
@@ -20,7 +18,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -73,45 +70,52 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
   const menuItems = [
     {
       title: "Início",
-      icon: Zap,
+      icon: Home,
       key: "home",
       description: "Dashboard principal",
+      iconColor: "text-blue-500",
     },
     {
       title: "Códigos",
       icon: Code2,
       key: "codes",
       description: "Snippets e exemplos",
+      iconColor: "text-purple-500",
     },
     {
       title: "Aulas",
       icon: Play,
       key: "lessons",
       description: "Videoaulas e trilhas",
+      iconColor: "text-green-500",
     },
     {
       title: "Treinamentos",
-      icon: GraduationCap,
+      icon: BookOpenCheck,
       key: "trainings",
       description: "Cursos e certificações",
+      iconColor: "text-orange-500",
     },
     {
       title: "Projetos",
-      icon: FolderOpen,
+      icon: FolderKanban,
       key: "projects",
       description: "Templates completos",
+      iconColor: "text-indigo-500",
     },
     {
       title: "IA",
-      icon: Brain,
+      icon: Sparkles,
       key: "ai",
       description: "Integração com IA",
+      iconColor: "text-pink-500",
     },
     {
       title: "Dashboard",
-      icon: BarChart3,
+      icon: LayoutDashboard,
       key: "dashboard",
       description: "Analytics e métricas",
+      iconColor: "text-cyan-500",
     },
   ]
 
@@ -139,7 +143,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -149,38 +152,11 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                     isActive={platformState.activeTab === item.key}
                     tooltip={item.title}
                   >
-                    <item.icon className="size-4" />
+                    <item.icon className={`size-5 ${item.iconColor || ''}`} />
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Favoritos</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Heart className="size-4" />
-                  <span>Meus Snippets</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <BookOpen className="size-4" />
-                  <span>Aulas Salvas</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Star className="size-4" />
-                  <span>Projetos Favoritos</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -202,7 +178,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout}>
-              <LogOut className="size-4" />
+              <LogOut className="size-5 text-red-500" />
               <span>Sair</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
