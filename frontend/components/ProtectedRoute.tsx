@@ -18,7 +18,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       // Redirecionar para login com query param redirect para voltar após login
-      // Preservar query params se existirem (ex: ?tab=dashboard)
+      // Preservar query params se existirem (ex: ?tab=home)
       const currentPath = pathname === '/' && searchParams.toString() 
         ? `/?${searchParams.toString()}`
         : pathname

@@ -82,7 +82,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password: data.password
       })
 
-      if (error) throw error
+      if (error) {
+        // Traduzir erros comuns do Supabase
+        let errorMessage = error.message
+        if (error.message?.includes('Invalid login credentials') || error.message?.includes('Email not confirmed')) {
+          errorMessage = 'Credenciais inválidas. Verifique seu email e senha.'
+        } else if (error.message?.includes('Email not confirmed')) {
+          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
+        }
+        
+        const customError: any = new Error(errorMessage)
+        customError.originalError = error
+        throw customError
+      }
 
       if (authData.user) {
         const userData: User = {
@@ -114,7 +128,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
 
-      if (error) throw error
+      if (error) {
+        // Traduzir erros comuns do Supabase
+        let errorMessage = error.message
+        if (error.message?.includes('User already registered') || error.message?.includes('already registered')) {
+          errorMessage = 'Este email já está cadastrado. Tente fazer login ou use outro email.'
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
+        } else if (error.message?.includes('Password')) {
+          errorMessage = 'A senha não atende aos requisitos mínimos.'
+        }
+        
+        const customError: any = new Error(errorMessage)
+        customError.originalError = error
+        throw customError
+      }
 
       if (authData.user) {
         const userData: User = {

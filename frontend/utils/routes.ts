@@ -52,15 +52,15 @@ export function getTabRoute(tab: TabKey): string {
 /**
  * Gera a rota de redirect com query param
  */
-export function getRedirectRoute(tab: TabKey = 'dashboard'): string {
+export function getRedirectRoute(tab: TabKey = 'home'): string {
   return `?redirect=${encodeURIComponent(TABS[tab].route)}`
 }
 
 /**
- * Pega a tab default (dashboard após login/registro)
+ * Pega a tab default (home - tela inicial após login/registro)
  */
 export function getDefaultRoute(): string {
-  return TABS.dashboard.route
+  return TABS.home.route
 }
 
 /**

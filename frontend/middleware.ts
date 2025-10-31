@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Default route após login (dashboard)
-const DEFAULT_ROUTE = '/?tab=dashboard'
+// Default route após login (home)
+const DEFAULT_ROUTE = '/'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -43,10 +43,10 @@ export async function middleware(request: NextRequest) {
       } = await supabase.auth.getUser()
 
       if (user) {
-        // Usuário autenticado tentando acessar login/register, redirecionar para dashboard
+        // Usuário autenticado tentando acessar login/register, redirecionar para home
         const redirectUrl = request.nextUrl.clone()
         redirectUrl.pathname = '/'
-        redirectUrl.search = '?tab=dashboard'
+        redirectUrl.search = ''
         return NextResponse.redirect(redirectUrl)
       }
     } catch (error) {
@@ -128,7 +128,7 @@ export async function middleware(request: NextRequest) {
       } else if (pathname !== '/') {
         redirectUrl.searchParams.set('redirect', pathname + request.nextUrl.search)
       } else {
-        // Se não há query params e está na rota raiz, redirecionar para dashboard após login
+        // Se não há query params e está na rota raiz, redirecionar para home após login
         redirectUrl.searchParams.set('redirect', DEFAULT_ROUTE)
       }
       
