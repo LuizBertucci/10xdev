@@ -15,8 +15,6 @@ import type {
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
-  private static tableName = 'card_features'
-
   // ================================================
   // PRIVATE HELPERS
   // ================================================
@@ -38,7 +36,7 @@ export class CardFeatureModel {
 
   private static buildQuery(params: CardFeatureQueryParams = {}) {
     let query = supabase
-      .from(this.tableName)
+      .from('card_features')
       .select('*', { count: 'exact' })
 
     // Filtros
@@ -109,8 +107,8 @@ export class CardFeatureModel {
       }
 
       const { data: result } = await executeQuery(
-        (supabase as any)
-          .from(this.tableName)
+        supabase
+          .from('card_features')
           .insert(insertData)
           .select()
           .single()
@@ -138,7 +136,7 @@ export class CardFeatureModel {
     try {
       const { data } = await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .select('*')
           .eq('id', id)
           .single()
@@ -226,8 +224,8 @@ export class CardFeatureModel {
       }
 
       const { data: result } = await executeQuery(
-        (supabase as any)
-          .from(this.tableName)
+        supabase
+          .from('card_features')
           .update(updateData)
           .eq('id', id)
           .select()
@@ -266,7 +264,7 @@ export class CardFeatureModel {
 
       await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .delete()
           .eq('id', id)
       )
@@ -299,21 +297,21 @@ export class CardFeatureModel {
       // Total count
       const { count: total } = await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .select('*', { count: 'exact', head: true })
       )
 
       // Group by tech
       const { data: techData } = await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .select('tech')
       )
 
       // Group by language
       const { data: languageData } = await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .select('language')
       )
 
@@ -323,7 +321,7 @@ export class CardFeatureModel {
 
       const { count: recentCount } = await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', sevenDaysAgo.toISOString())
       )
@@ -378,8 +376,8 @@ export class CardFeatureModel {
       }))
 
       const { data } = await executeQuery(
-        (supabase as any)
-          .from(this.tableName)
+        supabase
+          .from('card_features')
           .insert(insertData)
           .select()
       )
@@ -405,7 +403,7 @@ export class CardFeatureModel {
     try {
       const { count } = await executeQuery(
         supabase
-          .from(this.tableName)
+          .from('card_features')
           .delete({ count: 'exact' })
           .in('id', ids)
       )
