@@ -19,6 +19,9 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
   const [isExpanded, setIsExpanded] = useState(false)
   // Estado para controlar a aba ativa (similar ao CardFeature)
   const [activeTab, setActiveTab] = useState(0)
+  
+  // URL da API em produção
+  const cardApiUrl = `https://web-backend-10xdev.azurewebsites.net/api/card-features/${snippet.id}`
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -55,6 +58,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 <div className="flex-1 min-w-0 pb-1 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
                   <p className="text-sm text-gray-600 whitespace-normal">{snippet.description}</p>
+                  <a
+                    href={cardApiUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 font-mono truncate block underline"
+                    title={`Abrir card na API: ${snippet.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {cardApiUrl}
+                  </a>
                 </div>
 
                 {/* Badges - Própria linha abaixo */}
@@ -92,6 +105,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                 <div className="pb-1 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
                   <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+                  <a
+                    href={cardApiUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 font-mono truncate block underline"
+                    title={`Abrir card na API: ${snippet.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {cardApiUrl}
+                  </a>
                 </div>
 
                 {/* Badges - Própria linha abaixo */}

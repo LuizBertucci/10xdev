@@ -1,0 +1,145 @@
+{
+  "title": "Autenticação Supabase - Alavanca Dash",
+  "tech": "Node.js",
+  "language": "javascript",
+  "description": "Implementação completa de autenticação Supabase para projeto Alavanca Dash com backend e frontend, incluindo middleware, controllers, hooks e componentes protegidos",
+  "content_type": "code",
+  "card_type": "workflows",
+  "screens": [
+    {
+      "name": "supabase.js",
+      "description": "Cliente Supabase para backend",
+      "route": "backend/src/supabase.js",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "type": "code",
+          "content": "const { createClient } = require('@supabase/supabase-js');\n\nconst supabaseUrl = process.env.SUPABASE_URL;\nconst supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;\n\nif (!supabaseUrl || !supabaseKey) {\n  throw new Error('Credenciais do Supabase não configuradas');\n}\n\nconst supabase = createClient(supabaseUrl, supabaseKey);\n\nmodule.exports = supabase;",
+          "language": "javascript",
+          "title": "Cliente Supabase",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "supabaseMiddleware.js",
+      "description": "Middleware de autenticação usando Supabase Auth",
+      "route": "backend/src/middleware/supabaseMiddleware.js",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440001",
+          "type": "code",
+          "content": "const supabase = require('../supabase');\n\n/**\n * Middleware de autenticação usando Supabase Auth\n *\n * Valida o JWT token do Supabase usando supabase.auth.getUser()\n * Isso é o método recomendado oficial do Supabase, pois:\n * - Valida o token diretamente com o Supabase Auth\n * - Suporta revogação instantânea de tokens\n * - Não precisa de JWT_SECRET ou JWKS\n * - Sempre sincronizado com o estado real da autenticação\n */\nconst supabaseMiddleware = async (req, res, next) => {\n  try {\n    const authHeader = req.headers.authorization;\n\n    if (!authHeader || !authHeader.startsWith('Bearer ')) {\n      return res.status(401).json({ error: 'Token de acesso requerido' });\n    }\n\n    const token = authHeader.substring(7);\n\n    // Validar token usando Supabase Auth API\n    // Isso verifica: assinatura, expiração, revogação, etc.\n    const { data: { user }, error } = await supabase.auth.getUser(token);\n\n    if (error || !user) {\n      console.error('Erro ao validar token Supabase:', error?.message || 'User não encontrado');\n      return res.status(401).json({ error: 'Token inválido ou expirado' });\n    }\n\n    // Obter role e team_id do nosso banco (public.users)\n    let role = 'consultor';\n    let teamId = null;\n    try {\n      const { data: userRow, error: roleError } = await supabase\n        .from('users')\n        .select('role, team_id')\n        .eq('id', user.id)\n        .maybeSingle();\n\n      if (roleError) {\n        console.error('Erro ao buscar role do usuário:', roleError.message);\n        role = 'consultor';\n        teamId = null;\n      } else if (userRow) {\n        if (userRow.role) role = userRow.role;\n        if (userRow.team_id) teamId = userRow.team_id;\n      } else {\n        // No row exists, upsert default profile\n        const defaultUserData = {\n          id: user.id,\n          email: user.email?.toLowerCase() || '',\n          name: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',\n          role: 'consultor',\n          status: 'active',\n          team_id: user.user_metadata?.team_id || null,\n          created_at: new Date().toISOString(),\n          updated_at: new Date().toISOString()\n        };\n\n        const { error: upsertError } = await supabase\n          .from('users')\n          .upsert(defaultUserData);\n\n        if (upsertError) {\n          console.error('Failed to create default user profile:', upsertError.message);\n        } else {\n          console.log(`Default profile created for new user: ${user.id}`);\n        }\n\n        role = 'consultor';\n        teamId = defaultUserData.team_id || null;\n      }\n    } catch (err) {\n      console.error('Exceção ao buscar/criar role:', err.message);\n      // Fallback to default role\n      role = 'consultor';\n      teamId = null;\n    }\n\n    // Anexar usuário autenticado ao request\n    req.user = {\n      id: user.id,\n      email: user.email,\n      role,\n      team_id: teamId,\n      expiresAt: null // Supabase gerencia expiração\n    };\n\n    return next();\n  } catch (error) {\n    console.error('Erro no middleware Supabase:', error?.message || error);\n    return res.status(401).json({ error: 'Erro ao validar autenticação' });\n  }\n};\n\nmodule.exports = supabaseMiddleware;",
+          "language": "javascript",
+          "title": "Middleware de Autenticação",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "SupabaseController.js",
+      "description": "Controller com métodos de autenticação Supabase",
+      "route": "backend/src/controllers/SupabaseController.js",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440002",
+          "type": "code",
+          "content": "// Controller com Supabase puro (sem JWT custom)\nconst { createClient } = require('@supabase/supabase-js');\nconst supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);\n\nclass SupabaseController {\n  static async register(req, res) {\n    try {\n      const { name, email, password } = req.body || {};\n      const { data, error } = await supabaseAdmin.auth.signUp({\n        email,\n        password,\n        options: { data: { name, full_name: name } }\n      });\n      if (error) throw error;\n\n      return res.status(201).json({\n        message: 'Usuário registrado com sucesso',\n        user: { id: data.user?.id, email: data.user?.email, name },\n        token: null\n      });\n    } catch (error) {\n      console.error('Registration error:', error);\n      return res.status(500).json({ error: 'Falha ao registrar usuário. Tente novamente.' });\n    }\n  }\n\n  static async login(req, res) {\n    try {\n      const { email, password } = req.body || {};\n      const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });\n      if (error) throw error;\n      // Não gerar token custom. Frontend deve usar access_token do Supabase.\n      return res.json({\n        message: 'Login realizado com sucesso',\n        user: { id: data.user?.id, email: data.user?.email, name: data.user?.user_metadata?.name },\n        token: null\n      });\n    } catch (error) {\n      console.error('Login error:', error);\n      return res.status(401).json({ error: 'Credenciais inválidas. Tente novamente.' });\n    }\n  }\n\n  static async logout(req, res) {\n    try {\n      // Frontend deve encerrar sessão via supabase-js.\n      return res.json({ message: 'Logout realizado com sucesso' });\n    } catch (error) {\n      console.error('Logout error:', error);\n      return res.status(500).json({ error: 'Falha ao fazer logout. Tente novamente.' });\n    }\n  }\n\n  static async showProfile(req, res) {\n    return res.json({ message: 'Usuário autenticado', user: req.user });\n  }\n\n  static async updateProfile(req, res) {\n    try {\n      const { name, email } = req.body || {};\n      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, {\n        email,\n        data: name ? { name, full_name: name } : undefined\n      });\n      if (error) throw error;\n      return res.json({ message: 'Usuário atualizado com sucesso', user: { id: data.user.id, email: data.user.email, name } });\n    } catch (error) {\n      console.error('Update profile error:', error);\n      return res.status(500).json({ error: 'Falha ao atualizar perfil. Tente novamente.' });\n    }\n  }\n\n  static async deleteAccount(req, res) {\n    try {\n      const { error } = await supabaseAdmin.auth.admin.deleteUser(req.user.id);\n      if (error) throw error;\n      return res.json({ message: 'Conta deletada com sucesso' });\n    } catch (error) {\n      console.error('Delete account error:', error);\n      return res.status(500).json({ error: 'Falha ao deletar conta. Tente novamente.' });\n    }\n  }\n\n  // Métodos de compatibilidade\n  static async showRegister(req, res) {\n    return res.json({\n      message: 'Endpoint de registro Supabase',\n      methods: ['POST'],\n      fields: { required: ['email', 'password', 'name'] }\n    });\n  }\n\n  static async showSessions(req, res) {\n    return res.json({\n      message: 'Endpoint de sessão Supabase',\n      endpoints: {\n        login: 'POST /api/auth/sessions',\n        logout: 'DELETE /api/auth/sessions'\n      }\n    });\n  }\n}\n\nmodule.exports = SupabaseController;",
+          "language": "javascript",
+          "title": "Controller de Autenticação",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "auth.js (routes)",
+      "description": "Rotas de autenticação",
+      "route": "backend/src/routes/auth.js",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440003",
+          "type": "code",
+          "content": "const express = require('express');\nconst router = express.Router();\n\n/**\n * Rotas de Autenticação - Documentação\n *\n * NOTA: Autenticação real é feita diretamente no frontend via Supabase client.\n * Estas rotas servem apenas como documentação para desenvolvedores.\n */\n\n// Rota informativa sobre registro\nrouter.get('/registrations', (req, res) => {\n  res.json({\n    message: 'Autenticação é feita diretamente no frontend via Supabase client',\n    documentation: 'https://supabase.com/docs/guides/auth/auth-signup',\n    frontend_usage: 'await supabase.auth.signUp({ email, password, options: { data: { name } } })'\n  });\n});\n\n// Rota informativa sobre sessões (login/logout)\nrouter.get('/sessions', (req, res) => {\n  res.json({\n    message: 'Login/Logout é feito diretamente no frontend via Supabase client',\n    documentation: 'https://supabase.com/docs/guides/auth/auth-signin',\n    frontend_usage: {\n      login: 'await supabase.auth.signInWithPassword({ email, password })',\n      logout: 'await supabase.auth.signOut()'\n    }\n  });\n});\n\nmodule.exports = router;",
+          "language": "javascript",
+          "title": "Rotas de Autenticação",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "supabase.ts (frontend)",
+      "description": "Cliente Supabase para frontend com singleton pattern",
+      "route": "frontend/src/lib/supabase.ts",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440004",
+          "type": "code",
+          "content": "import { createBrowserClient } from '@supabase/ssr'\nimport type { SupabaseClient } from '@supabase/supabase-js'\n\n// Cache da instância (singleton pattern)\nlet supabaseClient: SupabaseClient | null = null\n\n/**\n * Retorna ou cria o cliente Supabase para browser (padrão singleton)\n * Valida as credenciais do Supabase e lança erro se não estiverem configuradas\n * @returns Instância cacheada do cliente Supabase\n * @throws Error se NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY não estiverem definidas\n */\nexport function createClient(): SupabaseClient {\n  // Retorna instância cacheada se já existir\n  if (supabaseClient) return supabaseClient\n\n  // Valida variáveis de ambiente\n  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL\n  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY\n\n  if (!supabaseUrl || !supabaseAnonKey) {\n    throw new Error(\n      'Credenciais do Supabase não configuradas no frontend (verifique NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY)'\n    )\n  }\n\n  // Cria e cacheia a instância\n  supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)\n  return supabaseClient\n}",
+          "language": "typescript",
+          "title": "Cliente Supabase Frontend",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "auth.ts (frontend)",
+      "description": "Serviço de autenticação frontend",
+      "route": "frontend/src/services/auth.ts",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440005",
+          "type": "code",
+          "content": "import { createClient } from '@/lib/supabase'\n\n// Usa o cliente centralizado e cacheado\nconst supabase = createClient()\n\nexport default supabase\nexport type User = { id: string; email: string | null; name?: string | null; role?: string }\nexport type RegisterData = { name: string; email: string; password: string; role?: string }\nexport type LoginData = { email: string; password: string }\n\nasync function loadUserRole(userId: string) {\n  const { data, error } = await supabase.from('users').select('role').eq('id', userId).single();\n  if (error) {\n    console.warn('Failed to load user role:', error);\n    return 'consultor';\n  }\n  return data?.role || 'consultor';\n}\n\nexport { loadUserRole }",
+          "language": "typescript",
+          "title": "Serviço de Autenticação",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "useAuth.tsx",
+      "description": "Hook de autenticação React com Context API",
+      "route": "frontend/src/hooks/useAuth.tsx",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440006",
+          "type": "code",
+          "content": "'use client'\n\nimport React, { useState, useEffect, useContext, createContext, ReactNode } from 'react'\nimport { useRouter } from 'next/navigation'\nimport supabase, { User, RegisterData, LoginData } from '@/services/auth'\nimport { apiRequest } from '@/services/api'\n\ninterface AuthContextType {\n  user: User | null\n  isLoading: boolean\n  isAuthenticated: boolean\n  login: (credentials: LoginData) => Promise<void>\n  register: (userData: RegisterData) => Promise<void>\n  logout: () => Promise<void>\n  updateProfile: (userData: { name?: string; email?: string }) => Promise<void>\n  signOut: () => Promise<void>\n}\n\nconst AuthContext = createContext<AuthContextType | undefined>(undefined)\n\nexport function AuthProvider({ children }: { children: ReactNode }) {\n  const [user, setUser] = useState<User | null>(null)\n  const [isLoading, setIsLoading] = useState(true)\n  const router = useRouter()\n\n  useEffect(() => {\n    const initAuth = async () => {\n      try {\n        const { data } = await supabase.auth.getSession()\n        const session = data.session\n        if (session?.user) {\n          const role = await loadUserRole(session.user.id)\n          setUser({ \n            id: session.user.id, \n            email: session.user.email || null, \n            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name,\n            role\n          })\n        } else {\n          setUser(null)\n        }\n      } catch (error) {\n        console.error('❌ Erro ao inicializar auth:', error)\n        setUser(null)\n      } finally {\n        setIsLoading(false)\n      }\n    }\n\n    initAuth()\n  }, [])\n\n  const login = async (credentials: LoginData) => {\n    const { data, error } = await supabase.auth.signInWithPassword(credentials)\n    if (error) throw error\n    const role = await loadUserRole(data.user!.id)\n    setUser({ \n      id: data.user!.id, \n      email: data.user!.email || null, \n      name: data.user!.user_metadata?.name || data.user!.user_metadata?.full_name,\n      role \n    })\n    router.push('/dashboard')\n  }\n\n  const register = async (userData: RegisterData) => {\n    const { data, error } = await supabase.auth.signUp({\n      email: userData.email,\n      password: userData.password,\n      options: { data: { name: userData.name, full_name: userData.name } }\n    })\n    if (error) throw error\n    if (data.user) {\n      // Set initial user without role\n      setUser({ \n        id: data.user.id, \n        email: data.user.email || null, \n        name: userData.name,\n        role: 'consultor' // temporary\n      })\n\n      // If role selected, set it via API\n      if (userData.role) {\n        try {\n          await apiRequest('/api/users/select-role', {\n            method: 'POST',\n            headers: { 'Content-Type': 'application/json' },\n            body: JSON.stringify({ role: userData.role })\n          })\n          // Update local user with selected role\n          setUser(prev => prev ? { ...prev, role: userData.role } : null)\n        } catch (selectError) {\n          console.warn('Failed to set selected role, using default', selectError)\n          // Keep 'consultor'\n        }\n      }\n\n      router.push('/dashboard')\n    }\n  }\n\n  const logout = async () => {\n    await supabase.auth.signOut()\n    setUser(null)\n    router.push('/login')\n  }\n\n  const updateProfile = async (userData: { name?: string; email?: string }) => {\n    const { data, error } = await supabase.auth.updateUser({\n      email: userData.email,\n      data: userData.name ? { name: userData.name, full_name: userData.name } : undefined,\n    })\n    if (error) throw error\n    if (data.user) {\n      const role = await loadUserRole(data.user.id)\n      setUser({ \n        id: data.user.id, \n        email: data.user.email || null, \n        name: data.user.user_metadata?.name || data.user.user_metadata?.full_name,\n        role \n      })\n    }\n  }\n\n  const signOut = async () => {\n    // Endpoint admin server-side deverá tratar deleção definitiva\n    await supabase.auth.signOut()\n    setUser(null)\n    router.push('/login')\n  }\n\n  const value: AuthContextType = {\n    user,\n    isLoading,\n    isAuthenticated: !!user,\n    login,\n    register,\n    logout,\n    updateProfile,\n    signOut,\n  }\n\n  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>\n}\n\nasync function loadUserRole(userId: string) {\n  const { data, error } = await supabase.from('users').select('role').eq('id', userId).single()\n  if (error) {\n    console.warn('Failed to load user role:', error)\n    return 'consultor'\n  }\n  return data?.role || 'consultor'\n}\n\nexport function useAuth() {\n  const context = useContext(AuthContext)\n  if (context === undefined) {\n    throw new Error('useAuth deve ser usado dentro de um AuthProvider')\n  }\n  return context\n}\n\n// Hook para proteger páginas que requerem autenticação\nexport function useAuthGuard() {\n  const { isAuthenticated, isLoading } = useAuth()\n  const router = useRouter()\n\n  useEffect(() => {\n    if (!isLoading && !isAuthenticated) {\n      router.push('/login')\n    }\n  }, [isAuthenticated, isLoading, router])\n\n  return { isAuthenticated, isLoading }\n}\n\n// Hook para redirecionar usuários autenticados\nexport function useGuestGuard() {\n  const { isAuthenticated, isLoading } = useAuth()\n  const router = useRouter()\n\n  useEffect(() => {\n    if (!isLoading && isAuthenticated) {\n      router.push('/dashboard')\n    }\n  }, [isAuthenticated, isLoading, router])\n\n  return { isAuthenticated, isLoading }\n}",
+          "language": "typescript",
+          "title": "Hook de Autenticação",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "ProtectedRoute.tsx",
+      "description": "Componente para proteger rotas que requerem autenticação",
+      "route": "frontend/src/components/ProtectedRoute.tsx",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440007",
+          "type": "code",
+          "content": "'use client'\n\nimport { useEffect } from 'react'\nimport { useRouter } from 'next/navigation'\nimport { useAuth } from '@/hooks/useAuth'\nimport { LoadingPage } from '@/components/ui/loading-spinner'\nimport { Button } from '@/components/ui/button'\nimport { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'\nimport { AlertTriangle, ArrowLeft } from 'lucide-react'\n\ninterface ProtectedRouteProps {\n  children: React.ReactNode\n  requireRole?: 'admin' | 'user' | 'any'\n  fallback?: React.ReactNode\n}\n\nexport function ProtectedRoute({ \n  children, \n  requireRole = 'any',\n  fallback \n}: ProtectedRouteProps) {\n  const { isAuthenticated, user, isLoading } = useAuth()\n  const router = useRouter()\n\n  useEffect(() => {\n    if (!isLoading && !isAuthenticated) {\n      const currentPath = window.location.pathname\n      router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`)\n      return\n    }\n  }, [isAuthenticated, isLoading, router])\n\n  // Ainda carregando\n  if (isLoading) {\n    return fallback || <LoadingPage text=\"Verificando autenticação...\" />\n  }\n\n  // Não autenticado\n  if (!isAuthenticated) {\n    return fallback || <LoadingPage text=\"Redirecionando para login...\" />\n  }\n\n  // Verificar role se necessário\n  if (requireRole !== 'any') {\n    const userRole = user?.role || 'user'\n    const isEmailAdmin = user?.email?.toLowerCase().includes('admin')\n    const hasAdminAccess = userRole === 'admin' || isEmailAdmin\n    \n    if (requireRole === 'admin' && !hasAdminAccess) {\n      return (\n        <div className=\"min-h-screen flex items-center justify-center bg-gray-50 p-4\">\n          <Card className=\"w-full max-w-md\">\n            <CardHeader className=\"text-center\">\n              <div className=\"mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100\">\n                <AlertTriangle className=\"h-6 w-6 text-red-600\" />\n              </div>\n              <CardTitle className=\"text-xl\">Acesso Negado</CardTitle>\n              <CardDescription>\n                Você não tem permissão para acessar esta página.\n              </CardDescription>\n            </CardHeader>\n            <CardContent className=\"space-y-4\">\n              <div className=\"text-center text-sm text-gray-600\">\n                Esta área é restrita a administradores.\n              </div>\n              <Button \n                onClick={() => router.push('/dashboard')}\n                className=\"w-full\"\n                variant=\"outline\"\n              >\n                <ArrowLeft className=\"mr-2 h-4 w-4\" />\n                Voltar ao Dashboard\n              </Button>\n            </CardContent>\n          </Card>\n        </div>\n      )\n    }\n  }\n\n  return <>{children}</>\n}\n\nexport default ProtectedRoute",
+          "language": "typescript",
+          "title": "Componente de Proteção de Rotas",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "README.md",
+      "description": "Instruções de setup e dependências",
+      "route": "README.md",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440008",
+          "type": "text",
+          "content": "# Setup Instructions\n\n## Dependências\n\n### Backend\n- @supabase/supabase-js: ^2.50.2\n- express: ^4.18.2\n- cors: ^2.8.5\n- dotenv: ^16.3.1\n\n### Frontend\n- @supabase/supabase-js: ^2.50.2\n- @supabase/ssr: ^0.7.0\n- next: ^14.0.4\n- react: ^18.2.0\n\n## Variáveis de Ambiente\n\n### Backend\n- SUPABASE_URL: https://seu-projeto.supabase.co\n- SUPABASE_SERVICE_ROLE_KEY: sua-service-role-key\n\n### Frontend\n- NEXT_PUBLIC_SUPABASE_URL: https://seu-projeto.supabase.co\n- NEXT_PUBLIC_SUPABASE_ANON_KEY: sua-anon-key\n\n## Passos de Instalação\n\n1. Instalar dependências: npm install @supabase/supabase-js\n2. Configurar variáveis de ambiente conforme seção 'environment'\n3. No Supabase Dashboard: habilitar Email/Password provider\n4. Criar tabela 'users' com campos: id (UUID), email, name, role, team_id, status\n5. Frontend: usar AuthProvider no layout raiz da aplicação\n6. Backend: aplicar supabaseMiddleware em rotas protegidas",
+          "title": "Instruções de Setup",
+          "order": 0
+        }
+      ]
+    }
+  ]
+}
+
