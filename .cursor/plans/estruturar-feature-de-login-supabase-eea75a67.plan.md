@@ -1,5 +1,5 @@
 <!-- eea75a67-1ddc-4f1d-a165-6e619d6b29e8 e87561c0-740c-48a5-b38b-cd4110c0cc81 -->
-# Estruturar Feature de Login Supabase
+# Estruturar Feature de Login com Supabase
 
 Estruturar a autenticação completa no estilo do código de referência, organizando backend e frontend com Supabase Auth.
 
