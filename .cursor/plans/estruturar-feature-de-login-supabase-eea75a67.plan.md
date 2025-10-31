@@ -15,11 +15,14 @@ Estruturar a autenticação completa no estilo do código de referência, organi
 ### 2. Criar Middleware de Autenticação
 
 - **Arquivo**: `backend/src/middleware/supabaseMiddleware.ts`
-- Validar JWT usando `supabase.auth.getUser()`
-- Buscar role e team_id da tabela `users`
-- Criar perfil padrão se usuário não existir na tabela
-- Anexar `req.user` com id, email, role, team_id
-- Adicionar ao index de middleware
+- Validar JWT usando `supabaseAdmin.auth.getUser()` (SERVICE_ROLE_KEY para bypass RLS)
+- Verificar se usuário existe na tabela `users`
+- Criar perfil padrão se usuário não existir:
+- Campos obrigatórios: `id`, `email` (lowercase)
+- Campos opcionais: `name` (de user_metadata.name ou email split), `status: 'active'`
+- Anexar `req.user` com: `id`, `email`, `name` (se disponível)
+- **Nota**: Tabela users tem estrutura simplificada (sem `manager_id`, `first_name`, `last_name`)
+- Adicionar ao `middleware/index.ts`
 
 ### 3. Criar Controller de Autenticação
 
@@ -53,47 +56,83 @@ Estruturar a autenticação completa no estilo do código de referência, organi
 ### 7. Criar Serviço de Autenticação
 
 - **Arquivo**: `frontend/services/auth.ts`
-- Exportar cliente Supabase
-- Exportar função `loadUserRole` para buscar role do usuário
-- Definir types: `User`, `RegisterData`, `LoginData`
+- Exportar cliente Supabase usando singleton
+- Definir types: `User` (id, email, name?), `RegisterData` (name, email, password), `LoginData` (email, password)
+- **Nota**: Não há mais `role` na tabela users
 
 ### 8. Criar Hook de Autenticação
 
 - **Arquivo**: `frontend/hooks/useAuth.tsx`
-- Criar `AuthContext` e `AuthProvider`
-- Estado: `user`, `isLoading`, `isAuthenticated`
+- Criar `AuthContext` e `AuthProvider` (client component)
+- Estado: `user` (id, email, name?), `isLoading`, `isAuthenticated`
 - Métodos: `login`, `register`, `logout`, `updateProfile`, `signOut`
-- Inicializar sessão ao montar componente
-- Hooks auxiliares: `useAuthGuard`, `useGuestGuard`
-- Usar `loadUserRole` após login/registro
+- Inicializar sessão ao montar usando `supabase.auth.getSession()`
+- Exportar `useAuth()` hook para acessar contexto
+- **Nota**: Não criar hooks auxiliares (useAuthGuard/useGuestGuard) - usar apenas ProtectedRoute
 
 ### 9. Criar Componente ProtectedRoute
 
 - **Arquivo**: `frontend/components/ProtectedRoute.tsx`
 - Validar autenticação antes de renderizar children
-- Suportar `requireRole` prop ('admin' | 'user' | 'any')
-- Mostrar loading durante verificação
-- Redirecionar para login se não autenticado
-- Mostrar erro de acesso negado se role insuficiente
+- Mostrar loading durante verificação (`isLoading`)
+- Redirecionar para `/login` se não autenticado (com query param `redirect` para voltar após login)
+- Não precisa de verificação de `role` (remover `requireRole` prop, já que não existe mais role)
 
-### 10. Integrar AuthProvider no Layout
+### 10. Criar Páginas de Login e Registro
+
+- **Arquivo Login**: `frontend/app/login/page.tsx` ou `frontend/pages/Login.tsx`
+- **Arquivo Registro**: `frontend/app/register/page.tsx` ou `frontend/pages/Register.tsx`
+- Estilo moderno usando componentes shadcn/ui (Card, Button, Input, Label, Form)
+- **Página de Login**:
+- Formulário com campos: email, password
+- Botão "Entrar" que chama `login()` do `useAuth()`
+- Link para página de registro ("Não tem conta? Registre-se")
+- Tratamento de erros com toast/alert
+- Se já autenticado, redirecionar para `/dashboard` ou query param `redirect`
+- Loading state durante autenticação
+- **Página de Registro**:
+- Formulário com campos: name, email, password, confirmPassword
+- Validação de senha (match e mínimo 6 caracteres)
+- Botão "Registrar" que chama `register()` do `useAuth()`
+- Link para página de login ("Já tem conta? Faça login")
+- Tratamento de erros com toast/alert
+- Loading state durante registro
+- Após registro bem-sucedido, redirecionar para `/dashboard`
+- **Design**: Layout centralizado, cards estilizados, gradientes sutis (seguir padrão visual do projeto)
+- **Validação**: Validação básica de campos obrigatórios (não precisa de react-hook-form + zod inicialmente)
+- Usar `useAuth()` hook para acessar métodos de autenticação
+
+### 11. Integrar AuthProvider no Layout
 
 - **Arquivo**: `frontend/app/layout.tsx`
 - Envolver children com `AuthProvider`
 - Garantir que funciona em client components
 
-### 11. Criar README de Setup (Opcional)
+### 12. Adaptar Configuração Docker
 
-- **Arquivo**: `README-AUTH.md` ou atualizar README.md principal
-- Documentar dependências
-- Variáveis de ambiente necessárias
-- Passos de configuração no Supabase Dashboard
-- Estrutura da tabela `users`
+- **Arquivo**: `docker-compose.yml`
+- Adicionar variáveis de ambiente do Supabase no serviço `frontend`:
+- `NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}`
+- **Nota**: Backend já tem todas as variáveis necessárias configuradas ✅
+
+- **Arquivo**: `frontend/Dockerfile`
+- No stage `builder` (linha ~32-34), adicionar ARG e ENV para variáveis Supabase:
+- `ARG NEXT_PUBLIC_SUPABASE_URL`
+- `ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL`
+- `ARG NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Nota**: Backend Dockerfile não precisa mudanças (variáveis já vêm via docker-compose)
 
 ## Notas Importantes
 
-- Backend usa TypeScript (diferente da referência que usa JS)
-- Frontend precisa instalar dependências Supabase
-- Variável de ambiente `SUPABASE_SERVICE_ROLE_KEY` precisa ser adicionada
-- Tabela `users` deve existir no Supabase com campos: id (UUID), email, name, role, team_id, status
-- Middleware cria perfil padrão automaticamente se usuário não existir
+- **Backend usa TypeScript** (diferente da referência que usa JS)
+- **Frontend precisa instalar dependências**: `@supabase/supabase-js` e `@supabase/ssr`
+- **Variável de ambiente**: `SUPABASE_SERVICE_ROLE_KEY` precisa ser adicionada ao backend
+- **Projeto Supabase**: `xgpzbolfhgjhrydtcvug` (Projeto 10xdev)
+- **URL**: `https://xgpzbolfhgjhrydtcvug.supabase.co`
+- **Tabela `users` estrutura** (baseada em análise MCP):
+- Obrigatórios: `id` (UUID, FK para auth.users.id), `email` (text, unique)
+- Opcionais: `name`, `avatar_url`, `status` (default 'active'), `bio`, `celular`, `created_at`, `updated_at`, `joined_at`, `invited_by`
+- **RLS habilitado**: políticas permitem usuários ver/atualizar apenas seu próprio perfil
+- **Middleware**: cria perfil padrão automaticamente se usuário não existir na tabela (usando supabaseAdmin para bypass RLS)
