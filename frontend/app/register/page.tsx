@@ -49,13 +49,25 @@ export default function RegisterPage() {
     try {
       await register({ name, email, password })
       toast.success('Conta criada com sucesso! Redirecionando...')
-      // Redirecionar para dashboard após registro bem-sucedido
+      // Redirecionar para home com tab dashboard após registro bem-sucedido
       setTimeout(() => {
-        router.push('/dashboard')
+        router.push('/?tab=dashboard')
       }, 1000)
     } catch (error: any) {
       console.error('Erro no registro:', error)
-      toast.error(error.message || 'Falha ao criar conta. Tente novamente.')
+      // Mostrar mensagem de erro amigável
+      const errorMessage = error.message || 'Falha ao criar conta. Tente novamente.'
+      toast.error(errorMessage)
+      
+      // Se o email já está cadastrado, sugerir fazer login
+      if (errorMessage.includes('já está cadastrado')) {
+        setTimeout(() => {
+          toast.info('Redirecionando para login...', { duration: 2000 })
+          setTimeout(() => {
+            router.push('/login')
+          }, 2000)
+        }, 2000)
+      }
     } finally {
       setIsSubmitting(false)
     }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
 interface ProtectedRouteProps {
@@ -12,14 +12,23 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       // Redirecionar para login com query param redirect para voltar após login
-      const redirectUrl = pathname !== '/' ? `?redirect=${encodeURIComponent(pathname)}` : ''
+      // Preservar query params se existirem (ex: ?tab=dashboard)
+      const currentPath = pathname === '/' && searchParams.toString() 
+        ? `/?${searchParams.toString()}`
+        : pathname
+      
+      const redirectUrl = currentPath !== '/' 
+        ? `?redirect=${encodeURIComponent(currentPath)}` 
+        : '?redirect=' + encodeURIComponent('/?tab=dashboard')
+      
       router.push(`/login${redirectUrl}`)
     }
-  }, [isAuthenticated, isLoading, router, pathname])
+  }, [isAuthenticated, isLoading, router, pathname, searchParams])
 
   // Mostrar loading durante verificação
   if (isLoading) {

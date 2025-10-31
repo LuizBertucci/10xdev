@@ -25,11 +25,16 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Se já autenticado, redirecionar para dashboard ou query param redirect
+  // Se já autenticado, redirecionar para home com tab ou query param redirect
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      const redirect = searchParams.get('redirect') || '/dashboard'
-      router.push(redirect)
+      const redirect = searchParams.get('redirect')
+      if (redirect) {
+        router.push(redirect)
+      } else {
+        // Redirecionar para home com tab dashboard
+        router.push('/?tab=dashboard')
+      }
     }
   }, [isAuthenticated, isLoading, router, searchParams])
 
@@ -45,8 +50,13 @@ export default function LoginPage() {
     try {
       await login({ email, password })
       toast.success('Login realizado com sucesso!')
-      const redirect = searchParams.get('redirect') || '/dashboard'
-      router.push(redirect)
+      const redirect = searchParams.get('redirect')
+      if (redirect) {
+        router.push(redirect)
+      } else {
+        // Redirecionar para home com tab dashboard
+        router.push('/?tab=dashboard')
+      }
     } catch (error: any) {
       console.error('Erro no login:', error)
       toast.error(error.message || 'Credenciais inválidas. Tente novamente.')
