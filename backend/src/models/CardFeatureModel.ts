@@ -1,4 +1,4 @@
-import { supabaseTyped } from '@/database/supabase'
+import { supabase } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import type {
   CardFeatureRow,
@@ -15,7 +15,6 @@ import type {
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
-  private static tableName = 'card_features'
 
   // ================================================
   // PRIVATE HELPERS
@@ -37,8 +36,8 @@ export class CardFeatureModel {
   }
 
   private static buildQuery(params: CardFeatureQueryParams = {}) {
-    let query = supabaseTyped
-      .from(this.tableName)
+    let query = supabase
+      .from('card_features')
       .select('*', { count: 'exact' })
 
     // Filtros
@@ -108,8 +107,8 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data: result, error } = await supabase
+        .from('card_features')
         .insert(insertData)
         .select()
         .single()
@@ -144,8 +143,8 @@ export class CardFeatureModel {
 
   static async findById(id: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      const { data, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error } = await supabase
+        .from('card_features')
         .select('*')
         .eq('id', id)
         .single()
@@ -256,8 +255,8 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data: result, error } = await supabase
+        .from('card_features')
         .update(updateData)
         .eq('id', id)
         .select()
@@ -302,8 +301,8 @@ export class CardFeatureModel {
         }
       }
 
-      const { error } = await supabaseTyped
-        .from(this.tableName)
+      const { error } = await supabase
+        .from('card_features')
         .delete()
         .eq('id', id)
 
@@ -342,8 +341,8 @@ export class CardFeatureModel {
   }>> {
     try {
       // Total count
-      const { count: total, error: countError } = await supabaseTyped
-        .from(this.tableName)
+      const { count: total, error: countError } = await supabase
+        .from('card_features')
         .select('*', { count: 'exact', head: true })
 
       if (countError) {
@@ -355,8 +354,8 @@ export class CardFeatureModel {
       }
 
       // Group by tech
-      const { data: techData, error: techError } = await supabaseTyped
-        .from(this.tableName)
+      const { data: techData, error: techError } = await supabase
+        .from('card_features')
         .select('tech')
 
       if (techError) {
@@ -368,8 +367,8 @@ export class CardFeatureModel {
       }
 
       // Group by language
-      const { data: languageData, error: languageError } = await supabaseTyped
-        .from(this.tableName)
+      const { data: languageData, error: languageError } = await supabase
+        .from('card_features')
         .select('language')
 
       if (languageError) {
@@ -384,8 +383,8 @@ export class CardFeatureModel {
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-      const { count: recentCount, error: recentError } = await supabaseTyped
-        .from(this.tableName)
+      const { count: recentCount, error: recentError } = await supabase
+        .from('card_features')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', sevenDaysAgo.toISOString())
 
@@ -398,12 +397,12 @@ export class CardFeatureModel {
       }
 
       // Process counts
-      const byTech = techData?.reduce((acc, item) => {
+      const byTech = (techData as { tech: string }[] | null)?.reduce((acc, item) => {
         acc[item.tech] = (acc[item.tech] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
 
-      const byLanguage = languageData?.reduce((acc, item) => {
+      const byLanguage = (languageData as { language: string }[] | null)?.reduce((acc, item) => {
         acc[item.language] = (acc[item.language] || 0) + 1
         return acc
       }, {} as Record<string, number>) || {}
@@ -447,8 +446,8 @@ export class CardFeatureModel {
         updated_at: new Date().toISOString()
       }))
 
-      const { data, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error } = await supabase
+        .from('card_features')
         .insert(insertData)
         .select()
 
@@ -480,8 +479,8 @@ export class CardFeatureModel {
 
   static async bulkDelete(ids: string[]): Promise<ModelResult<{ deletedCount: number }>> {
     try {
-      const { error, count } = await supabaseTyped
-        .from(this.tableName)
+      const { error, count } = await supabase
+        .from('card_features')
         .delete({ count: 'exact' })
         .in('id', ids)
 

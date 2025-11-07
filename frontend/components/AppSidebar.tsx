@@ -156,11 +156,12 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  onClick={() => router.push('/educacional')}
-                  tooltip="Educacional"
+                  onClick={() => platformState.setActiveTab("videos")}
+                  isActive={platformState.activeTab === "videos"}
+                  tooltip="Videos"
                 >
                   <GraduationCap className="size-4 text-blue-500" />
-                  <span>Educacional</span>
+                  <span>Videos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

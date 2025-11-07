@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Search, Plus, Video } from "lucide-react"
+import { useRouter } from "next/router"
+import { Search, Plus, Video as VideoIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,18 +17,18 @@ import {
 } from "@/components/ui/alert-dialog"
 import AddVideoSheet from "@/components/add-video-sheet"
 import TrainingVideoCard from "@/components/TrainingVideoCard"
-import { educationalService, type EducationalVideo } from "@/services/educationalService"
+import { videoService, type Video } from "@/services/videoService"
 import { useToast } from "@/hooks/use-toast"
 
-export default function EducacionalPage() {
+export default function VideosPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [videos, setVideos] = useState<EducationalVideo[]>([])
+  const [videos, setVideos] = useState<Video[]>([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [editVideo, setEditVideo] = useState<EducationalVideo | null>(null)
+  const [editVideo, setEditVideo] = useState<Video | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; videoId: string | null }>({
     isOpen: false,
     videoId: null
@@ -42,10 +42,11 @@ export default function EducacionalPage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await educationalService.listVideos()
+        const res = await videoService.listVideos()
         if (isMounted) {
-          if (res.success && res.data) {
-            setVideos(res.data)
+          if (res.success) {
+            // Se não houver vídeos, data será um array vazio, que é válido
+            setVideos(res.data || [])
           } else {
             setError(res.error || "Erro ao carregar vídeos")
           }
@@ -53,7 +54,13 @@ export default function EducacionalPage() {
       } catch (e) {
         console.error('Erro ao carregar vídeos:', e)
         if (isMounted) {
-          setError("Erro ao carregar vídeos")
+          // Se o erro for um objeto vazio ou não tiver mensagem, usar mensagem padrão
+          const errorMessage = e && typeof e === 'object' && 'error' in e 
+            ? (e as any).error 
+            : e instanceof Error 
+              ? e.message 
+              : "Erro ao carregar vídeos"
+          setError(errorMessage || "Erro ao carregar vídeos")
         }
       } finally {
         if (isMounted) {
@@ -73,7 +80,7 @@ export default function EducacionalPage() {
 
   const handleAdd = async (data: { title: string; url: string; description?: string }) => {
     try {
-      const res = await educationalService.createVideo({
+      const res = await videoService.createVideo({
         title: data.title,
         youtubeUrl: data.url,
         description: data.description
@@ -83,7 +90,7 @@ export default function EducacionalPage() {
         setIsAddOpen(false)
         toast({
           title: "Sucesso!",
-          description: "Vídeo educacional adicionado com sucesso.",
+          description: "Vídeo adicionado com sucesso.",
         })
       } else {
         toast({
@@ -103,7 +110,6 @@ export default function EducacionalPage() {
   }
 
   const handleEdit = (video: any) => {
-    // Recebe o TrainingVideo mas precisamos buscar o EducationalVideo
     const videoToEdit = videos.find(v => v.id === video.id)
     if (videoToEdit) {
       setEditVideo(videoToEdit)
@@ -114,7 +120,7 @@ export default function EducacionalPage() {
     if (!editVideo) return
 
     try {
-      const res = await educationalService.updateVideo(editVideo.id, {
+      const res = await videoService.updateVideo(editVideo.id, {
         title: data.title,
         youtubeUrl: data.url,
         description: data.description
@@ -152,7 +158,7 @@ export default function EducacionalPage() {
 
     setIsDeleting(true)
     try {
-      const res = await educationalService.deleteVideo(deleteConfirm.videoId)
+      const res = await videoService.deleteVideo(deleteConfirm.videoId)
       if (res.success) {
         setVideos(prev => prev.filter(v => v.id !== deleteConfirm.videoId))
         toast({
@@ -180,14 +186,14 @@ export default function EducacionalPage() {
   }
 
   const handleView = (id: string) => {
-    router.push(`/educacional/${id}`)
+    router.push(`/videos/${id}`)
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Educacional</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Videos</h1>
         <Button onClick={() => setIsAddOpen(true)} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" /> Adicionar vídeo
         </Button>
@@ -217,12 +223,12 @@ export default function EducacionalPage() {
       {/* Empty State */}
       {!loading && !error && videos.length === 0 && (
         <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-          <Video className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <VideoIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Nenhum vídeo adicionado
           </h3>
           <p className="text-gray-600 mb-6">
-            Comece adicionando vídeos do YouTube para organizar seus conteúdos educacionais
+            Comece adicionando vídeos do YouTube para organizar seus conteúdos
           </p>
         </div>
       )}
@@ -230,7 +236,7 @@ export default function EducacionalPage() {
       {/* Empty Search */}
       {!loading && !error && videos.length > 0 && filtered.length === 0 && (
         <div className="text-center py-12">
-          <Video className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <VideoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Nenhum vídeo encontrado
           </h3>

@@ -1,8 +1,8 @@
 // ================================================
-// EDUCATIONAL VIDEOS - Types
+// VIDEOS - Types
 // ================================================
 
-export interface EducationalVideoRow {
+export interface VideoRow {
   id: string
   title: string
   description?: string
@@ -16,7 +16,7 @@ export interface EducationalVideoRow {
   updated_at: string
 }
 
-export interface EducationalVideoInsert {
+export interface VideoInsert {
   id?: string
   title: string
   description?: string
@@ -30,7 +30,7 @@ export interface EducationalVideoInsert {
   updated_at?: string
 }
 
-export interface EducationalVideoUpdate {
+export interface VideoUpdate {
   title?: string
   description?: string
   youtube_url?: string
@@ -42,7 +42,7 @@ export interface EducationalVideoUpdate {
   updated_at?: string
 }
 
-export interface CreateEducationalVideoRequest {
+export interface CreateVideoRequest {
   title: string
   description?: string
   youtubeUrl: string
@@ -50,7 +50,7 @@ export interface CreateEducationalVideoRequest {
   tags?: string[]
 }
 
-export interface EducationalVideoResponse {
+export interface VideoResponse {
   id: string
   title: string
   description?: string
@@ -64,19 +64,18 @@ export interface EducationalVideoResponse {
   updatedAt: string
 }
 
-export interface ModelResult<T = EducationalVideoResponse> {
+export interface ModelResult<T = VideoResponse> {
   success: boolean
   data?: T
   error?: string
   statusCode?: number
 }
 
-export interface ModelListResult<T = EducationalVideoResponse> {
+export interface ModelListResult<T = VideoResponse> {
   success: boolean
   data?: T[]
   count?: number
   error?: string
   statusCode?: number
 }
-
 

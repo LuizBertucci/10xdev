@@ -1,22 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter } from "next/router"
 import { ArrowLeft, Calendar, Tag, ExternalLink, Search, Code2 } from "lucide-react"
 import YouTubeVideo from "@/components/youtube-video"
 import CardFeature from "@/components/CardFeature"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { educationalService, type EducationalVideo } from "@/services/educationalService"
+import { videoService, type Video } from "@/services/videoService"
 import { cardFeatureService, type CardFeature as CardFeatureType } from "@/services"
 import { useToast } from "@/hooks/use-toast"
 
-export default function EducationalVideoDetailPage() {
-  const params = useParams<{ id: string }>()
+export default function VideoDetailPage() {
   const router = useRouter()
+  const { id } = router.query
   const { toast } = useToast()
-  const [video, setVideo] = useState<EducationalVideo | null>(null)
+  const [video, setVideo] = useState<Video | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,14 +28,13 @@ export default function EducationalVideoDetailPage() {
   const [loadingCards, setLoadingCards] = useState(false)
 
   useEffect(() => {
-    const id = params?.id
-    if (!id) return
+    if (!id || typeof id !== 'string') return
     
     const fetchVideo = async () => {
       setLoading(true)
       setError(null)
       try {
-        const res = await educationalService.getVideo(String(id))
+        const res = await videoService.getVideo(id)
         if (res.success && res.data) {
           setVideo(res.data)
           
@@ -61,7 +60,7 @@ export default function EducationalVideoDetailPage() {
     }
     
     fetchVideo()
-  }, [params?.id])
+  }, [id])
 
   const fetchCardFeatures = async () => {
     setLoadingCards(true)
@@ -70,17 +69,25 @@ export default function EducationalVideoDetailPage() {
       if (res.success && res.data) {
         setCardFeatures(res.data)
       } else {
+        const errorMessage = res.error || 'Erro ao carregar CardFeatures'
+        console.error('Erro ao buscar CardFeatures:', errorMessage, res)
         toast({
           title: "Erro",
-          description: "Erro ao carregar CardFeatures.",
+          description: errorMessage,
           variant: "destructive",
         })
       }
-    } catch (e) {
-      console.error('Erro ao buscar CardFeatures:', e)
+    } catch (e: any) {
+      // Extrair mensagem de erro de forma mais robusta
+      const errorMessage = e?.error || e?.message || (typeof e === 'string' ? e : 'Erro ao carregar CardFeatures')
+      console.error('Erro ao buscar CardFeatures:', {
+        message: errorMessage,
+        error: e,
+        statusCode: e?.statusCode
+      })
       toast({
         title: "Erro",
-        description: "Erro ao carregar CardFeatures.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -105,7 +112,7 @@ export default function EducationalVideoDetailPage() {
 
     try {
       // Salvar no banco de dados
-      await educationalService.updateSelectedCardFeature(video.id, cardFeature.id)
+      await videoService.updateSelectedCardFeature(video.id, cardFeature.id)
 
       // Atualizar estado local
       setSelectedCardFeature(cardFeature)
@@ -136,7 +143,7 @@ export default function EducationalVideoDetailPage() {
 
     try {
       // Remover do banco de dados
-      await educationalService.updateSelectedCardFeature(video.id, null)
+      await videoService.updateSelectedCardFeature(video.id, null)
 
       // Atualizar estado local
       setSelectedCardFeature(null)
@@ -177,7 +184,7 @@ export default function EducationalVideoDetailPage() {
   if (error) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" onClick={() => router.push('/educacional')}>
+        <Button variant="outline" onClick={() => router.push('/videos')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
         </Button>
         <div className="text-red-600">{error}</div>
@@ -188,7 +195,7 @@ export default function EducationalVideoDetailPage() {
   if (!video) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" onClick={() => router.push('/educacional')}>
+        <Button variant="outline" onClick={() => router.push('/videos')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
         </Button>
         <div className="text-gray-600">Vídeo não encontrado</div>
@@ -201,7 +208,7 @@ export default function EducationalVideoDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => router.push('/educacional')}>
+          <Button variant="outline" onClick={() => router.push('/videos')}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">{video.title}</h1>
@@ -313,7 +320,7 @@ export default function EducationalVideoDetailPage() {
           <DialogHeader>
             <DialogTitle>Selecionar CardFeature</DialogTitle>
             <DialogDescription>
-              Escolha um CardFeature para associar a este vídeo educacional.
+              Escolha um CardFeature para associar a este vídeo.
             </DialogDescription>
           </DialogHeader>
           

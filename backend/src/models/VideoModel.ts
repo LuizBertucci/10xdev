@@ -1,13 +1,13 @@
 import { randomUUID } from 'crypto'
-import { supabaseTyped } from '@/database/supabase'
+import { supabase } from '@/database/supabase'
 import type {
-  EducationalVideoRow,
-  EducationalVideoInsert,
-  EducationalVideoResponse,
-  CreateEducationalVideoRequest,
+  VideoRow,
+  VideoInsert,
+  VideoResponse,
+  CreateVideoRequest,
   ModelResult,
   ModelListResult
-} from '@/types/educational'
+} from '@/types/video'
 
 function extractYouTubeVideoId(url: string): string | null {
   try {
@@ -35,11 +35,10 @@ function getYouTubeThumbnail(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
 
-export class EducationalVideoModel {
-  private static tableName = 'educational_videos'
+export class VideoModel {
 
-  private static toResponse(row: EducationalVideoRow): EducationalVideoResponse {
-    const response: EducationalVideoResponse = {
+  private static toResponse(row: VideoRow): VideoResponse {
+    const response: VideoResponse = {
       id: row.id,
       title: row.title,
       youtubeUrl: row.youtube_url,
@@ -65,10 +64,10 @@ export class EducationalVideoModel {
     return response
   }
 
-  static async list(): Promise<ModelListResult<EducationalVideoResponse>> {
+  static async list(): Promise<ModelListResult<VideoResponse>> {
     try {
-      const { data, error, count } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error, count } = await supabase
+        .from('videos')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
 
@@ -76,17 +75,19 @@ export class EducationalVideoModel {
         return { success: false, error: error.message, statusCode: 400 }
       }
 
-      const videos = (data || []).map((r) => this.toResponse(r as unknown as EducationalVideoRow))
-      return { success: true, data: videos, count: count || videos.length, statusCode: 200 }
+      // Sempre retornar um array, mesmo que vazio
+      const videos = Array.isArray(data) ? data.map((r) => this.toResponse(r as unknown as VideoRow)) : []
+      return { success: true, data: videos, count: count ?? 0, statusCode: 200 }
     } catch (e) {
+      console.error('Erro no VideoModel.list:', e)
       return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
     }
   }
 
-  static async getById(id: string): Promise<ModelResult<EducationalVideoResponse>> {
+  static async getById(id: string): Promise<ModelResult<VideoResponse>> {
     try {
-      const { data, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error } = await supabase
+        .from('videos')
         .select('*')
         .eq('id', id)
         .single()
@@ -95,20 +96,20 @@ export class EducationalVideoModel {
         return { success: false, error: error.message.includes('PGRST116') ? 'Vídeo não encontrado' : error.message, statusCode: error.code === 'PGRST116' ? 404 : 400 }
       }
 
-      return { success: true, data: this.toResponse(data as unknown as EducationalVideoRow), statusCode: 200 }
+      return { success: true, data: this.toResponse(data as unknown as VideoRow), statusCode: 200 }
     } catch {
       return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
     }
   }
 
-  static async create(payload: CreateEducationalVideoRequest): Promise<ModelResult<EducationalVideoResponse>> {
+  static async create(payload: CreateVideoRequest): Promise<ModelResult<VideoResponse>> {
     try {
       const videoId = extractYouTubeVideoId(payload.youtubeUrl)
       if (!videoId) {
         return { success: false, error: 'URL do YouTube inválida', statusCode: 400 }
       }
 
-      const insertData: EducationalVideoInsert = {
+      const insertData: VideoInsert = {
         id: randomUUID(),
         title: payload.title,
         youtube_url: payload.youtubeUrl,
@@ -128,8 +129,8 @@ export class EducationalVideoModel {
         insertData.tags = payload.tags
       }
 
-      const { data, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error } = await supabase
+        .from('videos')
         .insert(insertData)
         .select('*')
         .single()
@@ -138,13 +139,13 @@ export class EducationalVideoModel {
         return { success: false, error: error.message, statusCode: 400 }
       }
 
-      return { success: true, data: this.toResponse(data as unknown as EducationalVideoRow), statusCode: 201 }
+      return { success: true, data: this.toResponse(data as unknown as VideoRow), statusCode: 201 }
     } catch {
       return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
     }
   }
 
-  static async update(id: string, payload: Partial<CreateEducationalVideoRequest>): Promise<ModelResult<EducationalVideoResponse>> {
+  static async update(id: string, payload: Partial<CreateVideoRequest>): Promise<ModelResult<VideoResponse>> {
     try {
       const updateData: any = {
         updated_at: new Date().toISOString()
@@ -172,8 +173,8 @@ export class EducationalVideoModel {
         updateData.tags = payload.tags
       }
 
-      const { data, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error } = await supabase
+        .from('videos')
         .update(updateData)
         .eq('id', id)
         .select('*')
@@ -183,7 +184,7 @@ export class EducationalVideoModel {
         return { success: false, error: error.message, statusCode: 400 }
       }
 
-      return { success: true, data: this.toResponse(data as unknown as EducationalVideoRow), statusCode: 200 }
+      return { success: true, data: this.toResponse(data as unknown as VideoRow), statusCode: 200 }
     } catch {
       return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
     }
@@ -191,8 +192,8 @@ export class EducationalVideoModel {
 
   static async delete(id: string): Promise<ModelResult<null>> {
     try {
-      const { error } = await supabaseTyped
-        .from(this.tableName)
+      const { error } = await supabase
+        .from('videos')
         .delete()
         .eq('id', id)
 
@@ -206,10 +207,10 @@ export class EducationalVideoModel {
     }
   }
 
-  static async updateSelectedCardFeature(id: string, cardFeatureId: string | null): Promise<ModelResult<EducationalVideoResponse>> {
+  static async updateSelectedCardFeature(id: string, cardFeatureId: string | null): Promise<ModelResult<VideoResponse>> {
     try {
-      const { data, error } = await supabaseTyped
-        .from(this.tableName)
+      const { data, error } = await supabase
+        .from('videos')
         .update({ 
           selected_card_feature_id: cardFeatureId,
           updated_at: new Date().toISOString()
@@ -222,11 +223,10 @@ export class EducationalVideoModel {
         return { success: false, error: error.message, statusCode: 400 }
       }
 
-      return { success: true, data: this.toResponse(data as unknown as EducationalVideoRow), statusCode: 200 }
+      return { success: true, data: this.toResponse(data as unknown as VideoRow), statusCode: 200 }
     } catch {
       return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
     }
   }
 }
-
 

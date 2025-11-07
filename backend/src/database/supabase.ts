@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
+import path from 'path'
 
-dotenv.config()
+// Carregar .env do diretório do backend especificamente
+// Usar process.cwd() para garantir que leia do diretório onde o processo foi iniciado
+const envPath = path.resolve(process.cwd(), '.env')
+dotenv.config({ path: envPath, override: true })
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
@@ -16,61 +20,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Cliente administrativo (para operações privilegiadas)
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
-
-// Tipos do banco de dados (será expandido)
-export interface Database {
-  public: {
-    Tables: {
-      card_features: {
-        Row: {
-          id: string
-          title: string
-          tech: string
-          language: string
-          description: string
-          screens: CardFeatureScreen[]
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          title: string
-          tech: string
-          language: string
-          description: string
-          screens: CardFeatureScreen[]
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          title?: string
-          tech?: string
-          language?: string
-          description?: string
-          screens?: CardFeatureScreen[]
-          created_at?: string
-          updated_at?: string
-        }
-      }
-    }
-  }
-}
-
-export interface CardFeatureScreen {
-  name: string
-  description: string
-  code: string
-}
-
-// Cliente tipado
-export const supabaseTyped = createClient<Database>(supabaseUrl, supabaseAnonKey)
-export const supabaseAdminTyped = createClient<Database>(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
