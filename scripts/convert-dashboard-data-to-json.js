@@ -103,32 +103,6 @@ const convertHome = () => {
   )
 }
 
-const convertLessons = () => {
-  const exports = loadModule('frontend/mockData/lessons.ts')
-  const card = {
-    id: randomUUID(),
-    title: 'Lessons Catalog',
-    tech: 'React',
-    language: 'json',
-    description: 'Lista mock de video lessons utilizada em dashboards e páginas de aulas.',
-    content_type: 'data',
-    card_type: 'lessons',
-    screens: [
-      buildJSONBlock(
-        'Video Lessons',
-        'Metadados das video lessons (id, título, capítulo, duração, status).',
-        exports.videoLessons,
-        { route: 'cards/lessons/video-lessons' }
-      )
-    ]
-  }
-
-  writeCard(
-    path.join(repoRoot, '.clinerules', 'codes', 'lessons-catalog.json'),
-    card
-  )
-}
-
 const convertProjects = () => {
   const exports = loadModule('frontend/mockData/projects.ts')
   const card = {
@@ -157,9 +131,8 @@ const convertProjects = () => {
 
 const main = () => {
   convertHome()
-  convertLessons()
   convertProjects()
-  console.log('[convert-dashboard] Conversion complete for home, lessons, projects.')
+  console.log('[convert-dashboard] Conversion complete for home and projects.')
 }
 
 if (require.main === module) {

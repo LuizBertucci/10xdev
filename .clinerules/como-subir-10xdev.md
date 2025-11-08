@@ -33,4 +33,4 @@
 
 ## Documentação complementar
 - `@subir-code.json` mantém um exemplo completo dos endpoints de Card Features e pode servir como referência rápida para payloads e respostas esperadas.
-- Revisar `backend/src/types/cardfeature.ts` para garantir que campos (`content_type`, `card_type`, estrutura de `screens`/`blocks`) estejam alinhados antes do envio.
+- Revisar `backend/src/types/cardfeature.ts` para garantir que campos (`content_type`, `card_type`, estrutura de `screens`/`blocks`) estejam alinhados antes do envio. 
