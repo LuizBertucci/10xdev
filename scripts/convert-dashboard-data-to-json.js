@@ -103,36 +103,9 @@ const convertHome = () => {
   )
 }
 
-const convertProjects = () => {
-  const exports = loadModule('frontend/mockData/projects.ts')
-  const card = {
-    id: randomUUID(),
-    title: 'Project Templates',
-    tech: 'Fullstack',
-    language: 'json',
-    description: 'Templates de projetos mockados para demonstração na plataforma.',
-    content_type: 'data',
-    card_type: 'projects',
-    screens: [
-      buildJSONBlock(
-        'Templates',
-        'Lista de templates de projeto com tecnologias, dificuldade e requisitos.',
-        exports.projectTemplates,
-        { route: 'cards/projects/templates' }
-      )
-    ]
-  }
-
-  writeCard(
-    path.join(repoRoot, '.clinerules', 'codes', 'project-templates.json'),
-    card
-  )
-}
-
 const main = () => {
   convertHome()
-  convertProjects()
-  console.log('[convert-dashboard] Conversion complete for home and projects.')
+  console.log('[convert-dashboard] Conversion complete for home.')
 }
 
 if (require.main === module) {

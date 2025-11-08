@@ -10,7 +10,6 @@ interface AppSidebarProps {
 const navItems = [
   { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
   { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
-  { key: "projects", title: "Projetos", icon: "🧩", tooltip: "Projetos" },
   { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
   { key: "dashboard", title: "Dashboard", icon: "📊", tooltip: "Dashboard" },
 ]

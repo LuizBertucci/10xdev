@@ -8,7 +8,6 @@ import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
-import Projects from "@/pages/Projects"
 import Dashboard from "@/pages/Dashboard"
 import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
@@ -49,7 +48,6 @@ export default function DevPlatform() {
 
             {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
-            {platformState.activeTab === "projects" && <Projects />}
 
             {platformState.activeTab === "dashboard" && <Dashboard platformState={platformState} />}
 
