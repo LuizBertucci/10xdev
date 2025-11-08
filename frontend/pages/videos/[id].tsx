@@ -65,7 +65,7 @@ export default function VideoDetailPage() {
   const fetchCardFeatures = async () => {
     setLoadingCards(true)
     try {
-      const res = await cardFeatureService.getAll({ page: 1, limit: 500 })
+      const res = await cardFeatureService.getAll()
       if (res.success && res.data) {
         setCardFeatures(res.data)
       } else {
