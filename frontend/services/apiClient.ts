@@ -157,6 +157,30 @@ class ApiClient {
     }
   }
 
+  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    try {
+      const url = this.buildURL(endpoint)
+      
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: this.defaultHeaders,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: 'include'
+      })
+
+      return await this.handleResponse<T>(response)
+    } catch (error) {
+      if (error && typeof error === 'object' && 'success' in error) {
+        throw error
+      }
+      throw {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro na requisição PATCH',
+        statusCode: 0
+      } as ApiError
+    }
+  }
+
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
     try {
       const url = this.buildURL(endpoint)

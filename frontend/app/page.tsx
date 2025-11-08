@@ -4,17 +4,18 @@ import { Zap } from "lucide-react"
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { usePlatform } from "@/hooks/use-platform"
+import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
-import Lessons from "@/pages/Lessons"
-import Trainings from "@/pages/Trainings"
-import Projects from "@/pages/Projects"
-import AI from "@/pages/AI"
 import Dashboard from "@/pages/Dashboard"
+import Videos from "@/pages/Videos"
+import VideoDetail from "@/pages/VideoDetail"
 
 export default function DevPlatform() {
   const platformState = usePlatform()
+  const searchParams = useSearchParams()
+  const videoId = searchParams?.get('id') || null
 
 
 
@@ -47,15 +48,14 @@ export default function DevPlatform() {
 
             {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
-            {platformState.activeTab === "lessons" && <Lessons />}
-
-            {platformState.activeTab === "trainings" && <Trainings />}
-
-            {platformState.activeTab === "projects" && <Projects />}
-            {/* AI Integration Tab */}
-            {platformState.activeTab === "ai" && <AI />}
 
             {platformState.activeTab === "dashboard" && <Dashboard platformState={platformState} />}
+
+            {platformState.activeTab === "videos" && videoId ? (
+              <VideoDetail platformState={platformState} />
+            ) : (
+              platformState.activeTab === "videos" && <Videos platformState={platformState} />
+            )}
           </main>
         </div>
       </SidebarInset>

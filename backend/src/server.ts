@@ -3,6 +3,7 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import compression from 'compression'
 import dotenv from 'dotenv'
+import path from 'path'
 
 // Import middlewares
 import { 
@@ -22,8 +23,10 @@ import {
 // Import routes
 import { apiRoutes } from '@/routes'
 
-// Configurar variáveis de ambiente
-dotenv.config()
+// Configurar variáveis de ambiente - carregar do diretório do backend
+// Usar process.cwd() para garantir que leia do diretório onde o processo foi iniciado
+const envPath = path.resolve(process.cwd(), '.env')
+dotenv.config({ path: envPath, override: true })
 
 // Configurar handlers de erro não capturados
 uncaughtErrorHandler()
@@ -116,6 +119,14 @@ app.use('/api/card-features/search', searchRateLimit)
 
 // Rate limiting para stats
 app.use('/api/card-features/stats', statsRateLimit)
+
+// Rate limiting para operações de escrita em videos
+app.use('/api/videos', (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    return writeOperationsRateLimit(req, res, next)
+  }
+  next()
+})
 
 // ================================================
 // ROUTES

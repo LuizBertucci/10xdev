@@ -13,7 +13,11 @@ export type {
   CardFeatureScreen,
   CreateCardFeatureData,
   UpdateCardFeatureData,
-  CardFeatureQueryParams,
+  QueryParams,
   CardFeatureListResponse,
   CardFeatureStats
 } from './cardFeatureService'
+
+// Video Service
+export { videoService } from './videoService'
+export type { Video, CreateVideoData } from './videoService'

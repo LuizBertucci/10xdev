@@ -12,6 +12,7 @@ dotenv.config({ path: envPath, override: true })
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_ANON_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Credenciais do Supabase não configuradas')
@@ -19,6 +20,18 @@ if (!supabaseUrl || !supabaseKey) {
 
 // Cliente Supabase
 export const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Cliente administrativo (para operações privilegiadas)
+if (!supabaseServiceKey) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY não configurada')
+}
+
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
 
 // ================================================
 // QUERY EXECUTION HELPERS

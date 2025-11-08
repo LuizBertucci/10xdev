@@ -1,85 +1,20 @@
 "use client"
 
-import {
-  Code2,
-  Play,
-  FolderOpen,
-  Heart,
-  BookOpen,
-  Zap,
-  Brain,
-  Star,
-  BarChart3,
-  GraduationCap,
-} from "lucide-react"
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from "@/components/ui/sidebar"
-
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface AppSidebarProps {
   platformState: any
 }
 
+const navItems = [
+  { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
+  { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
+  { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
+  { key: "dashboard", title: "Dashboard", icon: "📊", tooltip: "Dashboard" },
+]
+
 export default function AppSidebar({ platformState }: AppSidebarProps) {
-  const menuItems = [
-    {
-      title: "Início",
-      icon: Zap,
-      key: "home",
-      description: "Dashboard principal",
-    },
-    {
-      title: "Códigos",
-      icon: Code2,
-      key: "codes",
-      description: "Snippets e exemplos",
-    },
-    {
-      title: "Aulas",
-      icon: Play,
-      key: "lessons",
-      description: "Videoaulas e trilhas",
-    },
-    {
-      title: "Treinamentos",
-      icon: GraduationCap,
-      key: "trainings",
-      description: "Cursos e certificações",
-    },
-    {
-      title: "Projetos",
-      icon: FolderOpen,
-      key: "projects",
-      description: "Templates completos",
-    },
-    {
-      title: "IA",
-      icon: Brain,
-      key: "ai",
-      description: "Integração com IA",
-    },
-    {
-      title: "Dashboard",
-      icon: BarChart3,
-      key: "dashboard",
-      description: "Analytics e métricas",
-    },
-  ]
-
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -90,7 +25,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-sidebar-primary-foreground">
-                <Zap className="size-4" />
+                <span className="text-lg">⚡</span>
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">10xDev</span>
@@ -101,50 +36,23 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="overflow-y-hidden">
         <SidebarGroup>
           <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     onClick={() => platformState.setActiveTab(item.key)}
                     isActive={platformState.activeTab === item.key}
-                    tooltip={item.title}
+                    tooltip={item.tooltip}
                   >
-                    <item.icon className="size-4" />
+                    <span className="text-base">{item.icon}</span>
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Favoritos</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Heart className="size-4" />
-                  <span>Meus Snippets</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <BookOpen className="size-4" />
-                  <span>Aulas Salvas</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Star className="size-4" />
-                  <span>Projetos Favoritos</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
