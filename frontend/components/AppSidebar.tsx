@@ -50,12 +50,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       description: "Snippets e exemplos",
     },
     {
-      title: "Aulas",
-      icon: Play,
-      key: "lessons",
-      description: "Videoaulas e trilhas",
-    },
-    {
       title: "Projetos",
       icon: FolderOpen,
       key: "projects",
@@ -150,16 +144,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                 >
                   <GraduationCap className="size-4 text-blue-500" />
                   <span>Videos</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => platformState.setActiveTab("lessons")}
-                  isActive={platformState.activeTab === "lessons"}
-                  tooltip="Aulas"
-                >
-                  <Play className="size-4 text-red-500" />
-                  <span>Aulas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
