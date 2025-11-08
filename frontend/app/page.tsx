@@ -9,7 +9,6 @@ import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
 import Lessons from "@/pages/Lessons"
-import Trainings from "@/pages/Trainings"
 import Projects from "@/pages/Projects"
 import Dashboard from "@/pages/Dashboard"
 import Videos from "@/pages/Videos"
@@ -52,8 +51,6 @@ export default function DevPlatform() {
             {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
             {platformState.activeTab === "lessons" && <Lessons />}
-
-            {platformState.activeTab === "trainings" && <Trainings />}
 
             {platformState.activeTab === "projects" && <Projects />}
 

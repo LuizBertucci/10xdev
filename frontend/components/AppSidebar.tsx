@@ -56,12 +56,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       description: "Videoaulas e trilhas",
     },
     {
-      title: "Treinamentos",
-      icon: GraduationCap,
-      key: "trainings",
-      description: "Cursos e certificações",
-    },
-    {
       title: "Projetos",
       icon: FolderOpen,
       key: "projects",
@@ -166,16 +160,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                 >
                   <Play className="size-4 text-red-500" />
                   <span>Aulas</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => platformState.setActiveTab("trainings")}
-                  isActive={platformState.activeTab === "trainings"}
-                  tooltip="Treinamentos"
-                >
-                  <BookOpen className="size-4 text-orange-500" />
-                  <span>Treinamentos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
