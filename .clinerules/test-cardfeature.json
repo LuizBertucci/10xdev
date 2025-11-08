@@ -1,0 +1,77 @@
+{
+  "title": "Exemplo de CardFeature com Codeblocks",
+  "tech": "React",
+  "language": "typescript",
+  "description": "Um exemplo completo de CardFeature com múltiplos screens e codeblocks diferentes",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "Component.tsx",
+      "description": "Componente React principal",
+      "route": "src/components/Example.tsx",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440000",
+          "type": "code",
+          "content": "import React, { useState } from 'react';\n\ninterface Props {\n  title: string;\n  onAction: () => void;\n}\n\nexport const Example: React.FC<Props> = ({ title, onAction }) => {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className=\"example-container\">\n      <h1>{title}</h1>\n      <p>Count: {count}</p>\n      <button onClick={() => setCount(count + 1)}>\n        Increment\n      </button>\n      <button onClick={onAction}>\n        Execute Action\n      </button>\n    </div>\n  );\n};",
+          "language": "typescript",
+          "title": "Componente Example",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "styles.css",
+      "description": "Estilos CSS para o componente",
+      "route": "src/components/Example.css",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440001",
+          "type": "code",
+          "content": ".example-container {\n  padding: 20px;\n  background: #f5f5f5;\n  border-radius: 8px;\n  max-width: 600px;\n  margin: 0 auto;\n}\n\n.example-container h1 {\n  color: #333;\n  font-size: 24px;\n  margin-bottom: 16px;\n}\n\n.example-container button {\n  padding: 10px 20px;\n  margin: 5px;\n  background: #007bff;\n  color: white;\n  border: none;\n  border-radius: 4px;\n  cursor: pointer;\n}\n\n.example-container button:hover {\n  background: #0056b3;\n}",
+          "language": "css",
+          "title": "Estilos do Componente",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "README.md",
+      "description": "Documentação do componente",
+      "route": "README.md",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440002",
+          "type": "text",
+          "content": "# Example Component\n\nEste é um componente React de exemplo que demonstra:\n\n- Uso de hooks (useState)\n- Props tipadas com TypeScript\n- Event handlers\n- Estilização CSS\n\n## Uso\n\n```tsx\n<Example \n  title=\"Meu Título\" \n  onAction={() => console.log('Ação executada!')} \n/>\n```\n\n## Props\n\n- `title: string` - Título a ser exibido\n- `onAction: () => void` - Callback executado ao clicar no botão",
+          "title": "Documentação",
+          "order": 0
+        },
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440003",
+          "type": "terminal",
+          "content": "$ npm install\n$ npm run dev\n\n> Server running on http://localhost:3000\n> Component Example loaded successfully",
+          "title": "Comandos de Instalação",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "package.json",
+      "description": "Configuração do projeto",
+      "route": "package.json",
+      "blocks": [
+        {
+          "id": "550e8400-e29b-41d4-a716-446655440004",
+          "type": "code",
+          "content": "{\n  \"name\": \"example-component\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"react-dom\": \"^18.2.0\"\n  },\n  \"devDependencies\": {\n    \"@types/react\": \"^18.2.0\",\n    \"typescript\": \"^5.0.0\"\n  }\n}",
+          "language": "json",
+          "title": "Configuração do Package",
+          "order": 0
+        }
+      ]
+    }
+  ]
+}
+
