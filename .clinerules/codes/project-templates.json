@@ -1,0 +1,27 @@
+{
+  "id": "fbe50616-ffd3-4cc1-a0ba-b976bdf3c30b",
+  "title": "Project Templates",
+  "tech": "Fullstack",
+  "language": "json",
+  "description": "Templates de projetos mockados para demonstração na plataforma.",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "Templates",
+      "description": "Lista de templates de projeto com tecnologias, dificuldade e requisitos.",
+      "route": "cards/projects/templates",
+      "order": 0,
+      "blocks": [
+        {
+          "id": "85af9f3c-45d3-4046-90c8-ce501b757073",
+          "type": "code",
+          "title": "Templates",
+          "language": "json",
+          "order": 0,
+          "content": "[\n  {\n    \"id\": \"1\",\n    \"title\": \"E-commerce React\",\n    \"description\": \"Template completo de e-commerce com React e Firebase\",\n    \"tech\": [\n      \"React\",\n      \"Firebase\",\n      \"Stripe\"\n    ],\n    \"difficulty\": \"Avançado\",\n    \"stars\": 1250,\n    \"downloads\": \"5.2k\",\n    \"requirements\": [\n      \"Node.js v16+\",\n      \"Firebase Account\",\n      \"Stripe Account\"\n    ]\n  },\n  {\n    \"id\": \"2\",\n    \"title\": \"Dashboard Admin Vue\",\n    \"description\": \"Template de dashboard administrativo com Vue.js e Tailwind CSS\",\n    \"tech\": [\n      \"Vue.js\",\n      \"Tailwind CSS\",\n      \"Chart.js\"\n    ],\n    \"difficulty\": \"Intermediário\",\n    \"stars\": 890,\n    \"downloads\": \"3.8k\",\n    \"requirements\": [\n      \"Node.js v16+\",\n      \"Vue CLI\"\n    ]\n  },\n  {\n    \"id\": \"3\",\n    \"title\": \"API REST Node.js\",\n    \"description\": \"Template de API REST com Node.js, Express e MongoDB\",\n    \"tech\": [\n      \"Node.js\",\n      \"Express\",\n      \"MongoDB\"\n    ],\n    \"difficulty\": \"Intermediário\",\n    \"stars\": 650,\n    \"downloads\": \"2.5k\",\n    \"requirements\": [\n      \"Node.js v16+\",\n      \"MongoDB Atlas Account\"\n    ]\n  }\n]"
+        }
+      ]
+    }
+  ]
+}

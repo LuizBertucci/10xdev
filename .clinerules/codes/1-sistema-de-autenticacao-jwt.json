@@ -1,0 +1,59 @@
+{
+  "id": "1",
+  "title": "Sistema de Autenticação JWT",
+  "tech": "Node.js",
+  "language": "typescript",
+  "description": "Sistema completo de autenticação com JWT, middleware e validação",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "Model",
+      "description": "Classe User com métodos de autenticação",
+      "route": "cards/1/model",
+      "order": 0,
+      "blocks": [
+        {
+          "id": "ac045bf6-4b4f-4098-92db-b5d6aa48c8f6",
+          "type": "code",
+          "title": "Model",
+          "language": "typescript",
+          "order": 0,
+          "content": "import bcrypt from 'bcrypt';\n        import jwt from 'jsonwebtoken';\n\n        interface IUser {\n          id: string;\n          email: string;\n          password: string;\n          name: string;\n          role: 'user' | 'admin';\n          createdAt: Date;\n        }\n\n        export class User {\n          private static users: IUser[] = [];\n          private static nextId = 1;\n\n          constructor(\n            public id: string,\n            public email: string,\n            public password: string,\n            public name: string,\n            public role: 'user' | 'admin' = 'user',\n            public createdAt: Date = new Date()\n          ) {}\n\n          static async create(userData: Omit<IUser, 'id' | 'createdAt'>): Promise<User> {\n            const hashedPassword = await bcrypt.hash(userData.password, 12);\n            \n            const user = new User(\n              String(this.nextId++),\n              userData.email,\n              hashedPassword,\n              userData.name,\n              userData.role,\n              new Date()\n            );\n            \n            this.users.push(user);\n            return user;\n          }\n\n          static findByEmail(email: string): User | undefined {\n            const userData = this.users.find(u => u.email === email);\n            if (!userData) return undefined;\n            \n            return new User(\n              userData.id,\n              userData.email,\n              userData.password,\n              userData.name,\n              userData.role,\n              userData.createdAt\n            );\n          }\n\n          static findById(id: string): User | undefined {\n            const userData = this.users.find(u => u.id === id);\n            if (!userData) return undefined;\n            \n            return new User(\n              userData.id,\n              userData.email,\n              userData.password,\n              userData.name,\n              userData.role,\n              userData.createdAt\n            );\n          }\n\n          async comparePassword(password: string): Promise<boolean> {\n            return await bcrypt.compare(password, this.password);\n          }\n\n          generateToken(): string {\n            return jwt.sign(\n              { id: this.id, email: this.email, role: this.role },\n              process.env.JWT_SECRET!,\n              { expiresIn: '7d' }\n            );\n          }\n\n          toJSON() {\n            return {\n              id: this.id,\n              email: this.email,\n              name: this.name,\n              role: this.role,\n              createdAt: this.createdAt\n            };\n          }\n        }"
+        }
+      ]
+    },
+    {
+      "name": "Controller",
+      "description": "Controladores para registro, login e autenticação",
+      "route": "cards/1/controller",
+      "order": 1,
+      "blocks": [
+        {
+          "id": "480f661d-5fc0-4f2f-8ec0-4dc00cfff911",
+          "type": "code",
+          "title": "Controller",
+          "language": "typescript",
+          "order": 0,
+          "content": "import { Request, Response } from 'express';\n        import { User } from '../models/User';\n        import { body, validationResult } from 'express-validator';\n\n        export class AuthController {\n          static async register(req: Request, res: Response) {\n            try {\n              const errors = validationResult(req);\n              if (!errors.isEmpty()) {\n                return res.status(400).json({ errors: errors.array() });\n              }\n\n              const { email, password, name } = req.body;\n              \n              const existingUser = User.findByEmail(email);\n              if (existingUser) {\n                return res.status(400).json({ message: 'Email já cadastrado' });\n              }\n\n              const user = await User.create({ email, password, name, role: 'user' });\n              const token = user.generateToken();\n              \n              res.status(201).json({\n                message: 'Usuário criado com sucesso',\n                token,\n                user: user.toJSON()\n              });\n            } catch (error) {\n              console.error('Erro no registro:', error);\n              res.status(500).json({ message: 'Erro interno do servidor' });\n            }\n          }\n\n          static async login(req: Request, res: Response) {\n            try {\n              const { email, password } = req.body;\n              \n              const user = User.findByEmail(email);\n              if (!user || !(await user.comparePassword(password))) {\n                return res.status(401).json({ message: 'Credenciais inválidas' });\n              }\n\n              const token = user.generateToken();\n              \n              res.json({\n                message: 'Login realizado com sucesso',\n                token,\n                user: user.toJSON()\n              });\n            } catch (error) {\n              console.error('Erro no login:', error);\n              res.status(500).json({ message: 'Erro interno do servidor' });\n            }\n          }\n\n          static async getProfile(req: Request, res: Response) {\n            try {\n              const userId = (req as any).user?.id;\n              const user = User.findById(userId);\n              \n              if (!user) {\n                return res.status(404).json({ message: 'Usuário não encontrado' });\n              }\n\n              res.json({ user: user.toJSON() });\n            } catch (error) {\n              console.error('Erro ao buscar perfil:', error);\n              res.status(500).json({ message: 'Erro interno do servidor' });\n            }\n          }\n        }\n\n        // Validações\n        export const registerValidation = [\n          body('email').isEmail().withMessage('Email inválido'),\n          body('password').isLength({ min: 6 }).withMessage('Senha deve ter pelo menos 6 caracteres'),\n          body('name').notEmpty().withMessage('Nome é obrigatório')\n        ];\n\n        export const loginValidation = [\n          body('email').isEmail().withMessage('Email inválido'),\n          body('password').notEmpty().withMessage('Senha é obrigatória')\n        ];"
+        }
+      ]
+    },
+    {
+      "name": "Middleware",
+      "description": "Middleware de autenticação e validação",
+      "route": "cards/1/middleware",
+      "order": 2,
+      "blocks": [
+        {
+          "id": "b2d86422-9a3b-4991-806e-bf859fddeff8",
+          "type": "code",
+          "title": "Middleware",
+          "language": "typescript",
+          "order": 0,
+          "content": "import { Request, Response, NextFunction } from 'express';\n        import jwt from 'jsonwebtoken';\n        import { User } from '../models/User';\n\n        interface AuthRequest extends Request {\n          user?: any;\n        }\n\n        export const authMiddleware = async (\n          req: AuthRequest,\n          res: Response,\n          next: NextFunction\n        ) => {\n          try {\n            const token = req.header('Authorization')?.replace('Bearer ', '');\n            \n            if (!token) {\n              return res.status(401).json({ message: 'Token não fornecido' });\n            }\n\n            const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;\n            const user = User.findById(decoded.id);\n            \n            if (!user) {\n              return res.status(401).json({ message: 'Token inválido' });\n            }\n\n            req.user = user;\n            next();\n          } catch (error) {\n            console.error('Erro na autenticação:', error);\n            res.status(401).json({ message: 'Token inválido' });\n          }\n        };\n\n        export const adminMiddleware = (\n          req: AuthRequest,\n          res: Response,\n          next: NextFunction\n        ) => {\n          if (req.user?.role !== 'admin') {\n            return res.status(403).json({ message: 'Acesso negado - Apenas admins' });\n          }\n          next();\n        };\n\n        // Middleware de rate limiting simples\n        const requestCounts = new Map<string, { count: number; resetTime: number }>();\n\n        export const rateLimitMiddleware = (\n          maxRequests: number = 100, \n          windowMs: number = 15 * 60 * 1000\n        ) => {\n          return (req: Request, res: Response, next: NextFunction) => {\n            const clientIp = req.ip || req.connection.remoteAddress || 'unknown';\n            const now = Date.now();\n            \n            const clientData = requestCounts.get(clientIp);\n            \n            if (!clientData || now > clientData.resetTime) {\n              requestCounts.set(clientIp, {\n                count: 1,\n                resetTime: now + windowMs\n              });\n              return next();\n            }\n            \n            if (clientData.count >= maxRequests) {\n              return res.status(429).json({\n                message: 'Muitas requisições. Tente novamente mais tarde.',\n                retryAfter: Math.ceil((clientData.resetTime - now) / 1000)\n              });\n            }\n            \n            clientData.count++;\n            next();\n          };\n        };\n\n        // Middleware de logging\n        export const loggerMiddleware = (\n          req: Request, \n          res: Response, \n          next: NextFunction\n        ) => {\n          const start = Date.now();\n          \n          res.on('finish', () => {\n            const duration = Date.now() - start;\n            console.log(`${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);\n          });\n          \n          next();\n        };"
+        }
+      ]
+    }
+  ]
+}

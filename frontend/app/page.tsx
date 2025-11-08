@@ -11,7 +11,6 @@ import Codes from "@/pages/Codes"
 import Lessons from "@/pages/Lessons"
 import Trainings from "@/pages/Trainings"
 import Projects from "@/pages/Projects"
-import AI from "@/pages/AI"
 import Dashboard from "@/pages/Dashboard"
 import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
@@ -57,8 +56,6 @@ export default function DevPlatform() {
             {platformState.activeTab === "trainings" && <Trainings />}
 
             {platformState.activeTab === "projects" && <Projects />}
-            {/* AI Integration Tab */}
-            {platformState.activeTab === "ai" && <AI />}
 
             {platformState.activeTab === "dashboard" && <Dashboard platformState={platformState} />}
 

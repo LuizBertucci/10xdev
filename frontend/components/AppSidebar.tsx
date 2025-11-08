@@ -68,12 +68,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       description: "Templates completos",
     },
     {
-      title: "IA",
-      icon: Brain,
-      key: "ai",
-      description: "Integração com IA",
-    },
-    {
       title: "Dashboard",
       icon: BarChart3,
       key: "dashboard",
@@ -192,16 +186,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
           <SidebarGroupLabel>Ferramentas</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => platformState.setActiveTab("ai")}
-                  isActive={platformState.activeTab === "ai"}
-                  tooltip="IA"
-                >
-                  <Brain className="size-4 text-pink-500" />
-                  <span>IA</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => platformState.setActiveTab("dashboard")}

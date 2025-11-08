@@ -1,0 +1,126 @@
+
+
+{
+  "title": "10xDev Backend API - Card Features",
+  "tech": "Node.js",
+  "language": "rest",
+  "description": "Documentação resumida dos endpoints REST de Card Features expostos pelo backend Express da 10xDev.",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "Visão Geral",
+      "description": "Resumo da API e cabeçalhos comuns.",
+      "route": "backend/api/card-features/overview",
+      "blocks": [
+        {
+          "id": "c3c0c5d2-7a72-41d5-8d2c-036a2f01a5a8",
+          "type": "text",
+          "title": "Contexto",
+          "order": 0,
+          "content": "# Card Features API\n\n- Base URL: `https://<seu-dominio>/api/card-features`\n- Middleware: Express + Supabase (`CardFeatureModel`)\n- Autenticação: atualmente sem token (ajuste conforme necessário)\n- Tipos principais: `CardFeature`, `CardFeatureScreen`, `ContentBlock` (veja `backend/src/types/cardfeature.ts`)"
+        },
+        {
+          "id": "0ba1df2c-9d51-4a6f-8b53-54f9687a7b6a",
+          "type": "code",
+          "title": "Headers sugeridos",
+          "language": "json",
+          "order": 1,
+          "content": "{\n  \"Content-Type\": \"application/json\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Endpoints",
+      "description": "Rotas disponíveis via `backend/src/routes/cardFeatureRoutes.ts`.",
+      "route": "backend/api/card-features/endpoints",
+      "blocks": [
+        {
+          "id": "5f6bc077-f7ac-4830-9966-4fa39a1a91d4",
+          "type": "text",
+          "title": "Lista",
+          "order": 0,
+          "content": "## CRUD\n- `GET /api/card-features` — paginação (`page`, `limit`) e filtros (`tech`, `language`, `content_type`, `card_type`, `search`).\n- `POST /api/card-features` — cria um card (`CreateCardFeatureRequest`).\n- `GET /api/card-features/:id` — busca por ID.\n- `PUT /api/card-features/:id` — atualiza campos do card.\n- `DELETE /api/card-features/:id` — remove card.\n\n## Consultas auxiliares\n- `GET /api/card-features/search?q=<termo>` — busca full-text com filtros.\n- `GET /api/card-features/tech/:tech` — filtra por tecnologia.\n- `GET /api/card-features/stats` — estatísticas agregadas.\n\n## Operações em lote\n- `POST /api/card-features/bulk` — cria múltiplos cards.\n- `DELETE /api/card-features/bulk` — remove múltiplos cards (payload: `{ ids: string[] }`)."
+        }
+      ]
+    },
+    {
+      "name": "POST /card-features",
+      "description": "Exemplo de criação de Card Feature.",
+      "route": "backend/api/card-features/create",
+      "blocks": [
+        {
+          "id": "2c0d0c8d-abb1-40a7-8656-95d13b45cd9d",
+          "type": "code",
+          "title": "Payload (CreateCardFeatureRequest)",
+          "language": "json",
+          "order": 0,
+          "content": "{\n  \"title\": \"Sistema de Autenticação JWT\",\n  \"tech\": \"Node.js\",\n  \"language\": \"typescript\",\n  \"description\": \"Sistema completo com login, middleware e tokens\",\n  \"content_type\": \"code\",\n  \"card_type\": \"codigos\",\n  \"screens\": [\n    {\n      \"name\": \"Model\",\n      \"description\": \"Classe de usuário e hash de senha\",\n      \"blocks\": [\n        {\n          \"id\": \"<uuid>\",\n          \"type\": \"code\",\n          \"title\": \"Model.ts\",\n          \"language\": \"typescript\",\n          \"order\": 0,\n          \"content\": \"// código\"\n        }\n      ]\n    }\n  ]\n}"
+        },
+        {
+          "id": "7f0dfc5c-4803-46d0-a2fa-b8b9bf8cc43f",
+          "type": "code",
+          "title": "cURL",
+          "language": "bash",
+          "order": 1,
+          "content": "curl -X POST https://<seu-dominio>/api/card-features \\\n  -H 'Content-Type: application/json' \\\n  -d @.clinerules/codes/1-sistema-de-autenticacao-jwt.json"
+        },
+        {
+          "id": "a2b8a9ee-9d3f-425a-9fed-5d3590d7d32c",
+          "type": "code",
+          "title": "Resposta 201",
+          "language": "json",
+          "order": 2,
+          "content": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"0b3d...\",\n    \"title\": \"Sistema de Autenticação JWT\",\n    \"tech\": \"Node.js\",\n    \"language\": \"typescript\",\n    \"description\": \"Sistema completo com login, middleware e tokens\",\n    \"content_type\": \"code\",\n    \"card_type\": \"codigos\",\n    \"screens\": [ /* ... */ ],\n    \"createdAt\": \"2025-01-01T12:00:00.000Z\",\n    \"updatedAt\": \"2025-01-01T12:00:00.000Z\"\n  },\n  \"message\": \"CardFeature criado com sucesso\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /card-features",
+      "description": "Consulta com filtros e paginação.",
+      "route": "backend/api/card-features/list",
+      "blocks": [
+        {
+          "id": "9e49c69a-33d3-4af3-83ee-58edeefae2a3",
+          "type": "code",
+          "title": "cURL",
+          "language": "bash",
+          "order": 0,
+          "content": "curl 'https://<seu-dominio>/api/card-features?page=1&limit=10&tech=React&language=typescript'"
+        },
+        {
+          "id": "31d740fe-0bab-4a0c-8d25-9eb45aeb4a22",
+          "type": "code",
+          "title": "Resposta 200",
+          "language": "json",
+          "order": 1,
+          "content": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"0b3d...\",\n      \"title\": \"Sistema de Autenticação JWT\",\n      \"tech\": \"Node.js\",\n      \"language\": \"typescript\",\n      \"description\": \"Sistema completo com login, middleware e tokens\",\n      \"content_type\": \"code\",\n      \"card_type\": \"codigos\",\n      \"screens\": [ /* ... */ ],\n      \"createdAt\": \"2025-01-01T12:00:00.000Z\",\n      \"updatedAt\": \"2025-01-01T12:00:00.000Z\"\n    }\n  ],\n  \"count\": 1,\n  \"totalPages\": 1,\n  \"currentPage\": 1,\n  \"hasNextPage\": false,\n  \"hasPrevPage\": false\n}"
+        }
+      ]
+    },
+    {
+      "name": "Bulk Ops",
+      "description": "Operações em lote disponíveis.",
+      "route": "backend/api/card-features/bulk",
+      "blocks": [
+        {
+          "id": "fd9cc3e4-0d28-4ee8-9fa9-d8c1b8373c0f",
+          "type": "code",
+          "title": "POST /bulk",
+          "language": "bash",
+          "order": 0,
+          "content": "curl -X POST https://<seu-dominio>/api/card-features/bulk \\\n  -H 'Content-Type: application/json' \\\n  -d '[\n    { /* card 1 */ },\n    { /* card 2 */ }\n  ]'"
+        },
+        {
+          "id": "bbeb99b7-5f97-4a1f-8ba2-cbe7dcf92452",
+          "type": "code",
+          "title": "DELETE /bulk",
+          "language": "bash",
+          "order": 1,
+          "content": "curl -X DELETE https://<seu-dominio>/api/card-features/bulk \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n    \"ids\": [\"0b3d...\", \"9a1c...\"]\n  }'"
+        }
+      ]
+    }
+  ]
+}
+  

@@ -1,0 +1,27 @@
+{
+  "id": "eea4288a-f070-4012-8345-36ceb8b60bbc",
+  "title": "Lessons Catalog",
+  "tech": "React",
+  "language": "json",
+  "description": "Lista mock de video lessons utilizada em dashboards e páginas de aulas.",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "Video Lessons",
+      "description": "Metadados das video lessons (id, título, capítulo, duração, status).",
+      "route": "cards/lessons/video-lessons",
+      "order": 0,
+      "blocks": [
+        {
+          "id": "f0f09821-7298-4f66-aad3-7a91e0e9319a",
+          "type": "code",
+          "title": "Video Lessons",
+          "language": "json",
+          "order": 0,
+          "content": "[\n  {\n    \"id\": \"1\",\n    \"title\": \"Introdução ao React\",\n    \"description\": \"Conceitos básicos e setup do ambiente\",\n    \"duration\": \"30min\",\n    \"chapter\": 1,\n    \"completed\": true,\n    \"track\": \"React Fundamentals\"\n  },\n  {\n    \"id\": \"2\",\n    \"title\": \"Componentes e Props\",\n    \"description\": \"Aprenda a criar componentes reutilizáveis\",\n    \"duration\": \"45min\",\n    \"chapter\": 2,\n    \"completed\": true,\n    \"track\": \"React Fundamentals\"\n  },\n  {\n    \"id\": \"3\",\n    \"title\": \"Estado e Eventos\",\n    \"description\": \"Gerenciamento de estado e manipulação de eventos\",\n    \"duration\": \"60min\",\n    \"chapter\": 3,\n    \"completed\": false,\n    \"track\": \"React Fundamentals\"\n  },\n  {\n    \"id\": \"4\",\n    \"title\": \"Hooks em React\",\n    \"description\": \"Aprenda a usar hooks para gerenciar o estado e o ciclo de vida\",\n    \"duration\": \"75min\",\n    \"chapter\": 1,\n    \"completed\": false,\n    \"track\": \"React Avançado\"\n  },\n  {\n    \"id\": \"5\",\n    \"title\": \"Context API\",\n    \"description\": \"Compartilhamento de estado entre componentes\",\n    \"duration\": \"90min\",\n    \"chapter\": 2,\n    \"completed\": false,\n    \"track\": \"React Avançado\"\n  }\n]"
+        }
+      ]
+    }
+  ]
+}
