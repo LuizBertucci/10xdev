@@ -21,3 +21,16 @@ export type {
 // Video Service
 export { videoService } from './videoService'
 export type { Video, CreateVideoData } from './videoService'
+
+// Project Service
+export { projectService, ProjectMemberRole } from './projectService'
+export type {
+  Project,
+  ProjectMember,
+  ProjectCard,
+  CreateProjectData,
+  UpdateProjectData,
+  AddProjectMemberData,
+  UpdateProjectMemberData,
+  ProjectQueryParams
+} from './projectService'

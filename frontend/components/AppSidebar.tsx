@@ -3,7 +3,6 @@
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { LogOut } from "lucide-react"
 
@@ -15,12 +14,12 @@ const navItems = [
   { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
   { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
   { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
+  { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
   { key: "dashboard", title: "Dashboard", icon: "📊", tooltip: "Dashboard" },
 ]
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {
   const { user, logout } = useAuth()
-  const router = useRouter()
 
   const handleLogout = async () => {
     try {

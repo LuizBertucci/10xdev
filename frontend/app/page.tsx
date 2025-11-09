@@ -12,11 +12,15 @@ import Dashboard from "@/pages/Dashboard"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
+import Projects from "@/pages/Projects"
+import ProjectDetail from "@/pages/ProjectDetail"
 
 export default function DevPlatform() {
   const platformState = usePlatform()
   const searchParams = useSearchParams()
-  const videoId = searchParams?.get('id') || null
+  const activeTab = platformState.activeTab
+  const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
+  const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
 
   return (
     <ProtectedRoute>
@@ -50,10 +54,17 @@ export default function DevPlatform() {
               {platformState.activeTab === "dashboard" && <Dashboard platformState={platformState} />}
 
               {/* Videos Tab */}
-              {platformState.activeTab === "videos" && videoId ? (
+              {activeTab === "videos" && videoId ? (
                 <VideoDetail platformState={platformState} />
               ) : (
-                platformState.activeTab === "videos" && <Videos platformState={platformState} />
+                activeTab === "videos" && <Videos platformState={platformState} />
+              )}
+
+              {/* Projects Tab */}
+              {activeTab === "projects" && projectId ? (
+                <ProjectDetail platformState={platformState} />
+              ) : (
+                activeTab === "projects" && <Projects platformState={platformState} />
               )}
             </main>
           </div>

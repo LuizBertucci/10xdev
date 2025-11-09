@@ -2,7 +2,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Cache da instância (singleton pattern)
-let supabaseClient: SupabaseClient | null = null
+let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
 
 /**
  * Retorna ou cria o cliente Supabase para browser (padrão singleton)
@@ -10,7 +10,7 @@ let supabaseClient: SupabaseClient | null = null
  * @returns Instância cacheada do cliente Supabase
  * @throws Error se NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY não estiverem definidas
  */
-export function createClient(): SupabaseClient {
+export function createClient(): ReturnType<typeof createBrowserClient> {
   // Retorna instância cacheada se já existir
   if (supabaseClient) return supabaseClient
 

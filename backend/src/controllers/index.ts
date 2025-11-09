@@ -4,3 +4,4 @@
 
 export { CardFeatureController } from './CardFeatureController'
 export { SupabaseController } from './SupabaseController'
+export { ProjectController } from './ProjectController'
