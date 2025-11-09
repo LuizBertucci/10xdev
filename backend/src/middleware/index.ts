@@ -19,3 +19,4 @@ export {
   sanitizeInput
 } from './errorHandler'
 export { supabaseMiddleware } from './supabaseMiddleware'
+export { authenticate } from './authenticate'

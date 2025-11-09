@@ -39,28 +39,28 @@ class ApiClient {
     }
   }
 
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  private async handleResponse<T>(response: Response): Promise<ApiResponse<T> | undefined> {
     const contentType = response.headers.get('content-type')
-    
-    let data: any = {}
+
+    let data: ApiResponse<T> | undefined
     try {
       const textData = await response.text()
-      
+
       if (textData) {
         if (contentType && contentType.includes('application/json')) {
           try {
-            data = JSON.parse(textData)
+            data = JSON.parse(textData) as ApiResponse<T>
           } catch (parseError) {
             console.error('Erro ao fazer parse do JSON:', parseError)
-            data = { error: textData || `HTTP ${response.status}` }
+            data = { success: false, error: textData || `HTTP ${response.status}` }
           }
         } else {
-          data = { error: textData || `HTTP ${response.status}` }
+          data = { success: false, error: textData || `HTTP ${response.status}` }
         }
       }
     } catch (error) {
       console.error('Erro ao processar resposta:', error)
-      data = { error: 'Erro ao processar resposta do servidor' }
+      data = { success: false, error: 'Erro ao processar resposta do servidor' }
     }
 
     if (!response.ok) {
@@ -106,21 +106,29 @@ class ApiClient {
     return url.toString()
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+  private async getHeaders(additionalHeaders?: Record<string, string>): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+      ...(additionalHeaders ?? {})
+    }
+
+    if (typeof window !== 'undefined') {
+      const { createClient } = await import('@/lib/supabase')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+    }
+
+    return headers
+  }
+
+  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint, params)
-      
-      // Obter token do Supabase
-      const headers = { ...this.defaultHeaders }
-      if (typeof window !== 'undefined') {
-        const { createClient } = await import('@/lib/supabase')
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-      }
-      
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'GET',
         headers,
@@ -140,23 +148,14 @@ class ApiClient {
     }
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
       console.log('POST request URL:', url)
       console.log('POST request data:', data)
-      
-      // Obter token do Supabase
-      const headers = { ...this.defaultHeaders }
-      if (typeof window !== 'undefined') {
-        const { createClient } = await import('@/lib/supabase')
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-      }
-      
+
+      const headers = await this.getHeaders()
+
       console.log('POST request headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : 'none' })
       
       const response = await fetch(url, {
@@ -186,23 +185,14 @@ class ApiClient {
     }
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
       console.log('PUT request URL:', url)
       console.log('PUT request data:', data)
-      
-      // Obter token do Supabase
-      const headers = { ...this.defaultHeaders }
-      if (typeof window !== 'undefined') {
-        const { createClient } = await import('@/lib/supabase')
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-      }
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'PUT',
         headers,
@@ -226,21 +216,12 @@ class ApiClient {
     }
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      
-      // Obter token do Supabase
-      const headers = { ...this.defaultHeaders }
-      if (typeof window !== 'undefined') {
-        const { createClient } = await import('@/lib/supabase')
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-      }
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'PATCH',
         headers,
@@ -261,21 +242,12 @@ class ApiClient {
     }
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      
-      // Obter token do Supabase
-      const headers = { ...this.defaultHeaders }
-      if (typeof window !== 'undefined') {
-        const { createClient } = await import('@/lib/supabase')
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-      }
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'DELETE',
         headers,
@@ -295,21 +267,12 @@ class ApiClient {
     }
   }
 
-  async deleteWithBody<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async deleteWithBody<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      
-      // Obter token do Supabase
-      const headers = { ...this.defaultHeaders }
-      if (typeof window !== 'undefined') {
-        const { createClient } = await import('@/lib/supabase')
-        const supabase = createClient()
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`
-        }
-      }
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'DELETE',
         headers,
@@ -346,7 +309,7 @@ class ApiClient {
   }
 
   // Health check
-  async healthCheck(): Promise<ApiResponse<{ message: string; timestamp: string }>> {
+  async healthCheck(): Promise<ApiResponse<{ message: string; timestamp: string }> | undefined> {
     return this.get('/health')
   }
 }

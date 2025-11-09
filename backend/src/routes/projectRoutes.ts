@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { ProjectController } from '@/controllers/ProjectController'
-import { supabaseMiddleware } from '@/middleware/supabaseMiddleware'
+import { supabaseMiddleware, authenticate } from '@/middleware'
 
 const router = Router()
 
 // Todas as rotas de projetos requerem autenticação
 router.use(supabaseMiddleware)
+router.use(authenticate)
 
 // ================================================
 // PROJECTS ROUTES

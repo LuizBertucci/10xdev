@@ -1,13 +1,15 @@
 import { Request, Response } from 'express'
 import { ProjectModel } from '@/models/ProjectModel'
-import type {
-  CreateProjectRequest,
-  UpdateProjectRequest,
-  ProjectQueryParams,
-  AddProjectMemberRequest,
-  UpdateProjectMemberRequest,
-  ProjectMemberRole
+import {
+  ProjectMemberRole,
+  type CreateProjectRequest,
+  type UpdateProjectRequest,
+  type ProjectQueryParams,
+  type AddProjectMemberRequest,
+  type UpdateProjectMemberRequest
 } from '@/types/project'
+
+const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
 
 export class ProjectController {
   
@@ -17,15 +19,8 @@ export class ProjectController {
   
   static async create(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
       const data: CreateProjectRequest = req.body
+      const userId = req.user!.id
 
       if (!data.name) {
         res.status(400).json({
@@ -35,7 +30,7 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.create(data, req.user.id)
+      const result = await ProjectModel.create(data, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -52,10 +47,9 @@ export class ProjectController {
       })
     } catch (error) {
       console.error('Erro no controller create:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor'
       res.status(500).json({
         success: false,
-        error: errorMessage
+        error: 'Erro interno do servidor'
       })
     }
   }
@@ -66,26 +60,68 @@ export class ProjectController {
   
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user) {
-        res.status(401).json({
+      const userId = req.user!.id
+
+      const pageParam = req.query.page
+      const limitParam = req.query.limit
+      const sortByParam = req.query.sortBy
+      const sortOrderParam = req.query.sortOrder
+
+      const page = pageParam ? Number(pageParam) : 1
+      const limit = limitParam ? Number(limitParam) : 10
+
+      if (!Number.isInteger(page) || page <= 0) {
+        res.status(400).json({
           success: false,
-          error: 'Usuário não autenticado'
+          error: 'Parâmetro "page" deve ser um número inteiro maior que zero'
         })
         return
       }
 
-      const page = req.query.page ? parseInt(req.query.page as string) : 1
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
-      
+      if (!Number.isInteger(limit) || limit <= 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Parâmetro "limit" deve ser um número inteiro maior que zero'
+        })
+        return
+      }
+
+      const allowedSortBy: NonNullable<ProjectQueryParams['sortBy']>[] = ['name', 'created_at', 'updated_at']
+      let sortBy: ProjectQueryParams['sortBy']
+
+      if (typeof sortByParam === 'string') {
+        if (!allowedSortBy.includes(sortByParam as NonNullable<ProjectQueryParams['sortBy']>)) {
+          res.status(400).json({
+            success: false,
+            error: 'Parâmetro "sortBy" inválido'
+          })
+          return
+        }
+        sortBy = sortByParam as ProjectQueryParams['sortBy']
+      }
+
+      let sortOrder: ProjectQueryParams['sortOrder']
+      if (typeof sortOrderParam === 'string') {
+        const normalizedSortOrder = sortOrderParam.toLowerCase()
+        if (normalizedSortOrder !== 'asc' && normalizedSortOrder !== 'desc') {
+          res.status(400).json({
+            success: false,
+            error: 'Parâmetro "sortOrder" deve ser "asc" ou "desc"'
+          })
+          return
+        }
+        sortOrder = normalizedSortOrder as ProjectQueryParams['sortOrder']
+      }
+
       const params: ProjectQueryParams = {
         page,
         limit,
-        search: req.query.search as string,
-        sortBy: req.query.sortBy as any,
-        sortOrder: req.query.sortOrder as any
+        ...(typeof req.query.search === 'string' ? { search: req.query.search } : {}),
+        ...(sortBy ? { sortBy } : {}),
+        ...(sortOrder ? { sortOrder } : {})
       }
 
-      const result = await ProjectModel.findAll(params, req.user.id)
+      const result = await ProjectModel.findAll(params, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -123,15 +159,8 @@ export class ProjectController {
   
   static async getById(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
       const { id } = req.params
+      const userId = req.user!.id
 
       if (!id) {
         res.status(400).json({
@@ -141,7 +170,7 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.findById(id, req.user.id)
+      const result = await ProjectModel.findById(id, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -170,16 +199,9 @@ export class ProjectController {
   
   static async update(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
       const { id } = req.params
       const data: UpdateProjectRequest = req.body
+      const userId = req.user!.id
 
       if (!id) {
         res.status(400).json({
@@ -189,7 +211,7 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.update(id, data, req.user.id)
+      const result = await ProjectModel.update(id, data, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -219,15 +241,8 @@ export class ProjectController {
   
   static async delete(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
       const { id } = req.params
+      const userId = req.user!.id
 
       if (!id) {
         res.status(400).json({
@@ -237,7 +252,7 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.delete(id, req.user.id)
+      const result = await ProjectModel.delete(id, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -285,7 +300,7 @@ export class ProjectController {
       }
 
       // Verificar se usuário é membro do projeto
-      const project = await ProjectModel.findById(id, req.user.id)
+      const project = await ProjectModel.findById(id, req.user!.id)
       if (!project.success) {
         res.status(project.statusCode || 404).json({
           success: false,
@@ -351,7 +366,23 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.addMember(id, data, req.user.id)
+      const requesterId = req.user!.id
+      const roleToAssign = data.role ?? ProjectMemberRole.MEMBER
+
+      if (data.role && !ALLOWED_MEMBER_ROLES.includes(data.role)) {
+        res.status(400).json({
+          success: false,
+          error: 'Role inválido'
+        })
+        return
+      }
+
+      const memberPayload: AddProjectMemberRequest = {
+        userId: data.userId,
+        role: roleToAssign
+      }
+
+      const result = await ProjectModel.addMember(id, memberPayload, requesterId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -391,6 +422,7 @@ export class ProjectController {
 
       const { id, userId } = req.params
       const data: UpdateProjectMemberRequest = req.body
+      const requesterId = req.user!.id
 
       if (!id || !userId) {
         res.status(400).json({
@@ -408,7 +440,15 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.updateMember(id, userId, data.role, req.user.id)
+      if (!ALLOWED_MEMBER_ROLES.includes(data.role)) {
+        res.status(400).json({
+          success: false,
+          error: 'Role inválido'
+        })
+        return
+      }
+
+      const result = await ProjectModel.updateMember(id, userId, data.role, requesterId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -456,7 +496,7 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.removeMember(id, userId, req.user.id)
+      const result = await ProjectModel.removeMember(id, userId, req.user!.id)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,6 +38,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectDescription, setNewProjectDescription] = useState("")
   const [creating, setCreating] = useState(false)
+  const isFirstSearchEffect = useRef(true)
 
   useEffect(() => {
     loadProjects()
@@ -51,20 +52,34 @@ export default function Projects({ platformState }: ProjectsProps) {
         sortBy: 'created_at',
         sortOrder: 'desc'
       })
-      
+
+      if (!response) {
+        setProjects([])
+        return
+      }
+
       if (response.success && response.data) {
         setProjects(response.data)
       } else {
         toast.error(response.error || 'Erro ao carregar projetos')
       }
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar projetos')
+      if (error?.statusCode === 429 || error?.status === 429) {
+        toast.error('Muitas requisições. Tente novamente em instantes.')
+        return
+      }
+      toast.error(error?.message || 'Erro ao carregar projetos')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    if (isFirstSearchEffect.current) {
+      isFirstSearchEffect.current = false
+      return
+    }
+
     const timeoutId = setTimeout(() => {
       loadProjects()
     }, 300)
@@ -83,6 +98,11 @@ export default function Projects({ platformState }: ProjectsProps) {
         name: newProjectName,
         description: newProjectDescription || undefined
       })
+
+      if (!response) {
+        toast.error('Nenhuma resposta do servidor ao criar o projeto.')
+        return
+      }
 
       if (response.success && response.data) {
         toast.success('Projeto criado com sucesso!')
@@ -119,6 +139,10 @@ export default function Projects({ platformState }: ProjectsProps) {
 
     try {
       const response = await projectService.delete(projectId)
+      if (!response) {
+        toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
+        return
+      }
       if (response.success) {
         toast.success('Projeto deletado com sucesso!')
         loadProjects()

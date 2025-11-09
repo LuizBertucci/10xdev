@@ -4,11 +4,11 @@ import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardF
 class CardFeatureService {
   private readonly endpoint = '/card-features'
 
-  async create(data: CreateCardFeatureData): Promise<ApiResponse<CardFeature>> {
+  async create(data: CreateCardFeatureData): Promise<ApiResponse<CardFeature> | undefined> {
     return apiClient.post<CardFeature>(this.endpoint, data)
   }
 
-  async bulkCreate(items: CreateCardFeatureData[]): Promise<ApiResponse<CardFeature[]>> {
+  async bulkCreate(items: CreateCardFeatureData[]): Promise<ApiResponse<CardFeature[]> | undefined> {
     return apiClient.post<CardFeature[]>(`${this.endpoint}/bulk`, items)
   }
 
@@ -16,24 +16,24 @@ class CardFeatureService {
   // READ
   // ================================================
 
-  async getAll(params?: QueryParams): Promise<ApiResponse<CardFeature[]>> {
+  async getAll(params?: QueryParams): Promise<ApiResponse<CardFeature[]> | undefined> {
     return apiClient.get<CardFeature[]>(this.endpoint, params)
   }
 
-  async getById(id: string): Promise<ApiResponse<CardFeature>> {
+  async getById(id: string): Promise<ApiResponse<CardFeature> | undefined> {
     return apiClient.get<CardFeature>(`${this.endpoint}/${id}`)
   }
 
-  async search(searchTerm: string, params?: Omit<QueryParams, 'search'>): Promise<ApiResponse<CardFeature[]>> {
+  async search(searchTerm: string, params?: Omit<QueryParams, 'search'>): Promise<ApiResponse<CardFeature[]> | undefined> {
     const searchParams = { ...params, q: searchTerm }
     return apiClient.get<CardFeature[]>(`${this.endpoint}/search`, searchParams)
   }
 
-  async getByTech(tech: string, params?: Omit<QueryParams, 'tech'>): Promise<ApiResponse<CardFeature[]>> {
+  async getByTech(tech: string, params?: Omit<QueryParams, 'tech'>): Promise<ApiResponse<CardFeature[]> | undefined> {
     return apiClient.get<CardFeature[]>(`${this.endpoint}/tech/${tech}`, params)
   }
 
-  async getStats(): Promise<ApiResponse<CardFeatureStats>> {
+  async getStats(): Promise<ApiResponse<CardFeatureStats> | undefined> {
     return apiClient.get<CardFeatureStats>(`${this.endpoint}/stats`)
   }
 
@@ -41,7 +41,7 @@ class CardFeatureService {
   // UPDATE
   // ================================================
 
-  async update(id: string, data: UpdateCardFeatureData): Promise<ApiResponse<CardFeature>> {
+  async update(id: string, data: UpdateCardFeatureData): Promise<ApiResponse<CardFeature> | undefined> {
     return apiClient.put<CardFeature>(`${this.endpoint}/${id}`, data)
   }
 
@@ -49,11 +49,11 @@ class CardFeatureService {
   // DELETE
   // ================================================
 
-  async delete(id: string): Promise<ApiResponse<null>> {
+  async delete(id: string): Promise<ApiResponse<null> | undefined> {
     return apiClient.delete<null>(`${this.endpoint}/${id}`)
   }
 
-  async bulkDelete(ids: string[]): Promise<ApiResponse<{ deletedCount: number }>> {
+  async bulkDelete(ids: string[]): Promise<ApiResponse<{ deletedCount: number }> | undefined> {
     return apiClient.deleteWithBody<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
   }
 
@@ -72,11 +72,11 @@ class CardFeatureService {
     const { searchTerm, ...params } = filters
 
     if (searchTerm) {
-      return this.search(searchTerm, params)
+      return (await this.search(searchTerm, params)) ?? { success: false, error: 'Nenhuma resposta do servidor' }
     } else if (params.tech && params.tech !== 'all') {
-      return this.getByTech(params.tech, params)
+      return (await this.getByTech(params.tech, params)) ?? { success: false, error: 'Nenhuma resposta do servidor' }
     } else {
-      return this.getAll(params)
+      return (await this.getAll(params)) ?? { success: false, error: 'Nenhuma resposta do servidor' }
     }
   }
 
@@ -84,18 +84,18 @@ class CardFeatureService {
    * Busca CardFeatures paginados
    */
   async getPaginated(page: number = 1, limit: number = 10): Promise<ApiResponse<CardFeature[]>> {
-    return this.getAll({ page, limit })
+    return (await this.getAll({ page, limit })) ?? { success: false, error: 'Nenhuma resposta do servidor' }
   }
 
   /**
    * Busca CardFeatures recentes
    */
   async getRecent(limit: number = 5): Promise<ApiResponse<CardFeature[]>> {
-    return this.getAll({ 
+    return (await this.getAll({ 
       limit, 
       sortBy: 'created_at', 
       sortOrder: 'desc' 
-    })
+    })) ?? { success: false, error: 'Nenhuma resposta do servidor' }
   }
 
   /**
@@ -108,9 +108,9 @@ class CardFeatureService {
     const allCardFeatures: CardFeature[] = []
     
     results.forEach(result => {
-      if (result.status === 'fulfilled' && result.value.success) {
-        const response = result.value as ApiResponse<CardFeature[]>
-        if (response.data && Array.isArray(response.data)) {
+      if (result.status === 'fulfilled') {
+        const response = result.value
+        if (response?.success && response.data && Array.isArray(response.data)) {
           allCardFeatures.push(...response.data)
         }
       }

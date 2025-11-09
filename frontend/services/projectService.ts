@@ -91,7 +91,7 @@ class ProjectService {
   // CREATE
   // ================================================
 
-  async create(data: CreateProjectData): Promise<ApiResponse<Project>> {
+  async create(data: CreateProjectData): Promise<ApiResponse<Project> | undefined> {
     return apiClient.post<Project>(this.endpoint, data)
   }
 
@@ -99,11 +99,11 @@ class ProjectService {
   // READ
   // ================================================
 
-  async getAll(params?: ProjectQueryParams): Promise<ApiResponse<Project[]>> {
+  async getAll(params?: ProjectQueryParams): Promise<ApiResponse<Project[]> | undefined> {
     return apiClient.get<Project[]>(this.endpoint, params)
   }
 
-  async getById(id: string): Promise<ApiResponse<Project>> {
+  async getById(id: string): Promise<ApiResponse<Project> | undefined> {
     return apiClient.get<Project>(`${this.endpoint}/${id}`)
   }
 
@@ -111,7 +111,7 @@ class ProjectService {
   // UPDATE
   // ================================================
 
-  async update(id: string, data: UpdateProjectData): Promise<ApiResponse<Project>> {
+  async update(id: string, data: UpdateProjectData): Promise<ApiResponse<Project> | undefined> {
     return apiClient.put<Project>(`${this.endpoint}/${id}`, data)
   }
 
@@ -119,7 +119,7 @@ class ProjectService {
   // DELETE
   // ================================================
 
-  async delete(id: string): Promise<ApiResponse<null>> {
+  async delete(id: string): Promise<ApiResponse<null> | undefined> {
     return apiClient.delete<null>(`${this.endpoint}/${id}`)
   }
 
@@ -127,19 +127,19 @@ class ProjectService {
   // MEMBERS
   // ================================================
 
-  async getMembers(projectId: string): Promise<ApiResponse<ProjectMember[]>> {
+  async getMembers(projectId: string): Promise<ApiResponse<ProjectMember[]> | undefined> {
     return apiClient.get<ProjectMember[]>(`${this.endpoint}/${projectId}/members`)
   }
 
-  async addMember(projectId: string, data: AddProjectMemberData): Promise<ApiResponse<ProjectMember>> {
+  async addMember(projectId: string, data: AddProjectMemberData): Promise<ApiResponse<ProjectMember> | undefined> {
     return apiClient.post<ProjectMember>(`${this.endpoint}/${projectId}/members`, data)
   }
 
-  async updateMember(projectId: string, userId: string, data: UpdateProjectMemberData): Promise<ApiResponse<ProjectMember>> {
+  async updateMember(projectId: string, userId: string, data: UpdateProjectMemberData): Promise<ApiResponse<ProjectMember> | undefined> {
     return apiClient.put<ProjectMember>(`${this.endpoint}/${projectId}/members/${userId}`, data)
   }
 
-  async removeMember(projectId: string, userId: string): Promise<ApiResponse<null>> {
+  async removeMember(projectId: string, userId: string): Promise<ApiResponse<null> | undefined> {
     return apiClient.delete<null>(`${this.endpoint}/${projectId}/members/${userId}`)
   }
 
@@ -147,19 +147,19 @@ class ProjectService {
   // CARDS
   // ================================================
 
-  async getCards(projectId: string): Promise<ApiResponse<ProjectCard[]>> {
+  async getCards(projectId: string): Promise<ApiResponse<ProjectCard[]> | undefined> {
     return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`)
   }
 
-  async addCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<ProjectCard>> {
+  async addCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<ProjectCard> | undefined> {
     return apiClient.post<ProjectCard>(`${this.endpoint}/${projectId}/cards`, { cardFeatureId })
   }
 
-  async removeCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<null>> {
+  async removeCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<null> | undefined> {
     return apiClient.delete<null>(`${this.endpoint}/${projectId}/cards/${cardFeatureId}`)
   }
 
-  async reorderCard(projectId: string, cardFeatureId: string, direction: 'up' | 'down'): Promise<ApiResponse<null>> {
+  async reorderCard(projectId: string, cardFeatureId: string, direction: 'up' | 'down'): Promise<ApiResponse<null> | undefined> {
     return apiClient.patch<null>(`${this.endpoint}/${projectId}/cards/${cardFeatureId}/reorder`, { direction })
   }
 }
