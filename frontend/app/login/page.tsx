@@ -23,7 +23,7 @@ export default function LoginPage() {
   // Se já autenticado, redirecionar para home com tab ou query param redirect
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      const redirect = searchParams.get('redirect')
+      const redirect = searchParams?.get('redirect')
       if (redirect) {
         router.push(redirect)
       } else {
@@ -45,7 +45,7 @@ export default function LoginPage() {
     try {
       await login({ email, password })
       toast.success('Login realizado com sucesso!')
-      const redirect = searchParams.get('redirect')
+      const redirect = searchParams?.get('redirect')
       if (redirect) {
         router.push(redirect)
       } else {
@@ -53,8 +53,12 @@ export default function LoginPage() {
         router.push(getDefaultRoute())
       }
     } catch (error: any) {
-      console.error('Erro no login:', error)
-      toast.error(error.message || 'Credenciais inválidas. Tente novamente.')
+      // Log apenas em desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Erro no login:', error)
+      }
+      // Mostrar mensagem genérica para usuários
+      toast.error('Credenciais inválidas. Tente novamente.')
     } finally {
       setIsSubmitting(false)
     }

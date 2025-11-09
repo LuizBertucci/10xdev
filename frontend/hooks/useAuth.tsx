@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         // Traduzir erros comuns do Supabase
         let errorMessage = error.message
-        if (error.message?.includes('Invalid login credentials') || error.message?.includes('Email not confirmed')) {
+        if (error.message?.includes('Invalid login credentials')) {
           errorMessage = 'Credenciais inválidas. Verifique seu email e senha.'
         } else if (error.message?.includes('Email not confirmed')) {
           errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'

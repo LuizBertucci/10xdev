@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
@@ -21,6 +21,16 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { register } = useAuth()
   const router = useRouter()
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup de timeouts ao desmontar
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +56,8 @@ export default function RegisterPage() {
       await register({ name, email, password })
       toast.success('Conta criada com sucesso! Redirecionando...')
       // Redirecionar para home (tela inicial - default após registro)
-      setTimeout(() => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      timeoutRef.current = setTimeout(() => {
         router.push(getDefaultRoute())
       }, 1000)
     } catch (error: any) {
@@ -54,15 +65,14 @@ export default function RegisterPage() {
       // Mostrar mensagem de erro amigável
       const errorMessage = error.message || 'Falha ao criar conta. Tente novamente.'
       toast.error(errorMessage)
-      
+
       // Se o email já está cadastrado, sugerir fazer login
       if (errorMessage.includes('já está cadastrado')) {
-        setTimeout(() => {
-          toast.info('Redirecionando para login...', { duration: 2000 })
-          setTimeout(() => {
-            router.push('/login')
-          }, 2000)
-        }, 2000)
+        if (timeoutRef.current) clearTimeout(timeoutRef.current)
+        timeoutRef.current = setTimeout(() => {
+          toast.info('Redirecionando para login...')
+          router.push('/login')
+        }, 1500)
       }
     } finally {
       setIsSubmitting(false)
