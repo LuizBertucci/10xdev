@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { cardFeatureRoutes } from './cardFeatureRoutes'
 import { authRoutes } from './authRoutes'
+import { videoRoutes } from './videoRoutes'
 
 const router = Router()
 
@@ -23,6 +24,9 @@ router.use('/auth', authRoutes)
 
 // CardFeatures routes
 router.use('/card-features', cardFeatureRoutes)
+
+// Videos routes
+router.use('/videos', videoRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
@@ -51,6 +55,14 @@ router.get('/', (req, res) => {
         stats: 'GET /api/card-features/stats',
         bulkCreate: 'POST /api/card-features/bulk',
         bulkDelete: 'DELETE /api/card-features/bulk'
+      },
+      videos: {
+        list: 'GET /api/videos',
+        getById: 'GET /api/videos/:id',
+        create: 'POST /api/videos',
+        update: 'PUT /api/videos/:id',
+        delete: 'DELETE /api/videos/:id',
+        updateCardFeature: 'PATCH /api/videos/:id/card-feature'
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'

@@ -12,21 +12,26 @@ dotenv.config({ path: envPath, override: true })
 
 const supabaseUrl = process.env.SUPABASE_URL
 const supabaseKey = process.env.SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Credenciais do Supabase não configuradas')
 }
 
-if (!supabaseServiceRoleKey) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY não configurada')
-}
-
 // Cliente Supabase público (com anon key)
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Cliente Supabase admin (com service role key - bypass RLS)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey)
+// Cliente administrativo (para operações privilegiadas)
+if (!supabaseServiceKey) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY não configurada')
+}
+
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
 
 // ================================================
 // QUERY EXECUTION HELPERS

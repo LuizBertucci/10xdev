@@ -4,23 +4,19 @@ import { Zap } from "lucide-react"
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { usePlatform } from "@/hooks/use-platform"
+import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
-import Lessons from "@/pages/Lessons"
-import Trainings from "@/pages/Trainings"
-import Projects from "@/pages/Projects"
-import AI from "@/pages/AI"
 import Dashboard from "@/pages/Dashboard"
 import ProtectedRoute from "@/components/ProtectedRoute"
+import Videos from "@/pages/Videos"
+import VideoDetail from "@/pages/VideoDetail"
 
 export default function DevPlatform() {
   const platformState = usePlatform()
-
-
-
-
-
+  const searchParams = useSearchParams()
+  const videoId = searchParams?.get('id') || null
 
   return (
     <ProtectedRoute>
@@ -44,20 +40,21 @@ export default function DevPlatform() {
             </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              {/* Todo o conteúdo das abas permanece exatamente igual */}
+              {/* Home Tab */}
               {platformState.activeTab === "home" && <Home platformState={platformState} />}
 
+              {/* Codes Tab */}
               {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
-              {platformState.activeTab === "lessons" && <Lessons />}
-
-              {platformState.activeTab === "trainings" && <Trainings />}
-
-              {platformState.activeTab === "projects" && <Projects />}
-              {/* AI Integration Tab */}
-              {platformState.activeTab === "ai" && <AI />}
-
+              {/* Dashboard Tab */}
               {platformState.activeTab === "dashboard" && <Dashboard platformState={platformState} />}
+
+              {/* Videos Tab */}
+              {platformState.activeTab === "videos" && videoId ? (
+                <VideoDetail platformState={platformState} />
+              ) : (
+                platformState.activeTab === "videos" && <Videos platformState={platformState} />
+              )}
             </main>
           </div>
         </SidebarInset>

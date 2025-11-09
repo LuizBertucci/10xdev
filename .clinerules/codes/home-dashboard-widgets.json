@@ -1,0 +1,59 @@
+{
+  "id": "2d086138-9421-4295-ad16-4e264f44160a",
+  "title": "Home Dashboard Widgets",
+  "tech": "Dashboard",
+  "language": "json",
+  "description": "Conteúdos mock utilizados na Home: blocos de acesso rápido, vídeos e projetos em destaque.",
+  "content_type": "code",
+  "card_type": "codigos",
+  "screens": [
+    {
+      "name": "Quick Access Blocks",
+      "description": "Cards de acesso rápido exibidos na Home.",
+      "route": "cards/home/quick-access",
+      "order": 0,
+      "blocks": [
+        {
+          "id": "972ec765-ffe9-4de7-b8a1-50eae8252d3c",
+          "type": "code",
+          "title": "Quick Access Blocks",
+          "language": "json",
+          "order": 0,
+          "content": "[\n  {\n    \"title\": \"React Hooks\",\n    \"icon\": \"Code2\",\n    \"color\": \"bg-blue-500\",\n    \"count\": \"150+ snippets\"\n  },\n  {\n    \"title\": \"Node.js APIs\",\n    \"icon\": \"Code2\",\n    \"color\": \"bg-green-500\",\n    \"count\": \"80+ exemplos\"\n  },\n  {\n    \"title\": \"Python Scripts\",\n    \"icon\": \"Code2\",\n    \"color\": \"bg-yellow-500\",\n    \"count\": \"200+ códigos\"\n  },\n  {\n    \"title\": \"CSS Animations\",\n    \"icon\": \"Code2\",\n    \"color\": \"bg-purple-500\",\n    \"count\": \"60+ efeitos\"\n  }\n]"
+        }
+      ]
+    },
+    {
+      "name": "Featured Videos",
+      "description": "Lista de vídeos em destaque com progresso.",
+      "route": "cards/home/featured-videos",
+      "order": 0,
+      "blocks": [
+        {
+          "id": "df838b7f-5daa-42ee-95e6-1b1b4fd94976",
+          "type": "code",
+          "title": "Featured Videos",
+          "language": "json",
+          "order": 0,
+          "content": "[\n  {\n    \"title\": \"React do Zero ao Avançado\",\n    \"duration\": \"12h\",\n    \"progress\": 65,\n    \"instructor\": \"João Silva\"\n  },\n  {\n    \"title\": \"Node.js e Express\",\n    \"duration\": \"8h\",\n    \"progress\": 30,\n    \"instructor\": \"Maria Santos\"\n  },\n  {\n    \"title\": \"Python para Data Science\",\n    \"duration\": \"15h\",\n    \"progress\": 0,\n    \"instructor\": \"Carlos Lima\"\n  }\n]"
+        }
+      ]
+    },
+    {
+      "name": "Featured Projects",
+      "description": "Projetos em destaque na Home.",
+      "route": "cards/home/featured-projects",
+      "order": 0,
+      "blocks": [
+        {
+          "id": "16ac2582-ecf2-46f4-9972-8635d681ce40",
+          "type": "code",
+          "title": "Featured Projects",
+          "language": "json",
+          "order": 0,
+          "content": "[\n  {\n    \"title\": \"E-commerce Completo\",\n    \"tech\": [\n      \"React\",\n      \"Node.js\",\n      \"MongoDB\"\n    ],\n    \"difficulty\": \"Avançado\",\n    \"stars\": 1250,\n    \"description\": \"Sistema completo de e-commerce com carrinho, pagamentos e admin\"\n  },\n  {\n    \"title\": \"Dashboard Analytics\",\n    \"tech\": [\n      \"Vue.js\",\n      \"Chart.js\",\n      \"Firebase\"\n    ],\n    \"difficulty\": \"Intermediário\",\n    \"stars\": 890,\n    \"description\": \"Dashboard responsivo com gráficos e métricas em tempo real\"\n  },\n  {\n    \"title\": \"API REST com Auth\",\n    \"tech\": [\n      \"Express\",\n      \"JWT\",\n      \"PostgreSQL\"\n    ],\n    \"difficulty\": \"Intermediário\",\n    \"stars\": 650,\n    \"description\": \"API completa com autenticação, validação e documentação\"\n  }\n]"
+        }
+      ]
+    }
+  ]
+}

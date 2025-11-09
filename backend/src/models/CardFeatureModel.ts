@@ -6,12 +6,9 @@ import type {
   CardFeatureUpdate,
   CardFeatureResponse,
   CardFeatureQueryParams,
-  CardFeatureFilters,
   ModelResult,
   ModelListResult,
-  CreateCardFeatureRequest,
-  ContentType,
-  ContentBlock
+  CreateCardFeatureRequest
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
