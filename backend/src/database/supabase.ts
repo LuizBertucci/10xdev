@@ -18,7 +18,7 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Credenciais do Supabase não configuradas')
 }
 
-// Cliente Supabase
+// Cliente Supabase público (com anon key)
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Cliente administrativo (para operações privilegiadas)

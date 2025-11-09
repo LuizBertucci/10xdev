@@ -35,12 +35,17 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     image: 10xdev-front
     container_name: 10xdev_frontend
     ports:
       - "8080:8080"
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     volumes:
       - 10xdev_node_cache:/app/.next/cache
     networks:

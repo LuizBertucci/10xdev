@@ -1,7 +1,11 @@
 "use client"
 
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/hooks/useAuth"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { LogOut } from "lucide-react"
 
 interface AppSidebarProps {
   platformState: any
@@ -15,6 +19,39 @@ const navItems = [
 ]
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {
+  const { user, logout } = useAuth()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      // Aguardar um pouco para garantir que o estado foi atualizado
+      // e então forçar redirecionamento
+      setTimeout(() => {
+        // Usar window.location para garantir redirecionamento mesmo se o router falhar
+        window.location.href = '/login'
+      }, 200)
+    } catch (error: any) {
+      console.error('Erro no logout:', error)
+      toast.error('Erro ao fazer logout')
+    }
+  }
+
+  const getUserInitials = () => {
+    if (user?.name) {
+      return user.name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    }
+    if (user?.email) {
+      return user.email[0].toUpperCase()
+    }
+    return 'DV'
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -38,7 +75,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
 
       <SidebarContent className="overflow-y-hidden">
         <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
@@ -64,9 +100,18 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
             <SidebarMenuButton>
               <Avatar className="size-6">
                 <AvatarImage src="/placeholder.svg?height=24&width=24" />
-                <AvatarFallback>DV</AvatarFallback>
+                <AvatarFallback>{getUserInitials()}</AvatarFallback>
               </Avatar>
-              <span>Developer</span>
+              <div className="flex flex-col flex-1 text-left text-sm">
+                <span className="truncate font-medium">{user?.name || 'Usuário'}</span>
+                <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout}>
+              <LogOut className="size-5 text-red-500" />
+              <span>Sair</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
