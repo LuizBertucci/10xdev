@@ -7,13 +7,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { getDefaultRoute } from '@/utils/routes'
 import { Zap, Code, Shield, TrendingUp, Eye, EyeOff } from 'lucide-react'
@@ -25,7 +18,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [role, setRole] = useState('consultor')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { register } = useAuth()
   const router = useRouter()
@@ -223,25 +215,6 @@ export default function RegisterPage() {
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-              </div>
-
-              {/* Função no sistema */}
-              <div className="space-y-2">
-                <Label htmlFor="role" className="text-gray-700 font-medium">
-                  Função no sistema
-                </Label>
-                <Select value={role} onValueChange={setRole} disabled={isSubmitting}>
-                  <SelectTrigger id="role" className="h-11">
-                    <SelectValue placeholder="Escolha sua função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="consultor">Consultor (padrão)</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500">
-                  Escolha sua função. Consultor é o padrão para novos usuários.
-                </p>
               </div>
 
               {/* Botão Submit */}
