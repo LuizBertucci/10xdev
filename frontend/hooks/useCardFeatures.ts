@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { cardFeatureService } from '@/services'
 import { usePagination } from './usePagination'
 import { useDebounceSearch } from './useDebounceSearch'
@@ -38,6 +38,14 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     editingItem: null as CardFeature | null
   })
 
+  // Ref para armazenar a função de atualização de paginação
+  const paginationUpdateRef = useRef<((info: {
+    totalCount: number
+    currentPage?: number
+    totalPages?: number
+    hasNextPage?: boolean
+    hasPrevPage?: boolean
+  }) => void) | null>(null)
 
   // ✅ NOVO: Função de fetch com paginação para o usePagination hook
   const fetchCardFeaturesWithPagination = useCallback(async (params: FetchParams) => {
@@ -59,7 +67,17 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
           loading: false
         }))
         
-        // O usePagination atualizará automaticamente suas informações
+        // Atualizar informações de paginação com dados da resposta
+        if (response.count !== undefined && paginationUpdateRef.current) {
+          paginationUpdateRef.current({
+            totalCount: response.count,
+            currentPage: response.currentPage,
+            totalPages: response.totalPages,
+            hasNextPage: response.hasNextPage,
+            hasPrevPage: response.hasPrevPage
+          })
+        }
+        
         return response
       } else {
         throw new Error(response.error || 'Erro ao carregar CardFeatures')
@@ -74,7 +92,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       throw error
     }
-  }, [state.selectedTech]) // removido search.debouncedSearchTerm por ordem de declaração
+  }, [state.selectedTech])
 
   // Wrapper para usePagination (precisa retornar void)
   const paginationFetchFn = useCallback(async (params: FetchParams) => {
@@ -85,6 +103,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     itemsPerPage: 10,
     initialPage: 1
   })
+
+  // Atualizar a ref quando pagination for criado
+  useEffect(() => {
+    paginationUpdateRef.current = pagination.updatePaginationInfo
+  }, [pagination.updatePaginationInfo])
 
   // ✅ NOVO: Hook de busca com debounce - usa fetchCardFeaturesWithPagination
   const search = useDebounceSearch(

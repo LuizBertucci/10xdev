@@ -23,7 +23,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Cliente administrativo (para operações privilegiadas)
 if (!supabaseServiceKey) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY não configurada')
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY não configurada. Obtenha em: https://supabase.com/dashboard/project/xgpzbolfhgjhrydtcvug/settings/api')
 }
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {

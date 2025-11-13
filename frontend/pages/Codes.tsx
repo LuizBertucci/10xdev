@@ -9,6 +9,7 @@ import CardFeature from "@/components/CardFeature"
 import CardFeatureModal from "@/components/CardFeatureModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface PlatformState {
@@ -315,6 +316,89 @@ export default function Codes({ platformState }: CodesProps) {
                   onDelete={handleDeleteClick}
                 />
               ))}
+            </div>
+          )}
+
+          {/* Controles de Paginação */}
+          {cardFeatures.totalPages > 1 && (
+            <div className="mt-8 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (cardFeatures.hasPrevPage) {
+                          cardFeatures.prevPage()
+                        }
+                      }}
+                      disabled={!cardFeatures.hasPrevPage}
+                      className="gap-1 pl-2.5"
+                    >
+                      <ChevronRight className="h-4 w-4 rotate-180" />
+                      <span>Anterior</span>
+                    </Button>
+                  </PaginationItem>
+                  
+                  {/* Números das páginas */}
+                  {Array.from({ length: Math.min(5, cardFeatures.totalPages) }, (_, i) => {
+                    let pageNum: number
+                    if (cardFeatures.totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (cardFeatures.currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (cardFeatures.currentPage >= cardFeatures.totalPages - 2) {
+                      pageNum = cardFeatures.totalPages - 4 + i
+                    } else {
+                      pageNum = cardFeatures.currentPage - 2 + i
+                    }
+                    
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <Button
+                          variant={cardFeatures.currentPage === pageNum ? "outline" : "ghost"}
+                          size="sm"
+                          onClick={() => cardFeatures.goToPage(pageNum)}
+                          className="min-w-[2.5rem]"
+                        >
+                          {pageNum}
+                        </Button>
+                      </PaginationItem>
+                    )
+                  })}
+                  
+                  {cardFeatures.totalPages > 5 && cardFeatures.currentPage < cardFeatures.totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  
+                  <PaginationItem>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (cardFeatures.hasNextPage) {
+                          cardFeatures.nextPage()
+                        }
+                      }}
+                      disabled={!cardFeatures.hasNextPage}
+                      className="gap-1 pr-2.5"
+                    >
+                      <span>Próxima</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+
+          {/* Informação de paginação */}
+          {cardFeatures.totalCount > 0 && (
+            <div className="mt-4 text-center text-sm text-gray-600">
+              Mostrando {((cardFeatures.currentPage - 1) * 10) + 1} - {Math.min(cardFeatures.currentPage * 10, cardFeatures.totalCount)} de {cardFeatures.totalCount} cards
             </div>
           )}
         </>

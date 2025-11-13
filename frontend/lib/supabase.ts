@@ -24,8 +24,53 @@ export function createClient(): SupabaseClient {
     )
   }
 
-  // Cria e cacheia a instância
-  supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+  // Cria e cacheia a instância com storage customizado para tratar erros
+  supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storage: {
+        getItem: (key: string) => {
+          try {
+            const item = localStorage.getItem(key)
+            // Verificar se o item é válido JSON
+            if (item && item.startsWith('base64-')) {
+              // Se estiver no formato base64, tentar decodificar
+              try {
+                const decoded = atob(item.replace('base64-', ''))
+                JSON.parse(decoded) // Validar se é JSON válido
+                return item
+              } catch (e) {
+                // Se falhar, limpar o item corrompido
+                console.warn(`Item corrompido detectado para key ${key}, limpando...`)
+                localStorage.removeItem(key)
+                return null
+              }
+            }
+            return item
+          } catch (error) {
+            console.error('Erro ao ler localStorage:', error)
+            return null
+          }
+        },
+        setItem: (key: string, value: string) => {
+          try {
+            localStorage.setItem(key, value)
+          } catch (error) {
+            console.error('Erro ao salvar no localStorage:', error)
+          }
+        },
+        removeItem: (key: string) => {
+          try {
+            localStorage.removeItem(key)
+          } catch (error) {
+            console.error('Erro ao remover do localStorage:', error)
+          }
+        },
+      },
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  })
   return supabaseClient
 }
 
