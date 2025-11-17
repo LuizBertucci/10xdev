@@ -2,7 +2,7 @@
 
 ## Preparação para upload
 - Conferir e, se necessário, ajustar IDs e slugs gerados automaticamente pelos scripts; todos os `blocks` recebem `uuid`.
-- Validar os arquivos com `jq . file.json` ou `node -e "JSON.parse(fs.readFileSync(path))"` antes de subir.
+- Validar os arquivos com `node -e "JSON.parse(fs.readFileSync(path))"` antes de subir.
 - Não alterar as importações do frontend até confirmar que os cards foram carregados na API; os mocks TypeScript podem ser removidos após o upload.
 
 ## Upload para API
@@ -26,6 +26,7 @@
 - `lessons-react-tracks.json` → `8d00cd97-05ab-49a9-9549-ecee40bf2e06`
 - `project-templates.json` → `ae6505c4-56ef-42ee-907c-bd4f97022889`
 - `lead-rating.json` → `58cfe37a-21c4-4e03-b319-2eae7d6f7225`
+- `webhook-inlead.json` → `de20cd93-a192-46bc-bac5-53cae0a0ff46`
 
 ## Documentação complementar
 - `@subir-code.json` mantém um exemplo completo dos endpoints de Card Features e pode servir como referência rápida para payloads e respostas esperadas.
