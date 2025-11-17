@@ -31,6 +31,7 @@
 - `trainings-youtube-manager.json` → `ca7e7746-55cc-458c-8773-493a3c790f69`
 - `lessons-react-tracks.json` → `8d00cd97-05ab-49a9-9549-ecee40bf2e06`
 - `project-templates.json` → `ae6505c4-56ef-42ee-907c-bd4f97022889`
+- `lead-rating.json` → `58cfe37a-21c4-4e03-b319-2eae7d6f7225`
 
 ## Documentação complementar
 - `@subir-code.json` mantém um exemplo completo dos endpoints de Card Features e pode servir como referência rápida para payloads e respostas esperadas.

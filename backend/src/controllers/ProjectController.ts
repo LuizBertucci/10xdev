@@ -19,8 +19,16 @@ export class ProjectController {
   
   static async create(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const data: CreateProjectRequest = req.body
-      const userId = req.user!.id
+      const userId = req.user.id
 
       if (!data.name) {
         res.status(400).json({
@@ -153,14 +161,18 @@ export class ProjectController {
     }
   }
 
-  // ================================================
-  // READ - GET /api/projects/:id
-  // ================================================
-  
   static async getById(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const { id } = req.params
-      const userId = req.user!.id
+      const userId = req.user.id
 
       if (!id) {
         res.status(400).json({
@@ -199,9 +211,17 @@ export class ProjectController {
   
   static async update(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const { id } = req.params
       const data: UpdateProjectRequest = req.body
-      const userId = req.user!.id
+      const userId = req.user.id
 
       if (!id) {
         res.status(400).json({
@@ -235,14 +255,18 @@ export class ProjectController {
     }
   }
 
-  // ================================================
-  // DELETE - DELETE /api/projects/:id
-  // ================================================
-  
   static async delete(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const { id } = req.params
-      const userId = req.user!.id
+      const userId = req.user.id
 
       if (!id) {
         res.status(400).json({
