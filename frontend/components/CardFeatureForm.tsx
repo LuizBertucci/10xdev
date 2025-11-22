@@ -441,7 +441,7 @@ export default function CardFeatureForm({
                 placeholder="Descreva o que este CardFeature faz..."
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                className="flex-1 min-h-[150px] bg-white resize-none"
+                className="flex-1 min-h-[150px] bg-white"
               />
             </div>
           </div>

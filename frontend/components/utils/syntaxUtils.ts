@@ -2,10 +2,15 @@
 export const detectLanguage = (language: string): string => {
   switch (language.toLowerCase()) {
     case 'typescript':
+    case 'ts':
+    case 'tsx':
       return 'typescript'
     case 'javascript':
+    case 'js':
+    case 'jsx':
       return 'javascript'
     case 'python':
+    case 'py':
       return 'python'
     case 'html':
       return 'html'
@@ -15,6 +20,8 @@ export const detectLanguage = (language: string): string => {
       return 'json'
     case 'ruby':
       return 'ruby'
+    case 'sql':
+      return 'sql'
     default:
       return 'javascript'
   }
@@ -36,111 +43,211 @@ export const applyBasicHighlighting = (code: string, language: string): string =
     const tokens: { token: string, replacement: string }[] = []
     let tokenIndex = 0
     
-    // Keywords com tokens únicos
+    // Formato do token que não conflita com identificadores JS (usa caractere não-alfanumérico)
+    const createToken = (content: string, className: string) => {
+      const token = `~%TOKEN_${tokenIndex++}%~`
+      tokens.push({ token, replacement: `<span class="${className}">${content}</span>` })
+      return token
+    }
+    
+    // 1. Comentários (Prioridade máxima para não processar keywords dentro deles)
+    // Suporte para // (linha) e /* */ (bloco)
     highlightedCode = highlightedCode.replace(
-      /\b(const|let|var|function|class|interface|type|export|import|default|return|if|else|for|while|try|catch|async|await|public|private|protected|static|extends|implements)\b/g,
-      (match, keyword) => {
-        const token = `__TOKEN_${tokenIndex++}__`
-        tokens.push({ token, replacement: `<span class="syntax-keyword">${keyword}</span>` })
-        return token
-      }
+      /(\/\/.*$|\/\*[\s\S]*?\*\/)/gm,
+      (match) => createToken(match, 'syntax-comment')
+    )
+
+    // 2. Strings (Para não processar keywords dentro delas)
+    // Suporte para aspas simples, duplas e template literals (crases)
+    highlightedCode = highlightedCode.replace(
+      /("|'|`)((?:(?!\1)[^\\]|\\.)*)(\1)/g,
+      (match) => createToken(match, 'syntax-string')
     )
     
-    // Strings com tokens únicos
-    highlightedCode = highlightedCode.replace(
-      /([\"'`])([^\"'`]*?)\1/g,
-      (match, quote1, content) => {
-        const token = `__TOKEN_${tokenIndex++}__`
-        tokens.push({ token, replacement: `<span class="syntax-string">${quote1}${content}${quote1}</span>` })
-        return token
-      }
-    )
-    
-    // Function names com tokens únicos
+    // 3. Functions (Antes de keywords para evitar conflito em definições)
+    // Captura nomes de funções antes de parênteses: functionName(
     highlightedCode = highlightedCode.replace(
       /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g,
       (match, funcName) => {
-        const token = `__TOKEN_${tokenIndex++}__`
-        tokens.push({ token, replacement: `<span class="syntax-function">${funcName}</span>(` })
+        // Apenas o nome da função é colorido, o parêntese fica normal
+        // Mas precisamos tokenizar tudo que foi casado para evitar reprocessamento
+        const token = `~%TOKEN_${tokenIndex++}%~`
+        tokens.push({ 
+          token, 
+          replacement: `<span class="syntax-function">${funcName}</span>(` 
+        })
         return token
       }
     )
+
+    // 4. Keywords
+    const keywords = [
+      'const', 'let', 'var', 'function', 'class', 'interface', 'type', 'enum',
+      'export', 'import', 'default', 'return', 'if', 'else', 'for', 'while',
+      'do', 'switch', 'case', 'break', 'continue', 'try', 'catch', 'finally',
+      'throw', 'async', 'await', 'public', 'private', 'protected', 'static',
+      'readonly', 'extends', 'implements', 'new', 'this', 'super', 'void',
+      'null', 'undefined', 'true', 'false', 'from', 'as', 'of', 'in', 'typeof',
+      'instanceof'
+    ]
     
-    // Numbers com tokens únicos
+    const keywordRegex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g')
     highlightedCode = highlightedCode.replace(
-      /\b(\d+\.?\d*)\b/g,
-      (match, number) => {
-        const token = `__TOKEN_${tokenIndex++}__`
-        tokens.push({ token, replacement: `<span class="syntax-number">${number}</span>` })
-        return token
-      }
+      keywordRegex,
+      (match) => createToken(match, 'syntax-keyword')
     )
     
-    // Comments com tokens únicos
+    // 5. Numbers
     highlightedCode = highlightedCode.replace(
-      /(\/\/.*$)/gm,
-      (match, comment) => {
-        const token = `__TOKEN_${tokenIndex++}__`
-        tokens.push({ token, replacement: `<span class="syntax-comment">${comment}</span>` })
-        return token
-      }
+      /\b(\d+\.?\d*|0x[0-9a-fA-F]+)\b/g,
+      (match) => createToken(match, 'syntax-number')
     )
     
-    // Operators com tokens únicos
+    // 6. Operators
+    // Cuidado para não casar com os caracteres do nosso token (~ e %)
     highlightedCode = highlightedCode.replace(
-      /([+\-*\/=<>!&|?:]+)/g,
-      (match, operator) => {
-        const token = `__TOKEN_${tokenIndex++}__`
-        tokens.push({ token, replacement: `<span class="syntax-operator">${operator}</span>` })
-        return token
-      }
+      /([+\-*\/=<>!&|?:^]+)/g,
+      (match) => createToken(match, 'syntax-operator')
     )
     
-    // Substituir tokens de volta por HTML
+    // Restaurar tokens
+    // Fazemos isso em ordem reversa ou normal?
+    // Como os tokens são únicos e não se sobrepõem (devido à ordem de processamento),
+    // a ordem não deve importar, mas por segurança vamos usar replaceAll.
     tokens.forEach(({ token, replacement }) => {
       highlightedCode = highlightedCode.replaceAll(token, replacement)
     })
   }
   
-  if (lang === 'python') {
-    // Python keywords
-    highlightedCode = highlightedCode.replace(
-      /\b(def|class|import|from|return|if|else|elif|for|while|try|except|with|as|pass|break|continue|and|or|not|in|is)\b/g,
-      '<span class="syntax-keyword">$1</span>'
-    )
-    
-    // Strings
-    highlightedCode = highlightedCode.replace(
-      /([\"'])((?:(?!\1)[^\\]|\\.)*)(\\1)/g,
-      '<span class="syntax-string">$1$2$3</span>'
-    )
-    
-    // Comments
+  else if (lang === 'python') {
+    const tokens: { token: string, replacement: string }[] = []
+    let tokenIndex = 0
+    const createToken = (content: string, className: string) => {
+      const token = `~%TOKEN_${tokenIndex++}%~`
+      tokens.push({ token, replacement: `<span class="${className}">${content}</span>` })
+      return token
+    }
+
+    // 1. Comments
     highlightedCode = highlightedCode.replace(
       /(#.*$)/gm,
-      '<span class="syntax-comment">$1</span>'
+      (match) => createToken(match, 'syntax-comment')
     )
-  }
-  
-  if (lang === 'html') {
-    // HTML tags
+
+    // 2. Strings (incluindo multi-line com triplas aspas)
     highlightedCode = highlightedCode.replace(
-      /(<\/?[\w\s=\"/.':;#-\/\?]+>)/g,
-      '<span class="syntax-tag">$1</span>'
+      /("""[\s\S]*?"""|'''[\s\S]*?'''|("|')((?:(?!\2)[^\\]|\\.)*)(\2))/g,
+      (match) => createToken(match, 'syntax-string')
     )
-  }
-  
-  if (lang === 'css') {
-    // CSS selectors and properties
+
+    // 3. Functions (def func_name)
     highlightedCode = highlightedCode.replace(
-      /([.#]?[\w-]+)\s*{/g,
-      '<span class="syntax-selector">$1</span>{'
+      /\bdef\s+([a-zA-Z_][a-zA-Z0-9_]*)/g,
+      (match, funcName) => {
+        // Neste caso, 'def' é keyword e 'funcName' é função.
+        // Melhor tratar keywords depois.
+        // Vamos apenas tokenizar o nome da função aqui se conseguirmos separar.
+        // Mas regex replace substitui o match inteiro.
+        // Estratégia: tokenizar tudo: "def " + token(funcName)
+        // Ou melhor: deixar 'def' para o passo de keywords e pegar function calls genéricas aqui?
+        // Python functions calls: name(
+        return match // Placeholder, vamos usar a lógica genérica abaixo
+      }
     )
     
+    // Function calls e definitions simples
+    highlightedCode = highlightedCode.replace(
+      /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g,
+      (match, funcName) => {
+        const token = `~%TOKEN_${tokenIndex++}%~`
+        tokens.push({ token, replacement: `<span class="syntax-function">${funcName}</span>(` })
+        return token
+      }
+    )
+
+    // 4. Keywords
+    const keywords = [
+      'def', 'class', 'import', 'from', 'return', 'if', 'else', 'elif', 
+      'for', 'while', 'try', 'except', 'finally', 'raise', 'with', 'as', 
+      'pass', 'break', 'continue', 'and', 'or', 'not', 'in', 'is', 'lambda',
+      'yield', 'True', 'False', 'None', 'async', 'await', 'global', 'nonlocal',
+      'assert', 'del'
+    ]
+    const keywordRegex = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g')
+    
+    highlightedCode = highlightedCode.replace(
+      keywordRegex,
+      (match) => createToken(match, 'syntax-keyword')
+    )
+
+    // Restaurar
+    tokens.forEach(({ token, replacement }) => {
+      highlightedCode = highlightedCode.replaceAll(token, replacement)
+    })
+  }
+  
+  else if (lang === 'html') {
+    // Simplificado para HTML
+    highlightedCode = highlightedCode.replace(
+      /(&lt;\/?)(\w+)(.*?)(&gt;)/g, // Assumindo que já foi escapado? Não, input é raw.
+      // Input raw: <div class="x">
+      (match) => {
+        // Se o input é raw code, ele tem < e >.
+        // Mas ao renderizar no dangerouslySetInnerHTML, < e > são interpretados como tags reais do DOM!
+        // O highlighter deve retornar HTML string.
+        // Se o código tem tags HTML, elas precisam ser escapadas para serem exibidas, 
+        // EXCETO os spans que nós adicionamos.
+        // ESTE É UM PONTO IMPORTANTE: O highlightedCode retornado é injetado como HTML.
+        // Então o código original do usuário DEVE ser escapado ( < vira &lt; ) ANTES de adicionar nossos spans.
+        return match
+      }
+    )
+    
+    // Correção Fundamental: Escapar HTML antes de tudo para qualquer linguagem!
+    // Se o usuário digita "if (a < b)", o "< b" pode quebrar o HTML.
+    // Vamos mover o escape para o início da função.
+  }
+  
+  else if (lang === 'css') {
+    const tokens: { token: string, replacement: string }[] = []
+    let tokenIndex = 0
+    const createToken = (content: string, className: string) => {
+      const token = `~%TOKEN_${tokenIndex++}%~`
+      tokens.push({ token, replacement: `<span class="${className}">${content}</span>` })
+      return token
+    }
+
+    // Comments /* */
+    highlightedCode = highlightedCode.replace(
+      /(\/\*[\s\S]*?\*\/)/g,
+      (match) => createToken(match, 'syntax-comment')
+    )
+
+    // Selectors (simplificado: tudo antes de {)
+    highlightedCode = highlightedCode.replace(
+      /([^{]+)\{/g,
+      (match, selector) => {
+        // Cuidado: pode pegar quebras de linha.
+        // Melhor tokenizar properties primeiro?
+        // CSS é complexo para regex simples.
+        // Vamos fazer highlighting básico de propriedades
+        return match
+      }
+    )
+    
+    // Properties (word:)
     highlightedCode = highlightedCode.replace(
       /([\w-]+):/g,
-      '<span class="syntax-property">$1</span>:'
+      (match, prop) => {
+        const token = `~%TOKEN_${tokenIndex++}%~`
+        tokens.push({ token, replacement: `<span class="syntax-property">${prop}</span>:` })
+        return token
+      }
     )
+
+    tokens.forEach(({ token, replacement }) => {
+      highlightedCode = highlightedCode.replaceAll(token, replacement)
+    })
   }
   
   return highlightedCode

@@ -277,7 +277,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-3 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 h-48 md:h-72 overflow-hidden relative group bg-white">
+              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-3 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 min-h-[12rem] md:min-h-[18rem] resize-y overflow-hidden relative group bg-white">
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
                     width: 8px;
