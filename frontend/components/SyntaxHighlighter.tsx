@@ -1,54 +1,67 @@
-import { applyBasicHighlighting } from './utils/syntaxUtils'
+import React from 'react'
+import { Highlight, themes } from 'prism-react-renderer'
 
 interface SyntaxHighlighterProps {
   code: string
   language: string
+  showLineNumbers?: boolean // Opcional, padrão true
 }
 
-// Componente de syntax highlighting usando nossa implementação interna
-// (react-syntax-highlighter removido devido a conflitos de dependência)
 export default function SyntaxHighlighter({ 
   code, 
-  language
+  language,
+  showLineNumbers = true 
 }: SyntaxHighlighterProps) {
-  // Usar nossa implementação interna de highlighting
-  const highlightedCode = applyBasicHighlighting(code, language)
-  
+  // Normalizar o nome da linguagem para o Prism
+  const getPrismLanguage = (lang: string) => {
+    const normalized = lang.toLowerCase()
+    if (normalized === 'typescript' || normalized === 'ts') return 'typescript'
+    if (normalized === 'javascript' || normalized === 'js') return 'javascript'
+    if (normalized === 'python' || normalized === 'py') return 'python'
+    if (normalized === 'html') return 'markup' // Prism usa 'markup' para HTML
+    if (normalized === 'css') return 'css'
+    if (normalized === 'json') return 'json'
+    if (normalized === 'sql') return 'sql'
+    if (normalized === 'bash' || normalized === 'sh') return 'bash'
+    return 'javascript' // Fallback seguro
+  }
+
   return (
-    <div style={{ position: 'relative', zIndex: 1, backgroundColor: 'transparent' }}>
-      <style>{`
-        .codeblock-pre {
-          background: transparent !important;
-          background-color: transparent !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        pre {
-          background: transparent !important;
-          background-color: transparent !important;
-        }
-        code {
-          background: transparent !important;
-          background-color: transparent !important;
-        }
-        .syntax-keyword { color: #1d4ed8; font-weight: 600; }
-        .syntax-string { color: #047857; }
-        .syntax-number { color: #7c2d12; font-weight: 500; }
-        .syntax-comment { color: #6b7280; font-style: italic; }
-        .syntax-function { color: #dc2626; font-weight: 600; }
-        .syntax-operator { color: #374151; font-weight: 500; }
-        .syntax-tag { color: #dc2626; }
-        .syntax-selector { color: #047857; font-weight: 500; }
-        .syntax-property { color: #0369a1; }
-      `}</style>
-      <pre className="codeblock-pre text-xs text-gray-800 leading-tight whitespace-pre-wrap break-words" style={{fontFamily: 'Consolas, Monaco, "Courier New", monospace !important', wordWrap: 'break-word', overflowWrap: 'break-word'}}>
-        <code 
-          style={{fontFamily: 'Consolas, Monaco, "Courier New", monospace !important'}}
-          dangerouslySetInnerHTML={{ 
-            __html: highlightedCode
-          }}
-        />
-      </pre>
-    </div>
+    <Highlight
+      theme={themes.vsLight}
+      code={code || ''}
+      language={getPrismLanguage(language)}
+    >
+      {({ className, style, tokens, getLineProps, getTokenProps }) => (
+        <pre 
+            className="text-xs leading-tight whitespace-pre-wrap break-words" 
+            style={{
+                ...style, 
+                backgroundColor: 'transparent', 
+                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                margin: 0,
+                padding: 0
+            }}
+        >
+          {tokens.map((line, i) => (
+            <div key={i} {...getLineProps({ line })} className="table-row">
+              {showLineNumbers && (
+                <span 
+                  className="table-cell select-none text-right pr-4 text-gray-400 border-r border-gray-200 mr-4"
+                  style={{ width: '3em', minWidth: '3em' }}
+                >
+                  {i + 1}
+                </span>
+              )}
+              <span className="table-cell pl-4">
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({ token })} />
+                ))}
+              </span>
+            </div>
+          ))}
+        </pre>
+      )}
+    </Highlight>
   )
 }
