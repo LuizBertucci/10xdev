@@ -7,12 +7,7 @@ import path from 'path'
 
 // Import middlewares
 import { 
-  corsMiddleware, 
-  generalRateLimit, 
-  writeOperationsRateLimit,
-  bulkOperationsRateLimit,
-  searchRateLimit,
-  statsRateLimit,
+  corsMiddleware,
   errorHandler, 
   notFoundHandler,
   uncaughtErrorHandler,
@@ -54,9 +49,6 @@ app.use(helmet({
 // CORS
 app.use(corsMiddleware)
 
-// Rate limiting geral
-app.use(generalRateLimit)
-
 // ================================================
 // PARSING MIDDLEWARE
 // ================================================
@@ -96,35 +88,6 @@ app.use((req, res, next) => {
   const requestId = Math.random().toString(36).substr(2, 9)
   req.headers['x-request-id'] = requestId
   res.setHeader('X-Request-ID', requestId)
-  next()
-})
-
-// ================================================
-// SPECIFIC RATE LIMITERS
-// ================================================
-
-// Rate limiting para operações de escrita
-app.use('/api/card-features', (req, res, next) => {
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method) && !req.path.includes('bulk')) {
-    return writeOperationsRateLimit(req, res, next)
-  }
-  next()
-})
-
-// Rate limiting para bulk operations
-app.use('/api/card-features/bulk', bulkOperationsRateLimit)
-
-// Rate limiting para search
-app.use('/api/card-features/search', searchRateLimit)
-
-// Rate limiting para stats
-app.use('/api/card-features/stats', statsRateLimit)
-
-// Rate limiting para operações de escrita em videos
-app.use('/api/videos', (req, res, next) => {
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-    return writeOperationsRateLimit(req, res, next)
-  }
   next()
 })
 
@@ -219,7 +182,6 @@ const server = app.listen(PORT, () => {
    
 🔧 Configurações:
    • CORS: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}
-   • Rate Limit: ${process.env.RATE_LIMIT_MAX_REQUESTS || '100'} req/15min
    • Database: Supabase PostgreSQL
    
 ⏰ Timestamp: ${new Date().toISOString()}

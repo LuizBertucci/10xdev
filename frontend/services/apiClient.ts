@@ -39,24 +39,49 @@ class ApiClient {
     }
   }
 
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
+  private async handleResponse<T>(response: Response): Promise<ApiResponse<T> | undefined> {
     const contentType = response.headers.get('content-type')
-    
-    let data: any
+
+    let data: ApiResponse<T> | undefined
     try {
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json()
-      } else {
-        data = await response.text()
+      const textData = await response.text()
+
+      if (textData) {
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            data = JSON.parse(textData) as ApiResponse<T>
+          } catch (parseError) {
+            console.error('Erro ao fazer parse do JSON:', parseError)
+            data = { success: false, error: textData || `HTTP ${response.status}` }
+          }
+        } else {
+          data = { success: false, error: textData || `HTTP ${response.status}` }
+        }
       }
     } catch (error) {
-      throw new Error('Erro ao processar resposta do servidor')
+      console.error('Erro ao processar resposta:', error)
+      data = { success: false, error: 'Erro ao processar resposta do servidor' }
     }
 
     if (!response.ok) {
+      // Tentar extrair mensagem de erro de diferentes formatos
+      const errorMessage = 
+        data?.error || 
+        data?.message || 
+        (typeof data === 'string' ? data : null) ||
+        `HTTP ${response.status}: ${response.statusText || 'Erro desconhecido'}`
+      
+      console.error('Erro na resposta HTTP:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        data: data,
+        errorMessage
+      })
+      
       throw {
         success: false,
-        error: data.error || data.message || `HTTP ${response.status}`,
+        error: errorMessage,
         statusCode: response.status,
         details: data
       } as ApiError
@@ -81,13 +106,32 @@ class ApiClient {
     return url.toString()
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+  private async getHeaders(additionalHeaders?: Record<string, string>): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+      ...(additionalHeaders ?? {})
+    }
+
+    if (typeof window !== 'undefined') {
+      const { createClient } = await import('@/lib/supabase')
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+    }
+
+    return headers
+  }
+
+  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint, params)
-      
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'GET',
-        headers: this.defaultHeaders,
+        headers,
         credentials: 'include'
       })
 
@@ -104,39 +148,54 @@ class ApiClient {
     }
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
+      console.log('POST request URL:', url)
+      console.log('POST request data:', data)
+
+      const headers = await this.getHeaders()
+
+      console.log('POST request headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : 'none' })
       
       const response = await fetch(url, {
         method: 'POST',
-        headers: this.defaultHeaders,
+        headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
       })
 
+      console.log('POST response status:', response.status)
+      console.log('POST response ok:', response.ok)
+
       return await this.handleResponse<T>(response)
     } catch (error) {
+      console.error('POST request error:', error)
       if (error && typeof error === 'object' && 'success' in error) {
         throw error
       }
+      const errorMessage = error instanceof Error ? error.message : 
+                          (error && typeof error === 'object' && 'error' in error) ? (error as any).error :
+                          'Erro na requisição POST'
       throw {
         success: false,
-        error: error instanceof Error ? error.message : 'Erro na requisição POST',
-        statusCode: 0
+        error: errorMessage,
+        statusCode: (error && typeof error === 'object' && 'statusCode' in error) ? (error as any).statusCode : 0
       } as ApiError
     }
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
       console.log('PUT request URL:', url)
       console.log('PUT request data:', data)
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'PUT',
-        headers: this.defaultHeaders,
+        headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
       })
@@ -157,13 +216,15 @@ class ApiClient {
     }
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'PATCH',
-        headers: this.defaultHeaders,
+        headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
       })
@@ -181,13 +242,15 @@ class ApiClient {
     }
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  async delete<T>(endpoint: string): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'DELETE',
-        headers: this.defaultHeaders,
+        headers,
         credentials: 'include'
       })
 
@@ -204,13 +267,15 @@ class ApiClient {
     }
   }
 
-  async deleteWithBody<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async deleteWithBody<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      
+
+      const headers = await this.getHeaders()
+
       const response = await fetch(url, {
         method: 'DELETE',
-        headers: this.defaultHeaders,
+        headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
       })
@@ -244,7 +309,7 @@ class ApiClient {
   }
 
   // Health check
-  async healthCheck(): Promise<ApiResponse<{ message: string; timestamp: string }>> {
+  async healthCheck(): Promise<ApiResponse<{ message: string; timestamp: string }> | undefined> {
     return this.get('/health')
   }
 }
