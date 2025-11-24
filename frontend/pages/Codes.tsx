@@ -120,9 +120,9 @@ export default function Codes({ platformState }: CodesProps) {
 
   // HEADER - Breadcrumb + Busca + Filtros + Botão Criar
   return (
-    <div className="space-y-6 w-full overflow-x-hidden">
+    <div className="space-y-6 w-full">
       {/* Header - Layout Responsivo */}
-      <div className="space-y-4 w-full max-w-[900px] mx-auto px-4">
+      <div className="space-y-4 w-full max-w-[900px] mx-auto">
         {/* Breadcrumb Navigation */}
         <div className="flex items-center space-x-2 text-sm">
           <button
@@ -232,7 +232,7 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
 
         {/* Search Input - Linha separada abaixo */}
-        <div className="relative w-full min-w-0 mb-3">
+        <div className="relative w-full max-w-[300px] sm:max-w-full mx-auto sm:mx-0 min-w-0 mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder="Buscar snippets..."
@@ -292,7 +292,7 @@ export default function Codes({ platformState }: CodesProps) {
         <>
           {/* View Lista (Padrão) - Layout Vertical */}
           {viewMode === 'list' && (
-            <div className="space-y-4 w-full max-w-full overflow-hidden max-w-[900px] mx-auto">
+            <div className="space-y-4 w-full max-w-[900px] mx-auto">
               {codeSnippets.map((snippet) => (
                 <CardFeatureCompact
                   key={snippet.id}
