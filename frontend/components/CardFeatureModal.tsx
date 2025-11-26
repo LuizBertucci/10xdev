@@ -127,7 +127,7 @@ export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onD
                               language={block.language || snippet.language}
                             />
                           ) : (
-                            <pre className="whitespace-pre-wrap text-sm font-mono bg-gray-50 p-3 rounded">
+                            <pre className="whitespace-pre-wrap text-xs font-mono bg-gray-50 p-3 rounded">
                               {block.content}
                             </pre>
                           )}

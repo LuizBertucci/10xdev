@@ -62,6 +62,7 @@ export interface CardFeature {
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
+  author?: string        // Autor do card (opcional)
 }
 
 /**

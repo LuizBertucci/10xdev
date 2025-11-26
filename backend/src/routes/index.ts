@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { cardFeatureRoutes } from './cardFeatureRoutes'
 import { authRoutes } from './authRoutes'
 import { videoRoutes } from './videoRoutes'
+import { projectRoutes } from './projectRoutes'
 
 const router = Router()
 
@@ -27,6 +28,9 @@ router.use('/card-features', cardFeatureRoutes)
 
 // Videos routes
 router.use('/videos', videoRoutes)
+
+// Projects routes
+router.use('/projects', projectRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
@@ -63,6 +67,20 @@ router.get('/', (req, res) => {
         update: 'PUT /api/videos/:id',
         delete: 'DELETE /api/videos/:id',
         updateCardFeature: 'PATCH /api/videos/:id/card-feature'
+      },
+      projects: {
+        list: 'GET /api/projects',
+        create: 'POST /api/projects',
+        getById: 'GET /api/projects/:id',
+        update: 'PUT /api/projects/:id',
+        delete: 'DELETE /api/projects/:id',
+        getMembers: 'GET /api/projects/:id/members',
+        addMember: 'POST /api/projects/:id/members',
+        updateMember: 'PUT /api/projects/:id/members/:userId',
+        removeMember: 'DELETE /api/projects/:id/members/:userId',
+        getCards: 'GET /api/projects/:id/cards',
+        addCard: 'POST /api/projects/:id/cards',
+        removeCard: 'DELETE /api/projects/:id/cards/:cardFeatureId'
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'

@@ -139,8 +139,8 @@ export default function CardFeatureForm({
     return { ...DEFAULT_FORM_DATA }
   })
   
-  // Estado para controlar aba ativa (-1 = descrição, 0+ = arquivos)
-  const [activeTab, setActiveTab] = useState<number>(-1)
+  // Estado para controlar aba ativa (0+ = arquivos)
+  const [activeTab, setActiveTab] = useState<number>(0)
 
   // Sensores para drag and drop
   const sensors = useSensors(
@@ -297,7 +297,7 @@ export default function CardFeatureForm({
       if (activeTab >= index && activeTab > 0) {
         setActiveTab(activeTab - 1)
       } else if (activeTab === index) {
-        setActiveTab(-1) // Volta para descrição
+        setActiveTab(0)
       }
     }
   }
@@ -339,8 +339,8 @@ export default function CardFeatureForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b shrink-0">
           <h3 className="text-xl font-semibold">
             {mode === 'create' ? 'Novo CardFeature' : 'Editar CardFeature'}
           </h3>
@@ -353,183 +353,166 @@ export default function CardFeatureForm({
           </Button>
         </div>
         
-        <div className="flex-1 overflow-auto p-6">
-          <div className="space-y-6">
-            {/* Basic Info */}
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+          {/* LEFT COLUMN: Configuration & Metadata */}
+          <div className="w-full lg:w-[350px] border-r bg-gray-50 p-6 overflow-y-auto flex-shrink-0 flex flex-col gap-6">
+            
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Título *
-                  </label>
-                  <Input
-                    placeholder="Ex: Sistema de Autenticação JWT"
-                    value={formData.title}
-                    onChange={(e) => handleInputChange('title', e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo do Card *
-                  </label>
-                  <Select
-                    value={formData.card_type}
-                    onValueChange={(value) => handleInputChange('card_type', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dicas">Dicas</SelectItem>
-                      <SelectItem value="codigos">Códigos</SelectItem>
-                      <SelectItem value="workflows">Workflows</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tecnologia *
-                  </label>
-                  <Select
-                    value={formData.tech}
-                    onValueChange={(value) => handleInputChange('tech', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="React">React</SelectItem>
-                      <SelectItem value="Node.js">Node.js</SelectItem>
-                      <SelectItem value="Python">Python</SelectItem>
-                      <SelectItem value="JavaScript">JavaScript</SelectItem>
-                      <SelectItem value="Vue.js">Vue.js</SelectItem>
-                      <SelectItem value="Angular">Angular</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Título *
+                </label>
+                <Input
+                  placeholder="Ex: Sistema de Autenticação"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  className="bg-white"
+                />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Linguagem *
-                  </label>
-                  <Select
-                    value={formData.language}
-                    onValueChange={(value) => handleInputChange('language', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="typescript">TypeScript</SelectItem>
-                      <SelectItem value="javascript">JavaScript</SelectItem>
-                      <SelectItem value="python">Python</SelectItem>
-                      <SelectItem value="html">HTML</SelectItem>
-                      <SelectItem value="css">CSS</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo do Card *
+                </label>
+                <Select
+                  value={formData.card_type}
+                  onValueChange={(value) => handleInputChange('card_type', value)}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dicas">Dicas</SelectItem>
+                    <SelectItem value="codigos">Códigos</SelectItem>
+                    <SelectItem value="workflows">Workflows</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tecnologia *
+                </label>
+                <Select
+                  value={formData.tech}
+                  onValueChange={(value) => handleInputChange('tech', value)}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="React">React</SelectItem>
+                    <SelectItem value="Node.js">Node.js</SelectItem>
+                    <SelectItem value="Python">Python</SelectItem>
+                    <SelectItem value="JavaScript">JavaScript</SelectItem>
+                    <SelectItem value="Vue.js">Vue.js</SelectItem>
+                    <SelectItem value="Angular">Angular</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Linguagem *
+                </label>
+                <Select
+                  value={formData.language}
+                  onValueChange={(value) => handleInputChange('language', value)}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="typescript">TypeScript</SelectItem>
+                    <SelectItem value="javascript">JavaScript</SelectItem>
+                    <SelectItem value="python">Python</SelectItem>
+                    <SelectItem value="html">HTML</SelectItem>
+                    <SelectItem value="css">CSS</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Screens/Files with Description Tab */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Arquivos/Abas *
-                </label>
+            <div className="flex-1 flex flex-col">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Descrição
+              </label>
+              <Textarea
+                placeholder="Descreva o que este CardFeature faz..."
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="flex-1 min-h-[150px] bg-white"
+              />
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: Files Editor */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-white min-w-0">
+             <div className="p-4 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700">Arquivos do Projeto</h4>
+                  <p className="text-xs text-gray-500">Gerencie os arquivos e trechos de código</p>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={addScreen}
+                  className="self-start sm:self-center"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   Adicionar Arquivo
                 </Button>
-              </div>
+             </div>
 
-              <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))}>
-                {/* Lista de abas com drag and drop */}
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <TabsList className="form-tabs-scroll flex w-full h-auto p-1 overflow-x-auto justify-start">
-                    <style>{`
-                      .form-tabs-scroll::-webkit-scrollbar {
-                        height: 6px;
-                      }
-                      .form-tabs-scroll::-webkit-scrollbar-track {
-                        background: rgba(0, 0, 0, 0.1);
-                        border-radius: 3px;
-                      }
-                      .form-tabs-scroll::-webkit-scrollbar-thumb {
-                        background: rgba(0, 0, 0, 0.3);
-                        border-radius: 3px;
-                      }
-                      .form-tabs-scroll::-webkit-scrollbar-thumb:hover {
-                        background: rgba(0, 0, 0, 0.5);
-                      }
-                    `}</style>
-                    
-                    {/* Aba Descrição fixa */}
-                    <TabsTrigger
-                      value="-1"
-                      className="flex-shrink-0"
-                    >
-                      📝 Descrição
-                    </TabsTrigger>
+             <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))} className="flex-1 flex flex-col overflow-hidden">
+                <div className="border-b px-4 bg-gray-50">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <TabsList className="form-tabs-scroll flex w-full h-auto p-1 overflow-x-auto justify-start bg-transparent">
+                      <style>{`
+                        .form-tabs-scroll::-webkit-scrollbar {
+                          height: 6px;
+                        }
+                        .form-tabs-scroll::-webkit-scrollbar-track {
+                          background: rgba(0, 0, 0, 0.1);
+                          border-radius: 3px;
+                        }
+                        .form-tabs-scroll::-webkit-scrollbar-thumb {
+                          background: rgba(0, 0, 0, 0.3);
+                          border-radius: 3px;
+                        }
+                      `}</style>
+                      
+                      <SortableContext
+                        items={formData.screens.map((_, index) => `screen-${index}`)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {formData.screens.map((screen, index) => (
+                          <SortableTab
+                            key={index}
+                            screen={screen}
+                            index={index}
+                            isActive={activeTab === index}
+                            onRemove={() => removeScreen(index)}
+                            onSelect={() => setActiveTab(index)}
+                            canRemove={formData.screens.length > 1}
+                          />
+                        ))}
+                      </SortableContext>
+                    </TabsList>
+                  </DndContext>
+                </div>
 
-                    {/* Abas dos arquivos com drag and drop */}
-                    <SortableContext
-                      items={formData.screens.map((_, index) => `screen-${index}`)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {formData.screens.map((screen, index) => (
-                        <SortableTab
-                          key={index}
-                          screen={screen}
-                          index={index}
-                          isActive={activeTab === index}
-                          onRemove={() => removeScreen(index)}
-                          onSelect={() => setActiveTab(index)}
-                          canRemove={formData.screens.length > 1}
-                        />
-                      ))}
-                    </SortableContext>
-                  </TabsList>
-                </DndContext>
-
-                {/* Conteúdo da aba Descrição */}
-                <TabsContent value="-1" className="mt-4">
-                  <div className="border rounded-lg p-4 h-80">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Descrição do CardFeature
-                      </label>
-                      <Textarea
-                        placeholder="Descreva o que este CardFeature faz, quando usar, exemplos de uso... (opcional)"
-                        value={formData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                        rows={12}
-                        className="resize-none"
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* Conteúdo das abas dos arquivos */}
                 {formData.screens.map((screen, index) => (
-                  <TabsContent key={index} value={index.toString()} className="mt-4">
-                    <div className="border rounded-lg p-4 h-80 overflow-y-auto">
+                  <TabsContent key={index} value={index.toString()} className="flex-1 overflow-hidden m-0 p-0 data-[state=active]:flex flex-col">
+                    <div className="flex-1 overflow-y-auto p-6">
                       {/* Campos do arquivo */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                        <div>
+                      <div className="flex flex-col sm:flex-row gap-4 mb-6 items-start">
+                        <div className="flex-1 w-full">
                           <label className="block text-xs font-medium text-gray-600 mb-1">
                             Nome do Arquivo
                           </label>
@@ -539,9 +522,9 @@ export default function CardFeatureForm({
                             onChange={(e) => handleScreenChange(index, 'name', e.target.value)}
                           />
                         </div>
-                        <div>
+                        <div className="w-full sm:w-auto">
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Adicionar Bloco
+                            Adicionar Conteúdo
                           </label>
                           <div className="flex gap-2">
                             <Button
@@ -551,7 +534,7 @@ export default function CardFeatureForm({
                               onClick={() => addBlock(index, ContentType.CODE)}
                             >
                               <Plus className="h-3 w-3 mr-1" />
-                              💻 Código
+                              Código
                             </Button>
                             <Button
                               type="button"
@@ -560,7 +543,7 @@ export default function CardFeatureForm({
                               onClick={() => addBlock(index, ContentType.TEXT)}
                             >
                               <Plus className="h-3 w-3 mr-1" />
-                              📄 Texto
+                              Texto
                             </Button>
                             <Button
                               type="button"
@@ -569,26 +552,19 @@ export default function CardFeatureForm({
                               onClick={() => addBlock(index, ContentType.TERMINAL)}
                             >
                               <Plus className="h-3 w-3 mr-1" />
-                              ⚡ Terminal
+                              Terminal
                             </Button>
                           </div>
                         </div>
                       </div>
                       
                       {/* Blocos de Conteúdo */}
-                      <div>
-                        <div className="mb-3">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Conteúdo
-                          </label>
-                        </div>
-
-                        <div className="space-y-3">
+                      <div className="space-y-4">
                           {screen.blocks.map((block, blockIndex) => (
-                            <div key={blockIndex} className="border rounded p-3 bg-gray-50">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium">
+                            <div key={blockIndex} className="border rounded-lg p-4 bg-gray-50 transition-all hover:shadow-md">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 bg-white px-2 py-1 rounded border">
                                     {block.type === ContentType.CODE ? '💻 Código' : 
                                      block.type === ContentType.TEXT ? '📄 Texto' : '⚡ Terminal'}
                                   </span>
@@ -597,12 +573,12 @@ export default function CardFeatureForm({
                                       value={block.language || 'typescript'}
                                       onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
                                     >
-                                      <SelectTrigger className="w-32 h-7">
+                                      <SelectTrigger className="w-36 h-8 bg-white">
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="typescript">TS</SelectItem>
-                                        <SelectItem value="javascript">JS</SelectItem>
+                                        <SelectItem value="typescript">TypeScript</SelectItem>
+                                        <SelectItem value="javascript">JavaScript</SelectItem>
                                         <SelectItem value="python">Python</SelectItem>
                                         <SelectItem value="html">HTML</SelectItem>
                                         <SelectItem value="css">CSS</SelectItem>
@@ -611,11 +587,9 @@ export default function CardFeatureForm({
                                   )}
                                 </div>
                                 
-                                {/* Controles de ordem e remoção */}
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1 bg-white rounded-md border p-1">
                                   {screen.blocks.length > 1 && (
                                     <>
-                                      {/* Botão mover para cima */}
                                       <Button
                                         type="button"
                                         variant="ghost"
@@ -623,12 +597,10 @@ export default function CardFeatureForm({
                                         onClick={() => moveBlockUp(index, blockIndex)}
                                         disabled={blockIndex === 0}
                                         className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 disabled:opacity-30"
-                                        title="Mover para cima"
                                       >
                                         <ChevronUp className="h-3 w-3" />
                                       </Button>
                                       
-                                      {/* Botão mover para baixo */}
                                       <Button
                                         type="button"
                                         variant="ghost"
@@ -636,40 +608,35 @@ export default function CardFeatureForm({
                                         onClick={() => moveBlockDown(index, blockIndex)}
                                         disabled={blockIndex === screen.blocks.length - 1}
                                         className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 disabled:opacity-30"
-                                        title="Mover para baixo"
                                       >
                                         <ChevronDown className="h-3 w-3" />
                                       </Button>
-                                      
-                                      {/* Botão remover */}
+                                      <div className="w-px h-4 bg-gray-200 mx-1" />
+                                    </>
+                                  )}
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => removeBlock(index, blockIndex)}
-                                        className="h-7 w-7 p-0 text-red-600 hover:text-red-800 ml-1"
-                                        title="Remover bloco"
+                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                                       >
                                         <X className="h-3 w-3" />
                                       </Button>
-                                    </>
-                                  )}
                                 </div>
                               </div>
                               
-                              {/* Campo Rota (só para código) */}
                               {block.type === ContentType.CODE && (
-                                <div className="mb-2">
+                                <div className="mb-3">
                                   <Input
-                                    placeholder="src/components/Header.tsx"
+                                    placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
                                     value={block.route || ''}
                                     onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
-                                    className="text-xs font-mono placeholder:text-gray-400 placeholder:font-normal"
+                                    className="text-xs font-mono bg-white"
                                   />
                                 </div>
                               )}
                               
-                              {/* Conteúdo */}
                               <Textarea
                                 placeholder={
                                   block.type === ContentType.CODE ? 'Cole seu código aqui...' :
@@ -678,29 +645,28 @@ export default function CardFeatureForm({
                                 }
                                 value={block.content}
                                 onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                                rows={6}
-                                className={block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-sm' : 'text-sm'}
+                                rows={8}
+                                className={`bg-white ${block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-sm' : 'text-sm'}`}
                               />
                             </div>
                           ))}
                           
                           {screen.blocks.length === 0 && (
-                            <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded">
-                              Nenhum bloco adicionado. Use os botões acima para adicionar conteúdo.
+                            <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl bg-gray-50/50">
+                              <p>Nenhum bloco de conteúdo adicionado.</p>
+                              <p className="text-sm mt-1">Use os botões acima para adicionar código, texto ou terminal.</p>
                             </div>
                           )}
-                        </div>
                       </div>
                     </div>
                   </TabsContent>
                 ))}
-              </Tabs>
-            </div>
+             </Tabs>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-4 border-t bg-gray-50">
+        <div className="flex items-center justify-end space-x-3 p-4 border-t bg-gray-50 shrink-0">
           <Button
             variant="outline"
             onClick={onClose}

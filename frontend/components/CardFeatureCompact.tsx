@@ -43,15 +43,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
   return (
     <TooltipProvider>
       <Card className="shadow-sm hover:shadow-md transition-shadow w-full max-w-[900px] mx-auto overflow-hidden">
-        <CardContent className="p-2 md:p-3">
+        <CardContent className="p-3 md:p-4">
           {/* Layout Horizontal - Clicável no mobile */}
           <div
-            className="flex items-center justify-between gap-2 md:gap-8 cursor-pointer md:cursor-default"
+            className="flex items-start justify-between gap-3 md:gap-8 cursor-pointer md:cursor-default active:bg-gray-50 md:active:bg-transparent rounded-lg transition-colors"
             onClick={handleCardClick}
           >
 
             {/* Seção de Informações + Badges */}
-            <div className="flex-1 min-w-0 pr-2 md:pr-6 overflow-hidden">
+            <div className="flex-1 min-w-0 pr-1 md:pr-6 overflow-hidden">
               {/* Layout Desktop - Horizontal */}
               <div className="hidden md:flex flex-col gap-2">
                 {/* Informações */}
@@ -100,46 +100,46 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Layout Mobile - Vertical */}
-              <div className="md:hidden space-y-2">
+              <div className="md:hidden space-y-3">
                 {/* Informações */}
-                <div className="pb-1 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
-                  <p className="text-sm text-gray-600 truncate">{snippet.description}</p>
+                <div className="pb-2 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900 leading-snug break-words">{snippet.title}</h3>
+                  {/* Descrição ocultada no mobile para economizar espaço */}
                   <a
                     href={cardApiUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 font-mono truncate block underline"
+                    className="text-xs text-blue-500 hover:text-blue-700 mt-2 font-mono block underline"
                     title={`Abrir card na API: ${snippet.id}`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {cardApiUrl}
+                    {cardApiUrl.length > 30 ? `${cardApiUrl.substring(0, 30)}...` : cardApiUrl}
                   </a>
                 </div>
 
-                {/* Badges - Própria linha abaixo */}
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  {/* Autor à esquerda */}
+                {/* Badges - Com wrap para não quebrar */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {/* Autor */}
                   <Badge
                     variant="secondary"
-                    className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                    className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
                   >
                     <span className="mr-1">👤</span>
                     {snippet.author || 'Anônimo'}
                   </Badge>
                   
-                  {/* Badges tech/language à direita */}
-                  <div className="flex gap-2 ml-auto">
+                  {/* Badges tech/language */}
+                  <div className="flex flex-wrap gap-1.5 ml-auto">
                     <Badge
-                      className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
                     >
                       <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
                       {snippet.tech}
                     </Badge>
                     <Badge
-                      className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
                     >
-                      <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                      <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
                       {snippet.language}
                     </Badge>
                   </div>
@@ -207,7 +207,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
             </div>
 
             {/* Indicador de expansão para mobile */}
-            <div className="md:hidden flex items-center text-gray-400">
+            <div className="md:hidden flex items-center text-gray-400 mt-1">
               {isExpanded ? (
                 <ChevronUp className="h-5 w-5" />
               ) : (
@@ -277,7 +277,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-3 md:px-4 pt-3 md:pt-4 pb-2 md:pb-3 h-48 md:h-72 overflow-hidden relative group bg-white">
+              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 min-h-[12rem] md:min-h-[18rem] resize-y overflow-hidden relative group bg-white">
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
                     width: 8px;
@@ -295,7 +295,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
                   }
                 `}</style>
 
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto overflow-x-hidden -mx-3 md:-mx-4 px-3 md:px-4 pt-0">
+                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto overflow-x-hidden -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
                     className="h-full max-w-full"

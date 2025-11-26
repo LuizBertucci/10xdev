@@ -75,7 +75,7 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
     case ContentType.TEXT:
       return (
         <TextBlockContainer className={className}>
-          <div className="whitespace-pre-wrap break-words">
+          <div className="whitespace-pre-wrap break-words text-xs">
             {block.content}
           </div>
         </TextBlockContainer>

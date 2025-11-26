@@ -28,18 +28,25 @@ export function useApi<T = any>(options: UseApiOptions = {}) {
   const { onSuccess, onError, retryAttempts = 0, retryDelay = 1000 } = options
 
   const executeWithRetry = useCallback(async (
-    apiCall: () => Promise<ApiResponse<T>>,
+    apiCall: () => Promise<ApiResponse<T> | undefined>,
     attempts: number = 0
   ): Promise<T | null> => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }))
       
       const response = await apiCall()
-      
-      if (response.success && response.data) {
-        setState(prev => ({ ...prev, data: response.data!, loading: false }))
-        onSuccess?.(response.data)
-        return response.data
+
+      if (!response) {
+        setState(prev => ({ ...prev, data: null, loading: false }))
+        onSuccess?.(null)
+        return null
+      }
+
+      if (response.success) {
+        const responseData = (response.data ?? null) as T | null
+        setState(prev => ({ ...prev, data: responseData, loading: false }))
+        onSuccess?.(responseData)
+        return responseData
       } else {
         throw new Error(response.error || 'Erro desconhecido')
       }
@@ -61,7 +68,7 @@ export function useApi<T = any>(options: UseApiOptions = {}) {
   }, [onSuccess, onError, retryAttempts, retryDelay])
 
   const execute = useCallback(async (
-    apiCall: () => Promise<ApiResponse<T>>
+    apiCall: () => Promise<ApiResponse<T> | undefined>
   ): Promise<T | null> => {
     return executeWithRetry(apiCall)
   }, [executeWithRetry])
@@ -100,7 +107,7 @@ export function useListApi<T = any>(options: UseApiOptions = {}) {
     const response = await api.execute(apiCall)
     
     // Se a resposta contém metadados de paginação
-    if (api.data && typeof response === 'object' && 'data' in response) {
+    if (api.data && response && typeof response === 'object' && 'data' in response) {
       const listResponse = response as any
       setListState({
         count: listResponse.count || 0,
