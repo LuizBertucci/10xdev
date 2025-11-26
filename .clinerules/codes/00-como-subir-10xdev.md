@@ -6,7 +6,7 @@
 - Não alterar as importações do frontend até confirmar que os cards foram carregados na API; os mocks TypeScript podem ser removidos após o upload.
 
 ## Upload para API
-- Base URL padrão: `https://web-backend-10xdev.azurewebsites.net/api/card-features` (ex.: card `6ad3121d-9b27-480c-81cb-28e5fdb406ef`).
+- Base URL padrão: `https://web-backend-10xdev.azurewebsites.net/api/card-features` (ex.: card  `6ad3121d-9b27-480c-81cb-28e5fdb406ef`).
 - Requisições usam header `Content-Type: application/json`; atualmente sem autenticação obrigatória.
 - Para criar um card individual, enviar o JSON correspondente com `curl -X POST https://web-backend-10xdev.azurewebsites.net/api/card-features -H 'Content-Type: application/json' -d @.clinerules/codes/<arquivo>.json`.
 - Respeitar enums aceitos pelo backend: `content_type` ∈ {`code`, `text`, `terminal`} e `card_type` ∈ {`dicas`, `codigos`, `workflows`}; valores diferentes resultam em erro 500.

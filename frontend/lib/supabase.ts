@@ -1,5 +1,4 @@
 import { createBrowserClient } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Cache da instância (singleton pattern)
 let supabaseClient: ReturnType<typeof createBrowserClient> | null = null
@@ -27,7 +26,7 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
   // Cria e cacheia a instância
   // Usando configuração padrão do createBrowserClient que utiliza cookies automaticamente.
   // Isso garante sincronia entre cliente e middleware.
-  supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey) as unknown as SupabaseClient
+  supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
   return supabaseClient
 }
 

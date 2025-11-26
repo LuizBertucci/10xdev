@@ -65,10 +65,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     try {
       setLoading(true)
       const response = await projectService.getById(projectId)
-      if (response.success && response.data) {
+      if (response?.success && response?.data) {
         setProject(response.data)
       } else {
-        toast.error(response.error || 'Erro ao carregar projeto')
+        toast.error(response?.error || 'Erro ao carregar projeto')
         handleBack()
       }
     } catch (error: any) {
@@ -85,7 +85,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     try {
       setLoadingMembers(true)
       const response = await projectService.getMembers(projectId)
-      if (response.success && response.data) {
+      if (response?.success && response?.data) {
         setMembers(response.data)
       }
     } catch (error: any) {
@@ -101,14 +101,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     try {
       setLoadingCards(true)
       const response = await projectService.getCards(projectId)
-      if (response.success && response.data) {
+      if (response?.success && response?.data) {
         setCards(response.data)
         
         // Buscar dados completos dos card features
         const cardFeaturePromises = response.data.map(async (projectCard: any) => {
           try {
             const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
-            if (cardResponse.success && cardResponse.data) {
+            if (cardResponse?.success && cardResponse?.data) {
               return cardResponse.data
             }
             return null
@@ -131,7 +131,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const loadAvailableCards = async () => {
     try {
       const response = await cardFeatureService.getAll({ limit: 100 })
-      if (response.success && response.data) {
+      if (response?.success && response?.data) {
         const projectCardIds = new Set(cards.map((c: any) => c.cardFeatureId))
         const filtered = response.data.filter((card: any) => !projectCardIds.has(card.id))
         setAvailableCards(filtered)
@@ -149,14 +149,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
     try {
       const response = await projectService.addCard(projectId, selectedCardId)
-      if (response.success) {
+      if (response?.success) {
         toast.success('Card adicionado ao projeto!')
         setIsAddCardDialogOpen(false)
         setSelectedCardId("")
         loadCards()
         loadAvailableCards()
       } else {
-        toast.error(response.error || 'Erro ao adicionar card')
+        toast.error(response?.error || 'Erro ao adicionar card')
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao adicionar card')
@@ -170,12 +170,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
     try {
       const response = await projectService.removeCard(projectId!, cardFeatureId)
-      if (response.success) {
+      if (response?.success) {
         toast.success('Card removido do projeto!')
         loadCards()
         loadAvailableCards()
       } else {
-        toast.error(response.error || 'Erro ao remover card')
+        toast.error(response?.error || 'Erro ao remover card')
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao remover card')
@@ -187,11 +187,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     
     try {
       const response = await projectService.reorderCard(projectId, cardFeatureId, direction)
-      if (response.success) {
+      if (response?.success) {
         toast.success('Card reordenado com sucesso!')
         loadCards()
       } else {
-        toast.error(response.error || 'Erro ao reordenar card')
+        toast.error(response?.error || 'Erro ao reordenar card')
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao reordenar card')
@@ -207,11 +207,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
     try {
       const response = await projectService.delete(projectId)
-      if (response.success) {
+      if (response?.success) {
         toast.success('Projeto deletado com sucesso!')
         handleBack()
       } else {
-        toast.error(response.error || 'Erro ao deletar projeto')
+        toast.error(response?.error || 'Erro ao deletar projeto')
       }
     } catch (error: any) {
       console.error('Erro ao deletar projeto:', error)
