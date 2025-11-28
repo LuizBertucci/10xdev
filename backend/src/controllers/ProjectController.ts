@@ -14,7 +14,37 @@ import {
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
 
 export class ProjectController {
-  
+
+  // ================================================
+  // GITHUB - POST /api/projects/github-info
+  // ================================================
+
+  static async getGithubInfo(req: Request, res: Response): Promise<void> {
+    try {
+      const { url, token }: GetGithubInfoRequest = req.body
+
+      if (!url) {
+        res.status(400).json({
+          success: false,
+          error: 'URL é obrigatória'
+        })
+        return
+      }
+
+      const info = await GithubService.getRepoDetails(url, token)
+
+      res.status(200).json({
+        success: true,
+        data: info
+      })
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Erro ao buscar informações do repositório'
+      })
+    }
+  }
+
   // ================================================
   // CREATE - POST /api/projects
   // ================================================
