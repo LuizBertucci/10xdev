@@ -1,12 +1,14 @@
 import { Request, Response } from 'express'
 import { ProjectModel } from '@/models/ProjectModel'
+import { GithubService } from '@/services/githubService'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
   type UpdateProjectRequest,
   type ProjectQueryParams,
   type AddProjectMemberRequest,
-  type UpdateProjectMemberRequest
+  type UpdateProjectMemberRequest,
+  type GetGithubInfoRequest
 } from '@/types/project'
 
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
