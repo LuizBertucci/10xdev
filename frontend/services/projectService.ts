@@ -14,6 +14,7 @@ interface Project {
   id: string
   name: string
   description: string | null
+  repositoryUrl: string | null
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -56,6 +57,7 @@ interface ProjectCard {
 interface CreateProjectData {
   name: string
   description?: string
+  repositoryUrl?: string
 }
 
 interface UpdateProjectData {
@@ -80,12 +82,32 @@ interface ProjectQueryParams {
   sortOrder?: 'asc' | 'desc'
 }
 
+interface GithubRepoInfo {
+  name: string
+  description: string | null
+  url: string
+  isPrivate: boolean
+}
+
+interface GetGithubInfoData {
+  url: string
+  token?: string
+}
+
 // ================================================
 // SERVICE
 // ================================================
 
 class ProjectService {
   private readonly endpoint = '/projects'
+
+  // ================================================
+  // GITHUB INTEGRATION
+  // ================================================
+
+  async getGithubInfo(data: GetGithubInfoData): Promise<ApiResponse<GithubRepoInfo> | undefined> {
+    return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data)
+  }
 
   // ================================================
   // CREATE
@@ -176,6 +198,8 @@ export type {
   UpdateProjectData,
   AddProjectMemberData,
   UpdateProjectMemberData,
-  ProjectQueryParams
+  ProjectQueryParams,
+  GithubRepoInfo,
+  GetGithubInfoData
 }
 
