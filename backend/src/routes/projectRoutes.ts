@@ -4,16 +4,19 @@ import { supabaseMiddleware, authenticate } from '@/middleware'
 
 const router = Router()
 
-// Todas as rotas de projetos requerem autenticação
+// ================================================
+// PUBLIC ROUTES (sem autenticação)
+// ================================================
+
+// GITHUB INTEGRATION - Pública para permitir verificação antes de criar projeto
+router.post('/github-info', ProjectController.getGithubInfo)
+
+// ================================================
+// PROTECTED ROUTES (requerem autenticação)
+// ================================================
+
 router.use(supabaseMiddleware)
 router.use(authenticate)
-
-// ================================================
-// PROJECTS ROUTES
-// ================================================
-
-// GITHUB INTEGRATION
-router.post('/github-info', ProjectController.getGithubInfo)
 
 // CRUD OPERATIONS
 router.post('/', ProjectController.create)

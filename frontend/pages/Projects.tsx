@@ -260,10 +260,14 @@ export default function Projects({ platformState }: ProjectsProps) {
                     <div className="flex gap-2">
                       <Input
                         id="github-url"
+                        name="github-repository-url"
                         value={githubUrl}
                         onChange={(e) => setGithubUrl(e.target.value)}
                         placeholder="https://github.com/usuario/repositorio"
                         className="flex-1"
+                        autoComplete="off"
+                        type="text"
+                        data-form-type="other"
                       />
                       <Button
                         onClick={handleAnalyzeGithub}
@@ -282,10 +286,13 @@ export default function Projects({ platformState }: ProjectsProps) {
                     <Label htmlFor="github-token">Token (opcional para repos privados)</Label>
                     <Input
                       id="github-token"
-                      type="password"
+                      name="github-access-token"
+                      type="text"
                       value={githubToken}
                       onChange={(e) => setGithubToken(e.target.value)}
                       placeholder="ghp_xxxxxxxxxxxx"
+                      autoComplete="new-password"
+                      data-form-type="other"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Necessário apenas para repositórios privados

@@ -11,8 +11,8 @@ export class GithubService {
       if (parts.length < 2) return null
 
       return {
-        owner: parts[0],
-        repo: parts[1].replace('.git', '')
+        owner: parts[0]!,
+        repo: parts[1]!.replace('.git', '')
       }
     } catch {
       return null
@@ -39,10 +39,13 @@ export class GithubService {
         { headers }
       )
 
+      // Construir URL limpa sem credenciais ou parâmetros
+      const cleanUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}`
+
       return {
         name: response.data.name,
         description: response.data.description,
-        url: response.data.html_url,
+        url: cleanUrl,
         isPrivate: response.data.private
       }
     } catch (error: any) {
