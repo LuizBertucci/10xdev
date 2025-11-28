@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2 } from "lucide-react"
-import { projectService, type Project } from "@/services"
+import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2 } from "lucide-react"
+import { projectService, type Project, type GithubRepoInfo } from "@/services"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -39,6 +40,12 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [newProjectDescription, setNewProjectDescription] = useState("")
   const [creating, setCreating] = useState(false)
   const isFirstSearchEffect = useRef(true)
+
+  // GitHub integration states
+  const [githubUrl, setGithubUrl] = useState("")
+  const [githubToken, setGithubToken] = useState("")
+  const [loadingGithub, setLoadingGithub] = useState(false)
+  const [githubRepoUrl, setGithubRepoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     loadProjects()
@@ -86,6 +93,40 @@ export default function Projects({ platformState }: ProjectsProps) {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
+  const handleAnalyzeGithub = async () => {
+    if (!githubUrl.trim()) {
+      toast.error('URL do GitHub é obrigatória')
+      return
+    }
+
+    try {
+      setLoadingGithub(true)
+      const response = await projectService.getGithubInfo({
+        url: githubUrl,
+        token: githubToken || undefined
+      })
+
+      if (!response) {
+        toast.error('Nenhuma resposta do servidor')
+        return
+      }
+
+      if (response.success && response.data) {
+        const { name, description, url, isPrivate } = response.data
+        setNewProjectName(name)
+        setNewProjectDescription(description || "")
+        setGithubRepoUrl(url)
+        toast.success(`Repositório${isPrivate ? ' privado' : ''} carregado com sucesso!`)
+      } else {
+        toast.error(response.error || 'Erro ao buscar informações do repositório')
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao buscar informações do repositório')
+    } finally {
+      setLoadingGithub(false)
+    }
+  }
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
       toast.error('Nome do projeto é obrigatório')
@@ -96,7 +137,8 @@ export default function Projects({ platformState }: ProjectsProps) {
       setCreating(true)
       const response = await projectService.create({
         name: newProjectName,
-        description: newProjectDescription || undefined
+        description: newProjectDescription || undefined,
+        repositoryUrl: githubRepoUrl || undefined
       })
 
       if (!response) {
@@ -109,6 +151,9 @@ export default function Projects({ platformState }: ProjectsProps) {
         setIsCreateDialogOpen(false)
         setNewProjectName("")
         setNewProjectDescription("")
+        setGithubUrl("")
+        setGithubToken("")
+        setGithubRepoUrl(null)
         loadProjects()
       } else {
         toast.error(response.error || 'Erro ao criar projeto')
@@ -169,34 +214,119 @@ export default function Projects({ platformState }: ProjectsProps) {
               Novo Projeto
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Criar Novo Projeto</DialogTitle>
               <DialogDescription>
-                Crie um novo projeto para organizar seus cards e colaborar com sua equipe.
+                Crie um novo projeto manualmente ou importe do GitHub.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nome do Projeto *</Label>
-                <Input
-                  id="name"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="Ex: E-commerce Completo"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                  id="description"
-                  value={newProjectDescription}
-                  onChange={(e) => setNewProjectDescription(e.target.value)}
-                  placeholder="Descreva o objetivo do projeto..."
-                  rows={3}
-                />
-              </div>
-            </div>
+
+            <Tabs defaultValue="manual" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="manual">Manual</TabsTrigger>
+                <TabsTrigger value="github">
+                  <Github className="h-4 w-4 mr-2" />
+                  Importar do GitHub
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="manual" className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Nome do Projeto *</Label>
+                  <Input
+                    id="name"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="Ex: E-commerce Completo"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Descrição</Label>
+                  <Textarea
+                    id="description"
+                    value={newProjectDescription}
+                    onChange={(e) => setNewProjectDescription(e.target.value)}
+                    placeholder="Descreva o objetivo do projeto..."
+                    rows={3}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="github" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="github-url">URL do Repositório *</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="github-url"
+                        value={githubUrl}
+                        onChange={(e) => setGithubUrl(e.target.value)}
+                        placeholder="https://github.com/usuario/repositorio"
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleAnalyzeGithub}
+                        disabled={loadingGithub || !githubUrl.trim()}
+                      >
+                        {loadingGithub ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="github-token">Token (opcional para repos privados)</Label>
+                    <Input
+                      id="github-token"
+                      type="password"
+                      value={githubToken}
+                      onChange={(e) => setGithubToken(e.target.value)}
+                      placeholder="ghp_xxxxxxxxxxxx"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Necessário apenas para repositórios privados
+                    </p>
+                  </div>
+
+                  {githubRepoUrl && (
+                    <div className="rounded-md bg-green-50 p-4 border border-green-200">
+                      <p className="text-sm font-medium text-green-800">
+                        Repositório carregado com sucesso!
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        Você pode editar o nome e descrição abaixo antes de criar.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="github-name">Nome do Projeto *</Label>
+                    <Input
+                      id="github-name"
+                      value={newProjectName}
+                      onChange={(e) => setNewProjectName(e.target.value)}
+                      placeholder="Nome será preenchido automaticamente"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="github-description">Descrição</Label>
+                    <Textarea
+                      id="github-description"
+                      value={newProjectDescription}
+                      onChange={(e) => setNewProjectDescription(e.target.value)}
+                      placeholder="Descrição será preenchida automaticamente"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 Cancelar
@@ -240,7 +370,21 @@ export default function Projects({ platformState }: ProjectsProps) {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle>{project.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle>{project.name}</CardTitle>
+                      {project.repositoryUrl && (
+                        <a
+                          href={project.repositoryUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-gray-500 hover:text-gray-700 transition-colors"
+                          title="Ver repositório no GitHub"
+                        >
+                          <Github className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
                     {project.description && (
                       <CardDescription className="mt-2">{project.description}</CardDescription>
                     )}
