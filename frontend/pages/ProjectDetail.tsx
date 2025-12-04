@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown } from "lucide-react"
+import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon } from "lucide-react"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
+import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -48,8 +49,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
-  const [newMemberEmail, setNewMemberEmail] = useState("")
   const [selectedCardId, setSelectedCardId] = useState("")
+
+  // User Search State
+  const [userSearchQuery, setUserSearchQuery] = useState("")
+  const [userSearchResults, setUserSearchResults] = useState<User[]>([])
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false)
 
   useEffect(() => {
     if (projectId) {
@@ -225,6 +231,52 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }
 
+  const handleSearchUsers = async () => {
+    if (!userSearchQuery || userSearchQuery.length < 2) {
+      toast.error("Digite pelo menos 2 caracteres")
+      return
+    }
+    
+    try {
+      setIsSearchingUsers(true)
+      const response = await userService.searchUsers(userSearchQuery)
+      if (response?.success && response?.data) {
+        setUserSearchResults(response.data)
+        if (response.data.length === 0) {
+          toast.info("Nenhum usuário encontrado")
+        }
+      } else {
+        setUserSearchResults([])
+        toast.info("Nenhum usuário encontrado")
+      }
+    } catch (error) {
+      toast.error("Erro ao buscar usuários")
+    } finally {
+      setIsSearchingUsers(false)
+    }
+  }
+
+  const handleAddMember = async () => {
+    if (!selectedUser || !projectId) return
+    
+    try {
+      const response = await projectService.addMember(projectId, { userId: selectedUser.id })
+      if (response?.success) {
+        toast.success("Membro adicionado com sucesso")
+        setIsAddMemberDialogOpen(false)
+        loadMembers()
+        // Reset states
+        setSelectedUser(null)
+        setUserSearchQuery("")
+        setUserSearchResults([])
+      } else {
+        toast.error(response?.error || "Erro ao adicionar membro")
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao adicionar membro")
+    }
+  }
+
   const handleBack = () => {
     const params = new URLSearchParams(searchParams?.toString() || '')
     params.set('tab', 'projects')
@@ -237,6 +289,15 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       loadAvailableCards()
     }
   }, [isAddCardDialogOpen])
+
+  // Reset dialog state when closed
+  useEffect(() => {
+    if (!isAddMemberDialogOpen) {
+      setSelectedUser(null)
+      setUserSearchQuery("")
+      setUserSearchResults([])
+    }
+  }, [isAddMemberDialogOpen])
 
   if (loading || !project) {
     return (
@@ -288,39 +349,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Membros</CardTitle>
-            <Users className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{members.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cards</CardTitle>
-            <FileCode className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{cards.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Criado em</CardTitle>
-            <Calendar className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-gray-600">
-              {new Date(project.createdAt).toLocaleDateString('pt-BR')}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Tabs */}
@@ -519,35 +547,65 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
       {/* Dialog Adicionar Membro */}
       <Dialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Adicionar Membro ao Projeto</DialogTitle>
+            <DialogTitle>Adicionar Membro</DialogTitle>
             <DialogDescription>
-              Adicione um membro ao projeto pelo e-mail.
+              Busque um usuário por email ou nome para adicionar ao projeto.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="email">E-mail</Label>
+            <div className="flex gap-2">
               <Input
-                id="email"
-                type="email"
-                value={newMemberEmail}
-                onChange={(e) => setNewMemberEmail(e.target.value)}
-                placeholder="usuario@exemplo.com"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Email ou nome do usuário..."
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
               />
+              <Button onClick={handleSearchUsers} disabled={isSearchingUsers}>
+                {isSearchingUsers ? <div className="animate-spin">...</div> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
+
+            {/* Resultados da Busca */}
+            <div className="max-h-[200px] overflow-y-auto space-y-2">
+              {userSearchResults.map((user) => (
+                <div
+                  key={user.id}
+                  className={`p-3 border rounded-lg cursor-pointer flex items-center gap-3 transition-colors ${
+                    selectedUser?.id === user.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => setSelectedUser(user)}
+                >
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      <UserIcon className="h-4 w-4 text-gray-500" />
+                    </div>
+                  )}
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-sm font-medium truncate">{user.name || user.email}</p>
+                    {user.name && <p className="text-xs text-gray-500 truncate">{user.email}</p>}
+                  </div>
+                  {selectedUser?.id === user.id && (
+                    <Check className="h-4 w-4 text-blue-500" />
+                  )}
+                </div>
+              ))}
+              {userSearchQuery && !isSearchingUsers && userSearchResults.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-2">
+                  Busque para encontrar usuários
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddMemberDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => {
-              // TODO: Implementar adição de membro
-              toast.info('Funcionalidade de adicionar membro será implementada em breve')
-              setIsAddMemberDialogOpen(false)
-            }}>
-              Adicionar
+            <Button onClick={handleAddMember} disabled={!selectedUser}>
+              Adicionar Membro
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -555,4 +613,3 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     </div>
   )
 }
-

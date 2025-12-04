@@ -3,6 +3,7 @@ import { cardFeatureRoutes } from './cardFeatureRoutes'
 import { authRoutes } from './authRoutes'
 import { videoRoutes } from './videoRoutes'
 import { projectRoutes } from './projectRoutes'
+import { userRoutes } from './userRoutes'
 
 const router = Router()
 
@@ -31,6 +32,9 @@ router.use('/videos', videoRoutes)
 
 // Projects routes
 router.use('/projects', projectRoutes)
+
+// Users routes
+router.use('/users', userRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
@@ -81,6 +85,9 @@ router.get('/', (req, res) => {
         getCards: 'GET /api/projects/:id/cards',
         addCard: 'POST /api/projects/:id/cards',
         removeCard: 'DELETE /api/projects/:id/cards/:cardFeatureId'
+      },
+      users: {
+        search: 'GET /api/users/search?q=term'
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'

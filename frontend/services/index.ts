@@ -34,3 +34,7 @@ export type {
   UpdateProjectMemberData,
   ProjectQueryParams
 } from './projectService'
+
+// User Service
+export { userService } from './userService'
+export type { User } from './userService'
