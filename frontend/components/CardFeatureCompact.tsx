@@ -12,9 +12,10 @@ interface CardFeatureCompactProps {
   snippet: CardFeatureType
   onEdit: (snippet: CardFeatureType) => void
   onDelete: (snippetId: string) => void
+  className?: string
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
   // Estado para controlar a aba ativa (similar ao CardFeature)
@@ -42,7 +43,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete }: CardFe
 
   return (
     <TooltipProvider>
-      <Card className="shadow-sm hover:shadow-md transition-shadow w-full max-w-[900px] mx-auto overflow-hidden">
+      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${className || ''}`}>
         <CardContent className="p-3 md:p-4">
           {/* Layout Horizontal - Clicável no mobile */}
           <div

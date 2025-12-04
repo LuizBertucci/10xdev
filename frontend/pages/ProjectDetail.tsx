@@ -322,7 +322,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const canManageMembers = project.userRole === 'owner' || project.userRole === 'admin'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" onClick={handleBack}>
@@ -362,16 +362,18 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         <TabsContent value="cards">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Cards do Projeto</CardTitle>
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="whitespace-nowrap">Cards do Projeto</CardTitle>
+                <div className="flex-1 flex justify-center max-w-md mx-auto">
                   <Input
                     placeholder="Buscar cards..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-64"
+                    className="w-full"
                   />
-                  <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)}>
+                </div>
+                <div className="flex justify-end mr-10">
+                  <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="whitespace-nowrap">
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Card
                   </Button>
@@ -391,6 +393,31 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                     
                     return (
                       <div key={cardFeature.id} className="relative group flex items-start gap-2">
+                        {/* Card */}
+                        <div className="flex-1 relative">
+                          <CardFeatureCompact
+                            snippet={cardFeature}
+                            onEdit={() => {}} // Não permitir editar aqui
+                            onDelete={() => {}} // Não permitir deletar aqui
+                          />
+                          <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (projectCard) {
+                                  handleRemoveCard(projectCard.cardFeatureId)
+                                }
+                              }}
+                              className="shadow-lg"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remover
+                            </Button>
+                          </div>
+                        </div>
+
                         {/* Botões de reordenação */}
                         <div className="flex flex-col gap-1 pt-2">
                           <Button
@@ -419,31 +446,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                           >
                             <ChevronDown className={`h-4 w-4 ${isLast ? 'text-gray-300' : 'text-gray-600'}`} />
                           </Button>
-                        </div>
-                        
-                        {/* Card */}
-                        <div className="flex-1 relative">
-                          <CardFeatureCompact
-                            snippet={cardFeature}
-                            onEdit={() => {}} // Não permitir editar aqui
-                            onDelete={() => {}} // Não permitir deletar aqui
-                          />
-                          <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (projectCard) {
-                                  handleRemoveCard(projectCard.cardFeatureId)
-                                }
-                              }}
-                              className="shadow-lg"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Remover
-                            </Button>
-                          </div>
                         </div>
                       </div>
                     )
