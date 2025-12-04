@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon } from "lucide-react"
+import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil } from "lucide-react"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
@@ -50,6 +50,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
+  const [isEditMode, setIsEditMode] = useState(false)
 
   // User Search State
   const [userSearchQuery, setUserSearchQuery] = useState("")
@@ -372,7 +373,16 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                     className="w-full"
                   />
                 </div>
-                <div className="flex justify-end mr-10">
+                <div className="flex justify-end mr-10 gap-2">
+                  <Button 
+                    variant={isEditMode ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                  >
+                    <Pencil className={`h-4 w-4 ${isEditMode ? 'text-blue-600' : 'text-gray-500'}`} />
+                  </Button>
                   <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="whitespace-nowrap">
                     <Plus className="h-4 w-4 mr-2" />
                     Adicionar Card
@@ -400,9 +410,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                             onEdit={() => {}} // Não permitir editar aqui
                             onDelete={() => {}} // Não permitir deletar aqui
                           />
-                          <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                        </div>
+
+                        {/* Botões de ação lateral */}
+                        <div className="flex flex-col gap-1 pt-2 w-8">
+                          {isEditMode && (
                             <Button
-                              variant="destructive"
+                              variant="ghost"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -410,16 +424,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                                   handleRemoveCard(projectCard.cardFeatureId)
                                 }
                               }}
-                              className="shadow-lg"
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 mb-2"
+                              title="Remover do projeto"
                             >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Remover
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </div>
-
-                        {/* Botões de reordenação */}
-                        <div className="flex flex-col gap-1 pt-2">
+                          )}
+                          
                           <Button
                             variant="ghost"
                             size="sm"
