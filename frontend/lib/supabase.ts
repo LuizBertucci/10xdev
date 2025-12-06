@@ -29,4 +29,3 @@ export function createClient(): ReturnType<typeof createBrowserClient> {
   supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
   return supabaseClient
 }
-
