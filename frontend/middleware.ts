@@ -1,18 +1,35 @@
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const publicPaths = ['/login', '/register']
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
 
   const isPublic = publicPaths.includes(pathname)
-  const hasSession =
-    req.cookies.has('sb-access-token') || req.cookies.has('sb-refresh-token')
 
-  // Bloqueia rotas privadas se não houver cookie de sessão
+  // Cria cliente Supabase para validar sessão
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set() {},
+        remove() {},
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const hasSession = !!user
+
+  // Bloqueia rotas privadas se não houver sessão válida
   if (!isPublic && !hasSession) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
