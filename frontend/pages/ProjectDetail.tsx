@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil } from "lucide-react"
+import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2 } from "lucide-react"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
@@ -248,7 +248,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         }
       } else {
         setUserSearchResults([])
-        toast.info("Nenhum usuário encontrado")
+        toast.error(response?.error || "Erro ao buscar usuários")
       }
     } catch (error) {
       toast.error("Erro ao buscar usuários")
@@ -575,8 +575,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 placeholder="Email ou nome do usuário..."
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
               />
-              <Button onClick={handleSearchUsers} disabled={isSearchingUsers}>
-                {isSearchingUsers ? <div className="animate-spin">...</div> : <Search className="h-4 w-4" />}
+              <Button onClick={handleSearchUsers} disabled={isSearchingUsers} size="icon">
+                {isSearchingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
             </div>
 
@@ -591,7 +591,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   onClick={() => setSelectedUser(user)}
                 >
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
+                    <img src={user.avatarUrl} alt={user.name || user.email} className="w-8 h-8 rounded-full" />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                       <UserIcon className="h-4 w-4 text-gray-500" />
@@ -606,9 +606,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   )}
                 </div>
               ))}
-              {userSearchQuery && !isSearchingUsers && userSearchResults.length === 0 && (
+              {!isSearchingUsers && userSearchResults.length === 0 && !userSearchQuery && (
                 <p className="text-sm text-gray-500 text-center py-2">
                   Busque para encontrar usuários
+                </p>
+              )}
+              {userSearchQuery && !isSearchingUsers && userSearchResults.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-2">
+                  Nenhum usuário encontrado
                 </p>
               )}
             </div>
