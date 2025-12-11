@@ -117,77 +117,78 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 </div>
               </div>
 
-              {/* Layout Mobile - Horizontal com controles à direita */}
-              <div className="md:hidden flex gap-3">
-                {/* Conteúdo à esquerda */}
-                <div className="flex-1 min-w-0 space-y-2">
-                  {/* Título */}
-                  <h3 className="font-semibold text-gray-900 leading-snug break-words">{snippet.title}</h3>
+              {/* Layout Mobile - Vertical com ícones em linha */}
+              <div className="md:hidden space-y-2">
+                {/* Título */}
+                <h3 className="font-semibold text-gray-900 leading-snug break-words">{snippet.title}</h3>
 
-                  {/* Badges */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                    >
-                      <span className="mr-1">👤</span>
-                      {snippet.author || 'Anônimo'}
-                    </Badge>
-                    <span className="text-gray-400 text-[8px]">●</span>
-                    <Badge
-                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                    >
-                      <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                      {snippet.tech}
-                    </Badge>
-                    <Badge
-                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                    >
-                      <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                      {snippet.language}
-                    </Badge>
-                  </div>
+                {/* Badges */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                  >
+                    <span className="mr-1">👤</span>
+                    {snippet.author || 'Anônimo'}
+                  </Badge>
+                  <span className="text-gray-400 text-[8px]">●</span>
+                  <Badge
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                  >
+                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                    {snippet.tech}
+                  </Badge>
+                  <Badge
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                  >
+                    <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                    {snippet.language}
+                  </Badge>
                 </div>
                 
-                {/* Controles à direita - alinhados verticalmente */}
-                <div className="flex flex-col items-center justify-between py-1 gap-1">
-                  {/* Chevron no topo */}
-                  <div className="text-gray-400">
-                    {isExpanded ? (
-                      <ChevronUp className="h-5 w-5" />
-                    ) : (
-                      <ChevronDown className="h-5 w-5" />
-                    )}
+                {/* Linha separatória */}
+                <div className="border-t border-gray-200 pt-2">
+                  {/* Ícones em linha horizontal - alinhados à direita */}
+                  <div className="flex items-center justify-end gap-2">
+                    {/* Menu ⋮ */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEdit(snippet)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDelete(snippet.id)} className="text-red-600">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    {/* Botão Copiar para IDE */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyUrl}
+                    >
+                      {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {copied ? 'Copiado!' : 'Copiar para IDE'}
+                    </Button>
+                    
+                    {/* Toggle - extrema direita */}
+                    <div className="text-gray-400 ml-1">
+                      {isExpanded ? (
+                        <ChevronUp className="h-5 w-5" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5" />
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Link/Copy no meio */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className={`h-6 w-6 p-0 ${copied ? 'text-green-500' : 'text-gray-400 hover:text-blue-600'}`}
-                    onClick={handleCopyUrl}
-                  >
-                    {copied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
-                  </Button>
-                  
-                  {/* Menu ⋮ embaixo */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(snippet)}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(snippet.id)} className="text-red-600">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
             </div>
