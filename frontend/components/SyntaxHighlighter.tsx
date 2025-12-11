@@ -34,13 +34,14 @@ export default function SyntaxHighlighter({
     >
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
         <pre 
-            className="text-xs leading-tight whitespace-pre-wrap break-words" 
+            className="text-xs leading-tight whitespace-pre" 
             style={{
                 ...style, 
                 backgroundColor: 'transparent', 
                 fontFamily: 'Consolas, Monaco, "Courier New", monospace',
                 margin: 0,
-                padding: 0
+                padding: 0,
+                overflowX: 'auto'
             }}
         >
           {tokens.map((line, i) => (

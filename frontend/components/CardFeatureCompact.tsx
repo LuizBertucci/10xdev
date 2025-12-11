@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Edit, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import type { CardFeature as CardFeatureType } from "@/types"
@@ -100,40 +101,35 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 </div>
               </div>
 
-              {/* Layout Mobile - Vertical */}
-              <div className="md:hidden space-y-3">
-                {/* Informações */}
-                <div className="pb-2 border-b border-gray-100">
+              {/* Layout Mobile - Horizontal com controles à direita */}
+              <div className="md:hidden flex gap-3">
+                {/* Conteúdo à esquerda */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  {/* Título */}
                   <h3 className="font-semibold text-gray-900 leading-snug break-words">{snippet.title}</h3>
-                  {/* Descrição ocultada no mobile para economizar espaço */}
+                  
+                  {/* URL */}
                   <a
                     href={cardApiUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:text-blue-700 mt-2 font-mono block underline"
+                    className="text-xs text-blue-500 hover:text-blue-700 font-mono block underline truncate"
                     title={`Abrir card na API: ${snippet.id}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {cardApiUrl.length > 30 ? `${cardApiUrl.substring(0, 30)}...` : cardApiUrl}
                   </a>
-                </div>
 
-                {/* Badges - Com wrap para não quebrar */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {/* Autor */}
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                  >
-                    <span className="mr-1">👤</span>
-                    {snippet.author || 'Anônimo'}
-                  </Badge>
-                  
-                  {/* Separador */}
-                  <span className="text-gray-400 text-[8px]">●</span>
-                  
-                  {/* Badges tech/language */}
-                  <div className="flex flex-wrap gap-1.5">
+                  {/* Badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                    >
+                      <span className="mr-1">👤</span>
+                      {snippet.author || 'Anônimo'}
+                    </Badge>
+                    <span className="text-gray-400 text-[8px]">●</span>
                     <Badge
                       className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
                     >
@@ -147,6 +143,37 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       {snippet.language}
                     </Badge>
                   </div>
+                </div>
+                
+                {/* Controles à direita - alinhados verticalmente */}
+                <div className="flex flex-col items-center justify-between py-1">
+                  {/* Chevron no topo */}
+                  <div className="text-gray-400">
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5" />
+                    )}
+                  </div>
+                  
+                  {/* Menu ⋮ embaixo */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(snippet)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDelete(snippet.id)} className="text-red-600">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </div>
@@ -210,41 +237,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
               </Tooltip>
             </div>
 
-            {/* Indicador de expansão para mobile */}
-            <div className="md:hidden flex items-center text-gray-400 mt-1">
-              {isExpanded ? (
-                <ChevronUp className="h-5 w-5" />
-              ) : (
-                <ChevronDown className="h-5 w-5" />
-              )}
-            </div>
           </div>
           
           {/* Área de Código Condicional */}
           {isExpanded && (
             <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden">
-              {/* Botões de ação para mobile */}
-              <div className="md:hidden flex justify-start gap-1.5 mb-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onEdit(snippet)}
-                  className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 transition-all duration-200"
-                >
-                  <Edit className="h-4 w-4" />
-                  Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onDelete(snippet.id)}
-                  className="flex items-center gap-2 text-red-600 border-red-200 hover:bg-red-50 transition-all duration-200"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Excluir
-                </Button>
-              </div>
-
               {/* Sistema de Tabs */}
               <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden">
                 <style>{`
@@ -281,10 +278,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 min-h-[12rem] md:min-h-[18rem] resize-y overflow-hidden relative group bg-white">
+              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white">
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
-                    width: 8px;
+                    height: 8px;
                   }
                   .codeblock-scroll::-webkit-scrollbar-track {
                     background: rgba(0, 0, 0, 0.1);
@@ -299,10 +296,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   }
                 `}</style>
 
-                <div className="codeblock-scroll relative z-10 h-full overflow-y-auto overflow-x-hidden -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
+                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full max-w-full"
+                    className="h-full"
                   />
                 </div>
               </div>
