@@ -2,15 +2,17 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, ChevronRight, Code2, X, Loader2, Plus, LayoutGrid, List } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, LayoutGrid, List, FileJson } from "lucide-react"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeature from "@/components/CardFeature"
 import CardFeatureModal from "@/components/CardFeatureModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
+import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
-import type { CardFeature as CardFeatureType } from "@/types"
+import type { CardFeature as CardFeatureType, CreateCardFeatureData } from "@/types"
 
 interface PlatformState {
   activeTab?: string
@@ -46,6 +48,8 @@ export default function Codes({ platformState }: CodesProps) {
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
+  const [isCreatingJSON, setIsCreatingJSON] = useState(false)
+  const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
   // Hook principal para operações CRUD e dados da API com filtros do platformState
   const cardFeatures = useCardFeatures({}, {
@@ -112,6 +116,23 @@ export default function Codes({ platformState }: CodesProps) {
   // Handler para cancelar exclusão
   const handleDeleteCancel = () => {
     setDeletingSnippet(null)
+  }
+
+  // Handler para criação via JSON
+  const handleCreateJSONSubmit = async (formData: CreateCardFeatureData) => {
+    try {
+      setIsCreatingJSONLoading(true)
+      const result = await cardFeatures.createCardFeature(formData)
+      if (result) {
+        console.log('CardFeature criado via JSON com sucesso:', result)
+        setIsCreatingJSON(false)
+      }
+    } catch (error) {
+      console.error('Erro no handleCreateJSONSubmit:', error)
+      throw error
+    } finally {
+      setIsCreatingJSONLoading(false)
+    }
   }
 
   // ================================================
@@ -218,17 +239,35 @@ export default function Codes({ platformState }: CodesProps) {
             </Button>
           </div>
 
-          {/* Create Button */}
-          <Button
-            onClick={cardFeatures.startCreating}
-            disabled={cardFeatures.loading || cardFeatures.creating}
-            className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap flex-shrink-0"
-          >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">
-              {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
-            </span>
-          </Button>
+          {/* Create Button with Dropdown */}
+          <div className="flex flex-shrink-0">
+            <Button
+              onClick={cardFeatures.startCreating}
+              disabled={cardFeatures.loading || cardFeatures.creating}
+              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none"
+            >
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">
+                {cardFeatures.creating ? 'Criando...' : 'Novo CardFeature'}
+              </span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  disabled={cardFeatures.loading || cardFeatures.creating}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
+                  <FileJson className="h-4 w-4 mr-2" />
+                  Criar via JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Search Input - Linha separada abaixo */}
@@ -412,6 +451,14 @@ export default function Codes({ platformState }: CodesProps) {
         isLoading={cardFeatures.creating}
         onClose={cardFeatures.cancelCreating}
         onSubmit={handleCreateSubmit}
+      />
+
+      {/* Create CardFeature via JSON Modal */}
+      <CardFeatureFormJSON
+        isOpen={isCreatingJSON}
+        isLoading={isCreatingJSONLoading}
+        onClose={() => setIsCreatingJSON(false)}
+        onSubmit={handleCreateJSONSubmit}
       />
 
       {/* Edit CardFeature Modal */}

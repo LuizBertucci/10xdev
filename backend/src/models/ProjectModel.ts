@@ -909,7 +909,7 @@ export class ProjectModel {
   private static async getCardCount(projectId: string): Promise<number> {
     try {
       const { count } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('project_cards')
           .select('*', { count: 'exact', head: true })
           .eq('project_id', projectId)
