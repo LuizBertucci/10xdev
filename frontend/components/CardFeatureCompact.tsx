@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check } from "lucide-react"
+import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import type { CardFeature as CardFeatureType } from "@/types"
@@ -21,6 +22,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   const [isExpanded, setIsExpanded] = useState(false)
   // Estado para controlar a aba ativa (similar ao CardFeature)
   const [activeTab, setActiveTab] = useState(0)
+  // Estado para feedback de "copiado"
+  const [copied, setCopied] = useState(false)
   
   // URL da API em produção
   const cardApiUrl = `https://web-backend-10xdev.azurewebsites.net/api/card-features/${snippet.id}`
@@ -28,6 +31,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded)
+  }
+
+  // Função para copiar URL
+  const handleCopyUrl = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(cardApiUrl)
+      setCopied(true)
+      toast.success("Link copiado!")
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link")
+    }
   }
 
   // Função para lidar com cliques no card (mobile)
@@ -107,18 +123,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 <div className="flex-1 min-w-0 space-y-2">
                   {/* Título */}
                   <h3 className="font-semibold text-gray-900 leading-snug break-words">{snippet.title}</h3>
-                  
-                  {/* URL */}
-                  <a
-                    href={cardApiUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:text-blue-700 font-mono block underline truncate"
-                    title={`Abrir card na API: ${snippet.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {cardApiUrl.length > 30 ? `${cardApiUrl.substring(0, 30)}...` : cardApiUrl}
-                  </a>
 
                   {/* Badges */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -146,7 +150,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 </div>
                 
                 {/* Controles à direita - alinhados verticalmente */}
-                <div className="flex flex-col items-center justify-between py-1">
+                <div className="flex flex-col items-center justify-between py-1 gap-1">
                   {/* Chevron no topo */}
                   <div className="text-gray-400">
                     {isExpanded ? (
@@ -155,6 +159,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       <ChevronDown className="h-5 w-5" />
                     )}
                   </div>
+                  
+                  {/* Link/Copy no meio */}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={`h-6 w-6 p-0 ${copied ? 'text-green-500' : 'text-gray-400 hover:text-blue-600'}`}
+                    onClick={handleCopyUrl}
+                  >
+                    {copied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                  </Button>
                   
                   {/* Menu ⋮ embaixo */}
                   <DropdownMenu>
