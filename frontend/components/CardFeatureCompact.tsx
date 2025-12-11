@@ -129,8 +129,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     {snippet.author || 'Anônimo'}
                   </Badge>
                   
+                  {/* Separador */}
+                  <span className="text-gray-400 text-[8px]">●</span>
+                  
                   {/* Badges tech/language */}
-                  <div className="flex flex-wrap gap-1.5 ml-auto">
+                  <div className="flex flex-wrap gap-1.5">
                     <Badge
                       className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
                     >
