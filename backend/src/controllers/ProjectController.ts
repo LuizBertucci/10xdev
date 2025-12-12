@@ -23,9 +23,11 @@ export class ProjectController {
 
   static async getGithubInfo(req: Request, res: Response): Promise<void> {
     try {
+      console.log('[GitHub Info] Requisição recebida:', req.body)
       const { url, token }: GetGithubInfoRequest = req.body
 
       if (!url) {
+        console.log('[GitHub Info] URL não fornecida')
         res.status(400).json({
           success: false,
           error: 'URL é obrigatória'
@@ -33,13 +35,16 @@ export class ProjectController {
         return
       }
 
+      console.log('[GitHub Info] Buscando info de:', url)
       const info = await GithubService.getRepoDetails(url, token)
+      console.log('[GitHub Info] Sucesso:', info.name)
 
       res.status(200).json({
         success: true,
         data: info
       })
     } catch (error: any) {
+      console.error('[GitHub Info] ERRO:', error.message)
       res.status(400).json({
         success: false,
         error: error.message || 'Erro ao buscar informações do repositório'

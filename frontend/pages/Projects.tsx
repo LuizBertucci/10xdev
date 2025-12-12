@@ -47,6 +47,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [loadingGithub, setLoadingGithub] = useState(false)
   const [importingGithub, setImportingGithub] = useState(false)
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
+  const [importStatus, setImportStatus] = useState("")
 
   // Validar se é uma URL válida do GitHub
   const isValidGithubUrl = (url: string): boolean => {
@@ -179,7 +180,22 @@ export default function Projects({ platformState }: ProjectsProps) {
 
     try {
       setImportingGithub(true)
-      toast.info('Importando projeto... Isso pode levar alguns segundos.', { duration: 5000 })
+      setImportStatus('Conectando ao GitHub...')
+      
+      // Simular progresso visual
+      const statusMessages = [
+        'Baixando repositório...',
+        'Extraindo arquivos...',
+        'Processando código...',
+        'Criando cards...',
+        'Finalizando...'
+      ]
+      
+      let messageIndex = 0
+      const statusInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % statusMessages.length
+        setImportStatus(statusMessages[messageIndex])
+      }, 2000)
       
       const response = await projectService.importFromGithub({
         url: githubUrl,
@@ -188,6 +204,8 @@ export default function Projects({ platformState }: ProjectsProps) {
         description: newProjectDescription || undefined
       })
 
+      clearInterval(statusInterval)
+
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao importar o projeto.')
         return
@@ -195,11 +213,11 @@ export default function Projects({ platformState }: ProjectsProps) {
 
       if (response.success && response.data) {
         const { cardsCreated, filesProcessed } = response.data
+        setImportStatus('Concluído!')
         toast.success(`Projeto importado! ${cardsCreated} cards criados de ${filesProcessed} arquivos.`)
         resetFormAndClose()
         loadProjects()
       } else {
-        // Mensagens de erro mais amigáveis
         let errorMessage = response.error || 'Erro ao importar projeto'
         if (errorMessage.includes('limite') || errorMessage.includes('rate')) {
           errorMessage = 'Limite de requisições do GitHub atingido. Aguarde alguns minutos ou adicione um token de acesso.'
@@ -218,6 +236,7 @@ export default function Projects({ platformState }: ProjectsProps) {
       toast.error(errorMessage)
     } finally {
       setImportingGithub(false)
+      setImportStatus('')
     }
   }
 
@@ -447,8 +466,23 @@ export default function Projects({ platformState }: ProjectsProps) {
                   </div>
                 </div>
 
+                {/* Status de importação */}
+                {importingGithub && importStatus && (
+                  <div className="rounded-md bg-blue-50 p-4 border border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">{importStatus}</p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          Isso pode levar alguns minutos para repositórios grandes...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <DialogFooter>
-                  <Button variant="outline" onClick={resetFormAndClose}>
+                  <Button variant="outline" onClick={resetFormAndClose} disabled={importingGithub}>
                     Cancelar
                   </Button>
                   <Button 

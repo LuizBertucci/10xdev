@@ -10,11 +10,11 @@ import type {
 import { randomUUID } from 'crypto'
 
 // ================================================
-// CONFIGURATION
+// CONFIGURATION - SEM LIMITES
 // ================================================
 
-// Tamanho máximo de arquivo (500KB)
-const MAX_FILE_SIZE = 500 * 1024
+// Tamanho máximo de arquivo (10MB - praticamente ilimitado)
+const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 // Extensões de arquivos de código suportadas
 const CODE_EXTENSIONS = [
@@ -215,8 +215,8 @@ export class GithubService {
         const response = await axios.get(zipUrl, {
           headers,
           responseType: 'arraybuffer',
-          timeout: 120000, // 2 minutos para downloads grandes
-          maxContentLength: 100 * 1024 * 1024 // 100MB max
+          timeout: 600000, // 10 minutos para downloads muito grandes
+          maxContentLength: 500 * 1024 * 1024 // 500MB max
         })
         
         console.log(`[GitHub] ZIP baixado: ${(response.data.length / 1024 / 1024).toFixed(2)}MB`)
