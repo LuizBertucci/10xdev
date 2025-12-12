@@ -1,17 +1,177 @@
 import { Request, Response } from 'express'
 import { ProjectModel } from '@/models/ProjectModel'
+import { CardFeatureModel } from '@/models/CardFeatureModel'
+import { GithubService } from '@/services/githubService'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
   type UpdateProjectRequest,
   type ProjectQueryParams,
   type AddProjectMemberRequest,
-  type UpdateProjectMemberRequest
+  type UpdateProjectMemberRequest,
+  type GetGithubInfoRequest,
+  type ImportFromGithubRequest
 } from '@/types/project'
 
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
 
 export class ProjectController {
+
+  // ================================================
+  // GITHUB - POST /api/projects/github-info
+  // ================================================
+
+  static async getGithubInfo(req: Request, res: Response): Promise<void> {
+    try {
+      const { url, token }: GetGithubInfoRequest = req.body
+
+      if (!url) {
+        res.status(400).json({
+          success: false,
+          error: 'URL é obrigatória'
+        })
+        return
+      }
+
+      const info = await GithubService.getRepoDetails(url, token)
+
+      res.status(200).json({
+        success: true,
+        data: info
+      })
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        error: error.message || 'Erro ao buscar informações do repositório'
+      })
+    }
+  }
+
+  // ================================================
+  // GITHUB - POST /api/projects/import-from-github
+  // ================================================
+
+  static async importFromGithub(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      const { url, token, name, description }: ImportFromGithubRequest = req.body
+      const userId = req.user.id
+
+      if (!url) {
+        res.status(400).json({
+          success: false,
+          error: 'URL do repositório é obrigatória'
+        })
+        return
+      }
+
+      // 1. Get repo info if name not provided
+      let projectName = name
+      let projectDescription = description
+
+      if (!projectName) {
+        const repoInfo = await GithubService.getRepoDetails(url, token)
+        projectName = repoInfo.name
+        projectDescription = projectDescription || repoInfo.description || undefined
+      }
+
+      // 2. Process repository to cards
+      const { cards, filesProcessed } = await GithubService.processRepoToCards(url, token)
+
+      if (cards.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Nenhum arquivo de código encontrado para importar'
+        })
+        return
+      }
+
+      // 3. Create card features in bulk
+      const cardFeatureResult = await CardFeatureModel.bulkCreate(cards)
+      
+      if (!cardFeatureResult.success || !cardFeatureResult.data) {
+        res.status(500).json({
+          success: false,
+          error: 'Erro ao criar cards do projeto'
+        })
+        return
+      }
+
+      // 4. Create the project
+      const cleanUrl = url.replace(/\.git$/, '').split('?')[0]
+      const projectData: CreateProjectRequest = {
+        name: projectName
+      }
+      if (projectDescription) {
+        projectData.description = projectDescription
+      }
+      if (cleanUrl) {
+        projectData.repositoryUrl = cleanUrl
+      }
+      const projectResult = await ProjectModel.create(projectData, userId)
+
+      if (!projectResult.success || !projectResult.data) {
+        res.status(500).json({
+          success: false,
+          error: 'Erro ao criar projeto'
+        })
+        return
+      }
+
+      // 5. Associate cards to project
+      let cardsAdded = 0
+      for (const cardFeature of cardFeatureResult.data) {
+        const addResult = await ProjectModel.addCard(
+          projectResult.data.id, 
+          cardFeature.id, 
+          userId
+        )
+        if (addResult.success) {
+          cardsAdded++
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        data: {
+          project: projectResult.data,
+          cardsCreated: cardsAdded,
+          filesProcessed
+        },
+        message: `Projeto importado com sucesso! ${cardsAdded} cards criados a partir de ${filesProcessed} arquivos.`
+      })
+    } catch (error: any) {
+      console.error('Erro ao importar do GitHub:', error)
+      
+      // Determinar código de status baseado no erro
+      let statusCode = 400
+      let errorMessage = error.message || 'Erro ao importar projeto do GitHub'
+      
+      if (errorMessage.includes('rate') || errorMessage.includes('limite') || errorMessage.includes('Limite')) {
+        statusCode = 429
+        errorMessage = 'Limite de requisições do GitHub atingido. Aguarde alguns minutos ou use um token de acesso pessoal para aumentar o limite.'
+      } else if (errorMessage.includes('Timeout') || errorMessage.includes('timeout')) {
+        statusCode = 504
+        errorMessage = 'O repositório é muito grande. Tente importar um repositório menor ou com menos arquivos.'
+      } else if (errorMessage.includes('não encontrado') || errorMessage.includes('404')) {
+        statusCode = 404
+      } else if (errorMessage.includes('Token') || errorMessage.includes('permissão')) {
+        statusCode = 401
+      }
+      
+      res.status(statusCode).json({
+        success: false,
+        error: errorMessage
+      })
+    }
+  }
   
   // ================================================
   // CREATE - POST /api/projects
