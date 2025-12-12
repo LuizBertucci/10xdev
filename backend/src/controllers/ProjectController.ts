@@ -432,6 +432,7 @@ export class ProjectController {
 
       const { id } = req.params
       const userId = req.user.id
+      const deleteCards = req.query.deleteCards === 'true'
 
       if (!id) {
         res.status(400).json({
@@ -439,6 +440,22 @@ export class ProjectController {
           error: 'ID é obrigatório'
         })
         return
+      }
+
+      // Se deleteCards=true, deletar os card_features associados
+      let cardsDeleted = 0
+      if (deleteCards) {
+        const cardsResult = await ProjectModel.getCards(id)
+        if (cardsResult.success && cardsResult.data) {
+          for (const card of cardsResult.data) {
+            try {
+              await CardFeatureModel.delete(card.cardFeatureId)
+              cardsDeleted++
+            } catch (e) {
+              console.error(`Erro ao deletar card ${card.cardFeatureId}:`, e)
+            }
+          }
+        }
       }
 
       const result = await ProjectModel.delete(id, userId)
@@ -453,7 +470,10 @@ export class ProjectController {
 
       res.status(200).json({
         success: true,
-        message: 'Projeto removido com sucesso'
+        message: deleteCards 
+          ? `Projeto e ${cardsDeleted} cards removidos com sucesso`
+          : 'Projeto removido com sucesso',
+        cardsDeleted
       })
     } catch (error) {
       console.error('Erro no controller delete:', error)

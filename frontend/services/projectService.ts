@@ -158,8 +158,11 @@ class ProjectService {
   // DELETE
   // ================================================
 
-  async delete(id: string): Promise<ApiResponse<null> | undefined> {
-    return apiClient.delete<null>(`${this.endpoint}/${id}`)
+  async delete(id: string, deleteCards: boolean = false): Promise<ApiResponse<null> | undefined> {
+    const url = deleteCards 
+      ? `${this.endpoint}/${id}?deleteCards=true`
+      : `${this.endpoint}/${id}`
+    return apiClient.delete<null>(url)
   }
 
   // ================================================

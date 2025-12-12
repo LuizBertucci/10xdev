@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2, AlertTriangle } from "lucide-react"
 import { projectService, type Project, type GithubRepoInfo } from "@/services"
 import { toast } from "sonner"
 import {
@@ -48,6 +49,12 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [importingGithub, setImportingGithub] = useState(false)
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
   const [importStatus, setImportStatus] = useState("")
+
+  // Delete dialog states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const [deleteCards, setDeleteCards] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Validar se é uma URL válida do GitHub
   const isValidGithubUrl = (url: string): boolean => {
@@ -292,26 +299,37 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
-  const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
+  const openDeleteDialog = (project: Project, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita.')) {
-      return
-    }
+    setProjectToDelete(project)
+    setDeleteCards(false)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!projectToDelete) return
 
     try {
-      const response = await projectService.delete(projectId)
+      setDeleting(true)
+      const response = await projectService.delete(projectToDelete.id, deleteCards)
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
         return
       }
       if (response.success) {
-        toast.success('Projeto deletado com sucesso!')
+        toast.success(deleteCards 
+          ? 'Projeto e cards deletados com sucesso!' 
+          : 'Projeto deletado com sucesso!')
+        setIsDeleteDialogOpen(false)
+        setProjectToDelete(null)
         loadProjects()
       } else {
         toast.error(response.error || 'Erro ao deletar projeto')
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao deletar projeto')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -562,7 +580,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => handleDeleteProject(project.id, e)}
+                      onClick={(e) => openDeleteDialog(project, e)}
                       className="ml-2"
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
@@ -598,6 +616,81 @@ export default function Projects({ platformState }: ProjectsProps) {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Deletar Projeto
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar o projeto <strong>"{projectToDelete?.name}"</strong>?
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+
+          {projectToDelete && (projectToDelete.cardCount || 0) > 0 && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-amber-50 p-4 border border-amber-200">
+                <p className="text-sm text-amber-800">
+                  Este projeto possui <strong>{projectToDelete.cardCount} cards</strong> associados.
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="deleteCards" 
+                  checked={deleteCards}
+                  onCheckedChange={(checked) => setDeleteCards(checked === true)}
+                />
+                <label 
+                  htmlFor="deleteCards" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Deletar também os cards do projeto
+                </label>
+              </div>
+              
+              {deleteCards && (
+                <div className="rounded-md bg-red-50 p-3 border border-red-200">
+                  <p className="text-xs text-red-700">
+                    ⚠️ Os {projectToDelete.cardCount} cards serão permanentemente deletados e não poderão ser recuperados.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deletando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleteCards ? 'Deletar Projeto e Cards' : 'Deletar Projeto'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
