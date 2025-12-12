@@ -19,17 +19,17 @@ import { randomUUID } from 'crypto'
 // CONFIGURATION
 // ================================================
 
-// Limite de arquivos a processar
-const MAX_FILES = 30
+// Limite de arquivos a processar (reduzido para evitar rate limiting)
+const MAX_FILES = 20
 
-// Tamanho máximo de arquivo em bytes (100KB)
-const MAX_FILE_SIZE = 100 * 1024
+// Tamanho máximo de arquivo em bytes (50KB - reduzido)
+const MAX_FILE_SIZE = 50 * 1024
 
-// Delay entre requisições em ms (para evitar rate limiting)
-const REQUEST_DELAY = 100
+// Delay entre requisições em ms (aumentado para evitar rate limiting)
+const REQUEST_DELAY = 300
 
-// Tamanho do lote para processamento
-const BATCH_SIZE = 5
+// Tamanho do lote para processamento (reduzido)
+const BATCH_SIZE = 3
 
 // Extensões de arquivos de código suportadas
 const CODE_EXTENSIONS = [
@@ -232,6 +232,9 @@ interface ParsedRepoInfo {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+// Flag global para parar processamento em caso de rate limiting
+let rateLimitHit = false
+
 async function processBatch<T, R>(
   items: T[],
   processor: (item: T) => Promise<R>,
@@ -239,14 +242,37 @@ async function processBatch<T, R>(
   delayMs: number
 ): Promise<R[]> {
   const results: R[] = []
+  rateLimitHit = false
   
   for (let i = 0; i < items.length; i += batchSize) {
+    // Parar se atingiu rate limit
+    if (rateLimitHit) {
+      console.log('[GitHub Import] Parando processamento devido a rate limit')
+      break
+    }
+    
     const batch = items.slice(i, i + batchSize)
-    const batchResults = await Promise.all(batch.map(processor))
-    results.push(...batchResults)
+    
+    // Processar sequencialmente dentro do batch para melhor controle
+    for (const item of batch) {
+      if (rateLimitHit) break
+      try {
+        const result = await processor(item)
+        results.push(result)
+      } catch (error: any) {
+        if (error.message?.includes('rate') || error.message?.includes('Limite')) {
+          rateLimitHit = true
+          throw error
+        }
+        // Para outros erros, continua processando
+        console.error('[GitHub Import] Erro ao processar item:', error.message)
+      }
+      // Pequeno delay entre cada arquivo
+      await sleep(50)
+    }
     
     // Add delay between batches to avoid rate limiting
-    if (i + batchSize < items.length) {
+    if (i + batchSize < items.length && !rateLimitHit) {
       await sleep(delayMs)
     }
   }
@@ -396,10 +422,19 @@ export class GithubService {
       return response.data.content || ''
     } catch (error: any) {
       if (error.response?.status === 403) {
-        console.error(`Rate limit atingido ao buscar ${filePath}`)
-        throw new Error('Limite de requisições do GitHub atingido.')
+        console.error(`[GitHub Import] Rate limit atingido ao buscar ${filePath}`)
+        rateLimitHit = true
+        throw new Error('Limite de requisições do GitHub atingido. Use um token de acesso pessoal.')
       }
-      console.error(`Erro ao buscar conteúdo de ${filePath}:`, error.message)
+      if (error.response?.status === 404) {
+        console.log(`[GitHub Import] Arquivo não encontrado: ${filePath}`)
+        return ''
+      }
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        console.error(`[GitHub Import] Timeout ao buscar ${filePath}`)
+        return ''
+      }
+      console.error(`[GitHub Import] Erro ao buscar ${filePath}:`, error.message)
       return ''
     }
   }
@@ -447,7 +482,7 @@ export class GithubService {
   private static getFilePriority(path: string): number {
     // Higher priority = more important file
     for (let i = 0; i < PRIORITY_PATTERNS.length; i++) {
-      if (PRIORITY_PATTERNS[i].test(path)) {
+      if (PRIORITY_PATTERNS[i]?.test(path)) {
         return PRIORITY_PATTERNS.length - i
       }
     }
@@ -555,6 +590,10 @@ export class GithubService {
     token?: string
   ): Promise<{ cards: CreateCardFeatureRequest[], filesProcessed: number }> {
     console.log(`[GitHub Import] Iniciando importação de ${url}`)
+    console.log(`[GitHub Import] Token fornecido: ${token ? 'Sim' : 'Não'}`)
+    
+    // Reset rate limit flag
+    rateLimitHit = false
     
     // Get all files in the repo
     const tree = await this.getRepoTree(url, token)
@@ -563,94 +602,124 @@ export class GithubService {
     const codeFiles = tree.filter(item => 
       item.type === 'blob' && this.shouldIncludeFile(item.path, item.size)
     )
-    console.log(`[GitHub Import] Arquivos de código encontrados: ${codeFiles.length}`)
+    console.log(`[GitHub Import] Arquivos de código válidos: ${codeFiles.length}`)
 
     if (codeFiles.length === 0) {
       throw new Error('Nenhum arquivo de código encontrado no repositório.')
     }
 
-    // Try to get package.json for tech detection
+    // Limitar a quantidade de arquivos a processar
+    const filesToAnalyze = codeFiles.slice(0, MAX_FILES * 2) // Pegar mais para ter margem
+    console.log(`[GitHub Import] Arquivos a analisar: ${filesToAnalyze.length}`)
+
+    // Try to get package.json for tech detection (com cuidado de rate limit)
     let packageJson: any = null
     const packageJsonFile = tree.find(f => f.path === 'package.json')
-    if (packageJsonFile) {
+    if (packageJsonFile && !rateLimitHit) {
       try {
         const content = await this.getFileContent(url, 'package.json', token)
         if (content) {
           packageJson = JSON.parse(content)
         }
-      } catch {
-        // Ignore package.json parse errors
+        // Delay após buscar package.json
+        await sleep(REQUEST_DELAY)
+      } catch (e: any) {
+        if (e.message?.includes('rate') || e.message?.includes('Limite')) {
+          // Se deu rate limit no package.json, não é crítico, continua sem
+          console.log('[GitHub Import] Rate limit no package.json, continuando sem ele')
+          rateLimitHit = false // Reset para continuar tentando
+        }
       }
     }
 
     // Detect tech and language
-    const allPaths = codeFiles.map(f => f.path)
+    const allPaths = filesToAnalyze.map(f => f.path)
     const tech = this.detectTech(allPaths, packageJson)
     const mainLanguage = this.detectMainLanguage(allPaths)
     console.log(`[GitHub Import] Tech detectada: ${tech}, Linguagem: ${mainLanguage}`)
 
     // Group files by component/module
-    const groups = this.groupFilesByComponent(codeFiles)
+    const groups = this.groupFilesByComponent(filesToAnalyze)
     console.log(`[GitHub Import] Grupos criados: ${groups.size}`)
     
     const cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
     let totalProcessed = 0
+    let errorCount = 0
+    const maxErrors = 5 // Máximo de erros antes de parar
 
     // Process groups in order of priority
     const groupEntries = Array.from(groups.entries())
     
     for (const [groupKey, groupFiles] of groupEntries) {
+      // Verificar condições de parada
       if (totalProcessed >= MAX_FILES) {
         console.log(`[GitHub Import] Limite de ${MAX_FILES} arquivos atingido`)
         break
       }
+      
+      if (rateLimitHit) {
+        console.log('[GitHub Import] Parando devido a rate limit')
+        break
+      }
+      
+      if (errorCount >= maxErrors) {
+        console.log('[GitHub Import] Muitos erros, parando processamento')
+        break
+      }
 
-      // Limit files per group to avoid huge cards
-      const filesToProcess = groupFiles.slice(0, 5)
+      // Limit files per group to avoid huge cards (max 3 files por card)
+      const filesToProcess = groupFiles.slice(0, 3)
       
       // Create screens for each file in the group
       const screens: CardFeatureScreen[] = []
       
-      // Process files in batches to avoid rate limiting
-      const fileContents = await processBatch(
-        filesToProcess,
-        async (file) => {
-          if (totalProcessed >= MAX_FILES) return { file, content: '' }
-          
+      // Process files sequentially to avoid overwhelming the API
+      for (const file of filesToProcess) {
+        if (totalProcessed >= MAX_FILES || rateLimitHit) break
+        
+        try {
           const content = await this.getFileContent(url, file.path, token)
-          return { file, content }
-        },
-        BATCH_SIZE,
-        REQUEST_DELAY
-      )
-      
-      for (const { file, content } of fileContents) {
-        if (totalProcessed >= MAX_FILES) break
-        if (!content) continue
+          
+          if (!content) {
+            continue
+          }
 
-        const ext = this.getFileExtension(file.path)
-        const language = this.getLanguageFromExtension(ext)
-        const fileName = file.path.split('/').pop() || file.path
+          const ext = this.getFileExtension(file.path)
+          const language = this.getLanguageFromExtension(ext)
+          const fileName = file.path.split('/').pop() || file.path
 
-        const block: ContentBlock = {
-          id: randomUUID(),
-          type: ContentType.CODE,
-          content: content,
-          language: language,
-          title: fileName,
-          order: 0
+          const block: ContentBlock = {
+            id: randomUUID(),
+            type: ContentType.CODE,
+            content: content,
+            language: language,
+            title: fileName,
+            order: 0
+          }
+
+          screens.push({
+            name: fileName,
+            description: `Arquivo ${fileName}`,
+            route: file.path,
+            blocks: [block]
+          })
+
+          totalProcessed++
+          filesProcessed++
+          
+          // Delay entre cada arquivo
+          await sleep(100)
+          
+        } catch (error: any) {
+          errorCount++
+          console.error(`[GitHub Import] Erro ao processar ${file.path}:`, error.message)
+          
+          if (error.message?.includes('rate') || error.message?.includes('Limite')) {
+            rateLimitHit = true
+            break
+          }
         }
-
-        screens.push({
-          name: fileName,
-          description: `Arquivo ${fileName}`,
-          route: file.path,
-          blocks: [block]
-        })
-
-        totalProcessed++
-        filesProcessed++
       }
 
       if (screens.length === 0) continue
@@ -668,11 +737,23 @@ export class GithubService {
         card_type: CardType.CODIGOS,
         screens: screens
       })
+      
+      // Delay entre grupos
+      await sleep(REQUEST_DELAY)
     }
 
     console.log(`[GitHub Import] Importação concluída: ${cards.length} cards, ${filesProcessed} arquivos`)
 
+    // Se atingiu rate limit mas conseguiu processar alguns arquivos, retorna o que tem
+    if (rateLimitHit && cards.length > 0) {
+      console.log('[GitHub Import] Rate limit atingido, mas retornando cards parciais')
+      return { cards, filesProcessed }
+    }
+
     if (cards.length === 0) {
+      if (rateLimitHit) {
+        throw new Error('Limite de requisições do GitHub atingido. Use um token de acesso pessoal para aumentar o limite (60 → 5000 req/hora).')
+      }
       throw new Error('Não foi possível processar os arquivos do repositório. Verifique se o repositório contém arquivos de código válidos.')
     }
 
