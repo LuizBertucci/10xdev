@@ -90,6 +90,51 @@ const TECH_DETECTION: Record<string, string> = {
   'flask': 'Flask', 'fastapi': 'FastAPI', 'spring': 'Spring', 'rails': 'Rails'
 }
 
+// ================================================
+// FEATURE DETECTION PATTERNS
+// ================================================
+
+// Padrões para identificar camadas de arquivos
+const LAYER_PATTERNS = {
+  // Backend
+  routes: /\/(routes?|routers?)\//i,
+  controllers: /\/(controllers?)\//i,
+  services: /\/(services?)\//i,
+  models: /\/(models?)\//i,
+  middlewares: /\/(middlewares?)\//i,
+  validators: /\/(validators?|validations?)\//i,
+  // Frontend
+  hooks: /\/(hooks?)\//i,
+  components: /\/(components?)\//i,
+  pages: /\/(pages?|app)\//i,
+  stores: /\/(stores?|state)\//i,
+  api: /\/(api|services?)\//i,
+  utils: /\/(utils?|helpers?|lib)\//i,
+  types: /\/(types?|interfaces?)\//i,
+}
+
+// Mapeamento de layer para nome de screen
+const LAYER_TO_SCREEN_NAME: Record<string, string> = {
+  routes: 'Backend - Routes',
+  controllers: 'Backend - Controller',
+  services: 'Backend - Service',
+  models: 'Backend - Model',
+  middlewares: 'Backend - Middleware',
+  validators: 'Backend - Validators',
+  hooks: 'Frontend - Hook',
+  components: 'Frontend - Component',
+  pages: 'Frontend - Page',
+  stores: 'Frontend - Store',
+  api: 'Frontend - API Service',
+  utils: 'Utils',
+  types: 'Types',
+}
+
+interface FeatureFile extends FileEntry {
+  layer: string
+  featureName: string
+}
+
 interface ParsedRepoInfo {
   owner: string
   repo: string
@@ -359,25 +404,177 @@ export class GithubService {
     return mainLang
   }
 
-  private static groupFilesByComponent(files: FileEntry[]): Map<string, FileEntry[]> {
-    const groups = new Map<string, FileEntry[]>()
+  // ================================================
+  // FEATURE DETECTION & GROUPING
+  // ================================================
+
+  /**
+   * Detecta a qual "layer" um arquivo pertence (routes, controllers, hooks, etc)
+   */
+  private static detectFileLayer(path: string): string {
+    for (const [layer, pattern] of Object.entries(LAYER_PATTERNS)) {
+      if (pattern.test(path)) return layer
+    }
+    return 'other'
+  }
+
+  /**
+   * Extrai o nome da feature/entidade de um arquivo
+   * Ex: "teamController.ts" -> "team"
+   * Ex: "useGrupos.ts" -> "grupos"
+   * Ex: "CardFeatureModel.ts" -> "cardfeature"
+   */
+  private static extractFeatureName(path: string): string {
+    const fileName = path.split('/').pop() || ''
+    let baseName = fileName
+      .replace(/\.(ts|tsx|js|jsx|py|java|go|rb|php|vue|svelte)$/i, '')
+      .replace(/\.(test|spec|stories|styles?|module)$/i, '')
     
-    for (const file of files) {
-      const parts = file.path.split('/')
-      const fileName = parts.pop() || ''
-      const dirPath = parts.join('/')
-      
-      // Agrupar por diretório + nome base
-      const baseName = fileName.replace(/\.(test|spec|stories|styles?|module)?\.[^.]+$/, '')
-      const groupKey = dirPath ? `${dirPath}/${baseName}` : baseName
-      
-      if (!groups.has(groupKey)) {
-        groups.set(groupKey, [])
+    // Remove sufixos comuns
+    const suffixes = [
+      'Controller', 'Service', 'Model', 'Routes', 'Router',
+      'Validator', 'Middleware', 'Hook', 'Component', 'Page',
+      'Store', 'Slice', 'Api', 'Service', 'Utils', 'Helper',
+      'Type', 'Interface', 'Schema', 'Dto', 'Entity'
+    ]
+    
+    for (const suffix of suffixes) {
+      const regex = new RegExp(`${suffix}s?$`, 'i')
+      if (regex.test(baseName)) {
+        baseName = baseName.replace(regex, '')
+        break
       }
-      groups.get(groupKey)!.push(file)
+    }
+    
+    // Remove prefixos comuns
+    if (baseName.toLowerCase().startsWith('use')) {
+      baseName = baseName.substring(3)
+    }
+    
+    // Normaliza para lowercase para matching
+    return baseName.toLowerCase().replace(/[^a-z0-9]/g, '')
+  }
+
+  /**
+   * Detecta funcionalidades/features agrupando arquivos relacionados
+   * de diferentes camadas (routes + controller + service + model + hooks + components)
+   */
+  private static groupFilesByFeature(files: FileEntry[]): Map<string, FeatureFile[]> {
+    // Primeiro, analisa todos os arquivos e extrai feature names
+    const analyzedFiles: FeatureFile[] = files.map(file => ({
+      ...file,
+      layer: this.detectFileLayer(file.path),
+      featureName: this.extractFeatureName(file.path)
+    }))
+
+    // Agrupa por feature name
+    const featureGroups = new Map<string, FeatureFile[]>()
+    
+    for (const file of analyzedFiles) {
+      // Ignora arquivos genéricos ou de configuração
+      if (!file.featureName || file.featureName.length < 2) {
+        // Para arquivos sem nome de feature claro, usa o diretório pai
+        const parts = file.path.split('/')
+        if (parts.length > 1) {
+          file.featureName = parts[parts.length - 2]?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'misc'
+        } else {
+          file.featureName = 'misc'
+        }
+      }
+      
+      if (!featureGroups.has(file.featureName)) {
+        featureGroups.set(file.featureName, [])
+      }
+      featureGroups.get(file.featureName)!.push(file)
     }
 
-    return groups
+    // Consolida features muito pequenas ou relacionadas
+    return this.consolidateFeatures(featureGroups)
+  }
+
+  /**
+   * Consolida features pequenas e agrupa features relacionadas
+   */
+  private static consolidateFeatures(groups: Map<string, FeatureFile[]>): Map<string, FeatureFile[]> {
+    const consolidated = new Map<string, FeatureFile[]>()
+    const MIN_FILES_FOR_FEATURE = 2
+    
+    // Features que são grandes o suficiente ficam separadas
+    const largeFeatures = new Map<string, FeatureFile[]>()
+    const smallFiles: FeatureFile[] = []
+    
+    for (const [name, files] of groups) {
+      // Uma feature é "completa" se tem múltiplas camadas ou múltiplos arquivos
+      const layers = new Set(files.map(f => f.layer))
+      const hasMultipleLayers = layers.size >= 2
+      const hasEnoughFiles = files.length >= MIN_FILES_FOR_FEATURE
+      
+      if (hasMultipleLayers || hasEnoughFiles) {
+        largeFeatures.set(name, files)
+      } else {
+        smallFiles.push(...files)
+      }
+    }
+
+    // Adiciona features grandes
+    for (const [name, files] of largeFeatures) {
+      consolidated.set(name, files)
+    }
+
+    // Agrupa arquivos pequenos por diretório principal
+    if (smallFiles.length > 0) {
+      const byDir = new Map<string, FeatureFile[]>()
+      for (const file of smallFiles) {
+        const mainDir = file.path.split('/')[0] || 'root'
+        if (!byDir.has(mainDir)) {
+          byDir.set(mainDir, [])
+        }
+        byDir.get(mainDir)!.push(file)
+      }
+      
+      for (const [dir, files] of byDir) {
+        const existingKey = `${dir}-utils`
+        consolidated.set(existingKey, files)
+      }
+    }
+
+    return consolidated
+  }
+
+  /**
+   * Gera um título descritivo para a feature
+   */
+  private static generateFeatureTitle(featureName: string, files: FeatureFile[]): string {
+    // Capitaliza o nome
+    const capitalized = featureName.charAt(0).toUpperCase() + featureName.slice(1)
+    
+    // Detecta o tipo de sistema baseado nas camadas presentes
+    const layers = new Set(files.map(f => f.layer))
+    const hasBackend = layers.has('routes') || layers.has('controllers') || layers.has('services') || layers.has('models')
+    const hasFrontend = layers.has('hooks') || layers.has('components') || layers.has('pages')
+    
+    if (hasBackend && hasFrontend) {
+      return `Sistema de ${capitalized}`
+    } else if (hasBackend) {
+      return `API de ${capitalized}`
+    } else if (hasFrontend) {
+      return `UI de ${capitalized}`
+    }
+    
+    return capitalized
+  }
+
+  /**
+   * Gera uma descrição para a feature baseada nos arquivos
+   */
+  private static generateFeatureDescription(featureName: string, files: FeatureFile[]): string {
+    const layers = [...new Set(files.map(f => f.layer))].filter(l => l !== 'other')
+    const layerNames = layers.map(l => LAYER_TO_SCREEN_NAME[l] || l).join(', ')
+    
+    if (layers.length > 0) {
+      return `Módulo ${featureName} contendo: ${layerNames}`
+    }
+    return `Arquivos relacionados a ${featureName}`
   }
 
   // ================================================
@@ -416,59 +613,96 @@ export class GithubService {
     const mainLanguage = this.detectMainLanguage(files)
     console.log(`[GitHub] Tech: ${tech}, Linguagem: ${mainLanguage}`)
 
-    // 5. Agrupar arquivos
-    const groups = this.groupFilesByComponent(files)
-    console.log(`[GitHub] ${groups.size} grupos/cards a criar`)
+    // 5. Agrupar arquivos POR FUNCIONALIDADE
+    const featureGroups = this.groupFilesByFeature(files)
+    console.log(`[GitHub] ${featureGroups.size} features/cards detectadas`)
 
-    // 6. Criar cards (tudo local, sem requisições!)
+    // 6. Criar cards organizados por funcionalidade
     const cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
 
-    for (const [groupKey, groupFiles] of groups) {
+    for (const [featureName, featureFiles] of featureGroups) {
+      // Agrupa arquivos da feature por layer para criar screens organizadas
+      const filesByLayer = new Map<string, FeatureFile[]>()
+      
+      for (const file of featureFiles) {
+        const layer = file.layer
+        if (!filesByLayer.has(layer)) {
+          filesByLayer.set(layer, [])
+        }
+        filesByLayer.get(layer)!.push(file)
+      }
+
       const screens: CardFeatureScreen[] = []
+      
+      // Ordem de prioridade das layers para organização visual
+      const layerOrder = [
+        'routes', 'controllers', 'services', 'models', 'middlewares', 'validators',
+        'hooks', 'api', 'stores', 'components', 'pages',
+        'types', 'utils', 'other'
+      ]
 
-      for (const file of groupFiles) {
-        const ext = this.getFileExtension(file.path)
-        const language = this.getLanguageFromExtension(ext)
-        const fileName = file.path.split('/').pop() || file.path
+      for (const layer of layerOrder) {
+        const layerFiles = filesByLayer.get(layer)
+        if (!layerFiles || layerFiles.length === 0) continue
 
-        const block: ContentBlock = {
-          id: randomUUID(),
-          type: ContentType.CODE,
-          content: file.content,
-          language: language,
-          title: fileName,
-          order: screens.length
+        // Se há múltiplos arquivos na mesma layer, cria uma screen com múltiplos blocos
+        const screenName = LAYER_TO_SCREEN_NAME[layer] || this.capitalizeFirst(layer)
+        const blocks: ContentBlock[] = []
+
+        for (const file of layerFiles) {
+          const ext = this.getFileExtension(file.path)
+          const language = this.getLanguageFromExtension(ext)
+          const fileName = file.path.split('/').pop() || file.path
+
+          blocks.push({
+            id: randomUUID(),
+            type: ContentType.CODE,
+            content: file.content,
+            language: language,
+            title: fileName,
+            order: blocks.length
+          })
+
+          filesProcessed++
         }
 
+        // Descrição baseada nos arquivos da screen
+        const fileNames = layerFiles.map(f => f.path.split('/').pop()).join(', ')
+        
         screens.push({
-          name: fileName,
-          description: `Arquivo ${fileName}`,
-          route: file.path,
-          blocks: [block]
+          name: screenName,
+          description: layerFiles.length === 1 
+            ? `Arquivo ${fileNames}` 
+            : `Arquivos: ${fileNames}`,
+          route: layerFiles[0]?.path || '',
+          blocks: blocks
         })
-
-        filesProcessed++
       }
 
       if (screens.length === 0) continue
 
-      const groupName = groupKey.split('/').pop() || groupKey
-      const cardTitle = groupName.charAt(0).toUpperCase() + groupName.slice(1)
+      // Gera título e descrição inteligentes
+      const cardTitle = this.generateFeatureTitle(featureName, featureFiles)
+      const cardDescription = this.generateFeatureDescription(featureName, featureFiles)
 
       cards.push({
         title: cardTitle,
         tech: tech,
         language: mainLanguage,
-        description: `Importado de ${groupKey}`,
+        description: cardDescription,
         content_type: ContentType.CODE,
         card_type: CardType.CODIGOS,
         screens: screens
       })
     }
 
+    // Ordena cards por número de screens (mais completos primeiro)
+    cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
+
     console.log(`[GitHub] ========================================`)
     console.log(`[GitHub] RESULTADO: ${cards.length} cards, ${filesProcessed} arquivos`)
+    console.log(`[GitHub] Features detectadas: ${[...featureGroups.keys()].join(', ')}`)
     console.log(`[GitHub] ========================================`)
 
     if (cards.length === 0) {
@@ -476,5 +710,9 @@ export class GithubService {
     }
 
     return { cards, filesProcessed }
+  }
+
+  private static capitalizeFirst(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1)
   }
 }
