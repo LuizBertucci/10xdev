@@ -32,6 +32,7 @@ export class ProjectModel {
       id: row.id,
       name: row.name,
       description: row.description,
+      repositoryUrl: row.repository_url,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       createdBy: row.created_by
@@ -126,6 +127,7 @@ export class ProjectModel {
         id: randomUUID(),
         name: data.name,
         description: data.description || null,
+        repository_url: data.repositoryUrl || null,
         created_by: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
