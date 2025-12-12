@@ -48,9 +48,42 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [importingGithub, setImportingGithub] = useState(false)
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
 
+  // Validar se é uma URL válida do GitHub
+  const isValidGithubUrl = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url)
+      if (urlObj.hostname !== 'github.com') return false
+      const parts = urlObj.pathname.split('/').filter(Boolean)
+      return parts.length >= 2
+    } catch {
+      return false
+    }
+  }
+
   useEffect(() => {
     loadProjects()
   }, [])
+
+  // Auto-buscar info do repo quando colar URL válida
+  useEffect(() => {
+    if (!githubUrl.trim()) {
+      setGithubRepoInfo(null)
+      setNewProjectName("")
+      setNewProjectDescription("")
+      return
+    }
+
+    if (!isValidGithubUrl(githubUrl)) {
+      return
+    }
+
+    // Debounce para evitar muitas requisições
+    const timeoutId = setTimeout(() => {
+      handleAnalyzeGithub(false) // Sem toasts na busca automática
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [githubUrl, githubToken])
 
   const loadProjects = async () => {
     try {
@@ -94,9 +127,14 @@ export default function Projects({ platformState }: ProjectsProps) {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  const handleAnalyzeGithub = async () => {
+  const handleAnalyzeGithub = async (showToasts = true) => {
     if (!githubUrl.trim()) {
-      toast.error('URL do GitHub é obrigatória')
+      if (showToasts) toast.error('URL do GitHub é obrigatória')
+      return
+    }
+
+    // Não buscar novamente se já temos info dessa URL
+    if (githubRepoInfo?.url && githubUrl.includes(githubRepoInfo.url.replace('https://github.com/', ''))) {
       return
     }
 
@@ -108,7 +146,7 @@ export default function Projects({ platformState }: ProjectsProps) {
       })
 
       if (!response) {
-        toast.error('Nenhuma resposta do servidor')
+        if (showToasts) toast.error('Nenhuma resposta do servidor')
         return
       }
 
@@ -117,12 +155,12 @@ export default function Projects({ platformState }: ProjectsProps) {
         setNewProjectName(name)
         setNewProjectDescription(description || "")
         setGithubRepoInfo(response.data)
-        toast.success(`Repositório${isPrivate ? ' privado' : ''} encontrado!`)
+        if (showToasts) toast.success(`Repositório${isPrivate ? ' privado' : ''} encontrado!`)
       } else {
-        toast.error(response.error || 'Erro ao buscar informações do repositório')
+        if (showToasts) toast.error(response.error || 'Erro ao buscar informações do repositório')
       }
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao buscar informações do repositório')
+      if (showToasts) toast.error(error.message || 'Erro ao buscar informações do repositório')
     } finally {
       setLoadingGithub(false)
     }
@@ -340,7 +378,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                         data-form-type="other"
                       />
                       <Button
-                        onClick={handleAnalyzeGithub}
+                        onClick={() => handleAnalyzeGithub(true)}
                         disabled={loadingGithub || !githubUrl.trim()}
                         variant="outline"
                       >
