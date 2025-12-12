@@ -12,6 +12,7 @@ export interface ProjectRow {
   id: string
   name: string
   description: string | null
+  repository_url: string | null
   created_at: string
   updated_at: string
   created_by: string
@@ -21,6 +22,7 @@ export interface ProjectInsert {
   id?: string
   name: string
   description?: string | null
+  repository_url?: string | null
   created_at?: string
   updated_at?: string
   created_by: string
@@ -80,6 +82,7 @@ export interface ProjectCardInsert {
 export interface CreateProjectRequest {
   name: string
   description?: string
+  repositoryUrl?: string
 }
 
 export interface UpdateProjectRequest {
@@ -91,6 +94,7 @@ export interface ProjectResponse {
   id: string
   name: string
   description: string | null
+  repositoryUrl: string | null
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -171,5 +175,52 @@ export interface ModelListResult<T = ProjectResponse> {
   count?: number
   error?: string
   statusCode?: number
+}
+
+// ================================================
+// GITHUB INTEGRATION TYPES
+// ================================================
+
+export interface GithubRepoInfo {
+  name: string
+  description: string | null
+  url: string
+  isPrivate: boolean
+}
+
+export interface GetGithubInfoRequest {
+  url: string
+  token?: string
+}
+
+export interface GithubFileInfo {
+  path: string
+  name: string
+  type: 'file' | 'dir'
+  size?: number
+  content?: string
+  encoding?: string
+}
+
+export interface GithubTreeItem {
+  path: string
+  mode: string
+  type: 'blob' | 'tree'
+  sha: string
+  size?: number
+  url: string
+}
+
+export interface ImportFromGithubRequest {
+  url: string
+  token?: string
+  name?: string
+  description?: string
+}
+
+export interface ImportFromGithubResponse {
+  project: ProjectResponse
+  cardsCreated: number
+  filesProcessed: number
 }
 
