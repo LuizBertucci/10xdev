@@ -32,7 +32,11 @@ export type {
   UpdateProjectData,
   AddProjectMemberData,
   UpdateProjectMemberData,
-  ProjectQueryParams
+  ProjectQueryParams,
+  GithubRepoInfo,
+  GetGithubInfoData,
+  ImportFromGithubData,
+  ImportFromGithubResponse
 } from './projectService'
 
 // User Service
