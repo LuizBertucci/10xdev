@@ -8,6 +8,7 @@ import type {
   ContentBlock
 } from '@/types/cardfeature'
 import { randomUUID } from 'crypto'
+import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 
 // ================================================
 // CONFIGURATION - SEM LIMITES
@@ -583,8 +584,9 @@ export class GithubService {
 
   static async processRepoToCards(
     url: string, 
-    token?: string
-  ): Promise<{ cards: CreateCardFeatureRequest[], filesProcessed: number }> {
+    token?: string,
+    options?: { useAi?: boolean }
+  ): Promise<{ cards: CreateCardFeatureRequest[], filesProcessed: number, aiUsed: boolean, aiCardsCreated: number }> {
     console.log(`[GitHub] ========================================`)
     console.log(`[GitHub] Importando via ZIP: ${url}`)
     console.log(`[GitHub] ========================================`)
@@ -617,11 +619,95 @@ export class GithubService {
     const featureGroups = this.groupFilesByFeature(files)
     console.log(`[GitHub] ${featureGroups.size} features/cards detectadas`)
 
-    // 6. Criar cards organizados por funcionalidade
+    // 6. Se habilitado, pedir para IA refinar (processa o repo "todo" por partes, por feature)
+    const useAiRequested = options?.useAi === true
+    const useAi = useAiRequested && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
+    if (useAi) {
+      console.log(`[GitHub][AI] IA habilitada por request (modo=${AiCardGroupingService.mode()}). Refinando cards por feature...`)
+    } else if (useAiRequested) {
+      console.log(`[GitHub][AI] IA solicitada, mas desabilitada/não configurada. Usando heurística (sem IA).`)
+    }
+
+    // 7. Criar cards organizados por funcionalidade (heurístico + opcional IA)
     const cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
+    let aiCardsCreated = 0
 
     for (const [featureName, featureFiles] of featureGroups) {
+      // --- AI path (por feature) ---
+      if (useAi) {
+        try {
+          const mode = AiCardGroupingService.mode()
+
+          // Monta metadados + (snippet | conteúdo completo) para a IA
+          const fileMetas = featureFiles.map((f) => ({
+            path: f.path,
+            layer: f.layer,
+            featureName: f.featureName,
+            size: f.size,
+            snippet: mode === 'full' ? f.content : this.makeSnippet(f.content),
+          }))
+
+          const proposedGroups = [{ key: featureName, files: featureFiles.map(f => f.path) }]
+          const ai = await AiCardGroupingService.refineGrouping({
+            repoUrl: url,
+            detectedTech: tech,
+            detectedLanguage: mainLanguage,
+            files: fileMetas,
+            proposedGroups,
+          })
+
+          // A resposta pode ter 1+ cards, mas aqui esperamos 1 (feature)
+          for (const aiCard of ai.cards) {
+            const screens: CardFeatureScreen[] = []
+            for (const s of aiCard.screens) {
+              const blocks: ContentBlock[] = []
+              for (const filePath of s.files) {
+                const file = featureFiles.find((ff) => ff.path === filePath)
+                if (!file) continue
+                const ext = this.getFileExtension(file.path)
+                const language = this.getLanguageFromExtension(ext)
+                const fileName = file.path.split('/').pop() || file.path
+                blocks.push({
+                  id: randomUUID(),
+                  type: ContentType.CODE,
+                  content: file.content,
+                  language,
+                  title: fileName,
+                  order: blocks.length
+                })
+                filesProcessed++
+              }
+
+              if (blocks.length === 0) continue
+              screens.push({
+                name: s.name,
+                description: '',
+                route: s.files[0] || '',
+                blocks
+              })
+            }
+
+            if (screens.length === 0) continue
+            cards.push({
+              title: aiCard.title,
+              description: aiCard.description || '',
+              tech: aiCard.tech || tech,
+              language: aiCard.language || mainLanguage,
+              content_type: ContentType.CODE,
+              card_type: CardType.CODIGOS,
+              screens
+            })
+            aiCardsCreated++
+          }
+
+          // Se a IA gerou algo, pula heurística dessa feature
+          if (ai.cards.length > 0) continue
+        } catch (e: any) {
+          console.warn(`[GitHub][AI] Falha ao refinar feature "${featureName}". Usando fallback heurístico.`, e?.message || e)
+        }
+      }
+
       // Agrupa arquivos da feature por layer para criar screens organizadas
       const filesByLayer = new Map<string, FeatureFile[]>()
       
@@ -709,10 +795,17 @@ export class GithubService {
       throw new Error('Não foi possível processar os arquivos do repositório.')
     }
 
-    return { cards, filesProcessed }
+    return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
   }
 
   private static capitalizeFirst(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+
+  private static makeSnippet(content: string): string {
+    // snippet simples (primeiras linhas) para modo metadata
+    const maxChars = 1200
+    const s = content.slice(0, maxChars)
+    return s
   }
 }

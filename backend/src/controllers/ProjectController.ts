@@ -66,7 +66,7 @@ export class ProjectController {
         return
       }
 
-      const { url, token, name, description }: ImportFromGithubRequest = req.body
+      const { url, token, name, description, useAi }: ImportFromGithubRequest = req.body
       const userId = req.user.id
 
       if (!url) {
@@ -88,7 +88,11 @@ export class ProjectController {
       }
 
       // 2. Process repository to cards
-      const { cards, filesProcessed } = await GithubService.processRepoToCards(url, token)
+      const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
+        url,
+        token,
+        useAi === true ? { useAi: true } : undefined
+      )
 
       if (cards.length === 0) {
         res.status(400).json({
@@ -148,7 +152,9 @@ export class ProjectController {
         data: {
           project: projectResult.data,
           cardsCreated: cardsAdded,
-          filesProcessed
+          filesProcessed,
+          aiUsed,
+          aiCardsCreated
         },
         message: `Projeto importado com sucesso! ${cardsAdded} cards criados a partir de ${filesProcessed} arquivos.`
       })

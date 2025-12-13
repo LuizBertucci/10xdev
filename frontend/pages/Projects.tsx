@@ -37,6 +37,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [createDialogTab, setCreateDialogTab] = useState<"manual" | "github">("manual")
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectDescription, setNewProjectDescription] = useState("")
   const [creating, setCreating] = useState(false)
@@ -49,6 +50,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [importingGithub, setImportingGithub] = useState(false)
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
   const [importStatus, setImportStatus] = useState("")
+  const [useAiImport, setUseAiImport] = useState(false)
 
   // Delete dialog states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -208,7 +210,8 @@ export default function Projects({ platformState }: ProjectsProps) {
         url: githubUrl,
         token: githubToken || undefined,
         name: newProjectName,
-        description: newProjectDescription || undefined
+        description: newProjectDescription || undefined,
+        useAi: useAiImport
       })
 
       clearInterval(statusInterval)
@@ -219,9 +222,11 @@ export default function Projects({ platformState }: ProjectsProps) {
       }
 
       if (response.success && response.data) {
-        const { cardsCreated, filesProcessed } = response.data
+        const { cardsCreated, filesProcessed, aiUsed, aiCardsCreated } = response.data
         setImportStatus('Concluído!')
-        toast.success(`Projeto importado! ${cardsCreated} cards criados de ${filesProcessed} arquivos.`)
+        toast.success(
+          `Projeto importado! ${cardsCreated} cards criados de ${filesProcessed} arquivos.${aiUsed ? ` (IA: ${aiCardsCreated || 0} cards)` : ' (Sem IA)' }`
+        )
         resetFormAndClose()
         loadProjects()
       } else {
@@ -281,11 +286,13 @@ export default function Projects({ platformState }: ProjectsProps) {
 
   const resetFormAndClose = () => {
     setIsCreateDialogOpen(false)
+    setCreateDialogTab("manual")
     setNewProjectName("")
     setNewProjectDescription("")
     setGithubUrl("")
     setGithubToken("")
     setGithubRepoInfo(null)
+    setUseAiImport(false)
   }
 
   const handleProjectClick = (projectId: string) => {
@@ -351,15 +358,21 @@ export default function Projects({ platformState }: ProjectsProps) {
               Novo Projeto
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Criar Novo Projeto</DialogTitle>
               <DialogDescription>
                 Crie um novo projeto manualmente ou importe do GitHub.
               </DialogDescription>
             </DialogHeader>
 
-            <Tabs defaultValue="manual" className="w-full">
+            {/* Scroll interno para evitar que o footer “saia” da viewport */}
+            <div className="flex-1 overflow-y-auto pr-1">
+              <Tabs
+                value={createDialogTab}
+                onValueChange={(v) => setCreateDialogTab(v as "manual" | "github")}
+                className="w-full"
+              >
               <TabsList className="grid w-full grid-cols-2 mb-4">
                 <TabsTrigger value="manual">Manual</TabsTrigger>
                 <TabsTrigger value="github">
@@ -388,14 +401,6 @@ export default function Projects({ platformState }: ProjectsProps) {
                     rows={3}
                   />
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetFormAndClose}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleCreateProject} disabled={creating}>
-                    {creating ? 'Criando...' : 'Criar Projeto'}
-                  </Button>
-                </DialogFooter>
               </TabsContent>
 
               <TabsContent value="github" className="space-y-4">
@@ -443,6 +448,27 @@ export default function Projects({ platformState }: ProjectsProps) {
                     <p className="text-xs text-gray-500 mt-1">
                       Necessário apenas para repositórios privados
                     </p>
+                  </div>
+
+                  <div className="flex items-start gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
+                    <Checkbox
+                      id="use-ai-import"
+                      checked={useAiImport}
+                      onCheckedChange={(checked) => setUseAiImport(checked === true)}
+                      disabled={importingGithub}
+                    />
+                    <div className="space-y-1">
+                      <label
+                        htmlFor="use-ai-import"
+                        className="text-sm font-medium leading-none"
+                      >
+                        Usar IA para organizar os cards (opcional)
+                      </label>
+                      <p className="text-xs text-gray-600">
+                        Quando marcado, o backend pode usar IA para deixar os cards mais parecidos com os exemplos.
+                        Quando desmarcado, a importação usa apenas heurísticas (sem gastar créditos).
+                      </p>
+                    </div>
                   </div>
 
                   {githubRepoInfo && (
@@ -498,30 +524,43 @@ export default function Projects({ platformState }: ProjectsProps) {
                     </div>
                   </div>
                 )}
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={resetFormAndClose} disabled={importingGithub}>
-                    Cancelar
-                  </Button>
-                  <Button 
-                    onClick={handleImportFromGithub} 
-                    disabled={importingGithub || !githubUrl.trim() || !newProjectName.trim()}
-                  >
-                    {importingGithub ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Importando...
-                      </>
-                    ) : (
-                      <>
-                        <Github className="h-4 w-4 mr-2" />
-                        Importar Projeto
-                      </>
-                    )}
-                  </Button>
-                </DialogFooter>
               </TabsContent>
             </Tabs>
+            </div>
+
+            {/* Footer sticky: sempre visível */}
+            <DialogFooter className="flex-shrink-0 border-t pt-4 bg-white">
+              <Button
+                variant="outline"
+                onClick={resetFormAndClose}
+                disabled={creating || importingGithub}
+              >
+                Cancelar
+              </Button>
+
+              {createDialogTab === "manual" ? (
+                <Button onClick={handleCreateProject} disabled={creating || !newProjectName.trim()}>
+                  {creating ? 'Criando...' : 'Criar Projeto'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleImportFromGithub}
+                  disabled={importingGithub || !githubUrl.trim() || !newProjectName.trim()}
+                >
+                  {importingGithub ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Github className="h-4 w-4 mr-2" />
+                      Importar Projeto
+                    </>
+                  )}
+                </Button>
+              )}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

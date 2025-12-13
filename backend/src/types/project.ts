@@ -216,11 +216,25 @@ export interface ImportFromGithubRequest {
   token?: string
   name?: string
   description?: string
+  /**
+   * Se true, o backend pode usar IA para refinar a criação dos cards.
+   * Se false/undefined, a importação usa apenas heurísticas (sem gastar créditos de IA).
+   */
+  useAi?: boolean
 }
 
 export interface ImportFromGithubResponse {
   project: ProjectResponse
   cardsCreated: number
   filesProcessed: number
+  /**
+   * Indica se o backend realmente usou IA para gerar/refinar pelo menos um card.
+   * (Se false, foi heurística/fallback — sem custo de IA.)
+   */
+  aiUsed?: boolean
+  /**
+   * Quantidade de cards gerados via IA (pode ser 0 se fallback/heurística).
+   */
+  aiCardsCreated?: number
 }
 

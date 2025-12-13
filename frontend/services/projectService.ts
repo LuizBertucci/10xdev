@@ -77,12 +77,19 @@ interface ImportFromGithubData {
   token?: string
   name?: string
   description?: string
+  /**
+   * Se true, solicita ao backend usar IA (se configurada) para refinar a criação dos cards.
+   * Se false/undefined, importa com heurística (sem gastar créditos de IA).
+   */
+  useAi?: boolean
 }
 
 interface ImportFromGithubResponse {
   project: Project
   cardsCreated: number
   filesProcessed: number
+  aiUsed?: boolean
+  aiCardsCreated?: number
 }
 
 interface UpdateProjectData {
