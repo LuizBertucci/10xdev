@@ -49,6 +49,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
   const [importJob, setImportJob] = useState<any | null>(null)
   const lastJobStatusRef = useRef<string | null>(null)
+  const [projectImportJobId, setProjectImportJobId] = useState<string | null>(null)
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<any[]>([])
@@ -80,11 +81,42 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }, [projectId])
 
+  // Se não veio jobId na URL, tenta descobrir se existe importação "running" para este projeto
+  useEffect(() => {
+    if (!supabase || !projectId) return
+    if (jobId) {
+      setProjectImportJobId(jobId)
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      try {
+        const { data } = await supabase
+          .from('import_jobs')
+          .select('id')
+          .eq('project_id', projectId)
+          .eq('status', 'running')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+        const id = Array.isArray(data) && data.length > 0 ? (data[0] as any).id : null
+        if (mounted) setProjectImportJobId(id)
+      } catch {
+        // ignore
+      }
+    }
+    run()
+    return () => {
+      mounted = false
+    }
+  }, [supabase, projectId, jobId])
+
   // ===========================
   // REALTIME: import_jobs (progresso da importação)
   // ===========================
   useEffect(() => {
-    if (!supabase || !jobId) return
+    const activeJobId = jobId || projectImportJobId
+    if (!supabase || !activeJobId) return
 
     let isMounted = true
 
@@ -93,7 +125,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         const { data } = await supabase
           .from('import_jobs')
           .select('*')
-          .eq('id', jobId)
+          .eq('id', activeJobId)
           .single()
         if (isMounted && data) setImportJob(data)
       } catch {
@@ -104,10 +136,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     fetchInitial()
 
     const channel = supabase
-      .channel(`import_job:${jobId}`)
+      .channel(`import_job:${activeJobId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'import_jobs', filter: `id=eq.${jobId}` },
+        { event: '*', schema: 'public', table: 'import_jobs', filter: `id=eq.${activeJobId}` },
         (payload) => {
           const row: any = (payload as any).new || null
           if (!row) return
@@ -130,7 +162,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       isMounted = false
       supabase.removeChannel(channel)
     }
-  }, [supabase, jobId])
+  }, [supabase, jobId, projectImportJobId])
 
   // ===========================
   // REALTIME: project_cards (cards aparecendo conforme são associados)
@@ -196,7 +228,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   }, [supabase, projectId])
 
   const importUi = useMemo(() => {
-    if (!jobId) return null
+    const activeJobId = jobId || projectImportJobId
+    if (!activeJobId) return null
     const step = (importJob?.step as string | undefined) || 'starting'
     const progress = Math.max(0, Math.min(100, Number(importJob?.progress ?? 0)))
     const status = (importJob?.status as string | undefined) || 'running'
@@ -216,7 +249,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       'Processando…'
 
     return { step, progress, status, message }
-  }, [jobId, importJob])
+  }, [jobId, projectImportJobId, importJob])
 
   const ProgressRing = ({ value }: { value: number }) => {
     const size = 56
@@ -393,6 +426,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
   const handleDeleteProject = async () => {
     if (!projectId) return
+
+    // Não permitir exclusão enquanto estiver importando
+    if (importUi && importUi.status !== 'done') {
+      toast.error('Aguarde a importação terminar para excluir este projeto.')
+      return
+    }
     
     if (!confirm('Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita.')) {
       return
@@ -557,10 +596,20 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           <>
             {/* Desktop */}
             <div className="hidden sm:block">
-              <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Deletar Projeto
-              </Button>
+              {importUi && importUi.status !== 'done' ? (
+                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                  <ProgressRing value={importUi.progress} />
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold text-blue-900">Importando…</p>
+                    <p className="text-xs text-blue-700">{importUi.progress}%</p>
+                  </div>
+                </div>
+              ) : (
+                <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Deletar Projeto
+                </Button>
+              )}
             </div>
             {/* Mobile - Menu Dropdown */}
             <div className="sm:hidden absolute top-2 right-2">
@@ -571,10 +620,20 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDeleteProject} className="text-red-600">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Deletar Projeto
-                  </DropdownMenuItem>
+                  {importUi && importUi.status !== 'done' ? (
+                    <DropdownMenuItem
+                      onClick={(e) => e.preventDefault()}
+                      className="text-blue-700 opacity-80 cursor-not-allowed"
+                    >
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importando… ({importUi.progress}%)
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={handleDeleteProject} className="text-red-600">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Deletar Projeto
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

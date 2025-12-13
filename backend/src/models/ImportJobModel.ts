@@ -100,6 +100,18 @@ export class ImportJobModel {
       supabaseAdmin.from('import_jobs').update(clean).eq('id', id)
     )
   }
+
+  static async hasRunningForProject(projectId: string): Promise<boolean> {
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('import_jobs')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('status', 'running')
+        .limit(1)
+    )
+    return Array.isArray(data) && data.length > 0
+  }
 }
 
 

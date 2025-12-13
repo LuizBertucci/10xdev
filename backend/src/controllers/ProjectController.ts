@@ -569,6 +569,16 @@ export class ProjectController {
         return
       }
 
+      // Bloquear exclusão durante importação em andamento
+      const importing = await ImportJobModel.hasRunningForProject(id)
+      if (importing) {
+        res.status(409).json({
+          success: false,
+          error: 'Este projeto está sendo importado. Aguarde a importação terminar para poder excluir.'
+        })
+        return
+      }
+
       // Se deleteCards=true, deletar os card_features associados
       let cardsDeleted = 0
       if (deleteCards) {
