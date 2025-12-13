@@ -58,6 +58,7 @@ interface CreateProjectData {
   name: string
   description?: string
   repositoryUrl?: string
+  addMemberEmail?: string
 }
 
 interface GithubRepoInfo {
@@ -82,14 +83,12 @@ interface ImportFromGithubData {
    * Se false/undefined, importa com heurística (sem gastar créditos de IA).
    */
   useAi?: boolean
+  addMemberEmail?: string
 }
 
 interface ImportFromGithubResponse {
   project: Project
-  cardsCreated: number
-  filesProcessed: number
-  aiUsed?: boolean
-  aiCardsCreated?: number
+  jobId: string
 }
 
 interface UpdateProjectData {

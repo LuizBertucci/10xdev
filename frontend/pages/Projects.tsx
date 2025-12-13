@@ -51,6 +51,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
   const [importStatus, setImportStatus] = useState("")
   const [useAiImport, setUseAiImport] = useState(false)
+  const [memberEmailToAdd, setMemberEmailToAdd] = useState("")
 
   // Delete dialog states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -189,32 +190,16 @@ export default function Projects({ platformState }: ProjectsProps) {
 
     try {
       setImportingGithub(true)
-      setImportStatus('Conectando ao GitHub...')
-      
-      // Simular progresso visual
-      const statusMessages = [
-        'Baixando repositório...',
-        'Extraindo arquivos...',
-        'Processando código...',
-        'Criando cards...',
-        'Finalizando...'
-      ]
-      
-      let messageIndex = 0
-      const statusInterval = setInterval(() => {
-        messageIndex = (messageIndex + 1) % statusMessages.length
-        setImportStatus(statusMessages[messageIndex])
-      }, 2000)
-      
+      setImportStatus('Iniciando importação e criando o projeto…')
+
       const response = await projectService.importFromGithub({
         url: githubUrl,
         token: githubToken || undefined,
         name: newProjectName,
         description: newProjectDescription || undefined,
-        useAi: useAiImport
+        useAi: useAiImport,
+        addMemberEmail: memberEmailToAdd.trim() || undefined
       })
-
-      clearInterval(statusInterval)
 
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao importar o projeto.')
@@ -222,13 +207,21 @@ export default function Projects({ platformState }: ProjectsProps) {
       }
 
       if (response.success && response.data) {
-        const { cardsCreated, filesProcessed, aiUsed, aiCardsCreated } = response.data
-        setImportStatus('Concluído!')
-        toast.success(
-          `Projeto importado! ${cardsCreated} cards criados de ${filesProcessed} arquivos.${aiUsed ? ` (IA: ${aiCardsCreated || 0} cards)` : ' (Sem IA)' }`
-        )
+        const { project, jobId } = response.data
+        toast.success('Importação iniciada! Abrindo o projeto…')
+
+        // Navegar imediatamente para a tela do projeto (com jobId para progresso realtime)
+        if (platformState?.setActiveTab) {
+          const params = new URLSearchParams()
+          params.set('tab', 'projects')
+          params.set('id', project.id)
+          params.set('jobId', jobId)
+          router.push(`/?${params.toString()}`)
+        } else {
+          router.push(`/projects/${project.id}?jobId=${encodeURIComponent(jobId)}`)
+        }
+
         resetFormAndClose()
-        loadProjects()
       } else {
         let errorMessage = response.error || 'Erro ao importar projeto'
         if (errorMessage.includes('limite') || errorMessage.includes('rate')) {
@@ -262,7 +255,8 @@ export default function Projects({ platformState }: ProjectsProps) {
       setCreating(true)
       const response = await projectService.create({
         name: newProjectName,
-        description: newProjectDescription || undefined
+        description: newProjectDescription || undefined,
+        addMemberEmail: memberEmailToAdd.trim() || undefined
       })
 
       if (!response) {
@@ -293,6 +287,7 @@ export default function Projects({ platformState }: ProjectsProps) {
     setGithubToken("")
     setGithubRepoInfo(null)
     setUseAiImport(false)
+    setMemberEmailToAdd("")
   }
 
   const handleProjectClick = (projectId: string) => {
@@ -401,6 +396,19 @@ export default function Projects({ platformState }: ProjectsProps) {
                     rows={3}
                   />
                 </div>
+
+                <div>
+                  <Label htmlFor="member-email">Adicionar membro (email) — opcional</Label>
+                  <Input
+                    id="member-email"
+                    value={memberEmailToAdd}
+                    onChange={(e) => setMemberEmailToAdd(e.target.value)}
+                    placeholder="usuario@empresa.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Se o email existir no sistema, o usuário será adicionado ao projeto automaticamente.
+                  </p>
+                </div>
               </TabsContent>
 
               <TabsContent value="github" className="space-y-4">
@@ -471,6 +479,20 @@ export default function Projects({ platformState }: ProjectsProps) {
                     </div>
                   </div>
 
+                  <div>
+                    <Label htmlFor="member-email-github">Adicionar membro (email) — opcional</Label>
+                    <Input
+                      id="member-email-github"
+                      value={memberEmailToAdd}
+                      onChange={(e) => setMemberEmailToAdd(e.target.value)}
+                      placeholder="usuario@empresa.com"
+                      disabled={importingGithub}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Se o email existir no sistema, o usuário será adicionado ao projeto automaticamente.
+                    </p>
+                  </div>
+
                   {githubRepoInfo && (
                     <div className="rounded-md bg-green-50 p-4 border border-green-200">
                       <div className="flex items-center gap-2">
@@ -518,7 +540,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                       <div>
                         <p className="text-sm font-medium text-blue-800">{importStatus}</p>
                         <p className="text-xs text-blue-600 mt-1">
-                          Isso pode levar alguns minutos para repositórios grandes...
+                          Você será levado para a tela do projeto para acompanhar em tempo real.
                         </p>
                       </div>
                     </div>
