@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase"
 import {
   Dialog,
   DialogContent,
@@ -36,11 +37,24 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams?.get('id') || null
+  const jobId = searchParams?.get('jobId') || null
+
+  const supabase = useMemo(() => {
+    try {
+      return createClient()
+    } catch {
+      return null
+    }
+  }, [])
+
+  const [importJob, setImportJob] = useState<any | null>(null)
+  const lastJobStatusRef = useRef<string | null>(null)
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<any[]>([])
   const [cards, setCards] = useState<any[]>([])
   const [cardFeatures, setCardFeatures] = useState<CardFeature[]>([])
+  const cardFeaturesRef = useRef<Set<string>>(new Set())
   const [availableCards, setAvailableCards] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMembers, setLoadingMembers] = useState(false)
@@ -65,6 +79,176 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       loadCards()
     }
   }, [projectId])
+
+  // ===========================
+  // REALTIME: import_jobs (progresso da importação)
+  // ===========================
+  useEffect(() => {
+    if (!supabase || !jobId) return
+
+    let isMounted = true
+
+    const fetchInitial = async () => {
+      try {
+        const { data } = await supabase
+          .from('import_jobs')
+          .select('*')
+          .eq('id', jobId)
+          .single()
+        if (isMounted && data) setImportJob(data)
+      } catch {
+        // silencioso (job pode não existir/sem permissão)
+      }
+    }
+
+    fetchInitial()
+
+    const channel = supabase
+      .channel(`import_job:${jobId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'import_jobs', filter: `id=eq.${jobId}` },
+        (payload) => {
+          const row: any = (payload as any).new || null
+          if (!row) return
+          setImportJob(row)
+
+          const status = row.status as string | undefined
+          if (status && status !== lastJobStatusRef.current) {
+            lastJobStatusRef.current = status
+            if (status === 'done') {
+              toast.success('Importação concluída! Cards atualizados em tempo real.')
+            } else if (status === 'error') {
+              toast.error(row.error || row.message || 'Erro na importação.')
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, jobId])
+
+  // ===========================
+  // REALTIME: project_cards (cards aparecendo conforme são associados)
+  // ===========================
+  useEffect(() => {
+    if (!supabase || !projectId) return
+
+    const channel = supabase
+      .channel(`project_cards:${projectId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'project_cards', filter: `project_id=eq.${projectId}` },
+        async (payload) => {
+          const ev = payload.eventType
+          const row: any = (payload as any).new || null
+          if (!row) return
+
+          const projectCard = {
+            id: row.id,
+            projectId: row.project_id,
+            cardFeatureId: row.card_feature_id,
+            addedBy: row.added_by,
+            createdAt: row.created_at,
+            order: row.order
+          }
+
+          // Upsert do projectCard (para refletir order e aparecer na lista)
+          setCards((prev) => {
+            const idx = prev.findIndex((c: any) => c.id === projectCard.id)
+            if (idx >= 0) {
+              const next = [...prev]
+              next[idx] = { ...prev[idx], ...projectCard }
+              return next
+            }
+            return [...prev, projectCard]
+          })
+
+          // Em INSERT/UPDATE, garantir que o cardFeature esteja carregado
+          if (ev === 'INSERT' || ev === 'UPDATE') {
+            const alreadyHas = cardFeaturesRef.current.has(projectCard.cardFeatureId)
+            if (!alreadyHas) {
+              try {
+                const resp = await cardFeatureService.getById(projectCard.cardFeatureId)
+                if (resp?.success && resp.data) {
+                  setCardFeatures((prev) => {
+                    if (prev.some((f) => f.id === resp.data!.id)) return prev
+                    return [...prev, resp.data!]
+                  })
+                  cardFeaturesRef.current.add(projectCard.cardFeatureId)
+                }
+              } catch {
+                // silencioso
+              }
+            }
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, projectId])
+
+  const importUi = useMemo(() => {
+    if (!jobId) return null
+    const step = (importJob?.step as string | undefined) || 'starting'
+    const progress = Math.max(0, Math.min(100, Number(importJob?.progress ?? 0)))
+    const status = (importJob?.status as string | undefined) || 'running'
+    const message =
+      (importJob?.message as string | undefined) ||
+      ({
+        starting: 'Iniciando importação…',
+        downloading_zip: 'Baixando o repositório…',
+        extracting_files: 'Extraindo arquivos…',
+        analyzing_repo: 'Analisando o projeto…',
+        generating_cards: 'Organizando cards…',
+        creating_cards: 'Criando cards…',
+        linking_cards: 'Associando cards ao projeto…',
+        done: 'Importação concluída.',
+        error: 'Erro na importação.'
+      } as any)[step] ||
+      'Processando…'
+
+    return { step, progress, status, message }
+  }, [jobId, importJob])
+
+  const ProgressRing = ({ value }: { value: number }) => {
+    const size = 56
+    const stroke = 6
+    const r = (size - stroke) / 2
+    const c = 2 * Math.PI * r
+    const pct = Math.max(0, Math.min(100, value))
+    const dash = (pct / 100) * c
+    return (
+      <svg width={size} height={size} className="shrink-0">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="#E5E7EB"
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke="#2563EB"
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c - dash}`}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+    )
+  }
 
   const loadProject = async () => {
     if (!projectId) return
@@ -126,7 +310,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         })
         
         const features = await Promise.all(cardFeaturePromises)
-        setCardFeatures(features.filter((f): f is CardFeature => f !== null))
+        const cleaned = features.filter((f): f is CardFeature => f !== null)
+        setCardFeatures(cleaned)
+        cardFeaturesRef.current = new Set(cleaned.map((f) => f.id))
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao carregar cards')
@@ -395,6 +581,31 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           </>
         )}
       </div>
+
+      {/* Progresso da importação (Realtime) */}
+      {importUi && importUi.status !== 'done' && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className="flex items-start gap-3">
+            <ProgressRing value={importUi.progress} />
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-blue-900">Importando do GitHub</p>
+                <span className="text-xs font-medium text-blue-700">{importUi.progress}%</span>
+              </div>
+              <p className="text-sm text-blue-800 mt-1">{importUi.message}</p>
+              <div className="text-xs text-blue-700 mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                <span>Arquivos: {importJob?.files_processed ?? 0}</span>
+                <span>Cards: {importJob?.cards_created ?? 0}</span>
+                {importJob?.ai_requested ? (
+                  <span>IA: {importJob?.ai_used ? 'usada' : 'pendente/indisponível'}</span>
+                ) : (
+                  <span>IA: desativada</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="cards" className="space-y-4">
