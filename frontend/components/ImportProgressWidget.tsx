@@ -198,6 +198,10 @@ export default function ImportProgressWidget(props: {
 
   const ui = useMemo(() => {
     if (!active?.jobId) return null
+    // Não mostrar widget se ainda não carregamos o job (evita “importação fantasma”).
+    if (!job) return null
+    // Só exibir enquanto estiver realmente importando.
+    if (job.status !== "running") return null
     const progress = Math.max(0, Math.min(100, Number(job?.progress ?? 0)))
     const step = job?.step || "starting"
     const status = job?.status || "running"

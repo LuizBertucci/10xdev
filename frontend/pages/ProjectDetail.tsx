@@ -232,6 +232,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const importUi = useMemo(() => {
     const activeJobId = jobId || projectImportJobId
     if (!activeJobId) return null
+    // Só mostrar UI de importação se o job existe e está realmente rodando.
+    if (!importJob) return null
+    if (importJob?.status && importJob.status !== 'running') return null
     const step = (importJob?.step as string | undefined) || 'starting'
     const progress = Math.max(0, Math.min(100, Number(importJob?.progress ?? 0)))
     const status = (importJob?.status as string | undefined) || 'running'
