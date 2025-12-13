@@ -14,6 +14,7 @@ import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
 import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
+import ImportProgressWidget from "@/components/ImportProgressWidget"
 
 export default function DevPlatform() {
   const platformState = usePlatform()
@@ -21,6 +22,7 @@ export default function DevPlatform() {
   const activeTab = platformState.activeTab
   const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
+  const jobId = activeTab === "projects" ? searchParams?.get('jobId') || null : null
 
   return (
     <ProtectedRoute>
@@ -44,6 +46,9 @@ export default function DevPlatform() {
             </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
+              {/* Widget global de importação (continua mesmo saindo do projeto) */}
+              <ImportProgressWidget hideIfJobId={jobId} />
+
               {/* Home Tab */}
               {platformState.activeTab === "home" && <Home platformState={platformState} />}
 

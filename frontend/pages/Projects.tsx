@@ -210,6 +210,16 @@ export default function Projects({ platformState }: ProjectsProps) {
         const { project, jobId } = response.data
         toast.success('Importação iniciada! Abrindo o projeto…')
 
+        // Persistir jobId para continuar mostrando progresso mesmo se o usuário sair do projeto
+        try {
+          localStorage.setItem(
+            'activeImportJob',
+            JSON.stringify({ jobId, projectId: project.id, createdAt: new Date().toISOString() })
+          )
+        } catch {
+          // ignore
+        }
+
         // Navegar imediatamente para a tela do projeto (com jobId para progresso realtime)
         if (platformState?.setActiveTab) {
           const params = new URLSearchParams()
