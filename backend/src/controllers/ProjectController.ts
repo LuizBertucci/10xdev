@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { GithubService } from '@/services/githubService'
+import { ImportJobModel, type ImportJobStep } from '@/models/ImportJobModel'
+import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
@@ -66,7 +68,7 @@ export class ProjectController {
         return
       }
 
-      const { url, token, name, description, useAi }: ImportFromGithubRequest = req.body
+      const { url, token, name, description, useAi, addMemberEmail }: ImportFromGithubRequest = req.body
       const userId = req.user.id
 
       if (!url) {
@@ -87,33 +89,7 @@ export class ProjectController {
         projectDescription = projectDescription || repoInfo.description || undefined
       }
 
-      // 2. Process repository to cards
-      const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-        url,
-        token,
-        useAi === true ? { useAi: true } : undefined
-      )
-
-      if (cards.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Nenhum arquivo de código encontrado para importar'
-        })
-        return
-      }
-
-      // 3. Create card features in bulk
-      const cardFeatureResult = await CardFeatureModel.bulkCreate(cards)
-      
-      if (!cardFeatureResult.success || !cardFeatureResult.data) {
-        res.status(500).json({
-          success: false,
-          error: 'Erro ao criar cards do projeto'
-        })
-        return
-      }
-
-      // 4. Create the project
+      // 2. Create the project primeiro (para navegar imediatamente)
       const cleanUrl = url.replace(/\.git$/, '').split('?')[0]
       const projectData: CreateProjectRequest = {
         name: projectName
@@ -134,29 +110,127 @@ export class ProjectController {
         return
       }
 
-      // 5. Associate cards to project
-      let cardsAdded = 0
-      for (const cardFeature of cardFeatureResult.data) {
-        const addResult = await ProjectModel.addCard(
-          projectResult.data.id, 
-          cardFeature.id, 
-          userId
-        )
-        if (addResult.success) {
-          cardsAdded++
-        }
+      const projectId = projectResult.data.id
+
+      // 3. Opcional: adicionar membro por email
+      if (addMemberEmail && addMemberEmail.trim()) {
+        await this.tryAddMemberByEmail(projectId, addMemberEmail.trim(), userId)
       }
 
-      res.status(201).json({
+      // 4. Criar job e responder imediatamente
+      const job = await ImportJobModel.create({
+        project_id: projectId,
+        created_by: userId,
+        status: 'running',
+        step: 'starting',
+        progress: 0,
+        message: 'Iniciando importação…',
+        ai_requested: useAi === true
+      })
+
+      res.status(202).json({
         success: true,
         data: {
           project: projectResult.data,
-          cardsCreated: cardsAdded,
-          filesProcessed,
-          aiUsed,
-          aiCardsCreated
+          jobId: job.id
         },
-        message: `Projeto importado com sucesso! ${cardsAdded} cards criados a partir de ${filesProcessed} arquivos.`
+        message: 'Importação iniciada. Abrindo o projeto…'
+      })
+
+      // 5. Processar em background e atualizar progress em tempo real
+      setImmediate(async () => {
+        const updateJob = async (patch: {
+          step?: ImportJobStep
+          progress?: number
+          message?: string
+          filesProcessed?: number
+          cardsCreated?: number
+          aiUsed?: boolean
+          aiCardsCreated?: number
+          status?: 'running' | 'done' | 'error'
+          error?: string
+        }) => {
+          await ImportJobModel.update(job.id, {
+            step: patch.step,
+            progress: patch.progress,
+            message: patch.message ?? null,
+            files_processed: patch.filesProcessed,
+            cards_created: patch.cardsCreated,
+            ai_used: patch.aiUsed,
+            ai_cards_created: patch.aiCardsCreated,
+            status: patch.status,
+            error: patch.error ?? null
+          })
+        }
+
+        try {
+          await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório do GitHub…' })
+
+          const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
+            url,
+            token,
+            useAi === true ? { useAi: true } : undefined
+          )
+
+          if (cards.length === 0) {
+            await updateJob({ status: 'error', step: 'error', progress: 100, message: 'Nenhum arquivo de código encontrado.', error: 'Nenhum arquivo de código encontrado.' })
+            return
+          }
+
+          await updateJob({
+            step: 'generating_cards',
+            progress: 60,
+            message: aiUsed ? 'Organizando funcionalidades com IA…' : 'Organizando funcionalidades…',
+            filesProcessed,
+            aiUsed,
+            aiCardsCreated,
+            cardsCreated: 0
+          })
+
+          const total = cards.length
+          let created = 0
+          const batchSize = 20
+
+          await updateJob({ step: 'creating_cards', progress: 70, message: `Criando cards… (0/${total})`, cardsCreated: 0 })
+
+          for (let i = 0; i < cards.length; i += batchSize) {
+            const slice = cards.slice(i, i + batchSize)
+            const resCards = await CardFeatureModel.bulkCreate(slice)
+            if (!resCards.success || !resCards.data) {
+              throw new Error(resCards.error || 'Erro ao criar cards')
+            }
+
+            const ids = resCards.data.map((c) => c.id)
+            const assoc = await ProjectModel.addCardsBulk(projectId, ids, userId)
+            if (!assoc.success) {
+              throw new Error(assoc.error || 'Erro ao associar cards ao projeto')
+            }
+
+            created += ids.length
+
+            const pct = 70 + Math.min(25, Math.floor((created / total) * 25))
+            await updateJob({
+              step: 'creating_cards',
+              progress: pct,
+              message: `Criando cards… (${created}/${total})`,
+              cardsCreated: created,
+              filesProcessed
+            })
+          }
+
+          await updateJob({ step: 'linking_cards', progress: 98, message: 'Finalizando e vinculando tudo…', cardsCreated: created, filesProcessed })
+          await updateJob({ status: 'done', step: 'done', progress: 100, message: 'Importação concluída.', cardsCreated: created, filesProcessed })
+        } catch (e: any) {
+          const msg = e?.message || 'Erro ao importar projeto'
+          console.error('[Import Job] erro:', msg)
+          await ImportJobModel.update(job.id, {
+            status: 'error',
+            step: 'error',
+            progress: 100,
+            message: 'Falha ao importar. Veja o erro abaixo.',
+            error: msg
+          })
+        }
       })
     } catch (error: any) {
       console.error('Erro ao importar do GitHub:', error)
@@ -219,6 +293,11 @@ export class ProjectController {
         return
       }
 
+      // Opcional: adicionar membro por email
+      if (result.data?.id && data.addMemberEmail && data.addMemberEmail.trim()) {
+        await this.tryAddMemberByEmail(result.data.id, data.addMemberEmail.trim(), userId)
+      }
+
       res.status(201).json({
         success: true,
         data: result.data,
@@ -230,6 +309,30 @@ export class ProjectController {
         success: false,
         error: 'Erro interno do servidor'
       })
+    }
+  }
+
+  private static async tryAddMemberByEmail(projectId: string, email: string, requesterId: string): Promise<void> {
+    const normalized = email.toLowerCase().trim()
+    if (!normalized) return
+
+    // Buscar usuário na tabela public.users
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('users')
+        .select('id, email')
+        .eq('email', normalized)
+        .maybeSingle()
+    )
+
+    const userIdToAdd = data?.id as string | undefined
+    if (!userIdToAdd) return
+    if (userIdToAdd === requesterId) return
+
+    // Tentar adicionar como MEMBER (se já for membro, ignora)
+    const res = await ProjectModel.addMember(projectId, { userId: userIdToAdd }, requesterId)
+    if (!res.success && res.statusCode !== 409) {
+      console.warn('[AddMemberEmail] falhou:', res.error)
     }
   }
 

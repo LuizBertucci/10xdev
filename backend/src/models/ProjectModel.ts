@@ -739,6 +739,70 @@ export class ProjectModel {
     }
   }
 
+  /**
+   * Adiciona múltiplos cards ao projeto em um único insert (com order sequencial).
+   * Útil para importações, permitindo que os cards apareçam em "lotes" via Realtime.
+   */
+  static async addCardsBulk(
+    projectId: string,
+    cardFeatureIds: string[],
+    userId: string
+  ): Promise<ModelResult<{ added: number }>> {
+    try {
+      if (cardFeatureIds.length === 0) {
+        return { success: true, data: { added: 0 }, statusCode: 200 }
+      }
+
+      // Verificar se o usuário é membro do projeto
+      const role = await this.getUserRole(projectId, userId)
+      if (!role) {
+        return {
+          success: false,
+          error: 'Você não é membro deste projeto',
+          statusCode: 403
+        }
+      }
+
+      // Buscar o maior order atual
+      const { data: existingCards } = await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .select('order')
+          .eq('project_id', projectId)
+          .order('order', { ascending: false, nullsFirst: false })
+          .limit(1)
+      )
+
+      const maxOrder = existingCards && existingCards.length > 0 && existingCards[0].order !== null
+        ? existingCards[0].order
+        : -1
+
+      const now = new Date().toISOString()
+      const rows: ProjectCardInsert[] = cardFeatureIds.map((id, idx) => ({
+        id: randomUUID(),
+        project_id: projectId,
+        card_feature_id: id,
+        added_by: userId,
+        created_at: now,
+        order: maxOrder + 1 + idx
+      }))
+
+      await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .insert(rows)
+      )
+
+      return { success: true, data: { added: cardFeatureIds.length }, statusCode: 201 }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
   static async removeCard(projectId: string, cardFeatureId: string, userId: string): Promise<ModelResult<null>> {
     try {
       // Verificar se o usuário é membro do projeto

@@ -396,6 +396,26 @@ export class CardFeatureModel {
     }
   }
 
+  static async bulkCreateBatched(
+    items: CreateCardFeatureRequest[],
+    batchSize: number = 25
+  ): Promise<ModelListResult<CardFeatureResponse>> {
+    try {
+      const all: CardFeatureResponse[] = []
+      for (let i = 0; i < items.length; i += batchSize) {
+        const slice = items.slice(i, i + batchSize)
+        const res = await this.bulkCreate(slice)
+        if (!res.success || !res.data) {
+          return { success: false, error: res.error || 'Erro ao criar cards', statusCode: res.statusCode || 500 }
+        }
+        all.push(...res.data)
+      }
+      return { success: true, data: all, count: all.length, statusCode: 201 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro interno do servidor', statusCode: error.statusCode || 500 }
+    }
+  }
+
   static async bulkDelete(ids: string[]): Promise<ModelResult<{ deletedCount: number }>> {
     try {
       const { count } = await executeQuery(

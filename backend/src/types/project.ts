@@ -83,6 +83,10 @@ export interface CreateProjectRequest {
   name: string
   description?: string
   repositoryUrl?: string
+  /**
+   * Opcional: adicionar um usuário ao projeto (por email) já na criação.
+   */
+  addMemberEmail?: string
 }
 
 export interface UpdateProjectRequest {
@@ -221,20 +225,14 @@ export interface ImportFromGithubRequest {
    * Se false/undefined, a importação usa apenas heurísticas (sem gastar créditos de IA).
    */
   useAi?: boolean
+  /**
+   * Opcional: adicionar um usuário ao projeto (por email) logo após criar o projeto.
+   */
+  addMemberEmail?: string
 }
 
 export interface ImportFromGithubResponse {
   project: ProjectResponse
-  cardsCreated: number
-  filesProcessed: number
-  /**
-   * Indica se o backend realmente usou IA para gerar/refinar pelo menos um card.
-   * (Se false, foi heurística/fallback — sem custo de IA.)
-   */
-  aiUsed?: boolean
-  /**
-   * Quantidade de cards gerados via IA (pode ser 0 se fallback/heurística).
-   */
-  aiCardsCreated?: number
+  jobId: string
 }
 
