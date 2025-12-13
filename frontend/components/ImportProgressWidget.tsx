@@ -39,6 +39,16 @@ function safeParse(json: string | null): ActiveImportRef | null {
   }
 }
 
+function clearActiveImport(setActive: (v: ActiveImportRef | null) => void, setJob: (v: ImportJob | null) => void) {
+  setActive(null)
+  setJob(null)
+  try {
+    localStorage.removeItem(LS_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 function defaultMessage(step: string): string {
   const map: Record<string, string> = {
     starting: "Iniciando importação…",
@@ -135,11 +145,18 @@ export default function ImportProgressWidget(props: {
     let mounted = true
 
     const fetchInitial = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("import_jobs")
         .select("*")
         .eq("id", active.jobId)
-        .single()
+        .maybeSingle()
+
+      // Se o job não existe mais (ex.: projeto deletado -> cascade), limpamos o widget.
+      if (mounted && !error && !data) {
+        clearActiveImport(setActive, setJob)
+        return
+      }
+
       if (mounted && data) setJob(data as ImportJob)
     }
 
@@ -151,6 +168,12 @@ export default function ImportProgressWidget(props: {
         "postgres_changes",
         { event: "*", schema: "public", table: "import_jobs", filter: `id=eq.${active.jobId}` },
         (payload) => {
+          const eventType = (payload as any).eventType as string | undefined
+          if (eventType === "DELETE") {
+            clearActiveImport(setActive, setJob)
+            return
+          }
+
           const row: any = (payload as any).new || null
           if (!row) return
           setJob(row as ImportJob)
@@ -195,13 +218,7 @@ export default function ImportProgressWidget(props: {
   }
 
   const handleClose = () => {
-    setActive(null)
-    setJob(null)
-    try {
-      localStorage.removeItem(LS_KEY)
-    } catch {
-      // ignore
-    }
+    clearActiveImport(setActive, setJob)
   }
 
   return (

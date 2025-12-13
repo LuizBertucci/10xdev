@@ -126,7 +126,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           .from('import_jobs')
           .select('*')
           .eq('id', activeJobId)
-          .single()
+          .maybeSingle()
+        // Se não existe mais (ex.: projeto deletado), limpamos o estado para não travar em 0%.
+        if (isMounted && !data) setImportJob(null)
         if (isMounted && data) setImportJob(data)
       } catch {
         // silencioso (job pode não existir/sem permissão)

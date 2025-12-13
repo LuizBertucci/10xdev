@@ -46,12 +46,27 @@ drop policy if exists "Members can view import jobs" on public.import_jobs;
 create policy "Members can view import jobs" on public.import_jobs
 for select
 using (
-  exists (
-    select 1 from public.project_members pm
-    where pm.project_id = import_jobs.project_id
-      and pm.user_id = auth.uid()
-  )
+  created_by = auth.uid()
+  or public.is_project_member(import_jobs.project_id, auth.uid())
 );
+
+-- Avoid Supabase REST 500 due to potential RLS recursion when policies query project_members.
+create or replace function public.is_project_member(p_project_id uuid, p_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists(
+    select 1
+    from public.project_members pm
+    where pm.project_id = p_project_id
+      and pm.user_id = p_user_id
+  );
+$$;
+
+grant execute on function public.is_project_member(uuid, uuid) to authenticated;
+grant execute on function public.is_project_member(uuid, uuid) to anon;
 
 drop policy if exists "Users can create import jobs" on public.import_jobs;
 create policy "Users can create import jobs" on public.import_jobs
