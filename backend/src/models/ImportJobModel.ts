@@ -1,69 +1,4 @@
 import { supabaseAdmin, executeQuery } from '@/database/supabase'
-
-export type ImportJobStep =
-  | 'starting'
-  | 'downloading_zip'
-  | 'extracting_files'
-  | 'analyzing_repo'
-  | 'generating_cards'
-  | 'creating_cards'
-  | 'linking_cards'
-  | 'done'
-  | 'error'
-
-export type ImportJobStatus = 'running' | 'done' | 'error'
-
-/**
- * Model simples (service-role) para criar/atualizar import_jobs.
- * Usa snake_case (colunas do Postgres) para facilitar no controller.
- */
-export class ImportJobModel {
-  static async create(input: {
-    project_id: string
-    created_by: string
-    status?: ImportJobStatus
-    step?: ImportJobStep
-    progress?: number
-    message?: string | null
-    ai_requested?: boolean
-  }): Promise<{ id: string }> {
-    const { data } = await executeQuery(
-      supabaseAdmin
-        .from('import_jobs')
-        .insert({
-          project_id: input.project_id,
-          created_by: input.created_by,
-          status: input.status || 'running',
-          step: input.step || 'starting',
-          progress: input.progress ?? 0,
-          message: input.message ?? null,
-          ai_requested: input.ai_requested ?? false
-        })
-        .select('id')
-        .single()
-    )
-
-    return { id: data.id as string }
-  }
-
-  static async update(jobId: string, patch: Record<string, any>): Promise<void> {
-    // Remove undefined para não colidir com exactOptionalPropertyTypes / updates parciais
-    const clean: Record<string, any> = {}
-    for (const [k, v] of Object.entries(patch)) {
-      if (v !== undefined) clean[k] = v
-    }
-    if (Object.keys(clean).length === 0) return
-
-    await executeQuery(
-      supabaseAdmin
-        .from('import_jobs')
-        .update(clean)
-        .eq('id', jobId)
-    )
-  }
-}
-
-import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 
 export type ImportJobStatus = 'running' | 'done' | 'error'
@@ -156,12 +91,13 @@ export class ImportJobModel {
   }
 
   static async update(id: string, patch: ImportJobUpdate): Promise<void> {
-    const update: ImportJobUpdate = {
-      ...patch,
-      updated_at: patch.updated_at || new Date().toISOString(),
+    // Remove undefined para não enviar colunas com undefined (exactOptionalPropertyTypes)
+    const clean: Record<string, any> = {}
+    for (const [k, v] of Object.entries({ ...patch, updated_at: patch.updated_at || new Date().toISOString() })) {
+      if (v !== undefined) clean[k] = v
     }
     await executeQuery(
-      supabaseAdmin.from('import_jobs').update(update).eq('id', id)
+      supabaseAdmin.from('import_jobs').update(clean).eq('id', id)
     )
   }
 }

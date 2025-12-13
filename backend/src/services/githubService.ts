@@ -585,17 +585,24 @@ export class GithubService {
   static async processRepoToCards(
     url: string, 
     token?: string,
-    options?: { useAi?: boolean }
+    options?: { 
+      useAi?: boolean
+      onProgress?: (update: { step: string; progress?: number; message?: string }) => void
+    }
   ): Promise<{ cards: CreateCardFeatureRequest[], filesProcessed: number, aiUsed: boolean, aiCardsCreated: number }> {
     console.log(`[GitHub] ========================================`)
     console.log(`[GitHub] Importando via ZIP: ${url}`)
     console.log(`[GitHub] ========================================`)
     
     // 1. Baixar ZIP do repositório (1 única requisição!)
+    options?.onProgress?.({ step: 'downloading_zip', progress: 10, message: 'Baixando o repositório do GitHub…' })
     const zipBuffer = await this.downloadRepoAsZip(url, token)
+    options?.onProgress?.({ step: 'downloading_zip', progress: 20, message: 'Download concluído. Preparando extração…' })
     
     // 2. Extrair arquivos do ZIP (local, sem requisições)
+    options?.onProgress?.({ step: 'extracting_files', progress: 25, message: 'Extraindo arquivos do repositório…' })
     const files = this.extractFilesFromZip(zipBuffer)
+    options?.onProgress?.({ step: 'extracting_files', progress: 35, message: `Arquivos extraídos (${files.length}). Analisando…` })
 
     if (files.length === 0) {
       throw new Error('Nenhum arquivo de código encontrado no repositório.')
@@ -614,18 +621,24 @@ export class GithubService {
     const tech = this.detectTech(files, packageJson)
     const mainLanguage = this.detectMainLanguage(files)
     console.log(`[GitHub] Tech: ${tech}, Linguagem: ${mainLanguage}`)
+    options?.onProgress?.({ step: 'analyzing_repo', progress: 45, message: `Tecnologia detectada: ${tech}. Mapeando funcionalidades…` })
 
     // 5. Agrupar arquivos POR FUNCIONALIDADE
     const featureGroups = this.groupFilesByFeature(files)
     console.log(`[GitHub] ${featureGroups.size} features/cards detectadas`)
+    options?.onProgress?.({ step: 'analyzing_repo', progress: 50, message: `Funcionalidades identificadas: ${featureGroups.size}. Gerando cards…` })
 
     // 6. Se habilitado, pedir para IA refinar (processa o repo "todo" por partes, por feature)
     const useAiRequested = options?.useAi === true
     const useAi = useAiRequested && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
     if (useAi) {
       console.log(`[GitHub][AI] IA habilitada por request (modo=${AiCardGroupingService.mode()}). Refinando cards por feature...`)
+      options?.onProgress?.({ step: 'generating_cards', progress: 55, message: 'Organizando funcionalidades com IA…' })
     } else if (useAiRequested) {
       console.log(`[GitHub][AI] IA solicitada, mas desabilitada/não configurada. Usando heurística (sem IA).`)
+      options?.onProgress?.({ step: 'generating_cards', progress: 55, message: 'IA solicitada, mas indisponível. Usando heurística…' })
+    } else {
+      options?.onProgress?.({ step: 'generating_cards', progress: 55, message: 'Organizando funcionalidades…' })
     }
 
     // 7. Criar cards organizados por funcionalidade (heurístico + opcional IA)
@@ -785,6 +798,7 @@ export class GithubService {
 
     // Ordena cards por número de screens (mais completos primeiro)
     cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
+    options?.onProgress?.({ step: 'generating_cards', progress: 70, message: `Cards gerados: ${cards.length}. Preparando criação no sistema…` })
 
     console.log(`[GitHub] ========================================`)
     console.log(`[GitHub] RESULTADO: ${cards.length} cards, ${filesProcessed} arquivos`)

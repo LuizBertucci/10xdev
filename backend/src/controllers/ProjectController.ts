@@ -150,17 +150,18 @@ export class ProjectController {
           status?: 'running' | 'done' | 'error'
           error?: string
         }) => {
-          await ImportJobModel.update(job.id, {
-            step: patch.step,
-            progress: patch.progress,
-            message: patch.message ?? null,
-            files_processed: patch.filesProcessed,
-            cards_created: patch.cardsCreated,
-            ai_used: patch.aiUsed,
-            ai_cards_created: patch.aiCardsCreated,
-            status: patch.status,
-            error: patch.error ?? null
-          })
+          const update: any = {}
+          if (patch.step !== undefined) update.step = patch.step
+          if (patch.progress !== undefined) update.progress = patch.progress
+          if (patch.message !== undefined) update.message = patch.message ?? null
+          if (patch.filesProcessed !== undefined) update.files_processed = patch.filesProcessed
+          if (patch.cardsCreated !== undefined) update.cards_created = patch.cardsCreated
+          if (patch.aiUsed !== undefined) update.ai_used = patch.aiUsed
+          if (patch.aiCardsCreated !== undefined) update.ai_cards_created = patch.aiCardsCreated
+          if (patch.status !== undefined) update.status = patch.status
+          if (patch.error !== undefined) update.error = patch.error ?? null
+
+          await ImportJobModel.update(job.id, update)
         }
 
         try {
@@ -169,7 +170,24 @@ export class ProjectController {
           const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
             url,
             token,
-            useAi === true ? { useAi: true } : undefined
+            useAi === true
+              ? {
+                  useAi: true,
+                  onProgress: async (p) => {
+                    const patch: any = { step: (p.step as ImportJobStep) || 'analyzing_repo' }
+                    if (p.progress !== undefined) patch.progress = p.progress
+                    if (p.message !== undefined) patch.message = p.message
+                    await updateJob(patch)
+                  }
+                }
+              : {
+                  onProgress: async (p) => {
+                    const patch: any = { step: (p.step as ImportJobStep) || 'analyzing_repo' }
+                    if (p.progress !== undefined) patch.progress = p.progress
+                    if (p.message !== undefined) patch.message = p.message
+                    await updateJob(patch)
+                  }
+                }
           )
 
           if (cards.length === 0) {
