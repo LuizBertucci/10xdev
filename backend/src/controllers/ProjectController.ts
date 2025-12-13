@@ -570,11 +570,13 @@ export class ProjectController {
       }
 
       // Bloquear exclusão durante importação em andamento
-      const importing = await ImportJobModel.hasRunningForProject(id)
-      if (importing) {
+      const runningJob = await ImportJobModel.getRunningForProject(id)
+      if (runningJob) {
+        const pct = Math.max(0, Math.min(100, Number(runningJob.progress ?? 0)))
+        const detail = runningJob.message ? ` (${runningJob.message})` : ''
         res.status(409).json({
           success: false,
-          error: 'Este projeto está sendo importado. Aguarde a importação terminar para poder excluir.'
+          error: `Importação em andamento (${pct}%). Aguarde finalizar para excluir este projeto${detail}.`
         })
         return
       }

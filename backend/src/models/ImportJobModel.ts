@@ -112,6 +112,27 @@ export class ImportJobModel {
     )
     return Array.isArray(data) && data.length > 0
   }
+
+  static async getRunningForProject(projectId: string): Promise<Pick<ImportJobRow, 'id' | 'progress' | 'step' | 'message'> | null> {
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('import_jobs')
+        .select('id, progress, step, message')
+        .eq('project_id', projectId)
+        .eq('status', 'running')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+    )
+
+    if (!Array.isArray(data) || data.length === 0) return null
+    const row: any = data[0]
+    return {
+      id: row.id,
+      progress: Number(row.progress ?? 0),
+      step: row.step as any,
+      message: (row.message ?? null) as any
+    }
+  }
 }
 
 

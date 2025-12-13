@@ -429,7 +429,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
     // Não permitir exclusão enquanto estiver importando
     if (importUi && importUi.status !== 'done') {
-      toast.error('Aguarde a importação terminar para excluir este projeto.')
+      toast.error(`Importação em andamento (${importUi.progress}%). Aguarde finalizar para excluir este projeto.`)
       return
     }
     
