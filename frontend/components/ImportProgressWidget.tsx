@@ -6,64 +6,14 @@ import { createClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { X, ExternalLink } from "lucide-react"
 import { ProgressRing } from "@/components/ui/ProgressRing"
-
-type ImportJob = {
-  id: string
-  project_id: string
-  status: "running" | "done" | "error"
-  step: string
-  progress: number
-  message: string | null
-  error: string | null
-  files_processed: number
-  cards_created: number
-  ai_requested: boolean
-  ai_used: boolean
-  ai_cards_created: number
-}
-
-type ActiveImportRef = {
-  jobId: string
-  projectId: string
-  projectName?: string
-  createdAt?: string
-}
-
-const LS_KEY = "activeImportJob"
-
-function safeParse(json: string | null): ActiveImportRef | null {
-  if (!json) return null
-  try {
-    return JSON.parse(json) as ActiveImportRef
-  } catch {
-    return null
-  }
-}
-
-function clearActiveImport(setActive: (v: ActiveImportRef | null) => void, setJob: (v: ImportJob | null) => void) {
-  setActive(null)
-  setJob(null)
-  try {
-    localStorage.removeItem(LS_KEY)
-  } catch {
-    // ignore
-  }
-}
-
-function defaultMessage(step: string): string {
-  const map: Record<string, string> = {
-    starting: "Iniciando importação…",
-    downloading_zip: "Baixando o repositório…",
-    extracting_files: "Extraindo arquivos…",
-    analyzing_repo: "Analisando o projeto…",
-    generating_cards: "Organizando cards…",
-    creating_cards: "Criando cards…",
-    linking_cards: "Associando cards ao projeto…",
-    done: "Importação concluída.",
-    error: "Erro na importação."
-  }
-  return map[step] || "Processando…"
-}
+import {
+  type ImportJob,
+  type ActiveImportRef,
+  IMPORT_JOB_LS_KEY,
+  safeParse,
+  clearActiveImport,
+  defaultMessage
+} from "@/lib/importJobUtils"
 
 
 export default function ImportProgressWidget(props: {
@@ -99,21 +49,26 @@ export default function ImportProgressWidget(props: {
     }
     setActive(next)
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(next))
+      localStorage.setItem(IMPORT_JOB_LS_KEY, JSON.stringify(next))
     } catch {
       // ignore
     }
   }, [urlJobId, urlProjectId])
 
-  // Restaura job ativo do localStorage.
+  // Restaura job ativo do localStorage - EXECUTA APENAS UMA VEZ
   useEffect(() => {
+    // Evita executar se já tem jobId da URL
+    if (urlJobId) return
+
     try {
-      const saved = safeParse(localStorage.getItem(LS_KEY))
-      if (saved?.jobId && saved?.projectId) setActive(saved)
+      const saved = safeParse(localStorage.getItem(IMPORT_JOB_LS_KEY))
+      if (saved?.jobId && saved?.projectId) {
+        setActive(saved)
+      }
     } catch {
       // ignore
     }
-  }, [])
+  }, []) // SEM urlJobId na dependência - executa só uma vez!
 
   // Realtime do job (continua mesmo fora do ProjectDetail).
   useEffect(() => {
@@ -185,6 +140,20 @@ export default function ImportProgressWidget(props: {
       supabase.removeChannel(channel)
     }
   }, [supabase, active?.jobId])
+
+  // Heartbeat: verifica periodicamente se job ainda existe (garante persist\u00eancia do widget)
+  useEffect(() => {
+    if (!active?.jobId || !job) return
+
+    const interval = setInterval(() => {
+      // Verifica se job ainda existe
+      if (!job || job.status !== 'running') {
+        clearInterval(interval)
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [active?.jobId, job])
 
   const ui = useMemo(() => {
     if (!active?.jobId) return null
