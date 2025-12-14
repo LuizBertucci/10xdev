@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { usePlatform } from "@/hooks/use-platform"
 import { ProgressRing } from "@/components/ui/ProgressRing"
+import { defaultMessage, type ImportJob } from "@/lib/importJobUtils"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
