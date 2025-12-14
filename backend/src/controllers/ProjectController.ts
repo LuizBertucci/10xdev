@@ -161,12 +161,15 @@ export class ProjectController {
           if (patch.status !== undefined) update.status = patch.status
           if (patch.error !== undefined) update.error = patch.error ?? null
 
+          console.log(`[Import Job ${job.id}] Atualizando: step=${patch.step}, progress=${patch.progress}%`)
           await ImportJobModel.update(job.id, update)
         }
 
         try {
+          console.log(`[Import Job ${job.id}] Iniciando processamento de ${url}`)
           await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório do GitHub…' })
 
+          console.log(`[Import Job ${job.id}] Chamando GithubService.processRepoToCards...`)
           const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
             url,
             token,
@@ -189,6 +192,8 @@ export class ProjectController {
                   }
                 }
           )
+
+          console.log(`[Import Job ${job.id}] processRepoToCards retornou ${cards.length} cards, ${filesProcessed} arquivos`)
 
           if (cards.length === 0) {
             await updateJob({ status: 'error', step: 'error', progress: 100, message: 'Nenhum arquivo de código encontrado.', error: 'Nenhum arquivo de código encontrado.' })
