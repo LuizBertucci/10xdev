@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, AlertTriangle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -21,9 +21,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { usePlatform } from "@/hooks/use-platform"
+import { ProgressRing } from "@/components/ui/ProgressRing"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -48,6 +50,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   }, [])
 
   const [importJob, setImportJob] = useState<any | null>(null)
+  const [isJobLoading, setIsJobLoading] = useState(false) // Indica se estamos carregando o job
   const lastJobStatusRef = useRef<string | null>(null)
   const [projectImportJobId, setProjectImportJobId] = useState<string | null>(null)
 
@@ -73,6 +76,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
 
+  // Delete dialog states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deleteCards, setDeleteCards] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   useEffect(() => {
     if (projectId) {
       loadProject()
@@ -86,10 +94,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!supabase || !projectId) return
     if (jobId) {
       setProjectImportJobId(jobId)
+      setIsJobLoading(true) // Marca que vamos carregar o job
       return
     }
 
     let mounted = true
+    setIsJobLoading(true)
     const run = async () => {
       try {
         const { data } = await supabase
@@ -100,9 +110,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           .order('updated_at', { ascending: false })
           .limit(1)
         const id = Array.isArray(data) && data.length > 0 ? (data[0] as any).id : null
-        if (mounted) setProjectImportJobId(id)
+        if (mounted) {
+          setProjectImportJobId(id)
+          if (!id) setIsJobLoading(false) // Não há job running
+        }
       } catch {
-        // ignore
+        if (mounted) setIsJobLoading(false)
       }
     }
     run()
@@ -128,10 +141,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           .eq('id', activeJobId)
           .maybeSingle()
         // Se não existe mais (ex.: projeto deletado), limpamos o estado para não travar em 0%.
-        if (isMounted && !data) setImportJob(null)
-        if (isMounted && data) setImportJob(data)
+        if (isMounted) {
+          setImportJob(data || null)
+          setIsJobLoading(false) // Job carregado (ou não existe)
+        }
       } catch {
         // silencioso (job pode não existir/sem permissão)
+        if (isMounted) setIsJobLoading(false)
       }
     }
 
@@ -231,6 +247,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
   const importUi = useMemo(() => {
     const activeJobId = jobId || projectImportJobId
+    
+    // Se ainda está carregando e existe um jobId (vindo da URL), mostra loading genérico
+    if (isJobLoading && activeJobId) {
+      return { step: 'starting', progress: 0, status: 'running', message: 'Carregando importação…' }
+    }
+    
     if (!activeJobId) return null
     // Só mostrar UI de importação se o job existe e está realmente rodando.
     if (!importJob) return null
@@ -254,39 +276,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       'Processando…'
 
     return { step, progress, status, message }
-  }, [jobId, projectImportJobId, importJob])
-
-  const ProgressRing = ({ value }: { value: number }) => {
-    const size = 56
-    const stroke = 6
-    const r = (size - stroke) / 2
-    const c = 2 * Math.PI * r
-    const pct = Math.max(0, Math.min(100, value))
-    const dash = (pct / 100) * c
-    return (
-      <svg width={size} height={size} className="shrink-0">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="#E5E7EB"
-          strokeWidth={stroke}
-          fill="none"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke="#2563EB"
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${dash} ${c - dash}`}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
-      </svg>
-    )
-  }
+  }, [jobId, projectImportJobId, importJob, isJobLoading])
 
   const loadProject = async () => {
     if (!projectId) return
@@ -429,26 +419,35 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }
 
-  const handleDeleteProject = async () => {
-    if (!projectId) return
-
+  const openDeleteDialog = () => {
     // Não permitir exclusão enquanto estiver importando
     if (importUi && importUi.status !== 'done') {
       toast.error(`Importação em andamento (${importUi.progress}%). Aguarde finalizar para excluir este projeto.`)
       return
     }
-    
-    if (!confirm('Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita.')) {
-      return
-    }
+    setDeleteCards(false)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!projectId) return
 
     try {
-      const response = await projectService.delete(projectId)
-      if (response?.success) {
-        toast.success('Projeto deletado com sucesso!')
+      setDeleting(true)
+      const response = await projectService.delete(projectId, deleteCards)
+      if (!response) {
+        toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
+        return
+      }
+      if (response.success) {
+        toast.success(deleteCards 
+          ? 'Projeto e cards deletados com sucesso!' 
+          : 'Projeto deletado com sucesso!')
+        setIsDeleteDialogOpen(false)
+        setDeleteCards(false)
         handleBack()
       } else {
-        toast.error(response?.error || 'Erro ao deletar projeto')
+        toast.error(response.error || 'Erro ao deletar projeto')
       }
     } catch (error: any) {
       console.error('Erro ao deletar projeto:', error)
@@ -459,6 +458,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         errorMessage = error.message
       }
       toast.error(errorMessage)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -601,16 +602,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           <>
             {/* Desktop */}
             <div className="hidden sm:block">
-              {importUi && importUi.status !== 'done' ? (
-                <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
-                  <ProgressRing value={importUi.progress} />
-                  <div className="leading-tight">
-                    <p className="text-sm font-semibold text-blue-900">Importando…</p>
-                    <p className="text-xs text-blue-700">{importUi.progress}%</p>
-                  </div>
-                </div>
-              ) : (
-                <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+              {importUi && importUi.status !== 'done' ? null : (
+                <Button variant="destructive" size="sm" onClick={openDeleteDialog}>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Deletar Projeto
                 </Button>
@@ -634,10 +627,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                       Importando… ({importUi.progress}%)
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={handleDeleteProject} className="text-red-600">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Deletar Projeto
-                    </DropdownMenuItem>
+                  <DropdownMenuItem onClick={openDeleteDialog} className="text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar Projeto
+                  </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -942,6 +935,81 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </Button>
             <Button onClick={handleAddMember} disabled={!selectedUser}>
               Adicionar Membro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Deletar Projeto
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar o projeto <strong>"{project?.name}"</strong>?
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+
+          {project && (cards.length > 0 || cardFeatures.length > 0) && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-amber-50 p-4 border border-amber-200">
+                <p className="text-sm text-amber-800">
+                  Este projeto possui <strong>{cards.length || cardFeatures.length} cards</strong> associados.
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="deleteCards" 
+                  checked={deleteCards}
+                  onCheckedChange={(checked) => setDeleteCards(checked === true)}
+                />
+                <label 
+                  htmlFor="deleteCards" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Deletar também os cards do projeto
+                </label>
+              </div>
+              
+              {deleteCards && (
+                <div className="rounded-md bg-red-50 p-3 border border-red-200">
+                  <p className="text-xs text-red-700">
+                    ⚠️ Os {cards.length || cardFeatures.length} cards serão permanentemente deletados e não poderão ser recuperados.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deletando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleteCards ? 'Deletar Projeto e Cards' : 'Deletar Projeto'}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
