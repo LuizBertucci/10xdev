@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { X, ExternalLink } from "lucide-react"
+import { ProgressRing } from "@/components/ui/ProgressRing"
 
 type ImportJob = {
   id: string
@@ -64,30 +65,6 @@ function defaultMessage(step: string): string {
   return map[step] || "Processando…"
 }
 
-function ProgressRing({ value }: { value: number }) {
-  const size = 44
-  const stroke = 6
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
-  const pct = Math.max(0, Math.min(100, value))
-  const dash = (pct / 100) * c
-  return (
-    <svg width={size} height={size} className="shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} stroke="#E5E7EB" strokeWidth={stroke} fill="none" />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke="#2563EB"
-        strokeWidth={stroke}
-        fill="none"
-        strokeLinecap="round"
-        strokeDasharray={`${dash} ${c - dash}`}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </svg>
-  )
-}
 
 export default function ImportProgressWidget(props: {
   /**
@@ -157,7 +134,18 @@ export default function ImportProgressWidget(props: {
         return
       }
 
-      if (mounted && data) setJob(data as ImportJob)
+      if (mounted && data) {
+        const jobData = data as ImportJob
+        setJob(jobData)
+        // Se o job terminou (done ou error), limpar após um delay para o usuário ver o resultado
+        if (jobData.status === "done" || jobData.status === "error") {
+          setTimeout(() => {
+            if (mounted) {
+              clearActiveImport(setActive, setJob)
+            }
+          }, 5000) // 5 segundos para o usuário ver o resultado
+        }
+      }
     }
 
     fetchInitial()
@@ -181,9 +169,11 @@ export default function ImportProgressWidget(props: {
           const status = row.status as string | undefined
           if (status && status !== lastStatusRef.current) {
             lastStatusRef.current = status
-            if (status === "done") {
-              // Mantém o widget visível para o usuário ver 100% e poder abrir o projeto.
-              // Não limpa automaticamente — o usuário pode fechar.
+            if (status === "done" || status === "error") {
+              // Limpar após 5 segundos para o usuário ver o resultado
+              setTimeout(() => {
+                clearActiveImport(setActive, setJob)
+              }, 5000)
             }
           }
         }
@@ -209,7 +199,9 @@ export default function ImportProgressWidget(props: {
     return { progress, step, status, message }
   }, [active?.jobId, job])
 
+  // Não mostrar se está na tela do projeto com o mesmo jobId
   const shouldHide = props.hideIfJobId && active?.jobId && props.hideIfJobId === active.jobId
+  // Não mostrar se não há UI válida ou se deve esconder
   if (!ui || shouldHide) return null
 
   const handleOpenProject = () => {
@@ -229,7 +221,7 @@ export default function ImportProgressWidget(props: {
     <div className="fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-xl border bg-white shadow-lg">
       <div className="p-3">
         <div className="flex items-start gap-3">
-          <ProgressRing value={ui.progress} />
+          <ProgressRing value={ui.progress} size={44} />
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
