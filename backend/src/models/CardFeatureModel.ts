@@ -17,7 +17,7 @@ export class CardFeatureModel {
   // ================================================
 
   private static transformToResponse(row: any): CardFeatureResponse {
-    // Extrair dados do usuário do JOIN
+    // Extrair dados do usuário
     const userData = row.users || null
 
     return {
@@ -41,14 +41,7 @@ export class CardFeatureModel {
     // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
     let query = supabaseAdmin
       .from('card_features')
-      .select(`
-        *,
-        users!created_by (
-          id,
-          name,
-          email
-        )
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
 
     // Filtro de visibilidade: mostrar públicos OU privados do próprio usuário
     if (userId) {
@@ -137,9 +130,22 @@ export class CardFeatureModel {
           .single()
       )
 
+      // Buscar dados do usuário criador
+      let userData = null
+      if (result.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', result.created_by)
+            .single()
+        )
+        userData = user
+      }
+
       return {
         success: true,
-        data: this.transformToResponse(result),
+        data: this.transformToResponse({ ...result, users: userData }),
         statusCode: 201
       }
     } catch (error: any) {
@@ -191,9 +197,22 @@ export class CardFeatureModel {
         }
       }
 
+      // Buscar dados do usuário criador
+      let userData = null
+      if (data.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', data.created_by)
+            .single()
+        )
+        userData = user
+      }
+
       return {
         success: true,
-        data: this.transformToResponse(data),
+        data: this.transformToResponse({ ...data, users: userData }),
         statusCode: 200
       }
     } catch (error: any) {
@@ -210,7 +229,34 @@ export class CardFeatureModel {
       const query = this.buildQuery(params, userId)
       const { data, count } = await executeQuery(query)
 
-      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
+      if (!data || data.length === 0) {
+        return {
+          success: true,
+          data: [],
+          count: 0,
+          statusCode: 200
+        }
+      }
+
+      // Buscar IDs únicos de criadores
+      const creatorIds = [...new Set(data.map((card: any) => card.created_by).filter(Boolean))]
+
+      // Buscar dados dos usuários
+      const { data: users } = await executeQuery(
+        supabaseAdmin
+          .from('users')
+          .select('id, name, email')
+          .in('id', creatorIds)
+      )
+
+      // Criar mapa de usuários por ID
+      const usersMap = new Map(users?.map((u: any) => [u.id, u]) || [])
+
+      // Transformar cards adicionando dados do autor
+      const transformedData = data?.map((row: any) => {
+        const userData = row.created_by ? usersMap.get(row.created_by) : null
+        return this.transformToResponse({ ...row, users: userData })
+      }) || []
 
       return {
         success: true,
@@ -290,9 +336,22 @@ export class CardFeatureModel {
           .single()
       )
 
+      // Buscar dados do usuário criador
+      let userData = null
+      if (result.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', result.created_by)
+            .single()
+        )
+        userData = user
+      }
+
       return {
         success: true,
-        data: this.transformToResponse(result),
+        data: this.transformToResponse({ ...result, users: userData }),
         statusCode: 200
       }
     } catch (error: any) {
