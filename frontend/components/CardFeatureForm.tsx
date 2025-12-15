@@ -19,6 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
+  is_private: false,
   screens: [
     {
       name: 'Main',
@@ -44,6 +45,7 @@ interface CardFeatureFormData {
   description: string
   content_type: ContentType
   card_type: CardType
+  is_private?: boolean
   screens: CreateScreenData[]
 }
 
@@ -133,6 +135,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
+        is_private: initialData.isPrivate ?? false,
         screens: initialData.screens
       }
     }
@@ -430,6 +433,27 @@ export default function CardFeatureForm({
                     <SelectItem value="css">CSS</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Visibilidade
+                </label>
+                <Select
+                  value={formData.is_private ? 'private' : 'public'}
+                  onValueChange={(value) => handleInputChange('is_private', value === 'private')}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Público</SelectItem>
+                    <SelectItem value="private">Privado</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cards privados são visíveis apenas para você
+                </p>
               </div>
             </div>
 
