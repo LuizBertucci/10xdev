@@ -20,13 +20,6 @@ export const featuredProjects = [
     description: "Sistema completo de e-commerce com carrinho, pagamentos e admin",
   },
   {
-    title: "Dashboard Analytics",
-    tech: ["Vue.js", "Chart.js", "Firebase"],
-    difficulty: "Intermediário",
-    stars: 890,
-    description: "Dashboard responsivo com gráficos e métricas em tempo real",
-  },
-  {
     title: "API REST com Auth",
     tech: ["Express", "JWT", "PostgreSQL"],
     difficulty: "Intermediário",
