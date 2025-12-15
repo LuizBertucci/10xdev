@@ -16,7 +16,10 @@ export class CardFeatureModel {
   // PRIVATE HELPERS
   // ================================================
 
-  private static transformToResponse(row: CardFeatureRow): CardFeatureResponse {
+  private static transformToResponse(row: any): CardFeatureResponse {
+    // Extrair dados do usuário do JOIN
+    const userData = row.users || null
+
     return {
       id: row.id,
       title: row.title,
@@ -27,6 +30,7 @@ export class CardFeatureModel {
       card_type: row.card_type,
       screens: row.screens,
       createdBy: row.created_by,
+      author: userData?.name || null,
       isPrivate: row.is_private ?? false,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -37,7 +41,14 @@ export class CardFeatureModel {
     // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
     let query = supabaseAdmin
       .from('card_features')
-      .select('*', { count: 'exact' })
+      .select(`
+        *,
+        users!created_by (
+          id,
+          name,
+          email
+        )
+      `, { count: 'exact' })
 
     // Filtro de visibilidade: mostrar públicos OU privados do próprio usuário
     if (userId) {

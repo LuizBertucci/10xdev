@@ -104,6 +104,7 @@ export interface CardFeatureResponse {
   card_type: CardType
   screens: CardFeatureScreen[]
   createdBy: string            // ID do usuário que criou (camelCase para API)
+  author?: string | null       // Nome do usuário criador (vem do JOIN com users)
   isPrivate: boolean           // Se o card é privado (camelCase para API)
   createdAt: string
   updatedAt: string
