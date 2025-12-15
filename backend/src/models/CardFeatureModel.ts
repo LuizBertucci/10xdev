@@ -42,10 +42,8 @@ export class CardFeatureModel {
     // Filtro de visibilidade: mostrar públicos OU privados do próprio usuário
     if (userId) {
       // Cards públicos OU cards privados do próprio usuário
-      // Usar sintaxe correta do Supabase: is_private.eq.false,or(is_private.eq.true,created_by.eq.userId)
-      query = query.or(`is_private.eq.false,created_by.eq.${userId}`)
-      // Nota: Isso mostra todos os públicos + todos os do usuário (incluindo privados)
-      // Para ser mais preciso, precisaríamos de uma query mais complexa ou usar RLS
+      // Sintaxe Supabase: (is_private=false) OR (is_private=true AND created_by=userId)
+      query = query.or(`is_private.eq.false,and(is_private.eq.true,created_by.eq.${userId})`)
     } else {
       // Não autenticado: apenas cards públicos
       query = query.eq('is_private', false)
