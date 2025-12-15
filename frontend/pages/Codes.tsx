@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, LayoutGrid, List, FileJson } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, LayoutGrid, List, FileJson, Globe, Lock, Eye } from "lucide-react"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeature from "@/components/CardFeature"
@@ -48,6 +48,7 @@ export default function Codes({ platformState }: CodesProps) {
   const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
+  const [selectedVisibility, setSelectedVisibility] = useState<string>('all')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
@@ -60,9 +61,21 @@ export default function Codes({ platformState }: CodesProps) {
   })
 
   // Dados filtrados vindos da API
-  const codeSnippets = cardFeatures.filteredItems.filter(item =>
-    selectedCardType === 'all' || item.card_type === selectedCardType
-  )
+  const codeSnippets = cardFeatures.filteredItems.filter(item => {
+    // Filtro por tipo de card
+    const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
+
+    // Filtro por visibilidade
+    let matchesVisibility = true
+    if (selectedVisibility === 'public') {
+      matchesVisibility = !item.isPrivate
+    } else if (selectedVisibility === 'private') {
+      matchesVisibility = item.isPrivate === true
+    }
+    // 'all' não filtra por visibilidade
+
+    return matchesCardType && matchesVisibility
+  })
 
   // ================================================
   // EVENT HANDLERS - Funções para lidar com ações do usuário
@@ -199,6 +212,33 @@ export default function Codes({ platformState }: CodesProps) {
               <SelectItem value="dicas">Dicas</SelectItem>
               <SelectItem value="codigos">Códigos</SelectItem>
               <SelectItem value="workflows">Workflows</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Visibility Filter */}
+          <Select
+            value={selectedVisibility}
+            onValueChange={setSelectedVisibility}
+            disabled={cardFeatures.loading}
+          >
+            <SelectTrigger className="w-28 sm:w-40">
+              <Eye className="h-4 w-4 mr-1 sm:mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="public">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-green-600" />
+                  <span>Públicos</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="private">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-orange-600" />
+                  <span>Privados</span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
 

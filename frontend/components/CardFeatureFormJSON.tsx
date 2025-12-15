@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { X, Loader2, FileJson } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { X, Loader2, FileJson, Lock, Globe } from "lucide-react"
 import type { CreateCardFeatureData } from "@/types"
 import { ContentType, CardType } from "@/types"
 
@@ -44,6 +45,7 @@ export default function CardFeatureFormJSON({
 }: CardFeatureFormJSONProps) {
   const [jsonInput, setJsonInput] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [isPrivate, setIsPrivate] = useState(false)
 
   const validateAndParseJSON = (input: string): CreateCardFeatureData | null => {
     try {
@@ -121,8 +123,14 @@ export default function CardFeatureFormJSON({
       return
     }
 
+    // Adicionar a propriedade is_private ao objeto
+    const dataWithVisibility = {
+      ...parsedData,
+      is_private: isPrivate
+    }
+
     try {
-      await onSubmit(parsedData)
+      await onSubmit(dataWithVisibility)
       // Limpar o formulário após sucesso
       setJsonInput("")
       setError(null)
@@ -134,6 +142,7 @@ export default function CardFeatureFormJSON({
   const handleClose = () => {
     setJsonInput("")
     setError(null)
+    setIsPrivate(false)
     onClose()
   }
 
@@ -160,6 +169,35 @@ export default function CardFeatureFormJSON({
         {/* Content */}
         <div className="flex-1 overflow-hidden p-6">
           <div className="space-y-4 h-full flex flex-col">
+            {/* Select de Visibilidade */}
+            <div className="shrink-0">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Visibilidade
+              </label>
+              <Select
+                value={isPrivate ? "private" : "public"}
+                onValueChange={(value) => setIsPrivate(value === "private")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-green-600" />
+                      <span>Público - Todos podem ver</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="private">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-orange-600" />
+                      <span>Privado - Apenas você pode ver</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex-1 flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Cole o JSON do CardFeature
