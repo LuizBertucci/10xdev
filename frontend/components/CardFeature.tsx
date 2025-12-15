@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Expand, Edit, Trash2 } from "lucide-react"
+import { Expand, Edit, Trash2, Lock } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
+import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureProps {
@@ -16,8 +17,13 @@ interface CardFeatureProps {
 }
 
 export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: CardFeatureProps) {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
+  
+  // Verificar se o usuário é o criador do card
+  const isOwner = user?.id === snippet.createdBy
+  const canEdit = isOwner
 
   return (
     <TooltipProvider>
@@ -25,10 +31,26 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-base">{snippet.title}</CardTitle>
+              <div className="flex items-center gap-2 mb-1">
+                <CardTitle className="text-base">{snippet.title}</CardTitle>
+                {snippet.isPrivate && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                  >
+                    <Lock className="h-3 w-3 mr-1" />
+                    Privado
+                  </Badge>
+                )}
+              </div>
               <CardDescription className="text-sm h-10 leading-5 overflow-hidden">
                 {snippet.description}
               </CardDescription>
+              {snippet.createdBy && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Por: {snippet.author || 'Usuário'}
+                </p>
+              )}
             </div>
             <div className="flex space-x-1">
               <Tooltip>
@@ -36,14 +58,31 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => onEdit(snippet)}
+                    disabled={!canEdit}
+                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{canEdit ? 'Editar CardFeature' : 'Apenas o criador pode editar'}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => onDelete(snippet.id)}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2"
+                    disabled={!canEdit}
+                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Excluir CardFeature</p>
+                  <p>{canEdit ? 'Excluir CardFeature' : 'Apenas o criador pode excluir'}</p>
                 </TooltipContent>
               </Tooltip>
             </div>

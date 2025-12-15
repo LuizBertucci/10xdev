@@ -4,10 +4,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
+import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -18,12 +19,17 @@ interface CardFeatureCompactProps {
 }
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
+  const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
   // Estado para controlar a aba ativa (similar ao CardFeature)
   const [activeTab, setActiveTab] = useState(0)
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
+  
+  // Verificar se o usuário é o criador do card
+  const isOwner = user?.id === snippet.createdBy
+  const canEdit = isOwner
   
   // URL da API em produção
   const cardApiUrl = `https://web-backend-10xdev.azurewebsites.net/api/card-features/${snippet.id}`
@@ -90,14 +96,25 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges - Própria linha abaixo */}
                 <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                  {/* Autor à esquerda */}
-                  <Badge
-                    variant="secondary"
-                    className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                  >
-                    <span className="mr-1">👤</span>
-                    {snippet.author || 'Anônimo'}
-                  </Badge>
+                  {/* Autor e privacidade à esquerda */}
+                  <div className="flex items-center gap-2">
+                    {snippet.isPrivate && (
+                      <Badge
+                        variant="secondary"
+                        className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                      >
+                        <Lock className="h-3 w-3 mr-1" />
+                        Privado
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                    >
+                      <span className="mr-1">👤</span>
+                      {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
+                    </Badge>
+                  </div>
                   
                   {/* Badges tech/language à direita */}
                   <div className="flex gap-2 ml-auto">
@@ -124,12 +141,24 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
+                  {snippet.isPrivate && (
+                    <>
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                      >
+                        <Lock className="h-2.5 w-2.5 mr-0.5" />
+                        Privado
+                      </Badge>
+                      <span className="text-gray-400 text-[8px]">●</span>
+                    </>
+                  )}
                   <Badge
                     variant="secondary"
                     className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
                   >
                     <span className="mr-1">👤</span>
-                    {snippet.author || 'Anônimo'}
+                    {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
                   </Badge>
                   <span className="text-gray-400 text-[8px]">●</span>
                   <Badge
@@ -158,11 +187,18 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(snippet)}>
+                        <DropdownMenuItem 
+                          onClick={() => onEdit(snippet)}
+                          disabled={!canEdit}
+                        >
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDelete(snippet.id)} className="text-red-600">
+                        <DropdownMenuItem 
+                          onClick={() => onDelete(snippet.id)} 
+                          className="text-red-600"
+                          disabled={!canEdit}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Excluir
                         </DropdownMenuItem>
@@ -203,13 +239,14 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     variant="ghost"
                     size="sm"
                     onClick={() => onEdit(snippet)}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
+                    disabled={!canEdit}
+                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Editar CardFeature</p>
+                  <p>{canEdit ? 'Editar CardFeature' : 'Apenas o criador pode editar'}</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -220,13 +257,14 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     variant="ghost"
                     size="sm"
                     onClick={() => onDelete(snippet.id)}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2"
+                    disabled={!canEdit}
+                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Excluir CardFeature</p>
+                  <p>{canEdit ? 'Excluir CardFeature' : 'Apenas o criador pode excluir'}</p>
                 </TooltipContent>
               </Tooltip>
 
