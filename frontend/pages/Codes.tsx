@@ -83,6 +83,24 @@ export default function Codes({ platformState }: CodesProps) {
       const result = await cardFeatures.createCardFeature(formData)
       if (result) {
         console.log('CardFeature criado com sucesso:', result)
+
+        // Se for card privado, processar emails de compartilhamento
+        const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
+        const shareEmails = shareEmailsInput?.value?.trim()
+
+        if (formData.is_private && shareEmails && result.id) {
+          try {
+            await fetch(`/api/card-features/${result.id}/share`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ emails: shareEmails })
+            })
+            console.log('Card compartilhado com:', shareEmails)
+          } catch (shareError) {
+            console.error('Erro ao compartilhar:', shareError)
+          }
+        }
+
         // Modal já fechará automaticamente via hook
       }
     } catch (error) {
