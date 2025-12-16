@@ -44,11 +44,15 @@ export class CardFeatureModel {
       .from('card_features')
       .select('*', { count: 'exact' })
 
-    // Filtro de visibilidade: mostrar públicos OU privados do próprio usuário
+    // Filtro de visibilidade: públicos OU privados do próprio usuário OU compartilhados comigo
     if (userId) {
-      // Cards públicos OU cards privados do próprio usuário
-      // Sintaxe Supabase: (is_private=false) OR (is_private=true AND created_by=userId)
-      query = query.or(`is_private.eq.false,and(is_private.eq.true,created_by.eq.${userId})`)
+      // Usar SQL raw para incluir cards compartilhados via EXISTS
+      // (is_private=false) OR (is_private=true AND created_by=userId) OR (EXISTS compartilhamento)
+      query = query.or(
+        `is_private.eq.false,` +
+        `and(is_private.eq.true,created_by.eq.${userId}),` +
+        `id.in.(select card_feature_id from card_shares where shared_with_user_id='${userId}')`
+      )
     } else {
       // Não autenticado: apenas cards públicos
       query = query.eq('is_private', false)
