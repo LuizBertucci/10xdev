@@ -32,6 +32,7 @@ export class CardFeatureModel {
       createdBy: row.created_by,
       author: userData?.name || null,
       isPrivate: row.is_private ?? false,
+      createdInProjectId: row.created_in_project_id || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
@@ -52,6 +53,9 @@ export class CardFeatureModel {
       // Não autenticado: apenas cards públicos
       query = query.eq('is_private', false)
     }
+
+    // Filtro para excluir cards criados em projetos (apenas cards da aba Códigos)
+    query = query.is('created_in_project_id', null)
 
     // Filtros
     if (params.tech && params.tech !== 'all') {
@@ -118,6 +122,7 @@ export class CardFeatureModel {
         screens: processedScreens,
         created_by: userId,
         is_private: data.is_private ?? false,
+        created_in_project_id: data.created_in_project_id || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
