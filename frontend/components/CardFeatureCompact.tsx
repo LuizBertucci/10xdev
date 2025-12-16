@@ -232,41 +232,35 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
             {/* Seção de Actions - Visível apenas no desktop */}
             <div className="hidden md:flex items-center gap-1 flex-shrink-0">
 
-              {/* Edit Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
+              {/* Menu Dropdown - Desktop */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="text-gray-500 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 p-2"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
                     onClick={() => onEdit(snippet)}
                     disabled={!canEdit}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{canEdit ? 'Editar CardFeature' : 'Apenas o criador pode editar'}</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Delete Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => onDelete(snippet.id)}
+                    className="text-red-600"
                     disabled={!canEdit}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{canEdit ? 'Excluir CardFeature' : 'Apenas o criador pode excluir'}</p>
-                </TooltipContent>
-              </Tooltip>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Toggle Button */}
               <Tooltip>
