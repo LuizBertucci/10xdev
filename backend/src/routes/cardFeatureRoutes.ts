@@ -33,7 +33,4 @@ router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.de
 router.post('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkCreate)
 router.delete('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkDelete)
 
-// CARD SHARING - Compartilhar card privado com emails
-router.post('/:id/share', supabaseMiddleware, authenticate, CardShareController.shareWithEmails)
-
 export { router as cardFeatureRoutes }
