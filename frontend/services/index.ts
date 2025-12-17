@@ -38,3 +38,11 @@ export type {
 // User Service
 export { userService } from './userService'
 export type { User } from './userService'
+
+// CardFeature Review Service
+export { cardFeatureReviewService } from './cardFeatureReviewService'
+export type {
+  CardFeatureReview,
+  ReviewStats,
+  CreateReviewRequest
+} from './cardFeatureReviewService'

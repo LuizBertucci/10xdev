@@ -172,6 +172,59 @@ export interface ModelListResult<T = CardFeatureResponse> {
 }
 
 // ================================================
+// REVIEW TYPES
+// ================================================
+
+export interface CardFeatureReviewRow {
+  id: string
+  card_feature_id: string
+  user_id: string
+  rating: number  // 1-5
+  created_at: string
+  updated_at: string
+}
+
+export interface CardFeatureReviewInsert {
+  id?: string
+  card_feature_id: string
+  user_id: string
+  rating: number  // 1-5
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CardFeatureReviewResponse {
+  id: string
+  cardFeatureId: string
+  userId: string
+  rating: number
+  createdAt: string
+  updatedAt: string
+  userName?: string  // Nome do usuário que fez o review
+}
+
+export interface ReviewStats {
+  averageRating: number
+  totalReviews: number
+  ratingDistribution: {
+    rating: number
+    count: number
+  }[]
+  userReview?: CardFeatureReviewResponse  // Review do usuário atual, se existir
+}
+
+export interface CreateReviewRequest {
+  rating: number  // 1-5
+}
+
+export interface ModelReviewResult<T = CardFeatureReviewResponse> {
+  success: boolean
+  data?: T
+  error?: string
+  statusCode?: number
+}
+
+// ================================================
 // VALIDATION SCHEMAS
 // ================================================
 

@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
+import CardReview from "./CardReview"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureProps {
@@ -52,6 +53,10 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   Por: {snippet.author || 'Usuário'}
                 </p>
               )}
+              {/* Sistema de Reviews */}
+              <div className="mt-2">
+                <CardReview cardId={snippet.id} />
+              </div>
             </div>
             <div className="flex space-x-1">
               <Tooltip>

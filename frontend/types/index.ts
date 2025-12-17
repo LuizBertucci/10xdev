@@ -25,7 +25,10 @@ export type {
   ImportConfig,
   CardFeatureMetadata,
   FilterConfig,
-  PaginationConfig
+  PaginationConfig,
+  CardFeatureReview,
+  ReviewStats,
+  CreateReviewRequest
 } from './cardfeature'
 
 // API types

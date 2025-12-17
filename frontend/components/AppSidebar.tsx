@@ -15,7 +15,6 @@ const navItems = [
   { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
   { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
   { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
-  { key: "dashboard", title: "Dashboard", icon: "📊", tooltip: "Dashboard" },
 ]
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {

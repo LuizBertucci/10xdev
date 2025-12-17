@@ -2,7 +2,7 @@
  * Helper para gerenciar rotas e tabs da aplicação
  */
 
-export type TabKey = 'home' | 'codes' | 'videos' | 'projects' | 'dashboard'
+export type TabKey = 'home' | 'codes' | 'videos' | 'projects'
 
 export const TABS: Record<TabKey, { key: TabKey; title: string; route: string }> = {
   home: {
@@ -24,11 +24,6 @@ export const TABS: Record<TabKey, { key: TabKey; title: string; route: string }>
     key: 'projects',
     title: 'Projetos',
     route: '/?tab=projects'
-  },
-  dashboard: {
-    key: 'dashboard',
-    title: 'Dashboard',
-    route: '/?tab=dashboard'
   }
 }
 

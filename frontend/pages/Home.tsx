@@ -156,11 +156,7 @@ export default function Home({ platformState }: HomeProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                          if (project.title === "Dashboard Analytics") {
-                            platformState.setActiveTab("dashboard");
-                          }
-                        }}
+                        disabled
                       >
                         <Play className="h-4 w-4 mr-2" />
                         Acessar

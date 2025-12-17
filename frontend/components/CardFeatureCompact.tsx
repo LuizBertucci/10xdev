@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
+import CardReview from "./CardReview"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -148,6 +149,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       {snippet.language}
                     </Badge>
                   </div>
+                </div>
+                
+                {/* Sistema de Reviews */}
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <CardReview cardId={snippet.id} compact={true} />
                 </div>
               </div>
 

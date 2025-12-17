@@ -1,0 +1,191 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Star } from "lucide-react"
+import { cardFeatureReviewService } from "@/services"
+import { useAuth } from "@/hooks/useAuth"
+import { toast } from "sonner"
+import type { ReviewStats } from "@/types"
+
+interface CardReviewProps {
+  cardId: string
+  compact?: boolean  // Se true, mostra versão compacta (apenas estrelas e média)
+}
+
+export default function CardReview({ cardId, compact = false }: CardReviewProps) {
+  const { user } = useAuth()
+  const [stats, setStats] = useState<ReviewStats | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [hoverRating, setHoverRating] = useState<number | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Carregar estatísticas
+  useEffect(() => {
+    if (!cardId) return
+
+    const loadStats = async () => {
+      try {
+        setLoading(true)
+        const response = await cardFeatureReviewService.getStats(cardId)
+        if (response?.success && response.data) {
+          setStats(response.data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar reviews:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadStats()
+  }, [cardId])
+
+  // Função para avaliar
+  const handleRating = async (rating: number) => {
+    if (!user) {
+      toast.error("Você precisa estar logado para avaliar")
+      return
+    }
+
+    if (rating < 1 || rating > 5) {
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const response = await cardFeatureReviewService.createOrUpdate(cardId, { rating })
+      
+      if (response?.success) {
+        // Recarregar estatísticas
+        const statsResponse = await cardFeatureReviewService.getStats(cardId)
+        if (statsResponse?.success && statsResponse.data) {
+          setStats(statsResponse.data)
+        }
+        toast.success("Avaliação salva com sucesso!")
+      } else {
+        toast.error(response?.error || "Erro ao salvar avaliação")
+      }
+    } catch (error) {
+      console.error('Erro ao avaliar:', error)
+      toast.error("Erro ao salvar avaliação")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Função para remover avaliação
+  const handleRemoveRating = async () => {
+    if (!user) return
+
+    try {
+      setSubmitting(true)
+      const response = await cardFeatureReviewService.delete(cardId)
+      
+      if (response?.success) {
+        // Recarregar estatísticas
+        const statsResponse = await cardFeatureReviewService.getStats(cardId)
+        if (statsResponse?.success && statsResponse.data) {
+          setStats(statsResponse.data)
+        }
+        toast.success("Avaliação removida")
+      } else {
+        toast.error(response?.error || "Erro ao remover avaliação")
+      }
+    } catch (error) {
+      console.error('Erro ao remover avaliação:', error)
+      toast.error("Erro ao remover avaliação")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-1 text-gray-400">
+        <Star className="h-3 w-3" />
+        <span className="text-xs">Carregando...</span>
+      </div>
+    )
+  }
+
+  if (!stats) {
+    return null
+  }
+
+  const displayRating = hoverRating ?? (stats.userReview?.rating ?? stats.averageRating)
+  const hasUserReview = !!stats.userReview
+
+  return (
+    <div className={`flex items-center gap-2 ${compact ? 'text-xs' : ''}`}>
+      {/* Estrelas interativas */}
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((rating) => {
+          const isFilled = rating <= Math.round(displayRating)
+          const isUserRating = stats.userReview && rating === stats.userReview.rating
+          
+          return (
+            <button
+              key={rating}
+              type="button"
+              onClick={() => {
+                if (isUserRating) {
+                  // Se clicar na própria avaliação, remover
+                  handleRemoveRating()
+                } else {
+                  handleRating(rating)
+                }
+              }}
+              onMouseEnter={() => user && setHoverRating(rating)}
+              onMouseLeave={() => setHoverRating(null)}
+              disabled={!user || submitting}
+              className={`
+                transition-all duration-150
+                ${user && !submitting ? 'cursor-pointer hover:scale-110' : 'cursor-default'}
+                ${submitting ? 'opacity-50' : ''}
+                ${isUserRating ? 'ring-2 ring-blue-400 ring-offset-1 rounded' : ''}
+              `}
+              title={
+                !user 
+                  ? "Faça login para avaliar"
+                  : isUserRating
+                  ? `Sua avaliação: ${rating} estrelas (clique para remover)`
+                  : `Avaliar com ${rating} estrelas`
+              }
+            >
+              <Star
+                className={`
+                  ${compact ? 'h-3 w-3' : 'h-4 w-4'}
+                  transition-colors duration-150
+                  ${isFilled 
+                    ? 'fill-amber-400 text-amber-500' 
+                    : 'fill-gray-200 text-gray-300'
+                  }
+                  ${user && !submitting && hoverRating === rating ? 'fill-amber-300 text-amber-400' : ''}
+                `}
+              />
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Média e total */}
+      {!compact && (
+        <div className="flex items-center gap-1 text-sm text-gray-600">
+          <span className="font-medium">{stats.averageRating.toFixed(1)}</span>
+          {stats.totalReviews > 0 && (
+            <span className="text-xs text-gray-500">
+              ({stats.totalReviews} {stats.totalReviews === 1 ? 'avaliação' : 'avaliações'})
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Versão compacta: apenas número */}
+      {compact && stats.totalReviews > 0 && (
+        <span className="text-xs text-gray-500">
+          {stats.averageRating.toFixed(1)}
+        </span>
+      )}
+    </div>
+  )
+}

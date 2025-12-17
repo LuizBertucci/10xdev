@@ -420,3 +420,40 @@ export interface ImportConfig {
   validateData: boolean
   generateNewIds: boolean
 }
+
+// ================================================
+// REVIEW TYPES
+// ================================================
+
+/**
+ * Review de um CardFeature por um usuário
+ */
+export interface CardFeatureReview {
+  id: string
+  cardFeatureId: string
+  userId: string
+  rating: number  // 1-5
+  createdAt: string
+  updatedAt: string
+  userName?: string | null  // Nome do usuário que fez o review
+}
+
+/**
+ * Estatísticas de reviews de um CardFeature
+ */
+export interface ReviewStats {
+  averageRating: number  // Média arredondada para 1 casa decimal
+  totalReviews: number
+  ratingDistribution: {
+    rating: number  // 1-5
+    count: number
+  }[]
+  userReview?: CardFeatureReview  // Review do usuário atual, se existir
+}
+
+/**
+ * Dados para criar/atualizar um review
+ */
+export interface CreateReviewRequest {
+  rating: number  // 1-5
+}
