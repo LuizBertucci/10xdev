@@ -51,6 +51,11 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
       return
     }
 
+    // Prevenir múltiplas requisições simultâneas
+    if (submitting) {
+      return
+    }
+
     // Se clicar na mesma estrela que já está selecionada, remover a review
     if (stats?.userReview && stats.userReview.rating === rating) {
       await handleRemoveRating()

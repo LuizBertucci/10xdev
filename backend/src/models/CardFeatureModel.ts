@@ -89,16 +89,26 @@ export class CardFeatureModel {
       
       const matchingUserIds = matchingUsers?.map((u: any) => u.id) || []
       
-      // Se encontrou usuários, incluir na busca por created_by usando subquery
+      // Se encontrou usuários, incluir na busca por created_by
       if (matchingUserIds.length > 0) {
-        // Usar subquery SQL para buscar por created_by nos IDs encontrados
-        const userIdsString = matchingUserIds.map((id: string) => `'${id}'`).join(',')
-        query = query.or(
-          `title.ilike.%${params.search}%,` +
-          `description.ilike.%${params.search}%,` +
-          `tech.ilike.%${params.search}%,` +
-          `created_by.in.(${userIdsString})`
-        )
+        // Usar .in() diretamente na query para created_by
+        // Primeiro aplicar o OR para title/description/tech
+        query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%,tech.ilike.%${params.search}%`)
+        // Depois adicionar o filtro por created_by usando .in() (isso cria um AND com o OR anterior)
+        // Para fazer um OR completo, precisamos usar uma abordagem diferente
+        // Vamos fazer duas queries e combinar os resultados, ou usar uma subquery
+        // Por enquanto, vamos usar uma abordagem mais simples: aplicar o .in() que vai funcionar como AND
+        // Mas isso não é ideal. Vamos usar uma abordagem melhor:
+        const orConditions = [
+          `title.ilike.%${params.search}%`,
+          `description.ilike.%${params.search}%`,
+          `tech.ilike.%${params.search}%`
+        ]
+        // Adicionar condições para cada user ID
+        matchingUserIds.forEach((userId: string) => {
+          orConditions.push(`created_by.eq.${userId}`)
+        })
+        query = query.or(orConditions.join(','))
       } else {
         // Se não encontrou usuários, buscar apenas em title, description e tech
         query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%,tech.ilike.%${params.search}%`)
