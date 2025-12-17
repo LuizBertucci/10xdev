@@ -51,6 +51,12 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
       return
     }
 
+    // Se clicar na mesma estrela que já está selecionada, remover a review
+    if (stats?.userReview && stats.userReview.rating === rating) {
+      await handleRemoveRating()
+      return
+    }
+
     try {
       setSubmitting(true)
       const response = await cardFeatureReviewService.createOrUpdate(cardId, { rating })
@@ -127,14 +133,7 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
             <button
               key={rating}
               type="button"
-              onClick={() => {
-                if (isUserRating) {
-                  // Se clicar na própria avaliação, remover
-                  handleRemoveRating()
-                } else {
-                  handleRating(rating)
-                }
-              }}
+              onClick={() => handleRating(rating)}
               onMouseEnter={() => user && setHoverRating(rating)}
               onMouseLeave={() => setHoverRating(null)}
               disabled={!user || submitting}
