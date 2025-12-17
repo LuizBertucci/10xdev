@@ -91,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
         } else if (error.message?.includes('Invalid email')) {
           errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
+        } else if (error.message?.includes('rate limit') || error.message?.includes('429') || error.status === 429) {
+          errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos antes de tentar novamente.'
         }
         
         const customError: any = new Error(errorMessage)

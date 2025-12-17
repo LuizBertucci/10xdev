@@ -57,8 +57,15 @@ export default function LoginPage() {
       if (process.env.NODE_ENV === 'development') {
         console.error('Erro no login:', error)
       }
-      // Mostrar mensagem genérica para usuários
-      toast.error('Credenciais inválidas. Tente novamente.')
+      
+      // Mostrar mensagem específica baseada no erro
+      if (error?.message?.includes('rate limit') || error?.message?.includes('429')) {
+        toast.error('Muitas tentativas de login. Aguarde alguns minutos antes de tentar novamente.')
+      } else if (error?.message) {
+        toast.error(error.message)
+      } else {
+        toast.error('Credenciais inválidas. Tente novamente.')
+      }
     } finally {
       setIsSubmitting(false)
     }
