@@ -21,6 +21,18 @@ router.get('/search', CardFeatureController.search)
 // TECH FILTER - Rota específica para filtrar por tecnologia
 router.get('/tech/:tech', CardFeatureController.getByTech)
 
+// ================================================
+// REVIEWS ROUTES - Devem vir ANTES de /:id para evitar conflitos
+// ================================================
+
+// Rotas de leitura: middleware opcional (permitir acesso público)
+router.get('/:cardId/reviews/stats', CardFeatureReviewController.getStats)
+router.get('/:cardId/reviews', CardFeatureReviewController.getByCardFeature)
+
+// Rotas de escrita: middleware obrigatório
+router.post('/:cardId/reviews', supabaseMiddleware, authenticate, CardFeatureReviewController.createOrUpdate)
+router.delete('/:cardId/reviews', supabaseMiddleware, authenticate, CardFeatureReviewController.delete)
+
 // CRUD OPERATIONS - Leitura (público)
 router.get('/', CardFeatureController.getAll)
 router.get('/:id', CardFeatureController.getById)
@@ -33,17 +45,5 @@ router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.de
 // BULK OPERATIONS - Requerem autenticação
 router.post('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkCreate)
 router.delete('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkDelete)
-
-// ================================================
-// REVIEWS ROUTES
-// ================================================
-
-// Rotas de leitura: middleware opcional (permitir acesso público)
-router.get('/:cardId/reviews', CardFeatureReviewController.getByCardFeature)
-router.get('/:cardId/reviews/stats', CardFeatureReviewController.getStats)
-
-// Rotas de escrita: middleware obrigatório
-router.post('/:cardId/reviews', supabaseMiddleware, authenticate, CardFeatureReviewController.createOrUpdate)
-router.delete('/:cardId/reviews', supabaseMiddleware, authenticate, CardFeatureReviewController.delete)
 
 export { router as cardFeatureRoutes }
