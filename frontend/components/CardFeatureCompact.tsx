@@ -134,8 +134,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     </Badge>
                   </div>
                   
-                  {/* Badges tech/language à direita */}
-                  <div className="flex gap-2 ml-auto">
+                  {/* Badges tech/language e compartilhar à direita */}
+                  <div className="flex items-center gap-2 ml-auto">
                     <Badge
                       className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
                     >
@@ -148,6 +148,24 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
                       {snippet.language}
                     </Badge>
+                    {/* Share Button - Desktop - Canto inferior direito */}
+                    {!snippet.isPrivate && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleShareCard}
+                            className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-1.5 h-6 w-6"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Compartilhar card</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </div>
                 
@@ -315,25 +333,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* Share Button - Desktop */}
-              {!snippet.isPrivate && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleShareCard}
-                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Compartilhar card</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
 
               {/* Toggle Button */}
               <Tooltip>
