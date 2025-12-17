@@ -228,7 +228,7 @@ export class CardFeatureReviewModel {
         if (error.code === 'PGRST116') {
           return {
             success: true,
-            data: undefined,
+            data: undefined as any,
             statusCode: 200
           }
         }
@@ -314,7 +314,7 @@ export class CardFeatureReviewModel {
           averageRating: Math.round(averageRating * 10) / 10, // Arredondar para 1 casa decimal
           totalReviews,
           ratingDistribution,
-          userReview
+          userReview: userReview as any
         },
         statusCode: 200
       }

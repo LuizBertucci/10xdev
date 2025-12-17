@@ -85,18 +85,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         // Traduzir erros comuns do Supabase
         let errorMessage = error.message
-        if (error.message?.includes('Invalid login credentials')) {
+        
+        // Verificar rate limit (429) - pode vir em diferentes formatos
+        const isRateLimit = 
+          error.message?.toLowerCase().includes('rate limit') ||
+          error.message?.toLowerCase().includes('429') ||
+          error.message?.toLowerCase().includes('too many requests') ||
+          error.status === 429 ||
+          (error as any).statusCode === 429
+        
+        if (isRateLimit) {
+          errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos antes de tentar novamente.'
+        } else if (error.message?.includes('Invalid login credentials')) {
           errorMessage = 'Credenciais inválidas. Verifique seu email e senha.'
         } else if (error.message?.includes('Email not confirmed')) {
           errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
         } else if (error.message?.includes('Invalid email')) {
           errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
-        } else if (error.message?.includes('rate limit') || error.message?.includes('429') || error.status === 429) {
-          errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos antes de tentar novamente.'
         }
         
         const customError: any = new Error(errorMessage)
         customError.originalError = error
+        customError.status = isRateLimit ? 429 : error.status
         throw customError
       }
 

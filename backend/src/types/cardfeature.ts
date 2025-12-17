@@ -210,7 +210,7 @@ export interface ReviewStats {
     rating: number
     count: number
   }[]
-  userReview?: CardFeatureReviewResponse  // Review do usuário atual, se existir
+  userReview?: CardFeatureReviewResponse | undefined  // Review do usuário atual, se existir
 }
 
 export interface CreateReviewRequest {
