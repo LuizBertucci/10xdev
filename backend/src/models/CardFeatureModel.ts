@@ -38,7 +38,7 @@ export class CardFeatureModel {
     }
   }
 
-  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string) {
+  private static async buildQuery(params: CardFeatureQueryParams = {}, userId?: string) {
     // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
     let query = supabaseAdmin
       .from('card_features')
@@ -81,7 +81,28 @@ export class CardFeatureModel {
     }
 
     if (params.search) {
-      query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%,tech.ilike.%${params.search}%`)
+      // Buscar IDs de usuários cujo nome corresponde ao termo de busca
+      const { data: matchingUsers } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .ilike('name', `%${params.search}%`)
+      
+      const matchingUserIds = matchingUsers?.map((u: any) => u.id) || []
+      
+      // Se encontrou usuários, incluir na busca por created_by usando subquery
+      if (matchingUserIds.length > 0) {
+        // Usar subquery SQL para buscar por created_by nos IDs encontrados
+        const userIdsString = matchingUserIds.map((id: string) => `'${id}'`).join(',')
+        query = query.or(
+          `title.ilike.%${params.search}%,` +
+          `description.ilike.%${params.search}%,` +
+          `tech.ilike.%${params.search}%,` +
+          `created_by.in.(${userIdsString})`
+        )
+      } else {
+        // Se não encontrou usuários, buscar apenas em title, description e tech
+        query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%,tech.ilike.%${params.search}%`)
+      }
     }
 
     // Ordenação
@@ -235,7 +256,7 @@ export class CardFeatureModel {
 
   static async findAll(params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
-      const query = this.buildQuery(params, userId)
+      const query = await this.buildQuery(params, userId)
       const { data, count } = await executeQuery(query)
 
       if (!data || data.length === 0) {
