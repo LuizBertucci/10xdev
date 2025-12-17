@@ -367,14 +367,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         </div>
 
         {/* Ações - Desktop: botão visível, Mobile: menu dropdown */}
-        {project.userRole === 'owner' && (
+          {project.userRole === 'owner' && (
           <>
             {/* Desktop */}
             <div className="hidden sm:block">
-              <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Deletar Projeto
-              </Button>
+            <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Deletar Projeto
+            </Button>
             </div>
             {/* Mobile - Menu Dropdown */}
             <div className="sm:hidden absolute top-2 right-2">
@@ -411,21 +411,21 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Cards do Projeto</h2>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant={isEditMode ? "secondary" : "ghost"}
+                  <Button 
+                    variant={isEditMode ? "secondary" : "ghost"}
                   size="sm"
                   className="h-8 w-8 p-0"
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                >
-                  <Pencil className={`h-4 w-4 ${isEditMode ? 'text-blue-600' : 'text-gray-500'}`} />
-                </Button>
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                  >
+                    <Pencil className={`h-4 w-4 ${isEditMode ? 'text-blue-600' : 'text-gray-500'}`} />
+                  </Button>
                 <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="h-4 w-4 mr-1" />
                   <span className="hidden sm:inline">Adicionar</span>
-                </Button>
+                  </Button>
+                </div>
               </div>
-            </div>
             
             {/* Busca - Linha separada */}
             <div className="relative w-full">
@@ -440,54 +440,54 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           </div>
 
           {/* Lista de Cards - Direto sem container */}
-          {loadingCards ? (
-            <p className="text-gray-500 text-center py-8">Carregando...</p>
-          ) : filteredCards.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
-          ) : (
+              {loadingCards ? (
+                <p className="text-gray-500 text-center py-8">Carregando...</p>
+              ) : filteredCards.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
+              ) : (
             <div className="space-y-3">
-              {filteredCards.map(({ cardFeature, projectCard }, index) => {
-                const isFirst = index === 0
-                const isLast = index === filteredCards.length - 1
-                
-                return (
+                  {filteredCards.map(({ cardFeature, projectCard }, index) => {
+                    const isFirst = index === 0
+                    const isLast = index === filteredCards.length - 1
+                    
+                    return (
                   <div key={cardFeature.id} className="relative">
                     {/* Card - Largura total */}
-                    <CardFeatureCompact
-                      snippet={cardFeature}
+                          <CardFeatureCompact
+                            snippet={cardFeature}
                       onEdit={() => {}}
                       onDelete={() => {}}
-                    />
+                          />
 
                     {/* Botões de ação - Só visíveis em modo de edição */}
-                    {isEditMode && (
+                          {isEditMode && (
                       <div className="absolute -right-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 bg-white rounded-lg shadow-md border p-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleReorderCard(cardFeature.id, 'up')
-                          }}
-                          disabled={isFirst}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReorderCard(cardFeature.id, 'up')
+                            }}
+                            disabled={isFirst}
                           className="h-7 w-7 p-0"
-                          title="Mover para cima"
-                        >
-                          <ChevronUp className={`h-4 w-4 ${isFirst ? 'text-gray-300' : 'text-gray-600'}`} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleReorderCard(cardFeature.id, 'down')
-                          }}
-                          disabled={isLast}
+                            title="Mover para cima"
+                          >
+                            <ChevronUp className={`h-4 w-4 ${isFirst ? 'text-gray-300' : 'text-gray-600'}`} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReorderCard(cardFeature.id, 'down')
+                            }}
+                            disabled={isLast}
                           className="h-7 w-7 p-0"
-                          title="Mover para baixo"
-                        >
-                          <ChevronDown className={`h-4 w-4 ${isLast ? 'text-gray-300' : 'text-gray-600'}`} />
-                        </Button>
+                            title="Mover para baixo"
+                          >
+                            <ChevronDown className={`h-4 w-4 ${isLast ? 'text-gray-300' : 'text-gray-600'}`} />
+                          </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -502,66 +502,66 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
-                      </div>
+                        </div>
                     )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
         </TabsContent>
 
         {/* Tab Membros */}
         <TabsContent value="members">
           {/* Header dos Membros - Mesmo padrão */}
           <div className="space-y-3 mb-4">
-            <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Membros do Projeto</h2>
-              {canManageMembers && (
+                {canManageMembers && (
                 <Button size="sm" onClick={() => setIsAddMemberDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
                   <Plus className="h-4 w-4 mr-1" />
                   <span className="hidden sm:inline">Adicionar</span>
-                </Button>
-              )}
-            </div>
+                  </Button>
+                )}
+              </div>
           </div>
 
           {/* Lista de Membros - Direto sem container */}
-          {loadingMembers ? (
-            <p className="text-gray-500 text-center py-8">Carregando...</p>
-          ) : members.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
-          ) : (
+              {loadingMembers ? (
+                <p className="text-gray-500 text-center py-8">Carregando...</p>
+              ) : members.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
+              ) : (
             <div className="space-y-3">
-              {members.map((member) => (
+                  {members.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm">
                   <div className="flex items-center space-x-3 min-w-0">
-                    {member.user?.avatarUrl ? (
-                      <img
-                        src={member.user.avatarUrl}
-                        alt={member.user.name || member.user.email}
+                        {member.user?.avatarUrl ? (
+                          <img
+                            src={member.user.avatarUrl}
+                            alt={member.user.name || member.user.email}
                         className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
-                      />
-                    ) : (
+                          />
+                        ) : (
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-                      </div>
-                    )}
+                          </div>
+                        )}
                     <div className="min-w-0">
                       <p className="font-medium text-sm sm:text-base truncate">{member.user?.name || member.user?.email}</p>
-                      {member.user?.name && (
+                          {member.user?.name && (
                         <p className="text-xs sm:text-sm text-gray-500 truncate">{member.user.email}</p>
-                      )}
-                    </div>
-                  </div>
+                          )}
+                        </div>
+                      </div>
                   <Badge variant={member.role === 'owner' ? 'default' : 'secondary'} className="flex-shrink-0 text-xs">
-                    {member.role === 'owner' ? 'Owner' : 
-                     member.role === 'admin' ? 'Admin' : 'Member'}
-                  </Badge>
+                        {member.role === 'owner' ? 'Owner' : 
+                         member.role === 'admin' ? 'Admin' : 'Member'}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
         </TabsContent>
       </Tabs>
 

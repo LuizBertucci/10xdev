@@ -31,8 +31,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   const isOwner = user?.id === snippet.createdBy
   const canEdit = isOwner
   
-  // URL da API em produção
-  const cardApiUrl = `https://web-backend-10xdev.azurewebsites.net/api/card-features/${snippet.id}`
+  // URL da API baseada no ambiente
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  const apiBaseUrl = isLocalhost 
+    ? 'http://localhost:3001/api' 
+    : 'https://api.10xdev.com.br/api'
+  const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
