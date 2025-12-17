@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Tag, ExternalLink, Search, Code2 } from "lucide-react"
+import { ArrowLeft, Calendar, Tag, ExternalLink, Search, Code2, ChevronRight } from "lucide-react"
 import YouTubeVideo from "@/components/youtube-video"
-import CardFeature from "@/components/CardFeature"
+import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -45,14 +45,14 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
       setError(null)
       try {
         const res = await videoService.getVideo(id)
-        if (res.success && res.data) {
+        if (res && res.success && res.data) {
           setVideo(res.data)
           
           // Se o vídeo tem um CardFeature selecionado, carregar ele
           if (res.data.selectedCardFeatureId) {
             try {
               const cardRes = await cardFeatureService.getById(res.data.selectedCardFeatureId)
-              if (cardRes.success && cardRes.data) {
+              if (cardRes && cardRes.success && cardRes.data) {
                 setSelectedCardFeature(cardRes.data)
               }
             } catch (e) {
@@ -60,7 +60,7 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
             }
           }
         } else {
-          setError(res.error || 'Vídeo não encontrado')
+          setError(res?.error || 'Vídeo não encontrado')
         }
       } catch (e) {
         setError('Erro ao carregar vídeo')
@@ -76,10 +76,10 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
     setLoadingCards(true)
     try {
       const res = await cardFeatureService.getAll()
-      if (res.success && res.data) {
+      if (res && res.success && res.data) {
         setCardFeatures(res.data)
       } else {
-        const errorMessage = res.error || 'Erro ao carregar CardFeatures'
+        const errorMessage = res?.error || 'Erro ao carregar CardFeatures'
         console.error('Erro ao buscar CardFeatures:', errorMessage, res)
         toast({
           title: "Erro",
@@ -214,29 +214,34 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
+      {/* Breadcrumb */}
+      <div className="flex items-center space-x-2 text-sm">
+        <button
+          onClick={() => {
+            const params = new URLSearchParams(searchParams?.toString() || '')
+            params.set('tab', 'home')
+            params.delete('id')
+            router.push(`/?${params.toString()}`)
+          }}
+          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          Início
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <button
+          onClick={handleBack}
+          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          Vídeos
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <span className="text-gray-900 font-medium truncate max-w-[150px] sm:max-w-none">{video.title}</span>
+      </div>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
-          </Button>
-          <h1 className="text-2xl font-bold text-gray-900">{video.title}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedCardFeature && (
-            <Button 
-              variant="outline" 
-              onClick={handleRemoveCardFeature}
-              className="text-red-600 hover:text-red-700"
-            >
-              Remover CardFeature
-            </Button>
-          )}
-          <Button onClick={handleSearchCardFeatures} className="bg-blue-600 hover:bg-blue-700">
-            <Code2 className="h-4 w-4 mr-2" /> Buscar CardFeatures
-          </Button>
-        </div>
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">{video.title}</h1>
       </div>
 
       {/* Layout: Video + CardFeature */}
@@ -301,12 +306,31 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
         </div>
 
         {/* Right: CardFeature (1/2) */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-4">
+          {/* Título e Botões */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-xl font-semibold text-gray-900">Cards relacionados</h2>
+            <div className="flex items-center gap-3">
+              {selectedCardFeature && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleRemoveCardFeature}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  Remover CardFeature
+                </Button>
+              )}
+              <Button onClick={handleSearchCardFeatures} className="bg-blue-600 hover:bg-blue-700">
+                <Code2 className="h-4 w-4 mr-2" /> Buscar CardFeatures
+              </Button>
+            </div>
+          </div>
+
+          {/* Card ou Estado vazio */}
           {selectedCardFeature ? (
-            <CardFeature
+            <CardFeatureCompact
               snippet={selectedCardFeature}
               onEdit={() => {}}
-              onExpand={() => {}}
               onDelete={() => {}}
             />
           ) : (
