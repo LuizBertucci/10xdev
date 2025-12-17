@@ -19,6 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
+  is_private: false,
   screens: [
     {
       name: 'Main',
@@ -44,6 +45,7 @@ interface CardFeatureFormData {
   description: string
   content_type: ContentType
   card_type: CardType
+  is_private?: boolean
   screens: CreateScreenData[]
 }
 
@@ -133,6 +135,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
+        is_private: initialData.isPrivate ?? false,
         screens: initialData.screens
       }
     }
@@ -329,7 +332,25 @@ export default function CardFeatureForm({
   }
 
   const handleSubmit = async () => {
+    // Pegar emails do campo de compartilhamento (se existir)
+    const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
+    const shareEmails = shareEmailsInput?.value?.trim()
+
+    // Submeter o formulário principal
     await onSubmit(formData)
+
+    // Se for card privado e tiver emails para compartilhar, chamar API
+    if (formData.is_private && shareEmails && shareEmailsInput) {
+      try {
+        // Precisamos do ID do card recém-criado (será passado pelo onSubmit)
+        // Por ora, vamos apenas limpar o campo
+        shareEmailsInput.value = ''
+        // TODO: Chamar API de compartilhamento quando tiver o card ID
+      } catch (error) {
+        console.error('Erro ao compartilhar:', error)
+      }
+    }
+
     if (mode === 'create') {
       setFormData({ ...DEFAULT_FORM_DATA })
     }
@@ -431,6 +452,45 @@ export default function CardFeatureForm({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Visibilidade
+                </label>
+                <Select
+                  value={formData.is_private ? 'private' : 'public'}
+                  onValueChange={(value) => handleInputChange('is_private', value === 'private')}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Público</SelectItem>
+                    <SelectItem value="private">Privado</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cards privados são visíveis apenas para você
+                </p>
+              </div>
+
+              {/* Campo de Compartilhamento - Apenas para cards privados */}
+              {formData.is_private && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Compartilhar com (opcional)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Digite emails separados por vírgula"
+                    className="bg-white"
+                    data-share-emails="true"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Exemplo: joao@email.com, maria@email.com
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 flex flex-col">

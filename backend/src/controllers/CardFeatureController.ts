@@ -15,11 +15,18 @@ export class CardFeatureController {
   
   static async create(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const data: CreateCardFeatureRequest = req.body
+      const userId = req.user.id
 
-      // Remover todas as validações obrigatórias - permitir campos vazios
-
-      const result = await CardFeatureModel.create(data)
+      const result = await CardFeatureModel.create(data, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -51,6 +58,7 @@ export class CardFeatureController {
     try {
       const page = req.query.page ? parseInt(req.query.page as string) : 1
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
+      const userId = req.user?.id // Opcional: permite acesso público
       
       const params: CardFeatureQueryParams = {
         page,
@@ -64,7 +72,7 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.findAll(params)
+      const result = await CardFeatureModel.findAll(params, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -103,6 +111,7 @@ export class CardFeatureController {
   static async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
+      const userId = req.user?.id // Opcional: permite acesso público
 
       if (!id) {
         res.status(400).json({
@@ -112,7 +121,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.findById(id)
+      const result = await CardFeatureModel.findById(id, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -142,6 +151,7 @@ export class CardFeatureController {
   static async search(req: Request, res: Response): Promise<void> {
     try {
       const searchTerm = req.query.q as string
+      const userId = req.user?.id // Opcional: permite acesso público
 
       if (!searchTerm) {
         res.status(400).json({
@@ -164,7 +174,7 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.search(searchTerm, params)
+      const result = await CardFeatureModel.search(searchTerm, params, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -203,6 +213,7 @@ export class CardFeatureController {
   static async getByTech(req: Request, res: Response): Promise<void> {
     try {
       const { tech } = req.params
+      const userId = req.user?.id // Opcional: permite acesso público
 
       if (!tech) {
         res.status(400).json({
@@ -225,7 +236,7 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.findByTech(tech, params)
+      const result = await CardFeatureModel.findByTech(tech, params, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -263,8 +274,17 @@ export class CardFeatureController {
   
   static async update(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const { id } = req.params
       const data: UpdateCardFeatureRequest = req.body
+      const userId = req.user.id
 
       if (!id) {
         res.status(400).json({
@@ -274,9 +294,7 @@ export class CardFeatureController {
         return
       }
 
-      // Remover todas as validações obrigatórias - permitir campos vazios
-
-      const result = await CardFeatureModel.update(id, data)
+      const result = await CardFeatureModel.update(id, data, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -306,7 +324,16 @@ export class CardFeatureController {
   
   static async delete(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const { id } = req.params
+      const userId = req.user.id
 
       if (!id) {
         res.status(400).json({
@@ -316,7 +343,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.delete(id)
+      const result = await CardFeatureModel.delete(id, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -374,7 +401,16 @@ export class CardFeatureController {
   
   static async bulkCreate(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const items: CreateCardFeatureRequest[] = req.body
+      const userId = req.user.id
 
       if (!Array.isArray(items) || items.length === 0) {
         res.status(400).json({
@@ -384,9 +420,7 @@ export class CardFeatureController {
         return
       }
 
-      // Remover todas as validações obrigatórias - permitir campos vazios
-
-      const result = await CardFeatureModel.bulkCreate(items)
+      const result = await CardFeatureModel.bulkCreate(items, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({

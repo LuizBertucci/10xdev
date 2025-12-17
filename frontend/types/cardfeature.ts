@@ -60,9 +60,12 @@ export interface CardFeature {
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType    // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]  // Array de abas/arquivos
+  createdBy?: string     // ID do usuário que criou o card
+  isPrivate?: boolean    // Se o card é privado (apenas criador pode ver)
+  createdInProjectId?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
-  author?: string        // Autor do card (opcional)
+  author?: string        // Autor do card (opcional, mantido para compatibilidade)
 }
 
 /**
@@ -92,6 +95,8 @@ export interface CreateCardFeatureData {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
+  is_private?: boolean  // Visibilidade do card (padrão: false = público)
+  created_in_project_id?: string  // ID do projeto onde será criado (opcional)
 }
 
 /**

@@ -3,11 +3,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, LayoutGrid, List, FileJson } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Eye } from "lucide-react"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
-import CardFeature from "@/components/CardFeature"
-import CardFeatureModal from "@/components/CardFeatureModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
@@ -44,10 +42,9 @@ export default function Codes({ platformState }: CodesProps) {
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
   // ================================================
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('list')
-  const [openModalId, setOpenModalId] = useState<string | null>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
+  const [selectedVisibility, setSelectedVisibility] = useState<string>('all')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
@@ -60,9 +57,21 @@ export default function Codes({ platformState }: CodesProps) {
   })
 
   // Dados filtrados vindos da API
-  const codeSnippets = cardFeatures.filteredItems.filter(item =>
-    selectedCardType === 'all' || item.card_type === selectedCardType
-  )
+  const codeSnippets = cardFeatures.filteredItems.filter(item => {
+    // Filtro por tipo de card
+    const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
+
+    // Filtro por visibilidade
+    let matchesVisibility = true
+    if (selectedVisibility === 'public') {
+      matchesVisibility = !item.isPrivate
+    } else if (selectedVisibility === 'private') {
+      matchesVisibility = item.isPrivate === true
+    }
+    // 'all' não filtra por visibilidade
+
+    return matchesCardType && matchesVisibility
+  })
 
   // ================================================
   // EVENT HANDLERS - Funções para lidar com ações do usuário
@@ -74,6 +83,24 @@ export default function Codes({ platformState }: CodesProps) {
       const result = await cardFeatures.createCardFeature(formData)
       if (result) {
         console.log('CardFeature criado com sucesso:', result)
+
+        // Se for card privado, processar emails de compartilhamento
+        const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
+        const shareEmails = shareEmailsInput?.value?.trim()
+
+        if (formData.is_private && shareEmails && result.id) {
+          try {
+            await fetch(`/api/card-features/${result.id}/share`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ emails: shareEmails })
+            })
+            console.log('Card compartilhado com:', shareEmails)
+          } catch (shareError) {
+            console.error('Erro ao compartilhar:', shareError)
+          }
+        }
+
         // Modal já fechará automaticamente via hook
       }
     } catch (error) {
@@ -202,6 +229,33 @@ export default function Codes({ platformState }: CodesProps) {
             </SelectContent>
           </Select>
 
+          {/* Visibility Filter */}
+          <Select
+            value={selectedVisibility}
+            onValueChange={setSelectedVisibility}
+            disabled={cardFeatures.loading}
+          >
+            <SelectTrigger className="w-28 sm:w-40">
+              <Eye className="h-4 w-4 mr-1 sm:mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="public">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-green-600" />
+                  <span>Públicos</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="private">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-orange-600" />
+                  <span>Privados</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Tech Filter - Hidden on mobile */}
           <div className="hidden sm:block">
             <Select
@@ -225,36 +279,6 @@ export default function Codes({ platformState }: CodesProps) {
 
           {/* Right side actions group */}
           <div className="flex items-center gap-2">
-            {/* View Mode Toggle */}
-            <div className="flex border border-gray-300 rounded-lg overflow-hidden flex-shrink-0">
-              <Button
-                onClick={() => setViewMode('cards')}
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                className={`rounded-none border-0 px-2 sm:px-3 ${
-                  viewMode === 'cards'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-                title="Visualização em Cards"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={() => setViewMode('list')}
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                className={`rounded-none border-0 border-l border-gray-300 px-2 sm:px-3 ${
-                  viewMode === 'list'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-                title="Visualização em Lista"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-            </div>
-
             {/* Create Button with Dropdown */}
             <div className="flex flex-shrink-0">
               <Button
@@ -336,37 +360,20 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
       )}
 
-      {/* ===== CONTEÚDO PRINCIPAL - Renderização Condicional por View Mode ===== */}
+      {/* ===== CONTEÚDO PRINCIPAL - Visualização em Lista ===== */}
       {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length > 0 && (
         <>
-          {/* View Lista (Padrão) - Layout Vertical */}
-          {viewMode === 'list' && (
-            <div className="space-y-4 w-full max-w-[900px] mx-auto">
-              {codeSnippets.map((snippet) => (
-                <CardFeatureCompact
-                  key={snippet.id}
-                  snippet={snippet}
-                  onEdit={(snippet) => cardFeatures.startEditing(snippet)}
-                  onDelete={handleDeleteClick}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* View Cards - Layout Grid 2 Colunas */}
-          {viewMode === 'cards' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {codeSnippets.map((snippet) => (
-                <CardFeature
-                  key={snippet.id}
-                  snippet={snippet}
-                  onEdit={(snippet) => cardFeatures.startEditing(snippet)}
-                  onExpand={(snippetId) => setOpenModalId(snippetId)}
-                  onDelete={handleDeleteClick}
-                />
-              ))}
-            </div>
-          )}
+          {/* View Lista - Layout Vertical */}
+          <div className="space-y-4 w-full max-w-[900px] mx-auto">
+            {codeSnippets.map((snippet) => (
+              <CardFeatureCompact
+                key={snippet.id}
+                snippet={snippet}
+                onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+                onDelete={handleDeleteClick}
+              />
+            ))}
+          </div>
 
           {/* Controles de Paginação */}
           {cardFeatures.totalPages > 1 && (
@@ -490,22 +497,6 @@ export default function Codes({ platformState }: CodesProps) {
         onConfirm={handleDeleteConfirm}
       />
 
-      {/* Card Feature Modal (only for cards view) */}
-      {viewMode === 'cards' && openModalId && (
-        <CardFeatureModal
-          isOpen={!!openModalId}
-          snippet={codeSnippets.find(s => s.id === openModalId) || null}
-          onClose={() => setOpenModalId(null)}
-          onEdit={(snippet) => {
-            setOpenModalId(null)
-            cardFeatures.startEditing(snippet)
-          }}
-          onDelete={(snippetId) => {
-            handleDeleteClick(snippetId)
-            setOpenModalId(null)
-          }}
-        />
-      )}
     </div>
   )
 }

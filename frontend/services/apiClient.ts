@@ -31,7 +31,7 @@ class ApiClient {
 
     this.baseURL = isLocalhost
       ? 'http://localhost:3001/api'
-      : 'https://web-backend-10xdev.azurewebsites.net/api'
+      : 'https://api.10xdev.com.br/api'
 
     this.defaultHeaders = {
       'Content-Type': 'application/json',

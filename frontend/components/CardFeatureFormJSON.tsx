@@ -1,27 +1,51 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { X, Loader2, FileJson } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { X, Loader2, FileJson, Lock, Globe, Copy } from "lucide-react"
+import { toast } from "sonner"
 import type { CreateCardFeatureData } from "@/types"
 import { ContentType, CardType } from "@/types"
 
 const JSON_PLACEHOLDER = `{
-  "title": "Exemplo de CardFeature",
+  "title": "Exemplo Completo de CardFeature",
   "tech": "React",
   "language": "typescript",
-  "description": "Descrição do que este card faz",
+  "description": "Este é um exemplo completo mostrando todas as opções disponíveis",
   "content_type": "code",
   "card_type": "codigos",
   "screens": [
     {
       "name": "Main",
-      "description": "Arquivo principal",
+      "description": "Arquivo principal do componente",
+      "route": "src/components/Example.tsx",
       "blocks": [
         {
           "type": "code",
-          "content": "// Seu código aqui",
+          "content": "import React from 'react'\\n\\nexport default function Example() {\\n  return <div>Hello World</div>\\n}",
           "language": "typescript",
-          "route": "src/example.ts",
+          "title": "Componente React",
+          "route": "src/components/Example.tsx",
+          "order": 0
+        },
+        {
+          "type": "text",
+          "content": "Este bloco contém explicações em texto markdown sobre o código acima.",
+          "title": "Explicação",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "Tests",
+      "description": "Testes unitários",
+      "route": "src/components/Example.test.tsx",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "import { render } from '@testing-library/react'\\nimport Example from './Example'\\n\\ntest('renders', () => {\\n  render(<Example />)\\n})",
+          "language": "typescript",
+          "route": "src/components/Example.test.tsx",
           "order": 0
         }
       ]
@@ -44,6 +68,16 @@ export default function CardFeatureFormJSON({
 }: CardFeatureFormJSONProps) {
   const [jsonInput, setJsonInput] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [isPrivate, setIsPrivate] = useState(false)
+
+  const handleCopyExample = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON_PLACEHOLDER)
+      toast.success("Exemplo JSON copiado! Cole em sua IA preferida.")
+    } catch (err) {
+      toast.error("Erro ao copiar exemplo")
+    }
+  }
 
   const validateAndParseJSON = (input: string): CreateCardFeatureData | null => {
     try {
@@ -121,8 +155,14 @@ export default function CardFeatureFormJSON({
       return
     }
 
+    // Adicionar a propriedade is_private ao objeto
+    const dataWithVisibility = {
+      ...parsedData,
+      is_private: isPrivate
+    }
+
     try {
-      await onSubmit(parsedData)
+      await onSubmit(dataWithVisibility)
       // Limpar o formulário após sucesso
       setJsonInput("")
       setError(null)
@@ -134,6 +174,7 @@ export default function CardFeatureFormJSON({
   const handleClose = () => {
     setJsonInput("")
     setError(null)
+    setIsPrivate(false)
     onClose()
   }
 
@@ -148,18 +189,57 @@ export default function CardFeatureFormJSON({
             <FileJson className="h-5 w-5 text-blue-600" />
             <h3 className="text-xl font-semibold">Criar CardFeature via JSON</h3>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyExample}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copiar Exemplo
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-hidden p-6">
           <div className="space-y-4 h-full flex flex-col">
+            {/* Select de Visibilidade */}
+            <div className="shrink-0">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Visibilidade
+              </label>
+              <Select
+                value={isPrivate ? "private" : "public"}
+                onValueChange={(value) => setIsPrivate(value === "private")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-green-600" />
+                      <span>Público - Todos podem ver</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="private">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-orange-600" />
+                      <span>Privado - Apenas você pode ver</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex-1 flex flex-col">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Cole o JSON do CardFeature

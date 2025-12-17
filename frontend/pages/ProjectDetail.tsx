@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2 } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
@@ -323,33 +323,77 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const canManageMembers = project.userRole === 'owner' || project.userRole === 'admin'
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={handleBack}>
-            ← Voltar
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
-            {project.description && (
-              <p className="text-gray-600 mt-1">{project.description}</p>
+    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
+      {/* Breadcrumb */}
+      <div className="flex items-center space-x-2 text-sm">
+        <button
+          onClick={() => {
+            const params = new URLSearchParams(searchParams?.toString() || '')
+            params.set('tab', 'home')
+            params.delete('id')
+            router.push(`/?${params.toString()}`)
+          }}
+          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          Início
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <button
+          onClick={handleBack}
+          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          Projetos
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <span className="text-gray-900 font-medium truncate max-w-[150px] sm:max-w-none">{project.name}</span>
+      </div>
+
+      {/* Header do Projeto - Responsivo */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Info do Projeto */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">{project.name}</h1>
+            {project.userRole && (
+              <Badge variant={project.userRole === 'owner' ? 'default' : 'secondary'} className="flex-shrink-0">
+                {project.userRole === 'owner' ? 'Owner' : 
+                 project.userRole === 'admin' ? 'Admin' : 'Member'}
+              </Badge>
             )}
           </div>
-        </div>
-        <div className="flex items-center space-x-3">
-          {project.userRole && (
-            <Badge variant={project.userRole === 'owner' ? 'default' : 'secondary'}>
-              {project.userRole === 'owner' ? 'Owner' : 
-               project.userRole === 'admin' ? 'Admin' : 'Member'}
-            </Badge>
+          {project.description && (
+            <p className="text-sm sm:text-base text-gray-600 mt-1 line-clamp-2">{project.description}</p>
           )}
+        </div>
+
+        {/* Ações - Desktop: botão visível, Mobile: menu dropdown */}
           {project.userRole === 'owner' && (
+          <>
+            {/* Desktop */}
+            <div className="hidden sm:block">
             <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
               <Trash2 className="h-4 w-4 mr-2" />
               Deletar Projeto
             </Button>
-          )}
-        </div>
+            </div>
+            {/* Mobile - Menu Dropdown */}
+            <div className="sm:hidden absolute top-2 right-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDeleteProject} className="text-red-600">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar Projeto
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tabs */}
@@ -361,76 +405,63 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
         {/* Tab Cards */}
         <TabsContent value="cards">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <CardTitle className="whitespace-nowrap">Cards do Projeto</CardTitle>
-                <div className="flex-1 flex justify-center max-w-md mx-auto">
-                  <Input
-                    placeholder="Buscar cards..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex justify-end mr-10 gap-2">
+          {/* Header dos Cards - Seguindo padrão da tela de Códigos */}
+          <div className="space-y-3 mb-4">
+            {/* Título + Ações na mesma linha */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Cards do Projeto</h2>
+              <div className="flex items-center gap-2">
                   <Button 
                     variant={isEditMode ? "secondary" : "ghost"}
-                    size="icon"
-                    className="h-9 w-9"
+                  size="sm"
+                  className="h-8 w-8 p-0"
                     onClick={() => setIsEditMode(!isEditMode)}
                     title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
                   >
                     <Pencil className={`h-4 w-4 ${isEditMode ? 'text-blue-600' : 'text-gray-500'}`} />
                   </Button>
-                  <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="whitespace-nowrap">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Card
+                <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Adicionar</span>
                   </Button>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
+            
+            {/* Busca - Linha separada */}
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Buscar cards..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full"
+              />
+            </div>
+          </div>
+
+          {/* Lista de Cards - Direto sem container */}
               {loadingCards ? (
                 <p className="text-gray-500 text-center py-8">Carregando...</p>
               ) : filteredCards.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
               ) : (
-                <div className="space-y-4">
+            <div className="space-y-3">
                   {filteredCards.map(({ cardFeature, projectCard }, index) => {
                     const isFirst = index === 0
                     const isLast = index === filteredCards.length - 1
                     
                     return (
-                      <div key={cardFeature.id} className="relative group flex items-start gap-2">
-                        {/* Card */}
-                        <div className="flex-1 relative">
+                  <div key={cardFeature.id} className="relative">
+                    {/* Card - Largura total */}
                           <CardFeatureCompact
                             snippet={cardFeature}
-                            onEdit={() => {}} // Não permitir editar aqui
-                            onDelete={() => {}} // Não permitir deletar aqui
+                      onEdit={() => {}}
+                      onDelete={() => {}}
                           />
-                        </div>
 
-                        {/* Botões de ação lateral */}
-                        <div className="flex flex-col gap-1 pt-2 w-8">
+                    {/* Botões de ação - Só visíveis em modo de edição */}
                           {isEditMode && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (projectCard) {
-                                  handleRemoveCard(projectCard.cardFeatureId)
-                                }
-                              }}
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 mb-2"
-                              title="Remover do projeto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
+                      <div className="absolute -right-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 bg-white rounded-lg shadow-md border p-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -439,7 +470,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                               handleReorderCard(cardFeature.id, 'up')
                             }}
                             disabled={isFirst}
-                            className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                             title="Mover para cima"
                           >
                             <ChevronUp className={`h-4 w-4 ${isFirst ? 'text-gray-300' : 'text-gray-600'}`} />
@@ -452,64 +483,78 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                               handleReorderCard(cardFeature.id, 'down')
                             }}
                             disabled={isLast}
-                            className="h-8 w-8 p-0"
+                          className="h-7 w-7 p-0"
                             title="Mover para baixo"
                           >
                             <ChevronDown className={`h-4 w-4 ${isLast ? 'text-gray-300' : 'text-gray-600'}`} />
                           </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (projectCard) {
+                              handleRemoveCard(projectCard.cardFeatureId)
+                            }
+                          }}
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          title="Remover do projeto"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                         </div>
+                    )}
                       </div>
                     )
                   })}
                 </div>
               )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Tab Membros */}
         <TabsContent value="members">
-          <Card>
-            <CardHeader>
+          {/* Header dos Membros - Mesmo padrão */}
+          <div className="space-y-3 mb-4">
               <div className="flex items-center justify-between">
-                <CardTitle>Membros do Projeto</CardTitle>
+              <h2 className="text-lg font-semibold text-gray-900">Membros do Projeto</h2>
                 {canManageMembers && (
-                  <Button size="sm" onClick={() => setIsAddMemberDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar
+                <Button size="sm" onClick={() => setIsAddMemberDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Adicionar</span>
                   </Button>
                 )}
               </div>
-            </CardHeader>
-            <CardContent>
+          </div>
+
+          {/* Lista de Membros - Direto sem container */}
               {loadingMembers ? (
                 <p className="text-gray-500 text-center py-8">Carregando...</p>
               ) : members.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
               ) : (
-                <div className="space-y-4">
+            <div className="space-y-3">
                   {members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
+                <div key={member.id} className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm">
+                  <div className="flex items-center space-x-3 min-w-0">
                         {member.user?.avatarUrl ? (
                           <img
                             src={member.user.avatarUrl}
                             alt={member.user.name || member.user.email}
-                            className="w-10 h-10 rounded-full"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <Users className="h-5 w-5 text-gray-500" />
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium">{member.user?.name || member.user?.email}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">{member.user?.name || member.user?.email}</p>
                           {member.user?.name && (
-                            <p className="text-sm text-gray-500">{member.user.email}</p>
+                        <p className="text-xs sm:text-sm text-gray-500 truncate">{member.user.email}</p>
                           )}
                         </div>
                       </div>
-                      <Badge variant={member.role === 'owner' ? 'default' : 'secondary'}>
+                  <Badge variant={member.role === 'owner' ? 'default' : 'secondary'} className="flex-shrink-0 text-xs">
                         {member.role === 'owner' ? 'Owner' : 
                          member.role === 'admin' ? 'Admin' : 'Member'}
                       </Badge>
@@ -517,8 +562,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 

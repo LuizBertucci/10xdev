@@ -1,4 +1,4 @@
-import { supabase, executeQuery } from '@/database/supabase'
+import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import type {
   CardFeatureRow,
@@ -16,7 +16,10 @@ export class CardFeatureModel {
   // PRIVATE HELPERS
   // ================================================
 
-  private static transformToResponse(row: CardFeatureRow): CardFeatureResponse {
+  private static transformToResponse(row: any): CardFeatureResponse {
+    // Extrair dados do usuário
+    const userData = row.users || null
+
     return {
       id: row.id,
       title: row.title,
@@ -26,15 +29,37 @@ export class CardFeatureModel {
       content_type: row.content_type,
       card_type: row.card_type,
       screens: row.screens,
+      createdBy: row.created_by,
+      author: userData?.name || null,
+      isPrivate: row.is_private ?? false,
+      createdInProjectId: row.created_in_project_id || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
   }
 
-  private static buildQuery(params: CardFeatureQueryParams = {}) {
-    let query = supabase
+  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string) {
+    // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
+    let query = supabaseAdmin
       .from('card_features')
       .select('*', { count: 'exact' })
+
+    // Filtro de visibilidade: públicos OU privados do próprio usuário OU compartilhados comigo
+    if (userId) {
+      // Usar SQL raw para incluir cards compartilhados via EXISTS
+      // (is_private=false) OR (is_private=true AND created_by=userId) OR (EXISTS compartilhamento)
+      query = query.or(
+        `is_private.eq.false,` +
+        `and(is_private.eq.true,created_by.eq.${userId}),` +
+        `id.in.(select card_feature_id from card_shares where shared_with_user_id='${userId}')`
+      )
+    } else {
+      // Não autenticado: apenas cards públicos
+      query = query.eq('is_private', false)
+    }
+
+    // Filtro para excluir cards criados em projetos (apenas cards da aba Códigos)
+    query = query.is('created_in_project_id', null)
 
     // Filtros
     if (params.tech && params.tech !== 'all') {
@@ -78,7 +103,7 @@ export class CardFeatureModel {
   // CREATE
   // ================================================
 
-  static async create(data: CreateCardFeatureRequest): Promise<ModelResult<CardFeatureResponse>> {
+  static async create(data: CreateCardFeatureRequest, userId: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
       // Processar screens para adicionar IDs e order aos blocos
       const processedScreens = data.screens.map(screen => ({
@@ -99,21 +124,37 @@ export class CardFeatureModel {
         content_type: data.content_type || 'code',
         card_type: data.card_type || 'codigos',
         screens: processedScreens,
+        created_by: userId,
+        is_private: data.is_private ?? false,
+        created_in_project_id: data.created_in_project_id || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
 
       const { data: result } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .insert(insertData)
           .select()
           .single()
       )
 
+      // Buscar dados do usuário criador
+      let userData = null
+      if (result.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', result.created_by)
+            .single()
+        )
+        userData = user
+      }
+
       return {
         success: true,
-        data: this.transformToResponse(result),
+        data: this.transformToResponse({ ...result, users: userData }),
         statusCode: 201
       }
     } catch (error: any) {
@@ -129,19 +170,58 @@ export class CardFeatureModel {
   // READ
   // ================================================
 
-  static async findById(id: string): Promise<ModelResult<CardFeatureResponse>> {
+  static async findById(id: string, userId?: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      const { data } = await executeQuery(
-        supabase
-          .from('card_features')
-          .select('*')
-          .eq('id', id)
-          .single()
-      )
+      let query = supabaseAdmin
+        .from('card_features')
+        .select('*')
+        .eq('id', id)
+
+      // Aplicar filtro de visibilidade
+      if (userId) {
+        // Cards públicos OU cards privados do próprio usuário
+        query = query.or(`is_private.eq.false,and(is_private.eq.true,created_by.eq.${userId})`)
+      } else {
+        // Não autenticado: apenas cards públicos
+        query = query.eq('is_private', false)
+      }
+
+      const { data } = await executeQuery(query.single())
+
+      // Verificar se card existe e se usuário tem acesso
+      if (!data) {
+        return {
+          success: false,
+          error: 'Card não encontrado ou você não tem permissão para visualizá-lo',
+          statusCode: 404
+        }
+      }
+
+      // Verificação adicional: se privado, deve ser do usuário
+      if (data.is_private && data.created_by !== userId) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para visualizar este card',
+          statusCode: 403
+        }
+      }
+
+      // Buscar dados do usuário criador
+      let userData = null
+      if (data.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', data.created_by)
+            .single()
+        )
+        userData = user
+      }
 
       return {
         success: true,
-        data: this.transformToResponse(data),
+        data: this.transformToResponse({ ...data, users: userData }),
         statusCode: 200
       }
     } catch (error: any) {
@@ -153,12 +233,39 @@ export class CardFeatureModel {
     }
   }
 
-  static async findAll(params: CardFeatureQueryParams = {}): Promise<ModelListResult<CardFeatureResponse>> {
+  static async findAll(params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
-      const query = this.buildQuery(params)
+      const query = this.buildQuery(params, userId)
       const { data, count } = await executeQuery(query)
 
-      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
+      if (!data || data.length === 0) {
+        return {
+          success: true,
+          data: [],
+          count: 0,
+          statusCode: 200
+        }
+      }
+
+      // Buscar IDs únicos de criadores
+      const creatorIds = [...new Set(data.map((card: any) => card.created_by).filter(Boolean))]
+
+      // Buscar dados dos usuários
+      const { data: users } = await executeQuery(
+        supabaseAdmin
+          .from('users')
+          .select('id, name, email')
+          .in('id', creatorIds)
+      )
+
+      // Criar mapa de usuários por ID
+      const usersMap = new Map(users?.map((u: any) => [u.id, u]) || [])
+
+      // Transformar cards adicionando dados do autor
+      const transformedData = data?.map((row: any) => {
+        const userData = row.created_by ? usersMap.get(row.created_by) : null
+        return this.transformToResponse({ ...row, users: userData })
+      }) || []
 
       return {
         success: true,
@@ -175,10 +282,10 @@ export class CardFeatureModel {
     }
   }
 
-  static async search(searchTerm: string, params: CardFeatureQueryParams = {}): Promise<ModelListResult<CardFeatureResponse>> {
+  static async search(searchTerm: string, params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const searchParams = { ...params, search: searchTerm }
-      return await this.findAll(searchParams)
+      return await this.findAll(searchParams, userId)
     } catch (error) {
       console.error('Erro interno ao buscar CardFeatures:', error)
       return {
@@ -189,10 +296,10 @@ export class CardFeatureModel {
     }
   }
 
-  static async findByTech(tech: string, params: CardFeatureQueryParams = {}): Promise<ModelListResult<CardFeatureResponse>> {
+  static async findByTech(tech: string, params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const techParams = { ...params, tech }
-      return await this.findAll(techParams)
+      return await this.findAll(techParams, userId)
     } catch (error) {
       console.error('Erro interno ao buscar CardFeatures por tech:', error)
       return {
@@ -207,12 +314,21 @@ export class CardFeatureModel {
   // UPDATE
   // ================================================
 
-  static async update(id: string, data: Partial<CreateCardFeatureRequest>): Promise<ModelResult<CardFeatureResponse>> {
+  static async update(id: string, data: Partial<CreateCardFeatureRequest>, userId: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      // Verificar se existe
-      const existingCheck = await this.findById(id)
+      // Verificar se existe e se usuário é o criador
+      const existingCheck = await this.findById(id, userId)
       if (!existingCheck.success) {
         return existingCheck
+      }
+
+      // Verificar ownership
+      if (existingCheck.data?.createdBy !== userId) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para atualizar este card',
+          statusCode: 403
+        }
       }
 
       const updateData: CardFeatureUpdate = {
@@ -221,7 +337,7 @@ export class CardFeatureModel {
       }
 
       const { data: result } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .update(updateData)
           .eq('id', id)
@@ -229,9 +345,22 @@ export class CardFeatureModel {
           .single()
       )
 
+      // Buscar dados do usuário criador
+      let userData = null
+      if (result.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', result.created_by)
+            .single()
+        )
+        userData = user
+      }
+
       return {
         success: true,
-        data: this.transformToResponse(result),
+        data: this.transformToResponse({ ...result, users: userData }),
         statusCode: 200
       }
     } catch (error: any) {
@@ -247,10 +376,10 @@ export class CardFeatureModel {
   // DELETE
   // ================================================
 
-  static async delete(id: string): Promise<ModelResult<null>> {
+  static async delete(id: string, userId: string): Promise<ModelResult<null>> {
     try {
-      // Verificar se existe
-      const existingCheck = await this.findById(id)
+      // Verificar se existe e se usuário é o criador
+      const existingCheck = await this.findById(id, userId)
       if (!existingCheck.success) {
         return {
           success: false,
@@ -259,8 +388,17 @@ export class CardFeatureModel {
         }
       }
 
+      // Verificar ownership
+      if (existingCheck.data?.createdBy !== userId) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para deletar este card',
+          statusCode: 403
+        }
+      }
+
       await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .delete()
           .eq('id', id)
@@ -291,35 +429,39 @@ export class CardFeatureModel {
     recentCount: number
   }>> {
     try {
-      // Total count
+      // Total count (apenas públicos para stats)
       const { count: total } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .select('*', { count: 'exact', head: true })
+          .eq('is_private', false)
       )
 
-      // Group by tech
+      // Group by tech (apenas públicos)
       const { data: techData } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .select('tech')
+          .eq('is_private', false)
       )
 
-      // Group by language
+      // Group by language (apenas públicos)
       const { data: languageData } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .select('language')
+          .eq('is_private', false)
       )
 
-      // Recent count (last 7 days)
+      // Recent count (last 7 days, apenas públicos)
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
       const { count: recentCount } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .select('*', { count: 'exact', head: true })
+          .eq('is_private', false)
           .gte('created_at', sevenDaysAgo.toISOString())
       )
 
@@ -357,7 +499,7 @@ export class CardFeatureModel {
   // BULK OPERATIONS
   // ================================================
 
-  static async bulkCreate(items: CreateCardFeatureRequest[]): Promise<ModelListResult<CardFeatureResponse>> {
+  static async bulkCreate(items: CreateCardFeatureRequest[], userId: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const insertData: CardFeatureInsert[] = items.map(item => ({
         id: randomUUID(),
@@ -368,12 +510,14 @@ export class CardFeatureModel {
         content_type: item.content_type,
         card_type: item.card_type || 'codigos',
         screens: item.screens,
+        created_by: userId,
+        is_private: item.is_private ?? false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }))
 
       const { data } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .insert(insertData)
           .select()
@@ -399,7 +543,7 @@ export class CardFeatureModel {
   static async bulkDelete(ids: string[]): Promise<ModelResult<{ deletedCount: number }>> {
     try {
       const { count } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .delete({ count: 'exact' })
           .in('id', ids)

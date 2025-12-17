@@ -4,10 +4,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock, Share2 } from "lucide-react"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
+import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -18,6 +19,7 @@ interface CardFeatureCompactProps {
 }
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
+  const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
   // Estado para controlar a aba ativa (similar ao CardFeature)
@@ -25,8 +27,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
   
-  // URL da API em produção
-  const cardApiUrl = `https://web-backend-10xdev.azurewebsites.net/api/card-features/${snippet.id}`
+  // Verificar se o usuário é o criador do card
+  const isOwner = user?.id === snippet.createdBy
+  const canEdit = isOwner
+  
+  // URL da API baseada no ambiente
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  const apiBaseUrl = isLocalhost 
+    ? 'http://localhost:3001/api' 
+    : 'https://api.10xdev.com.br/api'
+  const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -41,6 +51,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
       setCopied(true)
       toast.success("Link copiado!")
       setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link")
+    }
+  }
+
+  // Função para compartilhar card (copiar URL do frontend)
+  const handleShareCard = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      // Gerar URL do frontend para visualizar o card
+      const frontendUrl = `${window.location.origin}/?tab=codes&id=${snippet.id}`
+      await navigator.clipboard.writeText(frontendUrl)
+      toast.success("Link do card copiado!")
     } catch (err) {
       toast.error("Erro ao copiar link")
     }
@@ -90,14 +113,25 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges - Própria linha abaixo */}
                 <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                  {/* Autor à esquerda */}
-                  <Badge
-                    variant="secondary"
-                    className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                  >
-                    <span className="mr-1">👤</span>
-                    {snippet.author || 'Anônimo'}
-                  </Badge>
+                  {/* Autor e privacidade à esquerda */}
+                  <div className="flex items-center gap-2">
+                    {snippet.isPrivate && (
+                      <Badge
+                        variant="secondary"
+                        className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                      >
+                        <Lock className="h-3 w-3 mr-1" />
+                        Privado
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="secondary"
+                      className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                    >
+                      <span className="mr-1">👤</span>
+                      {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
+                    </Badge>
+                  </div>
                   
                   {/* Badges tech/language à direita */}
                   <div className="flex gap-2 ml-auto">
@@ -124,12 +158,24 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
+                  {snippet.isPrivate && (
+                    <>
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                      >
+                        <Lock className="h-2.5 w-2.5 mr-0.5" />
+                        Privado
+                      </Badge>
+                      <span className="text-gray-400 text-[8px]">●</span>
+                    </>
+                  )}
                   <Badge
                     variant="secondary"
                     className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
                   >
                     <span className="mr-1">👤</span>
-                    {snippet.author || 'Anônimo'}
+                    {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
                   </Badge>
                   <span className="text-gray-400 text-[8px]">●</span>
                   <Badge
@@ -158,11 +204,24 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEdit(snippet)}>
+                        {!snippet.isPrivate && (
+                          <DropdownMenuItem onClick={handleShareCard}>
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Compartilhar
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          onClick={() => onEdit(snippet)}
+                          disabled={!canEdit}
+                        >
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDelete(snippet.id)} className="text-red-600">
+                        <DropdownMenuItem
+                          onClick={() => onDelete(snippet.id)}
+                          className="text-red-600"
+                          disabled={!canEdit}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Excluir
                         </DropdownMenuItem>
@@ -196,39 +255,41 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
             {/* Seção de Actions - Visível apenas no desktop */}
             <div className="hidden md:flex items-center gap-1 flex-shrink-0">
 
-              {/* Edit Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
+              {/* Menu Dropdown - Desktop */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="text-gray-500 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 p-2"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!snippet.isPrivate && (
+                    <DropdownMenuItem onClick={handleShareCard}>
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Compartilhar
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
                     onClick={() => onEdit(snippet)}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
+                    disabled={!canEdit}
                   >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Editar CardFeature</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Delete Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => onDelete(snippet.id)}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2"
+                    className="text-red-600"
+                    disabled={!canEdit}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Excluir CardFeature</p>
-                </TooltipContent>
-              </Tooltip>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Toggle Button */}
               <Tooltip>
