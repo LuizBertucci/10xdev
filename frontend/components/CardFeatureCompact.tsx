@@ -260,6 +260,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   </Badge>
                 </div>
                 
+                {/* Sistema de Reviews - Mobile */}
+                <div className="mt-2 pt-2 border-t border-gray-100">
+                  <CardReview cardId={snippet.id} compact={true} />
+                </div>
+                
                 {/* Linha separatória */}
                 <div className="border-t border-gray-200 pt-2">
                   {/* Ícones em linha horizontal - alinhados à direita */}
