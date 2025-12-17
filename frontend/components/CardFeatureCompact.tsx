@@ -195,7 +195,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           if (!canEdit) {
                             toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
                             return
@@ -208,7 +209,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                         Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           if (!canEdit) {
                             toast.error("Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.")
                             return
@@ -309,7 +311,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (!canEdit) {
                         toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
                         return
@@ -322,7 +325,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     Editar
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (!canEdit) {
                         toast.error("Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.")
                         return

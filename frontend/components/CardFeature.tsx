@@ -64,7 +64,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (!canEdit) {
                         toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
                         return
@@ -89,7 +90,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       if (!canEdit) {
                         toast.error("Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.")
                         return
@@ -196,7 +198,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         if (!canEdit) {
                           toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
                           return

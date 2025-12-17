@@ -56,8 +56,25 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
       return
     }
 
+    // Limpar hover ao clicar
+    setHoverRating(null)
+
     // Se clicar na mesma estrela que já está selecionada, remover a review
-    if (stats?.userReview && stats.userReview.rating === rating) {
+    // Verificar se existe userReview e se o rating é o mesmo (comparação numérica)
+    const currentUserRating = stats?.userReview?.rating
+    
+    // Debug logs
+    console.log('handleRating called:', {
+      rating,
+      currentUserRating,
+      stats: stats?.userReview,
+      shouldRemove: currentUserRating !== undefined && currentUserRating !== null && Number(currentUserRating) === Number(rating)
+    })
+    
+    const shouldRemove = currentUserRating !== undefined && currentUserRating !== null && Number(currentUserRating) === Number(rating)
+    
+    if (shouldRemove) {
+      console.log('Removendo review...')
       await handleRemoveRating()
       return
     }
@@ -86,20 +103,40 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
 
   // Função para remover avaliação
   const handleRemoveRating = async () => {
-    if (!user) return
+    if (!user) {
+      console.log('handleRemoveRating: usuário não logado')
+      return
+    }
+
+    console.log('handleRemoveRating: iniciando remoção...')
 
     try {
       setSubmitting(true)
       const response = await cardFeatureReviewService.delete(cardId)
       
+      console.log('handleRemoveRating: resposta do delete:', response)
+      
       if (response?.success) {
-        // Recarregar estatísticas
+        // Recarregar estatísticas para garantir que o estado seja atualizado
         const statsResponse = await cardFeatureReviewService.getStats(cardId)
+        console.log('handleRemoveRating: stats após delete:', statsResponse)
+        
         if (statsResponse?.success && statsResponse.data) {
           setStats(statsResponse.data)
+          console.log('handleRemoveRating: estado atualizado:', statsResponse.data)
+        } else if (stats) {
+          // Fallback: atualizar manualmente removendo userReview
+          const updatedStats = {
+            ...stats,
+            userReview: undefined,
+            totalReviews: Math.max(0, stats.totalReviews - 1)
+          }
+          setStats(updatedStats)
+          console.log('handleRemoveRating: estado atualizado (fallback):', updatedStats)
         }
         toast.success("Avaliação removida")
       } else {
+        console.error('handleRemoveRating: erro na resposta:', response)
         toast.error(response?.error || "Erro ao remover avaliação")
       }
     } catch (error) {
@@ -130,16 +167,19 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
     <div className={`flex items-center gap-2 ${compact ? 'text-xs' : ''}`}>
       {/* Estrelas interativas */}
       <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((rating) => {
-          const isFilled = rating <= Math.round(displayRating)
-          const isUserRating = stats.userReview && rating === stats.userReview.rating
+        {[1, 2, 3, 4, 5].map((starRating) => {
+          const isFilled = starRating <= Math.round(displayRating)
+          const isUserRating = stats.userReview && Number(stats.userReview.rating) === Number(starRating)
           
           return (
             <button
-              key={rating}
+              key={starRating}
               type="button"
-              onClick={() => handleRating(rating)}
-              onMouseEnter={() => user && setHoverRating(rating)}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleRating(starRating)
+              }}
+              onMouseEnter={() => user && setHoverRating(starRating)}
               onMouseLeave={() => setHoverRating(null)}
               disabled={!user || submitting}
               className={`
@@ -152,8 +192,8 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
                 !user 
                   ? "Faça login para avaliar"
                   : isUserRating
-                  ? `Sua avaliação: ${rating} estrelas (clique para remover)`
-                  : `Avaliar com ${rating} estrelas`
+                  ? `Sua avaliação: ${starRating} estrelas (clique para remover)`
+                  : `Avaliar com ${starRating} estrelas`
               }
             >
               <Star
@@ -164,7 +204,7 @@ export default function CardReview({ cardId, compact = false }: CardReviewProps)
                     ? 'fill-amber-400 text-amber-500' 
                     : 'fill-gray-200 text-gray-300'
                   }
-                  ${user && !submitting && hoverRating === rating ? 'fill-amber-300 text-amber-400' : ''}
+                  ${user && !submitting && hoverRating === starRating ? 'fill-amber-300 text-amber-400' : ''}
                 `}
               />
             </button>
