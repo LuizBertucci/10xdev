@@ -202,7 +202,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                           }
                           onEdit(snippet)
                         }}
-                        disabled={!canEdit}
+                        className={!canEdit ? 'opacity-50 cursor-not-allowed' : ''}
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
@@ -215,8 +215,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                           }
                           onDelete(snippet.id)
                         }}
-                        className="text-red-600"
-                        disabled={!canEdit}
+                        className={`text-red-600 ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Excluir
@@ -303,7 +302,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => {
                       if (!canEdit) {
@@ -312,7 +311,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       }
                       onEdit(snippet)
                     }}
-                    disabled={!canEdit}
+                    className={!canEdit ? 'opacity-50 cursor-not-allowed' : ''}
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
@@ -325,8 +324,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       }
                       onDelete(snippet.id)
                     }}
-                    className="text-red-600"
-                    disabled={!canEdit}
+                    className={`text-red-600 ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Excluir

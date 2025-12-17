@@ -71,8 +71,11 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                       }
                       onEdit(snippet)
                     }}
-                    disabled={!canEdit}
-                    className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`text-gray-500 transition-all duration-200 p-2 ${
+                      canEdit 
+                        ? 'hover:text-blue-600 hover:bg-blue-50 cursor-pointer' 
+                        : 'opacity-50 cursor-not-allowed'
+                    }`}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -93,8 +96,11 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                       }
                       onDelete(snippet.id)
                     }}
-                    disabled={!canEdit}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`text-gray-500 transition-all duration-200 p-2 ${
+                      canEdit 
+                        ? 'hover:text-red-600 hover:bg-red-50 cursor-pointer' 
+                        : 'opacity-50 cursor-not-allowed'
+                    }`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -197,14 +203,17 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                         }
                         onEdit(snippet)
                       }}
-                      disabled={!canEdit}
-                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 opacity-80 hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`text-gray-500 transition-all duration-200 p-2 opacity-80 hover:opacity-100 ${
+                        canEdit 
+                          ? 'hover:text-blue-600 hover:bg-blue-50 cursor-pointer' 
+                          : 'opacity-50 cursor-not-allowed'
+                      }`}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Editar CardFeature</p>
+                    <p>{canEdit ? 'Editar CardFeature' : 'Apenas o criador pode editar'}</p>
                   </TooltipContent>
                 </Tooltip>
 
