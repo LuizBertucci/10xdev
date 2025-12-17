@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { cardFeatureService } from '@/services'
 import { usePagination } from './usePagination'
 import { useDebounceSearch } from './useDebounceSearch'
+import { toast } from 'sonner'
 import type { CardFeature, CardFeatureState, CreateCardFeatureData, UpdateCardFeatureData, UseCardFeaturesReturn, UseCardFeaturesOptions, QueryParams, FetchParams } from '@/types'
 
 // Hook principal para gerenciar CardFeatures com API
@@ -235,7 +236,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       console.error('Erro ao atualizar CardFeature:', error)
       let errorMessage = 'Erro ao atualizar CardFeature'
       
-      if (error && typeof error === 'object' && 'error' in error) {
+      // Verificar se é erro 403 (sem permissão)
+      if (error && typeof error === 'object' && 'statusCode' in error && (error as any).statusCode === 403) {
+        errorMessage = 'Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.'
+        toast.error(errorMessage)
+      } else if (error && typeof error === 'object' && 'error' in error) {
         errorMessage = (error as any).error || errorMessage
       } else if (error instanceof Error) {
         errorMessage = error.message
@@ -269,7 +274,18 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         throw new Error(response.error || 'Erro ao remover CardFeature')
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao remover CardFeature'
+      let errorMessage = 'Erro ao remover CardFeature'
+      
+      // Verificar se é erro 403 (sem permissão)
+      if (error && typeof error === 'object' && 'statusCode' in error && (error as any).statusCode === 403) {
+        errorMessage = 'Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.'
+        toast.error(errorMessage)
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (error && typeof error === 'object' && 'error' in error) {
+        errorMessage = (error as any).error || errorMessage
+      }
+      
       setState(prev => ({
         ...prev,
         error: errorMessage,

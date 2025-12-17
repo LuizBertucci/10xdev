@@ -171,14 +171,26 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        onClick={() => onEdit(snippet)}
+                        onClick={() => {
+                          if (!canEdit) {
+                            toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
+                            return
+                          }
+                          onEdit(snippet)
+                        }}
                         disabled={!canEdit}
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => onDelete(snippet.id)}
+                        onClick={() => {
+                          if (!canEdit) {
+                            toast.error("Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.")
+                            return
+                          }
+                          onDelete(snippet.id)
+                        }}
                         className="text-red-600"
                         disabled={!canEdit}
                       >
@@ -268,21 +280,27 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {!snippet.isPrivate && (
-                    <DropdownMenuItem onClick={handleShareCard}>
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Compartilhar
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuItem
-                    onClick={() => onEdit(snippet)}
+                    onClick={() => {
+                      if (!canEdit) {
+                        toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
+                        return
+                      }
+                      onEdit(snippet)
+                    }}
                     disabled={!canEdit}
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Editar
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => onDelete(snippet.id)}
+                    onClick={() => {
+                      if (!canEdit) {
+                        toast.error("Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.")
+                        return
+                      }
+                      onDelete(snippet.id)
+                    }}
                     className="text-red-600"
                     disabled={!canEdit}
                   >
@@ -291,6 +309,25 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Share Button - Desktop */}
+              {!snippet.isPrivate && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleShareCard}
+                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Compartilhar card</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
               {/* Toggle Button */}
               <Tooltip>

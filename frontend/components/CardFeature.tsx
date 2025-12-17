@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Expand, Edit, Trash2, Lock } from "lucide-react"
+import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
@@ -58,7 +59,13 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onEdit(snippet)}
+                    onClick={() => {
+                      if (!canEdit) {
+                        toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
+                        return
+                      }
+                      onEdit(snippet)
+                    }}
                     disabled={!canEdit}
                     className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -74,7 +81,13 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onDelete(snippet.id)}
+                    onClick={() => {
+                      if (!canEdit) {
+                        toast.error("Você não tem permissão para deletar este card. Apenas o criador pode realizar esta ação.")
+                        return
+                      }
+                      onDelete(snippet.id)
+                    }}
                     disabled={!canEdit}
                     className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -172,8 +185,15 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => onEdit(snippet)}
-                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 opacity-80 hover:opacity-100"
+                      onClick={() => {
+                        if (!canEdit) {
+                          toast.error("Você não tem permissão para editar este card. Apenas o criador pode realizar esta ação.")
+                          return
+                        }
+                        onEdit(snippet)
+                      }}
+                      disabled={!canEdit}
+                      className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 p-2 opacity-80 hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>

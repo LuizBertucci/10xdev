@@ -73,7 +73,7 @@ export default function CardFeatureFormJSON({
   const handleCopyExample = async () => {
     try {
       await navigator.clipboard.writeText(JSON_PLACEHOLDER)
-      toast.success("Exemplo JSON copiado! Cole em sua IA preferida.")
+      toast.success("Exemplo JSON copiado com sucesso!")
     } catch (err) {
       toast.error("Erro ao copiar exemplo")
     }
