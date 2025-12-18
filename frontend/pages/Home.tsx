@@ -2,9 +2,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code2, Play, MessageCircle, Users, FileCode, Calendar } from "lucide-react"
+import { Code2, Play, MessageCircle, Users, FileCode, Calendar, Video as VideoIcon } from "lucide-react"
 import { videoService, type Video } from "@/services/videoService"
 import { projectService, type Project } from "@/services"
+import { cardFeatureService } from "@/services/cardFeatureService"
 
 interface PlatformState {
   setActiveTab: (tab: string) => void
@@ -19,38 +20,49 @@ export default function Home({ platformState }: HomeProps) {
   const router = useRouter()
   const [videos, setVideos] = useState<Video[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-
-  const quickAccessBlocks = [
-    { title: "React Hooks", icon: Code2, color: "bg-blue-500", count: "150+ snippets" },
-    { title: "Node.js APIs", icon: Code2, color: "bg-green-500", count: "80+ exemplos" },
-    { title: "Python Scripts", icon: Code2, color: "bg-yellow-500", count: "200+ códigos" },
-  ]
+  const [stats, setStats] = useState<{ totalCards: number; totalVideos: number; totalProjects: number; cardsByTech: Record<string, number> }>({
+    totalCards: 0,
+    totalVideos: 0,
+    totalProjects: 0,
+    cardsByTech: {}
+  })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadVideos = async () => {
+    const loadData = async () => {
       try {
-        const res = await videoService.listVideos()
-        if (res?.success && res.data) {
-          setVideos(res.data.slice(0, 3))
+        setLoading(true)
+        
+        // Carregar vídeos
+        const videosRes = await videoService.listVideos()
+        if (videosRes?.success && videosRes.data) {
+          setVideos(videosRes.data.slice(0, 3))
+        }
+
+        // Carregar projetos
+        const projectsRes = await projectService.getAll({ limit: 3 })
+        if (projectsRes?.success && projectsRes.data) {
+          setProjects(projectsRes.data.slice(0, 3))
+        }
+
+        // Carregar estatísticas de cards
+        const statsRes = await cardFeatureService.getStats()
+        if (statsRes?.success && statsRes.data) {
+          setStats({
+            totalCards: statsRes.data.total || 0,
+            totalVideos: videosRes?.data?.length || 0,
+            totalProjects: projectsRes?.data?.length || 0,
+            cardsByTech: statsRes.data.byTech || {}
+          })
         }
       } catch (error) {
-        console.error('Erro ao carregar videoaulas:', error)
+        console.error('Erro ao carregar dados:', error)
+      } finally {
+        setLoading(false)
       }
     }
 
-    const loadProjects = async () => {
-      try {
-        const res = await projectService.getAll({ limit: 3 })
-        if (res?.success && res.data) {
-          setProjects(res.data.slice(0, 3))
-        }
-      } catch (error) {
-        console.error('Erro ao carregar projetos:', error)
-      }
-    }
-
-    loadVideos()
-    loadProjects()
+    loadData()
   }, [])
 
   const handleViewVideo = (videoId: string) => {
@@ -78,47 +90,70 @@ export default function Home({ platformState }: HomeProps) {
       <div>
         <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickAccessBlocks.map((block, index) => (
-            <Card
-              key={index}
-              className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
-              onClick={() => {
-                platformState.setActiveTab("codes");
-                if (block.title === "Node.js APIs") {
-                  platformState.setSelectedTech("node.js");
-                } else if (block.title === "React Hooks") {
-                  platformState.setSelectedTech("react");
-                } else if (block.title === "Python Scripts") {
-                  platformState.setSelectedTech("python");
-                }
-              }}
-            >
-              <CardContent className="p-6">
-                <div className={`w-12 h-12 ${block.color} rounded-lg flex items-center justify-center mb-4`}>
-                  <block.icon className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{block.title}</h3>
-                <p className="text-gray-600 text-sm">{block.count}</p>
-              </CardContent>
-            </Card>
-          ))}
-          
-          {/* Card Comunidade WhatsApp */}
-          <Card 
-            className="bg-gradient-to-br from-green-500 to-emerald-600 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-            onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+          {/* Card Códigos */}
+          <Card
+            className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+            onClick={() => platformState.setActiveTab("codes")}
           >
             <CardContent className="p-6">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                <MessageCircle className="h-6 w-6 text-white" />
+              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-4">
+                <Code2 className="h-6 w-6 text-white" />
               </div>
-              <h3 className="font-semibold text-lg mb-2 text-white">Comunidade WhatsApp</h3>
-              <p className="text-white/90 text-sm mb-4">
+              <h3 className="font-semibold text-lg mb-2">Códigos</h3>
+              <p className="text-gray-600 text-sm">
+                {loading ? "Carregando..." : `${stats.totalCards} cards disponíveis`}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card Vídeos */}
+          <Card
+            className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+            onClick={() => platformState.setActiveTab("videos")}
+          >
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center mb-4">
+                <VideoIcon className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Videoaulas</h3>
+              <p className="text-gray-600 text-sm">
+                {loading ? "Carregando..." : `${stats.totalVideos} videoaulas disponíveis`}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card Projetos */}
+          <Card
+            className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+            onClick={() => platformState.setActiveTab("projects")}
+          >
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-4">
+                <FileCode className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Projetos</h3>
+              <p className="text-gray-600 text-sm">
+                {loading ? "Carregando..." : `${stats.totalProjects} projetos disponíveis`}
+              </p>
+            </CardContent>
+          </Card>
+          
+          {/* Card Comunidade WhatsApp - Destacado */}
+          <Card 
+            className="bg-gradient-to-br from-green-500 via-green-600 to-emerald-700 text-white hover:shadow-2xl hover:scale-[1.05] transition-all duration-300 cursor-pointer border-0 shadow-lg"
+            onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+          >
+            <CardContent className="p-6 flex flex-col h-full">
+              <div className="w-14 h-14 bg-white/25 rounded-xl flex items-center justify-center mb-4 ring-2 ring-white/30">
+                <MessageCircle className="h-7 w-7 text-white" />
+              </div>
+              <h3 className="font-bold text-xl mb-2 text-white">Comunidade WhatsApp</h3>
+              <p className="text-white/95 text-sm mb-4 flex-1">
                 Conecte-se com desenvolvedores, compartilhe conhecimento e colabore em projetos.
               </p>
               <Button 
                 variant="secondary" 
-                className="w-full bg-white text-green-600 hover:bg-gray-100 font-medium"
+                className="w-full bg-white text-green-600 hover:bg-gray-50 font-semibold shadow-md hover:shadow-lg transition-shadow"
               >
                 Entrar na comunidade
               </Button>
