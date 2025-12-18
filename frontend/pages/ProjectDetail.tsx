@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, AlertTriangle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -51,6 +52,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
+
+  // Delete dialog states
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deleteCards, setDeleteCards] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // User Search State
   const [userSearchQuery, setUserSearchQuery] = useState("")
@@ -205,17 +211,22 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }
 
-  const handleDeleteProject = async () => {
+  const openDeleteDialog = () => {
+    setDeleteCards(false)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!projectId) return
-    
-    if (!confirm('Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita.')) {
-      return
-    }
 
     try {
-      const response = await projectService.delete(projectId)
+      setDeleting(true)
+      const response = await projectService.delete(projectId, deleteCards)
       if (response?.success) {
-        toast.success('Projeto deletado com sucesso!')
+        toast.success(deleteCards 
+          ? 'Projeto e cards deletados com sucesso!' 
+          : 'Projeto deletado com sucesso!')
+        setIsDeleteDialogOpen(false)
         handleBack()
       } else {
         toast.error(response?.error || 'Erro ao deletar projeto')
@@ -229,6 +240,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         errorMessage = error.message
       }
       toast.error(errorMessage)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -371,7 +384,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           <>
             {/* Desktop */}
             <div className="hidden sm:block">
-            <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
+            <Button variant="destructive" size="sm" onClick={openDeleteDialog}>
               <Trash2 className="h-4 w-4 mr-2" />
               Deletar Projeto
             </Button>
@@ -385,7 +398,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDeleteProject} className="text-red-600">
+                  <DropdownMenuItem onClick={openDeleteDialog} className="text-red-600">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Deletar Projeto
                   </DropdownMenuItem>
@@ -667,6 +680,81 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </Button>
             <Button onClick={handleAddMember} disabled={!selectedUser}>
               Adicionar Membro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Deletar Projeto
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja deletar o projeto <strong>"{project?.name}"</strong>?
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+
+          {project && (cardFeatures.length > 0) && (
+            <div className="space-y-4">
+              <div className="rounded-md bg-amber-50 p-4 border border-amber-200">
+                <p className="text-sm text-amber-800">
+                  Este projeto possui <strong>{cardFeatures.length} cards</strong> associados.
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="deleteCards" 
+                  checked={deleteCards}
+                  onCheckedChange={(checked) => setDeleteCards(checked === true)}
+                />
+                <label 
+                  htmlFor="deleteCards" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Deletar também os cards do projeto
+                </label>
+              </div>
+              
+              {deleteCards && (
+                <div className="rounded-md bg-red-50 p-3 border border-red-200">
+                  <p className="text-xs text-red-700">
+                    ⚠️ Os {cardFeatures.length} cards serão permanentemente deletados e não poderão ser recuperados.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deletando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleteCards ? 'Deletar Projeto e Cards' : 'Deletar Projeto'}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
