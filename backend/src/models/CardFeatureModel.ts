@@ -20,6 +20,20 @@ export class CardFeatureModel {
     // Extrair dados do usuário
     const userData = row.users || null
 
+    // Converter shared_with_user_ids de JSONB para array de strings
+    let sharedWithUserIds: string[] = []
+    if (row.shared_with_user_ids) {
+      if (Array.isArray(row.shared_with_user_ids)) {
+        sharedWithUserIds = row.shared_with_user_ids
+      } else if (typeof row.shared_with_user_ids === 'string') {
+        try {
+          sharedWithUserIds = JSON.parse(row.shared_with_user_ids)
+        } catch {
+          sharedWithUserIds = []
+        }
+      }
+    }
+
     return {
       id: row.id,
       title: row.title,
@@ -33,6 +47,7 @@ export class CardFeatureModel {
       author: userData?.name || null,
       isPrivate: row.is_private ?? false,
       createdInProjectId: row.created_in_project_id || null,
+      sharedWithUserIds: sharedWithUserIds.length > 0 ? sharedWithUserIds : undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
@@ -46,12 +61,12 @@ export class CardFeatureModel {
 
     // Filtro de visibilidade: públicos OU privados do próprio usuário OU compartilhados comigo
     if (userId) {
-      // Usar SQL raw para incluir cards compartilhados via EXISTS
-      // (is_private=false) OR (is_private=true AND created_by=userId) OR (EXISTS compartilhamento)
+      // Usar JSONB para incluir cards compartilhados
+      // (is_private=false) OR (is_private=true AND created_by=userId) OR (shared_with_user_ids contém userId)
       query = query.or(
         `is_private.eq.false,` +
         `and(is_private.eq.true,created_by.eq.${userId}),` +
-        `id.in.(select card_feature_id from card_shares where shared_with_user_id='${userId}')`
+        `shared_with_user_ids.cs.["${userId}"]`
       )
     } else {
       // Não autenticado: apenas cards públicos

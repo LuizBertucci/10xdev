@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { CardFeatureController } from '@/controllers/CardFeatureController'
 import { CardFeatureReviewController } from '@/controllers/CardFeatureReviewController'
+import { CardFeatureShareController } from '@/controllers/CardFeatureShareController'
 import { supabaseMiddleware, authenticate } from '@/middleware'
 
 const router = Router()
@@ -20,6 +21,15 @@ router.get('/search', CardFeatureController.search)
 
 // TECH FILTER - Rota específica para filtrar por tecnologia
 router.get('/tech/:tech', CardFeatureController.getByTech)
+
+// ================================================
+// SHARE ROUTES - Devem vir ANTES de /:id para evitar conflitos
+// ================================================
+
+// Rotas de compartilhamento: middleware obrigatório
+router.post('/:id/share', supabaseMiddleware, authenticate, CardFeatureShareController.shareWithUsers)
+router.get('/:id/share', supabaseMiddleware, authenticate, CardFeatureShareController.getSharedWith)
+router.delete('/:id/share/:userId', supabaseMiddleware, authenticate, CardFeatureShareController.unshareWithUser)
 
 // ================================================
 // REVIEWS ROUTES - Devem vir ANTES de /:id para evitar conflitos
