@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code2, Play, MessageCircle, Users, FileCode, Calendar, Video as VideoIcon } from "lucide-react"
+import { Code2, Play, MessageCircle, Users, FileCode, Calendar, Video as VideoIcon, Plus } from "lucide-react"
 import { videoService, type Video } from "@/services/videoService"
 import { projectService, type Project } from "@/services"
 import { cardFeatureService } from "@/services/cardFeatureService"
@@ -73,6 +73,11 @@ export default function Home({ platformState }: HomeProps) {
   const handleViewProject = (projectId: string) => {
     platformState.setActiveTab("projects")
     router.push(`?tab=projects&id=${projectId}`)
+  }
+
+  const handleCreateProject = () => {
+    platformState.setActiveTab("projects")
+    router.push(`?tab=projects`)
   }
 
   return (
@@ -206,10 +211,18 @@ export default function Home({ platformState }: HomeProps) {
         </div>
       )}
 
-      {/* Featured Projects */}
-      {projects.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Projetos em Destaque</h2>
+      {/* Seus Projetos */}
+      <div>
+        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Seus Projetos</h2>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center text-gray-500">Carregando...</div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {projects.map((project) => (
               <Card
@@ -248,8 +261,31 @@ export default function Home({ platformState }: HomeProps) {
               </Card>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <Card className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors">
+            <CardContent className="p-12">
+              <div className="flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Plus className="h-8 w-8 text-gray-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Crie seu primeiro projeto</h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Organize seus cards e colabore com sua equipe criando um novo projeto.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleCreateProject}
+                  className="mt-2"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Projeto
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
