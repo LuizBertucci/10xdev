@@ -96,50 +96,68 @@ export default function Home({ platformState }: HomeProps) {
         <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card Códigos */}
-          <Card
-            className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
-            onClick={() => platformState.setActiveTab("codes")}
-          >
-            <CardContent className="p-6">
+          <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardContent className="p-6 flex flex-col h-full">
               <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-4">
                 <Code2 className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Códigos</h3>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-sm mb-4 flex-1">
                 {loading ? "Carregando..." : `${stats.totalCards} cards disponíveis`}
               </p>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  platformState.setActiveTab("codes")
+                }}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold shadow-md hover:shadow-lg transition-shadow"
+              >
+                Acessar
+              </Button>
             </CardContent>
           </Card>
 
           {/* Card Vídeos */}
-          <Card
-            className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
-            onClick={() => platformState.setActiveTab("videos")}
-          >
-            <CardContent className="p-6">
+          <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardContent className="p-6 flex flex-col h-full">
               <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center mb-4">
                 <VideoIcon className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Videoaulas</h3>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-sm mb-4 flex-1">
                 {loading ? "Carregando..." : `${stats.totalVideos} videoaulas disponíveis`}
               </p>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  platformState.setActiveTab("videos")
+                }}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold shadow-md hover:shadow-lg transition-shadow"
+              >
+                Acessar
+              </Button>
             </CardContent>
           </Card>
 
           {/* Card Projetos */}
-          <Card
-            className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
-            onClick={() => platformState.setActiveTab("projects")}
-          >
-            <CardContent className="p-6">
+          <Card className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardContent className="p-6 flex flex-col h-full">
               <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-4">
                 <FileCode className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Projetos</h3>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-600 text-sm mb-4 flex-1">
                 {loading ? "Carregando..." : `${stats.totalProjects} projetos disponíveis`}
               </p>
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  platformState.setActiveTab("projects")
+                }}
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold shadow-md hover:shadow-lg transition-shadow"
+              >
+                Acessar
+              </Button>
             </CardContent>
           </Card>
           
@@ -227,13 +245,14 @@ export default function Home({ platformState }: HomeProps) {
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => handleViewProject(project.id)}
+                className="hover:shadow-lg transition-shadow"
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle>{project.name}</CardTitle>
+                      <CardTitle className="cursor-pointer hover:text-blue-600" onClick={() => handleViewProject(project.id)}>
+                        {project.name}
+                      </CardTitle>
                       {project.description && (
                         <CardDescription className="mt-2">{project.description}</CardDescription>
                       )}
@@ -241,7 +260,7 @@ export default function Home({ platformState }: HomeProps) {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                     <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
                         <Users className="h-4 w-4" />
@@ -257,6 +276,15 @@ export default function Home({ platformState }: HomeProps) {
                       </div>
                     </div>
                   </div>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleViewProject(project.id)
+                    }}
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold shadow-md hover:shadow-lg transition-shadow"
+                  >
+                    Acessar
+                  </Button>
                 </CardContent>
               </Card>
             ))}
