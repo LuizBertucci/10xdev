@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Eye } from "lucide-react"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
+import { cardFeatureService } from "@/services/cardFeatureService"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
@@ -90,12 +91,16 @@ export default function Codes({ platformState }: CodesProps) {
 
         if (formData.is_private && shareEmails && result.id) {
           try {
-            await fetch(`/api/card-features/${result.id}/share`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ emails: shareEmails })
-            })
-            console.log('Card compartilhado com:', shareEmails)
+            // Converter string de emails separados por vírgula em array
+            const emailsArray = shareEmails.split(',').map(email => email.trim()).filter(email => email.length > 0)
+            if (emailsArray.length > 0) {
+              const shareResult = await cardFeatureService.shareCard(result.id, emailsArray)
+              if (shareResult?.success) {
+                console.log('Card compartilhado com:', emailsArray)
+              } else {
+                console.error('Erro ao compartilhar:', shareResult?.error)
+              }
+            }
           } catch (shareError) {
             console.error('Erro ao compartilhar:', shareError)
           }

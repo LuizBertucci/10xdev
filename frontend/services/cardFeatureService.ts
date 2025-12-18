@@ -58,6 +58,31 @@ class CardFeatureService {
   }
 
   // ================================================
+  // SHARE METHODS
+  // ================================================
+
+  /**
+   * Compartilha um card com usuários através de seus emails
+   */
+  async shareCard(cardId: string, emails: string[]): Promise<ApiResponse<{ cardId: string; sharedWithUserIds: string[]; addedUsers: number }> | undefined> {
+    return apiClient.post<{ cardId: string; sharedWithUserIds: string[]; addedUsers: number }>(`${this.endpoint}/${cardId}/share`, { emails })
+  }
+
+  /**
+   * Remove compartilhamento de um card com um usuário específico
+   */
+  async unshareCard(cardId: string, userId: string): Promise<ApiResponse<{ cardId: string; sharedWithUserIds: string[] }> | undefined> {
+    return apiClient.delete<{ cardId: string; sharedWithUserIds: string[] }>(`${this.endpoint}/${cardId}/share/${userId}`)
+  }
+
+  /**
+   * Obtém lista de usuários com quem o card foi compartilhado
+   */
+  async getSharedUsers(cardId: string): Promise<ApiResponse<{ cardId: string; sharedWith: Array<{ id: string; name: string; email: string }>; count: number }> | undefined> {
+    return apiClient.get<{ cardId: string; sharedWith: Array<{ id: string; name: string; email: string }>; count: number }>(`${this.endpoint}/${cardId}/share`)
+  }
+
+  // ================================================
   // UTILITY METHODS
   // ================================================
 
