@@ -551,18 +551,18 @@ export class CardFeatureModel {
           .eq('card_feature_id', cardFeatureId)
       )
 
-      const reviewsArray = reviews || []
+      const reviewsArray: CardFeatureReview[] = (reviews as CardFeatureReview[]) || []
       const totalReviews = reviewsArray.length
 
       // Calcular média
       const averageRating = totalReviews > 0
-        ? Number((reviewsArray.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(2))
+        ? Number((reviewsArray.reduce((sum: number, r: CardFeatureReview) => sum + r.rating, 0) / totalReviews).toFixed(2))
         : 0
 
       // Buscar review do usuário (se fornecido)
       let userReview: ReviewStats['userReview'] = undefined
       if (userId) {
-        const userReviewData = reviewsArray.find(r => r.user_id === userId)
+        const userReviewData = reviewsArray.find((r: CardFeatureReview) => r.user_id === userId)
         if (userReviewData) {
           userReview = {
             id: userReviewData.id,
@@ -572,13 +572,15 @@ export class CardFeatureModel {
         }
       }
 
+      const statsData: ReviewStats = {
+        averageRating,
+        totalReviews,
+        ...(userReview && { userReview })
+      }
+
       return {
         success: true,
-        data: {
-          averageRating,
-          totalReviews,
-          userReview
-        },
+        data: statsData,
         statusCode: 200
       }
     } catch (error: any) {
