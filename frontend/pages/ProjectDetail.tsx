@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2 } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
@@ -285,6 +286,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     router.push(`/?${params.toString()}`)
   }
 
+  const goToTab = (tab: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    params.set('tab', tab)
+    params.delete('id')
+    router.push(`/?${params.toString()}`)
+  }
+
   useEffect(() => {
     if (isAddCardDialogOpen) {
       loadAvailableCards()
@@ -323,33 +331,94 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const canManageMembers = project.userRole === 'owner' || project.userRole === 'admin'
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={handleBack}>
-            ← Voltar
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
-            {project.description && (
-              <p className="text-gray-600 mt-1">{project.description}</p>
+    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
+      {/* Breadcrumb */}
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <button
+          type="button"
+          onClick={() => goToTab("home")}
+          className="hover:text-gray-900"
+        >
+          Início
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <button
+          type="button"
+          onClick={handleBack}
+          className="hover:text-gray-900"
+        >
+          Projetos
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <span className="text-gray-900 font-medium truncate max-w-[160px] sm:max-w-none">
+          {project.name}
+        </span>
+      </div>
+
+      {/* Header */}
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
+              {project.name}
+            </h1>
+            {project.userRole && (
+              <Badge
+                variant={project.userRole === "owner" ? "default" : "secondary"}
+                className="shrink-0"
+              >
+                {project.userRole === "owner"
+                  ? "Owner"
+                  : project.userRole === "admin"
+                    ? "Admin"
+                    : "Member"}
+              </Badge>
             )}
           </div>
-        </div>
-        <div className="flex items-center space-x-3">
-          {project.userRole && (
-            <Badge variant={project.userRole === 'owner' ? 'default' : 'secondary'}>
-              {project.userRole === 'owner' ? 'Owner' : 
-               project.userRole === 'admin' ? 'Admin' : 'Member'}
-            </Badge>
-          )}
-          {project.userRole === 'owner' && (
-            <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Deletar Projeto
-            </Button>
+
+          {project.description && (
+            <p className="text-sm sm:text-base text-gray-600 mt-1 line-clamp-2">
+              {project.description}
+            </p>
           )}
         </div>
+
+        {/* Ações - Desktop: botão visível, Mobile: menu dropdown */}
+        {project.userRole === "owner" && (
+          <>
+            {/* Desktop */}
+            <div className="hidden sm:block">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteProject}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Deletar Projeto
+              </Button>
+            </div>
+
+            {/* Mobile - Menu Dropdown */}
+            <div className="sm:hidden absolute top-0 right-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={handleDeleteProject}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar Projeto
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tabs */}
