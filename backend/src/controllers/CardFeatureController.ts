@@ -4,7 +4,8 @@ import type {
   CreateCardFeatureRequest,
   UpdateCardFeatureRequest,
   CardFeatureQueryParams,
-  ContentType
+  ContentType,
+  CreateReviewRequest
 } from '@/types/cardfeature'
 
 export class CardFeatureController {
@@ -440,6 +441,155 @@ export class CardFeatureController {
       })
     } catch (error) {
       console.error('Erro no controller bulkDelete:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
+  // REVIEWS - POST /api/card-features/:id/reviews
+  // ================================================
+  
+  static async createOrUpdateReview(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: cardFeatureId } = req.params
+      const { rating } = req.body as CreateReviewRequest
+      const userId = req.user?.id
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      if (!cardFeatureId) {
+        res.status(400).json({
+          success: false,
+          error: 'ID do card é obrigatório'
+        })
+        return
+      }
+
+      if (!rating || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+        res.status(400).json({
+          success: false,
+          error: 'Rating deve ser um inteiro entre 1 e 5'
+        })
+        return
+      }
+
+      const result = await CardFeatureModel.createOrUpdateReview(
+        cardFeatureId,
+        userId,
+        rating
+      )
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(result.statusCode || 200).json({
+        success: true,
+        data: result.data
+      })
+    } catch (error) {
+      console.error('Erro no controller createOrUpdateReview:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
+  // REVIEWS - DELETE /api/card-features/:id/reviews
+  // ================================================
+  
+  static async deleteReview(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: cardFeatureId } = req.params
+      const userId = req.user?.id
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      if (!cardFeatureId) {
+        res.status(400).json({
+          success: false,
+          error: 'ID do card é obrigatório'
+        })
+        return
+      }
+
+      const result = await CardFeatureModel.deleteReview(cardFeatureId, userId)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Review removida com sucesso'
+      })
+    } catch (error) {
+      console.error('Erro no controller deleteReview:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
+  // REVIEWS - GET /api/card-features/:id/reviews/stats
+  // ================================================
+  
+  static async getReviewStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { id: cardFeatureId } = req.params
+      const userId = req.user?.id // Opcional: se logado, inclui userReview
+
+      if (!cardFeatureId) {
+        res.status(400).json({
+          success: false,
+          error: 'ID do card é obrigatório'
+        })
+        return
+      }
+
+      const result = await CardFeatureModel.getReviewStats(cardFeatureId, userId)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.data
+      })
+    } catch (error) {
+      console.error('Erro no controller getReviewStats:', error)
       res.status(500).json({
         success: false,
         error: 'Erro interno do servidor'
