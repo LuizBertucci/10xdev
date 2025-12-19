@@ -465,21 +465,55 @@ export class CardFeatureModel {
   // UPDATE
   // ================================================
 
-  static async update(id: string, data: Partial<CreateCardFeatureRequest>): Promise<ModelResult<CardFeatureResponse>> {
+  static async update(
+    id: string,
+    data: Partial<CreateCardFeatureRequest>,
+    userId: string,
+    userName?: string | null
+  ): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Verificar se é o dono ou super-admin
+      const isOwner = await this.checkOwnership(id, userId, userName)
+
+      if (!isOwner) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para atualizar este card',
+          statusCode: 403
+        }
+      }
+
       // Verificar se existe
-      const existingCheck = await this.findById(id)
+      const existingCheck = await this.findById(id, userId, userName)
       if (!existingCheck.success) {
         return existingCheck
       }
 
+      // Processar screens se fornecido
+      let processedScreens
+      if (data.screens) {
+        processedScreens = data.screens.map(screen => ({
+          ...screen,
+          blocks: screen.blocks.map((block, index) => ({
+            ...block,
+            id: block.id || randomUUID(),
+            order: block.order ?? index
+          }))
+        }))
+      }
+
       const updateData: CardFeatureUpdate = {
         ...data,
+        screens: processedScreens,
         updated_at: new Date().toISOString()
       }
 
+      // Não permitir alterar created_by ou created_in_project_id
+      delete (updateData as any).created_by
+      delete (updateData as any).created_in_project_id
+
       const { data: result } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .update(updateData)
           .eq('id', id)
@@ -493,6 +527,7 @@ export class CardFeatureModel {
         statusCode: 200
       }
     } catch (error: any) {
+      console.error('Erro ao atualizar CardFeature:', error)
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -505,20 +540,35 @@ export class CardFeatureModel {
   // DELETE
   // ================================================
 
-  static async delete(id: string): Promise<ModelResult<null>> {
+  static async delete(
+    id: string,
+    userId: string,
+    userName?: string | null
+  ): Promise<ModelResult<null>> {
     try {
+      // Verificar se é o dono ou super-admin
+      const isOwner = await this.checkOwnership(id, userId, userName)
+
+      if (!isOwner) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para deletar este card',
+          statusCode: 403
+        }
+      }
+
       // Verificar se existe
-      const existingCheck = await this.findById(id)
+      const existingCheck = await this.findById(id, userId, userName)
       if (!existingCheck.success) {
         return {
           success: false,
-          error: existingCheck.error || 'Erro ao verificar CardFeature',
+          error: existingCheck.error || 'CardFeature não encontrado',
           statusCode: existingCheck.statusCode || 404
         }
       }
 
       await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .delete()
           .eq('id', id)
@@ -530,6 +580,7 @@ export class CardFeatureModel {
         statusCode: 200
       }
     } catch (error: any) {
+      console.error('Erro ao deletar CardFeature:', error)
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
