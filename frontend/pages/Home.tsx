@@ -21,11 +21,10 @@ export default function Home({ platformState }: HomeProps) {
   const [videos, setVideos] = useState<Video[]>([])
   const [projects, setProjects] = useState<Project[]>([])
 
-  const quickAccessBlocks = [
-    { title: "React Hooks", icon: Code2, color: "bg-blue-500", count: "150+ snippets" },
-    { title: "Node.js APIs", icon: Code2, color: "bg-green-500", count: "80+ exemplos" },
-    { title: "Python Scripts", icon: Code2, color: "bg-yellow-500", count: "200+ códigos" },
-  ]
+  const handleGoToCodes = () => {
+    platformState.setSelectedTech("all")
+    platformState.setActiveTab("codes")
+  }
 
   useEffect(() => {
     const loadVideos = async () => {
@@ -78,31 +77,29 @@ export default function Home({ platformState }: HomeProps) {
       {/* Quick Access Blocks */}
       <div>
         <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickAccessBlocks.map((block, index) => (
-            <Card
-              key={index}
-              className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer"
-              onClick={() => {
-                platformState.setActiveTab("codes");
-                if (block.title === "Node.js APIs") {
-                  platformState.setSelectedTech("node.js");
-                } else if (block.title === "React Hooks") {
-                  platformState.setSelectedTech("react");
-                } else if (block.title === "Python Scripts") {
-                  platformState.setSelectedTech("python");
-                }
-              }}
-            >
-              <CardContent className="p-6">
-                <div className={`w-12 h-12 ${block.color} rounded-lg flex items-center justify-center mb-4`}>
-                  <block.icon className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{block.title}</h3>
-                <p className="text-gray-600 text-sm">{block.count}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card
+            className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
+            onClick={handleGoToCodes}
+          >
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                <Code2 className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2 text-white">Códigos</h3>
+              <p className="text-white/90 text-sm">Ver todos os snippets e cards</p>
+              <Button
+                variant="secondary"
+                className="w-full mt-4 bg-white text-blue-700 hover:bg-gray-100 font-medium"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleGoToCodes()
+                }}
+              >
+                Acessar Códigos
+              </Button>
+            </CardContent>
+          </Card>
 
           {/* Card Comunidade WhatsApp */}
           <Card
