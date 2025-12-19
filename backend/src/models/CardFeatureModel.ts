@@ -143,9 +143,15 @@ export class CardFeatureModel {
   }
 
   private static buildQuery(params: CardFeatureQueryParams = {}) {
-    let query = supabase
+    // Usar supabaseAdmin para evitar RLS
+    let query = supabaseAdmin
       .from('card_features')
       .select('*', { count: 'exact' })
+
+    // FILTRO DE VISIBILIDADE: apenas cards públicos globais
+    query = query
+      .eq('is_private', false)
+      .is('created_in_project_id', null)
 
     // Filtros
     if (params.tech && params.tech !== 'all') {
@@ -327,6 +333,98 @@ export class CardFeatureModel {
         statusCode: 200
       }
     } catch (error: any) {
+      console.error('Erro ao buscar CardFeatures:', error)
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  /**
+   * Busca cards visíveis para um usuário específico
+   * Inclui: públicos globais + privados do usuário + não listados dos projetos do usuário
+   */
+  static async findAllForUser(
+    userId: string,
+    params: CardFeatureQueryParams = {}
+  ): Promise<ModelListResult<CardFeatureResponse>> {
+    try {
+      // Buscar IDs dos projetos do usuário
+      const { data: memberships } = await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', userId)
+      )
+
+      const projectIds = memberships?.map(m => m.project_id).filter(id => id != null) || []
+
+      // Construir query base
+      let query = supabaseAdmin
+        .from('card_features')
+        .select('*', { count: 'exact' })
+
+      // Aplicar filtro de visibilidade complexo
+      if (projectIds.length > 0) {
+        query = query.or(
+          `and(is_private.eq.false,created_in_project_id.is.null),` +
+          `created_by.eq.${userId},` +
+          `created_in_project_id.in.(${projectIds.join(',')})`
+        )
+      } else {
+        query = query.or(
+          `and(is_private.eq.false,created_in_project_id.is.null),` +
+          `created_by.eq.${userId}`
+        )
+      }
+
+      // Aplicar filtros adicionais
+      if (params.tech && params.tech !== 'all') {
+        query = query.ilike('tech', params.tech)
+      }
+      if (params.language && params.language !== 'all') {
+        query = query.ilike('language', params.language)
+      }
+      if (params.content_type && params.content_type !== 'all') {
+        query = query.eq('content_type', params.content_type)
+      }
+      if (params.card_type && params.card_type !== 'all') {
+        query = query.eq('card_type', params.card_type)
+      }
+      if (params.search) {
+        query = query.or(
+          `title.ilike.%${params.search}%,` +
+          `description.ilike.%${params.search}%,` +
+          `tech.ilike.%${params.search}%`
+        )
+      }
+
+      // Ordenação
+      const sortBy = params.sortBy || 'created_at'
+      const sortOrder = params.sortOrder || 'desc'
+      query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+
+      // Paginação
+      if (params.page && params.limit) {
+        const from = (params.page - 1) * params.limit
+        const to = from + params.limit - 1
+        query = query.range(from, to)
+      }
+
+      const { data, count } = await executeQuery(query)
+
+      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
+
+      return {
+        success: true,
+        data: transformedData,
+        count: count || 0,
+        statusCode: 200
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar cards do usuário:', error)
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
