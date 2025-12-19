@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Code2, FileCode, MessageCircle, Play, Users } from "lucide-react"
+import { Calendar, Code2, FileCode, MessageCircle, Play, Users, ArrowRight, Sparkles, FolderKanban, ChevronRight } from "lucide-react"
 import { videoService, type Video } from "@/services/videoService"
 import { projectService, type Project } from "@/services"
 
@@ -63,15 +63,64 @@ export default function Home({ platformState }: HomeProps) {
     router.push(`?tab=projects&id=${projectId}`)
   }
 
+  const handleGoToProjects = () => {
+    platformState.setActiveTab("projects")
+  }
+
   return (
     <div className="space-y-10">
       {/* Hero Section */}
-      <div className="text-center space-y-4 mb-10">
-        <h1 className="text-4xl font-bold text-gray-900">Acelere seu desenvolvimento com códigos prontos</h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Acesse milhares de snippets, videoaulas organizadas e templates de projetos para turbinar sua
-          produtividade como desenvolvedor.
-        </p>
+      <div className="relative overflow-hidden rounded-2xl border bg-white px-6 py-10 sm:px-10">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-3xl text-center space-y-5">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs font-medium text-gray-700">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            Plataforma de produtividade para devs
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
+            Acelere seu desenvolvimento com{" "}
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              códigos prontos
+            </span>
+          </h1>
+
+          <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+            Snippets, videoaulas e projetos organizados para você construir mais rápido — do copy/paste ao deploy.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <Button onClick={handleGoToCodes} className="w-full sm:w-auto">
+              Explorar Códigos
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+            >
+              Entrar na Comunidade
+              <MessageCircle className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+
+          <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-600">
+            <div className="rounded-xl border bg-white/60 px-4 py-3">
+              <div className="font-semibold text-gray-900">Snippets</div>
+              <div className="text-gray-600">cards prontos e reutilizáveis</div>
+            </div>
+            <div className="rounded-xl border bg-white/60 px-4 py-3">
+              <div className="font-semibold text-gray-900">Vídeos</div>
+              <div className="text-gray-600">aprenda com contexto e prática</div>
+            </div>
+            <div className="rounded-xl border bg-white/60 px-4 py-3">
+              <div className="font-semibold text-gray-900">Projetos</div>
+              <div className="text-gray-600">organize cards por objetivo</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Access Blocks */}
@@ -173,49 +222,90 @@ export default function Home({ platformState }: HomeProps) {
       )}
 
       {/* Featured Projects */}
-      {projects.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Projetos em Destaque</h2>
+      <div className="rounded-2xl border bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4 sm:p-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">Projetos</h2>
+          </div>
+          <Button
+            variant="outline"
+            className="shrink-0 bg-white/70"
+            onClick={handleGoToProjects}
+          >
+            Ver todos
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+
+        {projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {projects.map((project) => (
               <Card
                 key={project.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
+                className="group cursor-pointer hover:shadow-lg transition-all bg-white/80 backdrop-blur border-white/60"
                 onClick={() => handleViewProject(project.id)}
               >
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle>{project.name}</CardTitle>
-                      {project.description && (
-                        <CardDescription className="mt-2">{project.description}</CardDescription>
-                      )}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="mt-0.5 h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white">
+                        <FolderKanban className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate">{project.name}</CardTitle>
+                        {project.description && (
+                          <CardDescription className="mt-1 line-clamp-2">{project.description}</CardDescription>
+                        )}
+                      </div>
                     </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-700 transition-colors mt-1" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <Users className="h-4 w-4" />
-                        <span>{project.memberCount || 0}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <FileCode className="h-4 w-4" />
-                        <span>{project.cardCount || 0}</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>{new Date(project.createdAt).toLocaleDateString('pt-BR')}</span>
-                      </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
+                      <Users className="h-4 w-4 text-gray-600" />
+                      <span className="font-medium">{project.memberCount || 0}</span>
+                      <span className="text-gray-500">membros</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
+                      <FileCode className="h-4 w-4 text-gray-600" />
+                      <span className="font-medium">{project.cardCount || 0}</span>
+                      <span className="text-gray-500">cards</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
+                      <Calendar className="h-4 w-4 text-gray-600" />
+                      <span className="text-gray-600">{new Date(project.createdAt).toLocaleDateString('pt-BR')}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <Card className="bg-white/80 border-dashed">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white shrink-0">
+                    <FolderKanban className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Crie seu primeiro projeto</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Organize cards por objetivo (ex.: “App”, “API”, “Landing”) e compartilhe com seu time.
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={handleGoToProjects} className="w-full sm:w-auto">
+                  Novo Projeto
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
