@@ -243,6 +243,15 @@ export class ProjectModel {
         statusCode: 200
       }
     } catch (error: any) {
+      // PostgREST/Supabase: PGRST116 = single() requested but 0 (or many) rows returned
+      // In our case for findById, treat as "not found" instead of surfacing the raw message.
+      if (error?.code === 'PGRST116' || error?.statusCode === 404) {
+        return {
+          success: false,
+          error: 'Projeto não encontrado',
+          statusCode: 404
+        }
+      }
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',

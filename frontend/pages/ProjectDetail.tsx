@@ -60,28 +60,43 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
 
   useEffect(() => {
-    if (projectId) {
-      loadProject()
-      loadMembers()
-      loadCards()
+    let cancelled = false
+
+    const run = async () => {
+      if (!projectId) return
+
+      // Carregar projeto primeiro; só depois buscar membros/cards.
+      // Isso evita múltiplas requisições/erros quando o `id` na URL está inválido.
+      const ok = await loadProject()
+      if (!ok || cancelled) return
+
+      await Promise.all([loadMembers(), loadCards()])
+    }
+
+    run()
+    return () => {
+      cancelled = true
     }
   }, [projectId])
 
-  const loadProject = async () => {
-    if (!projectId) return
+  const loadProject = async (): Promise<boolean> => {
+    if (!projectId) return false
     
     try {
       setLoading(true)
       const response = await projectService.getById(projectId)
       if (response?.success && response?.data) {
         setProject(response.data)
+        return true
       } else {
         toast.error(response?.error || 'Erro ao carregar projeto')
         handleBack()
+        return false
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao carregar projeto')
       handleBack()
+      return false
     } finally {
       setLoading(false)
     }
