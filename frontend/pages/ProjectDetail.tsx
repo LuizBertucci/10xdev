@@ -546,56 +546,72 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
         {/* Tab Membros */}
         <TabsContent value="members">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Membros do Projeto</CardTitle>
-                {canManageMembers && (
-                  <Button size="sm" onClick={() => setIsAddMemberDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingMembers ? (
-                <p className="text-gray-500 text-center py-8">Carregando...</p>
-              ) : members.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
-              ) : (
-                <div className="space-y-4">
-                  {members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        {member.user?.avatarUrl ? (
-                          <img
-                            src={member.user.avatarUrl}
-                            alt={member.user.name || member.user.email}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <Users className="h-5 w-5 text-gray-500" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium">{member.user?.name || member.user?.email}</p>
-                          {member.user?.name && (
-                            <p className="text-sm text-gray-500">{member.user.email}</p>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant={member.role === 'owner' ? 'default' : 'secondary'}>
-                        {member.role === 'owner' ? 'Owner' : 
-                         member.role === 'admin' ? 'Admin' : 'Member'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+          {/* Header dos Membros - Mesmo padrão */}
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Membros do Projeto</h2>
+              {canManageMembers && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddMemberDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Adicionar</span>
+                </Button>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          {/* Lista de Membros - Direto sem container */}
+          {loadingMembers ? (
+            <p className="text-gray-500 text-center py-8">Carregando...</p>
+          ) : members.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
+          ) : (
+            <div className="space-y-3">
+              {members.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    {member.user?.avatarUrl ? (
+                      <img
+                        src={member.user.avatarUrl}
+                        alt={member.user.name || member.user.email}
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
+                        {member.user?.name || member.user?.email}
+                      </p>
+                      {member.user?.name && (
+                        <p className="text-xs sm:text-sm text-gray-500 truncate">
+                          {member.user.email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Badge
+                    variant={member.role === "owner" ? "default" : "secondary"}
+                    className="flex-shrink-0 text-xs"
+                  >
+                    {member.role === "owner"
+                      ? "Owner"
+                      : member.role === "admin"
+                        ? "Admin"
+                        : "Member"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
