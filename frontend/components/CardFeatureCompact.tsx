@@ -8,6 +8,7 @@ import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check } from
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
+import CardReview from "./CardReview"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -90,14 +91,17 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges - Própria linha abaixo */}
                 <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                  {/* Autor à esquerda */}
-                  <Badge
-                    variant="secondary"
-                    className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                  >
-                    <span className="mr-1">👤</span>
-                    {snippet.author || 'Anônimo'}
-                  </Badge>
+                  {/* Autor e Review à esquerda */}
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="secondary"
+                      className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                    >
+                      <span className="mr-1">👤</span>
+                      {snippet.author || 'Anônimo'}
+                    </Badge>
+                    <CardReview cardId={snippet.id} compact={true} />
+                  </div>
                   
                   {/* Badges tech/language à direita */}
                   <div className="flex gap-2 ml-auto">
@@ -131,6 +135,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     <span className="mr-1">👤</span>
                     {snippet.author || 'Anônimo'}
                   </Badge>
+                  <span className="text-gray-400 text-[8px]">●</span>
+                  <CardReview cardId={snippet.id} compact={true} />
                   <span className="text-gray-400 text-[8px]">●</span>
                   <Badge
                     className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}

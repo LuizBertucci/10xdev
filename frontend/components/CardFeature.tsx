@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Expand, Edit, Trash2 } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
+import CardReview from "./CardReview"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureProps {
@@ -24,11 +25,14 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
       <Card className="shadow-lg hover:shadow-xl transition-shadow h-[32rem]">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
-            <div>
+            <div className="flex-1">
               <CardTitle className="text-base">{snippet.title}</CardTitle>
               <CardDescription className="text-sm h-10 leading-5 overflow-hidden">
                 {snippet.description}
               </CardDescription>
+              <div className="mt-2">
+                <CardReview cardId={snippet.id} compact={false} />
+              </div>
             </div>
             <div className="flex space-x-1">
               <Tooltip>
