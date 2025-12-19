@@ -194,6 +194,33 @@ export interface CardFeatureValidationRules {
 }
 
 // ================================================
+// REVIEW TYPES
+// ================================================
+
+export interface CardFeatureReview {
+  id: string
+  card_feature_id: string
+  user_id: string
+  rating: number  // 1-5
+  created_at: string
+  updated_at: string
+}
+
+export interface ReviewStats {
+  averageRating: number  // Média calculada (0-5)
+  totalReviews: number      // Total de avaliações
+  userReview?: {            // Review do usuário atual (se existir)
+    id: string
+    rating: number
+    created_at: string
+  }
+}
+
+export interface CreateReviewRequest {
+  rating: number  // 1-5
+}
+
+// ================================================
 // ENUMS
 // ================================================
 
