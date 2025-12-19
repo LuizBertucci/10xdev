@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -19,6 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
+  is_private: false,
   screens: [
     {
       name: 'Main',
@@ -44,6 +45,7 @@ interface CardFeatureFormData {
   description: string
   content_type: ContentType
   card_type: CardType
+  is_private: boolean
   screens: CreateScreenData[]
 }
 
@@ -160,6 +162,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
+        is_private: initialData.isPrivate ?? false,
         screens: initialData.screens
       })
     } else if (mode === 'create') {
@@ -430,6 +433,47 @@ export default function CardFeatureForm({
                     <SelectItem value="css">CSS</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Visibilidade *
+                </label>
+                <Select
+                  value={formData.is_private ? 'private' : 'public'}
+                  onValueChange={(value) => handleInputChange('is_private', value === 'private')}
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        <span>Público</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="private">
+                      <div className="flex items-center gap-2">
+                        <Lock className="h-4 w-4" />
+                        <span>Privado</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.is_private ? (
+                    <>
+                      <Lock className="h-3 w-3 inline mr-1" />
+                      Apenas você pode ver este card
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="h-3 w-3 inline mr-1" />
+                      Todos os usuários podem ver este card
+                    </>
+                  )}
+                </p>
               </div>
             </div>
 

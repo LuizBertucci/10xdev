@@ -12,6 +12,7 @@ const JSON_PLACEHOLDER = `{
   "description": "Descrição do que este card faz",
   "content_type": "code",
   "card_type": "codigos",
+  "is_private": false,
   "screens": [
     {
       "name": "Main",
@@ -67,6 +68,10 @@ export default function CardFeatureFormJSON({
       }
       if (!parsed.card_type || !Object.values(CardType).includes(parsed.card_type)) {
         throw new Error("Campo 'card_type' é obrigatório e deve ser 'dicas', 'codigos' ou 'workflows'")
+      }
+      // Validar is_private se fornecido
+      if (parsed.is_private !== undefined && typeof parsed.is_private !== "boolean") {
+        throw new Error("Campo 'is_private' deve ser um boolean (true ou false)")
       }
       if (!parsed.screens || !Array.isArray(parsed.screens) || parsed.screens.length === 0) {
         throw new Error("Campo 'screens' é obrigatório e deve ser um array com pelo menos um item")
