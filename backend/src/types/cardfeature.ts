@@ -45,6 +45,7 @@ export interface CardFeatureRow {
   screens: CardFeatureScreen[]
   created_by: string           // ID do usuário que criou o card
   is_private: boolean          // Se o card é privado (apenas criador pode ver)
+  created_in_project_id?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   created_at: string
   updated_at: string
 }
@@ -60,6 +61,7 @@ export interface CardFeatureInsert {
   screens: CardFeatureScreen[]
   created_by?: string          // ID do usuário (backend preenche automaticamente)
   is_private?: boolean         // Visibilidade do card (padrão: false = público)
+  created_in_project_id?: string | null  // ID do projeto onde foi criado (opcional)
   created_at?: string
   updated_at?: string
 }
@@ -90,6 +92,7 @@ export interface CreateCardFeatureRequest {
   card_type: CardType
   screens: CardFeatureScreen[]
   is_private?: boolean         // Visibilidade do card (padrão: false = público)
+  created_in_project_id?: string  // ID do projeto onde foi criado (opcional)
 }
 
 export interface UpdateCardFeatureRequest extends Partial<CreateCardFeatureRequest> {}
@@ -106,6 +109,7 @@ export interface CardFeatureResponse {
   createdBy: string            // ID do usuário que criou (camelCase para API)
   author?: string | null       // Nome do usuário criador (vem do JOIN com users)
   isPrivate: boolean           // Se o card é privado (camelCase para API)
+  createdInProjectId?: string | null  // ID do projeto onde foi criado (camelCase para API)
   createdAt: string
   updatedAt: string
 }

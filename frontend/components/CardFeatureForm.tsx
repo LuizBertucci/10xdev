@@ -332,7 +332,25 @@ export default function CardFeatureForm({
   }
 
   const handleSubmit = async () => {
+    // Pegar emails do campo de compartilhamento (se existir)
+    const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
+    const shareEmails = shareEmailsInput?.value?.trim()
+
+    // Submeter o formulário principal
     await onSubmit(formData)
+
+    // Se for card privado e tiver emails para compartilhar, chamar API
+    if (formData.is_private && shareEmails && shareEmailsInput) {
+      try {
+        // Precisamos do ID do card recém-criado (será passado pelo onSubmit)
+        // Por ora, vamos apenas limpar o campo
+        shareEmailsInput.value = ''
+        // TODO: Chamar API de compartilhamento quando tiver o card ID
+      } catch (error) {
+        console.error('Erro ao compartilhar:', error)
+      }
+    }
+
     if (mode === 'create') {
       setFormData({ ...DEFAULT_FORM_DATA })
     }
@@ -455,6 +473,24 @@ export default function CardFeatureForm({
                   Cards privados são visíveis apenas para você
                 </p>
               </div>
+
+              {/* Campo de Compartilhamento - Apenas para cards privados */}
+              {formData.is_private && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Compartilhar com (opcional)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Digite emails separados por vírgula"
+                    className="bg-white"
+                    data-share-emails="true"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Exemplo: joao@email.com, maria@email.com
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 flex flex-col">
