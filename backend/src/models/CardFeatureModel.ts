@@ -1,4 +1,4 @@
-import { supabase, executeQuery } from '@/database/supabase'
+import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import type {
   CardFeatureRow,
@@ -13,8 +13,116 @@ import type {
 
 export class CardFeatureModel {
   // ================================================
+  // CONSTANTS
+  // ================================================
+
+  private static readonly SUPER_ADMINS = [
+    'Augusto Amado',
+    'Luiz Bertucci'
+  ]
+
+  // ================================================
   // PRIVATE HELPERS
   // ================================================
+
+  /**
+   * Verifica se o nome do usuário pertence a um super-admin
+   */
+  private static isSuperAdmin(userName?: string | null): boolean {
+    return userName ? this.SUPER_ADMINS.includes(userName) : false
+  }
+
+  /**
+   * Verifica se o usuário tem permissão para visualizar o card
+   *
+   * Regras de visibilidade:
+   * - Públicos globais (is_private=false, created_in_project_id=null): todos podem ver
+   * - Privados (is_private=true): apenas o criador ou super-admins
+   * - Não listados (created_in_project_id!=null): membros do projeto ou super-admins
+   *
+   * @param cardId - ID do card a verificar
+   * @param userId - ID do usuário (opcional para cards públicos)
+   * @param userName - Nome do usuário (para verificar super-admin)
+   * @returns true se tem permissão, false caso contrário
+   */
+  private static async checkViewPermission(
+    cardId: string,
+    userId?: string,
+    userName?: string | null
+  ): Promise<boolean> {
+    // Super-admin pode ver tudo
+    if (this.isSuperAdmin(userName)) {
+      return true
+    }
+
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('card_features')
+        .select('created_by, is_private, created_in_project_id')
+        .eq('id', cardId)
+        .single()
+    )
+
+    if (!data) return false
+
+    // Público global - todos podem ver
+    if (!data.is_private && !data.created_in_project_id) {
+      return true
+    }
+
+    // Sem autenticação e não é público
+    if (!userId) return false
+
+    // É o criador
+    if (data.created_by === userId) {
+      return true
+    }
+
+    // É não listado e usuário é membro do projeto
+    if (data.created_in_project_id) {
+      const { data: member } = await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .select('id')
+          .eq('project_id', data.created_in_project_id)
+          .eq('user_id', userId)
+          .maybeSingle()
+      )
+      return !!member
+    }
+
+    return false
+  }
+
+  /**
+   * Verifica se o usuário é dono do card OU é super-admin
+   *
+   * @param cardId - ID do card
+   * @param userId - ID do usuário
+   * @param userName - Nome do usuário (para verificar super-admin)
+   * @returns true se é dono ou super-admin, false caso contrário
+   */
+  private static async checkOwnership(
+    cardId: string,
+    userId: string,
+    userName?: string | null
+  ): Promise<boolean> {
+    // Super-admin pode editar/deletar tudo
+    if (this.isSuperAdmin(userName)) {
+      return true
+    }
+
+    // Verificar se é o criador
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('card_features')
+        .select('created_by')
+        .eq('id', cardId)
+        .single()
+    )
+
+    return data?.created_by === userId
+  }
 
   private static transformToResponse(row: CardFeatureRow): CardFeatureResponse {
     return {
@@ -26,6 +134,9 @@ export class CardFeatureModel {
       content_type: row.content_type,
       card_type: row.card_type,
       screens: row.screens,
+      createdBy: row.created_by,
+      isPrivate: row.is_private,
+      createdInProjectId: row.created_in_project_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
