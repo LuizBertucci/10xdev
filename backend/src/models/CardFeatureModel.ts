@@ -359,7 +359,7 @@ export class CardFeatureModel {
           .eq('user_id', userId)
       )
 
-      const projectIds = memberships?.map(m => m.project_id).filter(id => id != null) || []
+      const projectIds = memberships?.map((m: any) => m.project_id).filter((id: any) => id != null) || []
 
       // Construir query base
       let query = supabaseAdmin
@@ -504,7 +504,7 @@ export class CardFeatureModel {
 
       const updateData: CardFeatureUpdate = {
         ...data,
-        screens: processedScreens,
+        ...(processedScreens && { screens: processedScreens }),
         updated_at: new Date().toISOString()
       }
 
