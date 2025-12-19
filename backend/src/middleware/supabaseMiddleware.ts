@@ -15,10 +15,13 @@ declare global {
 }
 
 /**
- * Middleware de autenticação usando Supabase Auth
+ * Middleware de autenticação OPCIONAL usando Supabase Auth
  *
- * Valida o JWT token do Supabase usando supabaseAdmin.auth.getUser()
- * Isso é o método recomendado oficial do Supabase, pois:
+ * Valida o JWT token do Supabase se presente, mas não bloqueia se ausente.
+ * - Se token presente e válido: popula req.user
+ * - Se token ausente ou inválido: continua sem req.user
+ *
+ * Valida usando supabaseAdmin.auth.getUser() que:
  * - Valida o token diretamente com o Supabase Auth
  * - Suporta revogação instantânea de tokens
  * - Não precisa de JWT_SECRET ou JWKS
@@ -32,8 +35,9 @@ export const supabaseMiddleware = async (
   try {
     const authHeader = req.headers.authorization
 
+    // Se não há token, apenas continua sem req.user (rotas públicas)
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ error: 'Token de acesso requerido' })
+      next()
       return
     }
 
@@ -45,7 +49,8 @@ export const supabaseMiddleware = async (
 
     if (error || !user) {
       console.error('Erro ao validar token Supabase:', error?.message || 'User não encontrado')
-      res.status(401).json({ error: 'Token inválido ou expirado' })
+      // Token inválido: continua sem req.user (não bloqueia)
+      next()
       return
     }
 
@@ -119,6 +124,7 @@ export const supabaseMiddleware = async (
     next()
   } catch (error: any) {
     console.error('Erro no middleware Supabase:', error?.message || error)
-    res.status(401).json({ error: 'Erro ao validar autenticação' })
+    // Erro no middleware: continua sem req.user (não bloqueia)
+    next()
   }
 }
