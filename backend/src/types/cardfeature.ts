@@ -43,6 +43,9 @@ export interface CardFeatureRow {
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType          // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]
+  created_by: string | null    // ID do usuário criador
+  is_private: boolean          // Se é privado (true) ou público (false)
+  created_in_project_id: string | null  // ID do projeto que criou (null se criado normalmente)
   created_at: string
   updated_at: string
 }
@@ -56,6 +59,9 @@ export interface CardFeatureInsert {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
+  created_by?: string | null
+  is_private?: boolean
+  created_in_project_id?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -84,6 +90,7 @@ export interface CreateCardFeatureRequest {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
+  is_private?: boolean  // Visibilidade: público (false) ou privado (true)
 }
 
 export interface UpdateCardFeatureRequest extends Partial<CreateCardFeatureRequest> {}
@@ -97,6 +104,9 @@ export interface CardFeatureResponse {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
+  createdBy?: string | null
+  isPrivate?: boolean
+  createdInProjectId?: string | null
   createdAt: string
   updatedAt: string
 }
