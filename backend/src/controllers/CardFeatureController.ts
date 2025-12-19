@@ -15,11 +15,36 @@ export class CardFeatureController {
   
   static async create(req: Request, res: Response): Promise<void> {
     try {
+      // AUTENTICAÇÃO OBRIGATÓRIA
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Você precisa estar autenticado para criar cards'
+        })
+        return
+      }
+
       const data: CreateCardFeatureRequest = req.body
+      const userId = req.user.id
 
-      // Remover todas as validações obrigatórias - permitir campos vazios
+      // Validação de dados obrigatórios
+      if (!data.title || !data.tech || !data.language) {
+        res.status(400).json({
+          success: false,
+          error: 'Campos obrigatórios: title, tech, language'
+        })
+        return
+      }
 
-      const result = await CardFeatureModel.create(data)
+      if (!data.screens || !Array.isArray(data.screens) || data.screens.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Pelo menos uma screen é obrigatória'
+        })
+        return
+      }
+
+      const result = await CardFeatureModel.create(data, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -49,9 +74,29 @@ export class CardFeatureController {
   
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
+      const userId = req.user?.id
+      const includeUserCards = req.query.my === 'true' && !!userId
+
+      // Validação de paginação
       const page = req.query.page ? parseInt(req.query.page as string) : 1
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
-      
+
+      if (!Number.isInteger(page) || page <= 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Parâmetro "page" deve ser um número inteiro maior que zero'
+        })
+        return
+      }
+
+      if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
+        res.status(400).json({
+          success: false,
+          error: 'Parâmetro "limit" deve ser entre 1 e 100'
+        })
+        return
+      }
+
       const params: CardFeatureQueryParams = {
         page,
         limit,
@@ -64,7 +109,14 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.findAll(params)
+      let result
+      if (includeUserCards) {
+        // Modo autenticado: incluir cards do usuário
+        result = await CardFeatureModel.findAllForUser(userId!, params)
+      } else {
+        // Modo público: apenas cards públicos
+        result = await CardFeatureModel.findAll(params)
+      }
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -103,6 +155,8 @@ export class CardFeatureController {
   static async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
+      const userId = req.user?.id
+      const userName = req.user?.name
 
       if (!id) {
         res.status(400).json({
@@ -112,7 +166,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.findById(id)
+      const result = await CardFeatureModel.findById(id, userId, userName)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -263,8 +317,18 @@ export class CardFeatureController {
   
   static async update(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Você precisa estar autenticado para atualizar cards'
+        })
+        return
+      }
+
       const { id } = req.params
       const data: UpdateCardFeatureRequest = req.body
+      const userId = req.user.id
+      const userName = req.user.name
 
       if (!id) {
         res.status(400).json({
@@ -274,9 +338,7 @@ export class CardFeatureController {
         return
       }
 
-      // Remover todas as validações obrigatórias - permitir campos vazios
-
-      const result = await CardFeatureModel.update(id, data)
+      const result = await CardFeatureModel.update(id, data, userId, userName)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -306,7 +368,17 @@ export class CardFeatureController {
   
   static async delete(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Você precisa estar autenticado para deletar cards'
+        })
+        return
+      }
+
       const { id } = req.params
+      const userId = req.user.id
+      const userName = req.user.name
 
       if (!id) {
         res.status(400).json({
@@ -316,7 +388,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.delete(id)
+      const result = await CardFeatureModel.delete(id, userId, userName)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
