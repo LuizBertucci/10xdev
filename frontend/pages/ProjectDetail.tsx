@@ -430,110 +430,118 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
         {/* Tab Cards */}
         <TabsContent value="cards">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <CardTitle className="whitespace-nowrap">Cards do Projeto</CardTitle>
-                <div className="flex-1 flex justify-center max-w-md mx-auto">
-                  <Input
-                    placeholder="Buscar cards..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full"
+          {/* Header dos Cards - Seguindo padrão da tela de Códigos */}
+          <div className="space-y-3 mb-4">
+            {/* Título + Ações na mesma linha */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Cards do Projeto</h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={isEditMode ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                >
+                  <Pencil
+                    className={`h-4 w-4 ${isEditMode ? "text-blue-600" : "text-gray-500"}`}
                   />
-                </div>
-                <div className="flex justify-end mr-10 gap-2">
-                  <Button 
-                    variant={isEditMode ? "secondary" : "ghost"}
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                  >
-                    <Pencil className={`h-4 w-4 ${isEditMode ? 'text-blue-600' : 'text-gray-500'}`} />
-                  </Button>
-                  <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="whitespace-nowrap">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Card
-                  </Button>
-                </div>
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddCardDialogOpen(true)}
+                  className="h-8 px-3 whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Adicionar Card</span>
+                </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loadingCards ? (
-                <p className="text-gray-500 text-center py-8">Carregando...</p>
-              ) : filteredCards.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
-              ) : (
-                <div className="space-y-4">
-                  {filteredCards.map(({ cardFeature, projectCard }, index) => {
-                    const isFirst = index === 0
-                    const isLast = index === filteredCards.length - 1
-                    
-                    return (
-                      <div key={cardFeature.id} className="relative group flex items-start gap-2">
-                        {/* Card */}
-                        <div className="flex-1 relative">
-                          <CardFeatureCompact
-                            snippet={cardFeature}
-                            onEdit={() => {}} // Não permitir editar aqui
-                            onDelete={() => {}} // Não permitir deletar aqui
-                          />
-                        </div>
+            </div>
 
-                        {/* Botões de ação lateral */}
-                        <div className="flex flex-col gap-1 pt-2 w-8">
-                          {isEditMode && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (projectCard) {
-                                  handleRemoveCard(projectCard.cardFeatureId)
-                                }
-                              }}
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 mb-2"
-                              title="Remover do projeto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReorderCard(cardFeature.id, 'up')
-                            }}
-                            disabled={isFirst}
-                            className="h-8 w-8 p-0"
-                            title="Mover para cima"
-                          >
-                            <ChevronUp className={`h-4 w-4 ${isFirst ? 'text-gray-300' : 'text-gray-600'}`} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReorderCard(cardFeature.id, 'down')
-                            }}
-                            disabled={isLast}
-                            className="h-8 w-8 p-0"
-                            title="Mover para baixo"
-                          >
-                            <ChevronDown className={`h-4 w-4 ${isLast ? 'text-gray-300' : 'text-gray-600'}`} />
-                          </Button>
-                        </div>
+            {/* Busca em linha separada (melhor no mobile) */}
+            <div className="relative">
+              <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Buscar cards..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9"
+              />
+            </div>
+          </div>
+
+          {loadingCards ? (
+            <p className="text-gray-500 text-center py-8">Carregando...</p>
+          ) : filteredCards.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
+          ) : (
+            <div className="space-y-4">
+              {filteredCards.map(({ cardFeature, projectCard }, index) => {
+                const isFirst = index === 0
+                const isLast = index === filteredCards.length - 1
+
+                return (
+                  <div key={cardFeature.id} className="relative group">
+                    <CardFeatureCompact
+                      snippet={cardFeature}
+                      onEdit={() => {}} // Não permitir editar aqui
+                      onDelete={() => {}} // Não permitir deletar aqui
+                    />
+
+                    {/* Painel flutuante de ações (apenas no modo de edição) */}
+                    {isEditMode && (
+                      <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleReorderCard(cardFeature.id, "up")
+                          }}
+                          disabled={isFirst}
+                          className="h-7 w-7 p-0"
+                          title="Mover para cima"
+                        >
+                          <ChevronUp
+                            className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleReorderCard(cardFeature.id, "down")
+                          }}
+                          disabled={isLast}
+                          className="h-7 w-7 p-0"
+                          title="Mover para baixo"
+                        >
+                          <ChevronDown
+                            className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (projectCard) {
+                              handleRemoveCard(projectCard.cardFeatureId)
+                            }
+                          }}
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          title="Remover do projeto"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* Tab Membros */}
