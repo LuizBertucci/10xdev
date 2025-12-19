@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { CardFeatureController } from '@/controllers/CardFeatureController'
+import { supabaseMiddleware } from '@/middleware/supabaseMiddleware'
+import { authenticate } from '@/middleware/authenticate'
 
 const router = Router()
 
@@ -19,6 +21,11 @@ router.delete('/bulk', CardFeatureController.bulkDelete)
 
 // TECH FILTER - Rota específica para filtrar por tecnologia
 router.get('/tech/:tech', CardFeatureController.getByTech)
+
+// REVIEWS - Deve vir ANTES das rotas com :id para evitar conflitos
+router.post('/:id/reviews', supabaseMiddleware, authenticate, CardFeatureController.createOrUpdateReview)
+router.delete('/:id/reviews', supabaseMiddleware, authenticate, CardFeatureController.deleteReview)
+router.get('/:id/reviews/stats', supabaseMiddleware, CardFeatureController.getReviewStats)
 
 // CRUD OPERATIONS
 router.post('/', CardFeatureController.create)
