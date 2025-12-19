@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { CodeSnippet } from '@/types';
+import { CardFeature } from '@/types';
 import { normalizeTab, isValidTab, type TabKey } from '@/utils/routes';
 
 // Define the state and functions for the DevPlatform
@@ -11,7 +11,7 @@ export function usePlatform() {
   
   // Get initial tab from URL or default to 'home'
   const getInitialTab = (): TabKey => {
-    const tabFromUrl = searchParams.get('tab');
+    const tabFromUrl = searchParams?.get('tab') || null;
     return normalizeTab(tabFromUrl);
   };
 
@@ -42,7 +42,7 @@ export function usePlatform() {
 
   // Function to filter snippets based on searchTerm and selectedTech
   // This would be used by the Codes page
-  const filteredSnippets = useCallback((snippets: CodeSnippet[]) => {
+  const filteredSnippets = useCallback((snippets: CardFeature[]) => {
     return snippets.filter(snippet => {
       const matchesSearch = snippet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             snippet.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -57,11 +57,16 @@ export function usePlatform() {
     const normalizedTab = normalizeTab(tab);
     setActiveTab(normalizedTab);
     
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() || '');
     if (normalizedTab === 'home') {
       params.delete('tab');
     } else {
       params.set('tab', normalizedTab);
+    }
+    // Quando navegamos para a lista de videos ou projects via sidebar, removemos o parâmetro id
+    // para evitar renderizar a página de detalhes em vez da lista
+    if (normalizedTab === 'videos' || normalizedTab === 'projects') {
+      params.delete('id');
     }
     const queryString = params.toString();
     const newUrl = queryString ? `/?${queryString}` : '/';
