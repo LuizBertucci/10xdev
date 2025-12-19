@@ -157,9 +157,7 @@ export default function Home({ platformState }: HomeProps) {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          if (project.title === "Dashboard Analytics") {
-                            platformState.setActiveTab("dashboard");
-                          }
+                          // Dashboard removido
                         }}
                       >
                         <Play className="h-4 w-4 mr-2" />
