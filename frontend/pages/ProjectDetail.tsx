@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -59,28 +60,43 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
 
   useEffect(() => {
-    if (projectId) {
-      loadProject()
-      loadMembers()
-      loadCards()
+    let cancelled = false
+
+    const run = async () => {
+      if (!projectId) return
+
+      // Carregar projeto primeiro; só depois buscar membros/cards.
+      // Isso evita múltiplas requisições/erros quando o `id` na URL está inválido.
+      const ok = await loadProject()
+      if (!ok || cancelled) return
+
+      await Promise.all([loadMembers(), loadCards()])
+    }
+
+    run()
+    return () => {
+      cancelled = true
     }
   }, [projectId])
 
-  const loadProject = async () => {
-    if (!projectId) return
+  const loadProject = async (): Promise<boolean> => {
+    if (!projectId) return false
     
     try {
       setLoading(true)
       const response = await projectService.getById(projectId)
       if (response?.success && response?.data) {
         setProject(response.data)
+        return true
       } else {
         toast.error(response?.error || 'Erro ao carregar projeto')
         handleBack()
+        return false
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao carregar projeto')
       handleBack()
+      return false
     } finally {
       setLoading(false)
     }
@@ -285,6 +301,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     router.push(`/?${params.toString()}`)
   }
 
+  const goToTab = (tab: string) => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    params.set('tab', tab)
+    params.delete('id')
+    router.push(`/?${params.toString()}`)
+  }
+
   useEffect(() => {
     if (isAddCardDialogOpen) {
       loadAvailableCards()
@@ -325,59 +348,73 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   return (
     <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
       {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm">
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
         <button
-          onClick={() => {
-            const params = new URLSearchParams(searchParams?.toString() || '')
-            params.set('tab', 'home')
-            params.delete('id')
-            router.push(`/?${params.toString()}`)
-          }}
-          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          type="button"
+          onClick={() => goToTab("home")}
+          className="hover:text-gray-900"
         >
           Início
         </button>
         <ChevronRight className="h-4 w-4 text-gray-400" />
         <button
+          type="button"
           onClick={handleBack}
-          className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+          className="hover:text-gray-900"
         >
           Projetos
         </button>
         <ChevronRight className="h-4 w-4 text-gray-400" />
-        <span className="text-gray-900 font-medium truncate max-w-[150px] sm:max-w-none">{project.name}</span>
+        <span className="text-gray-900 font-medium truncate max-w-[160px] sm:max-w-none">
+          {project.name}
+        </span>
       </div>
 
-      {/* Header do Projeto - Responsivo */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        {/* Info do Projeto */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">{project.name}</h1>
+      {/* Header */}
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
+              {project.name}
+            </h1>
             {project.userRole && (
-              <Badge variant={project.userRole === 'owner' ? 'default' : 'secondary'} className="flex-shrink-0">
-                {project.userRole === 'owner' ? 'Owner' : 
-                 project.userRole === 'admin' ? 'Admin' : 'Member'}
+              <Badge
+                variant={project.userRole === "owner" ? "default" : "secondary"}
+                className="shrink-0"
+              >
+                {project.userRole === "owner"
+                  ? "Owner"
+                  : project.userRole === "admin"
+                    ? "Admin"
+                    : "Member"}
               </Badge>
             )}
           </div>
+
           {project.description && (
-            <p className="text-sm sm:text-base text-gray-600 mt-1 line-clamp-2">{project.description}</p>
+            <p className="text-sm sm:text-base text-gray-600 mt-1 line-clamp-2">
+              {project.description}
+            </p>
           )}
         </div>
 
         {/* Ações - Desktop: botão visível, Mobile: menu dropdown */}
-          {project.userRole === 'owner' && (
+        {project.userRole === "owner" && (
           <>
             {/* Desktop */}
             <div className="hidden sm:block">
-            <Button variant="destructive" size="sm" onClick={handleDeleteProject}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Deletar Projeto
-            </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteProject}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Deletar Projeto
+              </Button>
             </div>
+
             {/* Mobile - Menu Dropdown */}
-            <div className="sm:hidden absolute top-2 right-2">
+            <div className="sm:hidden absolute top-0 right-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -385,7 +422,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDeleteProject} className="text-red-600">
+                  <DropdownMenuItem
+                    onClick={handleDeleteProject}
+                    className="text-red-600"
+                  >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Deletar Projeto
                   </DropdownMenuItem>
@@ -411,83 +451,91 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Cards do Projeto</h2>
               <div className="flex items-center gap-2">
-                  <Button 
-                    variant={isEditMode ? "secondary" : "ghost"}
+                <Button
+                  variant={isEditMode ? "secondary" : "ghost"}
                   size="sm"
                   className="h-8 w-8 p-0"
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                  >
-                    <Pencil className={`h-4 w-4 ${isEditMode ? 'text-blue-600' : 'text-gray-500'}`} />
-                  </Button>
-                <Button size="sm" onClick={() => setIsAddCardDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Adicionar</span>
-                  </Button>
-                </div>
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                >
+                  <Pencil
+                    className={`h-4 w-4 ${isEditMode ? "text-blue-600" : "text-gray-500"}`}
+                  />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddCardDialogOpen(true)}
+                  className="h-8 px-3 whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Adicionar Card</span>
+                </Button>
               </div>
-            
-            {/* Busca - Linha separada */}
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            </div>
+
+            {/* Busca em linha separada (melhor no mobile) */}
+            <div className="relative">
+              <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
                 placeholder="Buscar cards..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full"
+                className="w-full pl-9"
               />
             </div>
           </div>
 
-          {/* Lista de Cards - Direto sem container */}
-              {loadingCards ? (
-                <p className="text-gray-500 text-center py-8">Carregando...</p>
-              ) : filteredCards.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
-              ) : (
-            <div className="space-y-3">
-                  {filteredCards.map(({ cardFeature, projectCard }, index) => {
-                    const isFirst = index === 0
-                    const isLast = index === filteredCards.length - 1
-                    
-                    return (
-                  <div key={cardFeature.id} className="relative">
-                    {/* Card - Largura total */}
-                          <CardFeatureCompact
-                            snippet={cardFeature}
-                      onEdit={() => {}}
-                      onDelete={() => {}}
-                          />
+          {loadingCards ? (
+            <p className="text-gray-500 text-center py-8">Carregando...</p>
+          ) : filteredCards.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
+          ) : (
+            <div className="space-y-4">
+              {filteredCards.map(({ cardFeature, projectCard }, index) => {
+                const isFirst = index === 0
+                const isLast = index === filteredCards.length - 1
 
-                    {/* Botões de ação - Só visíveis em modo de edição */}
-                          {isEditMode && (
-                      <div className="absolute -right-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 bg-white rounded-lg shadow-md border p-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReorderCard(cardFeature.id, 'up')
-                            }}
-                            disabled={isFirst}
+                return (
+                  <div key={cardFeature.id} className="relative group">
+                    <CardFeatureCompact
+                      snippet={cardFeature}
+                      onEdit={() => {}} // Não permitir editar aqui
+                      onDelete={() => {}} // Não permitir deletar aqui
+                    />
+
+                    {/* Painel flutuante de ações (apenas no modo de edição) */}
+                    {isEditMode && (
+                      <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleReorderCard(cardFeature.id, "up")
+                          }}
+                          disabled={isFirst}
                           className="h-7 w-7 p-0"
-                            title="Mover para cima"
-                          >
-                            <ChevronUp className={`h-4 w-4 ${isFirst ? 'text-gray-300' : 'text-gray-600'}`} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleReorderCard(cardFeature.id, 'down')
-                            }}
-                            disabled={isLast}
+                          title="Mover para cima"
+                        >
+                          <ChevronUp
+                            className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleReorderCard(cardFeature.id, "down")
+                          }}
+                          disabled={isLast}
                           className="h-7 w-7 p-0"
-                            title="Mover para baixo"
-                          >
-                            <ChevronDown className={`h-4 w-4 ${isLast ? 'text-gray-300' : 'text-gray-600'}`} />
-                          </Button>
+                          title="Mover para baixo"
+                        >
+                          <ChevronDown
+                            className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
+                          />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -502,66 +550,83 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
-                        </div>
-                    )}
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* Tab Membros */}
         <TabsContent value="members">
           {/* Header dos Membros - Mesmo padrão */}
           <div className="space-y-3 mb-4">
-              <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Membros do Projeto</h2>
-                {canManageMembers && (
-                <Button size="sm" onClick={() => setIsAddMemberDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {canManageMembers && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddMemberDialogOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+                >
                   <Plus className="h-4 w-4 mr-1" />
                   <span className="hidden sm:inline">Adicionar</span>
-                  </Button>
-                )}
-              </div>
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Lista de Membros - Direto sem container */}
-              {loadingMembers ? (
-                <p className="text-gray-500 text-center py-8">Carregando...</p>
-              ) : members.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
-              ) : (
+          {loadingMembers ? (
+            <p className="text-gray-500 text-center py-8">Carregando...</p>
+          ) : members.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
+          ) : (
             <div className="space-y-3">
-                  {members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm">
+              {members.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm"
+                >
                   <div className="flex items-center space-x-3 min-w-0">
-                        {member.user?.avatarUrl ? (
-                          <img
-                            src={member.user.avatarUrl}
-                            alt={member.user.name || member.user.email}
+                    {member.user?.avatarUrl ? (
+                      <img
+                        src={member.user.avatarUrl}
+                        alt={member.user.name || member.user.email}
                         className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
-                          />
-                        ) : (
+                      />
+                    ) : (
                       <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-                          </div>
-                        )}
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">{member.user?.name || member.user?.email}</p>
-                          {member.user?.name && (
-                        <p className="text-xs sm:text-sm text-gray-500 truncate">{member.user.email}</p>
-                          )}
-                        </div>
                       </div>
-                  <Badge variant={member.role === 'owner' ? 'default' : 'secondary'} className="flex-shrink-0 text-xs">
-                        {member.role === 'owner' ? 'Owner' : 
-                         member.role === 'admin' ? 'Admin' : 'Member'}
-                      </Badge>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
+                        {member.user?.name || member.user?.email}
+                      </p>
+                      {member.user?.name && (
+                        <p className="text-xs sm:text-sm text-gray-500 truncate">
+                          {member.user.email}
+                        </p>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                  <Badge
+                    variant={member.role === "owner" ? "default" : "secondary"}
+                    className="flex-shrink-0 text-xs"
+                  >
+                    {member.role === "owner"
+                      ? "Owner"
+                      : member.role === "admin"
+                        ? "Admin"
+                        : "Member"}
+                  </Badge>
                 </div>
-              )}
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

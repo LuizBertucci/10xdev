@@ -1,8 +1,11 @@
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Code2, Play, Star, GitBranch } from "lucide-react"
+import { Calendar, Code2, FileCode, MessageCircle, Play, Users, ArrowRight, Sparkles, FolderKanban, ChevronRight } from "lucide-react"
+import { videoService, type Video } from "@/services/videoService"
+import { projectService, type Project } from "@/services"
 
 interface PlatformState {
   setActiveTab: (tab: string) => void
@@ -14,168 +17,294 @@ interface HomeProps {
 }
 
 export default function Home({ platformState }: HomeProps) {
-  const quickAccessBlocks = [
-    { title: "React Hooks", icon: Code2, color: "bg-blue-500", count: "150+ snippets" },
-    { title: "Node.js APIs", icon: Code2, color: "bg-green-500", count: "80+ exemplos" },
-    { title: "Python Scripts", icon: Code2, color: "bg-yellow-500", count: "200+ códigos" },
-    { title: "CSS Animations", icon: Code2, color: "bg-purple-500", count: "60+ efeitos" },
-  ]
+  const router = useRouter()
+  const [videos, setVideos] = useState<Video[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
 
-  const featuredVideos = [
-    { title: "React do Zero ao Avançado", duration: "12h", progress: 65, instructor: "João Silva" },
-    { title: "Node.js e Express", duration: "8h", progress: 30, instructor: "Maria Santos" },
-    { title: "Python para Data Science", duration: "15h", progress: 0, instructor: "Carlos Lima" },
-  ]
+  const handleGoToCodes = () => {
+    platformState.setSelectedTech("all")
+    platformState.setActiveTab("codes")
+  }
 
-  const featuredProjects = [
-    {
-      title: "E-commerce Completo",
-      tech: ["React", "Node.js", "MongoDB"],
-      difficulty: "Avançado",
-      stars: 1250,
-      description: "Sistema completo de e-commerce com carrinho, pagamento e painel admin."
-    },
-    {
-      title: "Dashboard Analytics",
-      tech: ["React", "Chart.js", "TypeScript"],
-      difficulty: "Intermediário",
-      stars: 890,
-      description: "Dashboard responsivo com gráficos interativos e métricas em tempo real."
-    },
-    {
-      title: "API REST Node.js",
-      tech: ["Node.js", "Express", "PostgreSQL"],
-      difficulty: "Intermediário",
-      stars: 650,
-      description: "API robusta com autenticação JWT, validação e documentação Swagger."
-    },
-  ]
+  useEffect(() => {
+    const loadVideos = async () => {
+      try {
+        const res = await videoService.listVideos()
+        if (res?.success && res.data) {
+          setVideos(res.data.slice(0, 3))
+        }
+      } catch (error) {
+        console.error('Erro ao carregar videoaulas:', error)
+      }
+    }
+
+    const loadProjects = async () => {
+      try {
+        const res = await projectService.getAll({ limit: 3 })
+        if (res?.success && res.data) {
+          setProjects(res.data.slice(0, 3))
+        }
+      } catch (error) {
+        console.error('Erro ao carregar projetos:', error)
+      }
+    }
+
+    loadVideos()
+    loadProjects()
+  }, [])
+
+  const handleViewVideo = (videoId: string) => {
+    platformState.setActiveTab("videos")
+    router.push(`?tab=videos&id=${videoId}`)
+  }
+
+  const handleViewProject = (projectId: string) => {
+    platformState.setActiveTab("projects")
+    router.push(`?tab=projects&id=${projectId}`)
+  }
+
+  const handleGoToProjects = () => {
+    platformState.setActiveTab("projects")
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Hero Section */}
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-gray-900">Acelere seu desenvolvimento com códigos prontos</h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Acesse milhares de snippets, videoaulas organizadas e templates de projetos para turbinar sua
-          produtividade como desenvolvedor.
-        </p>
+      <div className="relative overflow-hidden rounded-2xl border bg-white px-6 py-10 sm:px-10">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-3xl text-center space-y-5">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs font-medium text-gray-700">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            Plataforma de produtividade para devs
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
+            Acelere seu desenvolvimento com{" "}
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              códigos prontos
+            </span>
+          </h1>
+
+          <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+            Snippets, videoaulas e projetos organizados para você construir mais rápido — do copy/paste ao deploy.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <Button onClick={handleGoToCodes} className="w-full sm:w-auto">
+              Explorar Códigos
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+            >
+              Entrar na Comunidade
+              <MessageCircle className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+
+          <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-600">
+            <div className="rounded-xl border bg-white/60 px-4 py-3">
+              <div className="font-semibold text-gray-900">Snippets</div>
+              <div className="text-gray-600">cards prontos e reutilizáveis</div>
+            </div>
+            <div className="rounded-xl border bg-white/60 px-4 py-3">
+              <div className="font-semibold text-gray-900">Vídeos</div>
+              <div className="text-gray-600">aprenda com contexto e prática</div>
+            </div>
+            <div className="rounded-xl border bg-white/60 px-4 py-3">
+              <div className="font-semibold text-gray-900">Projetos</div>
+              <div className="text-gray-600">organize cards por objetivo</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick Access Blocks */}
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido por Linguagem</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickAccessBlocks.map((block, index) => (
-            <Card
-              key={index}
-              className="hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => {
-                platformState.setActiveTab("codes");
-                if (block.title === "Node.js APIs") {
-                  platformState.setSelectedTech("node.js");
-                } else if (block.title === "React Hooks") {
-                  platformState.setSelectedTech("react");
-                } else if (block.title === "Python Scripts") {
-                  platformState.setSelectedTech("python");
-                } else if (block.title === "CSS Animations") {
-                  platformState.setSelectedTech("javascript");
-                }
-              }}
-            >
-              <CardContent className="p-6">
-                <div className={`w-12 h-12 ${block.color} rounded-lg flex items-center justify-center mb-4`}>
-                  <block.icon className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{block.title}</h3>
-                <p className="text-gray-600 text-sm">{block.count}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card
+            className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
+            onClick={handleGoToCodes}
+          >
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                <Code2 className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2 text-white">Códigos</h3>
+              <p className="text-white/90 text-sm">Ver todos os snippets e cards</p>
+              <Button
+                variant="secondary"
+                className="w-full mt-4 bg-white text-blue-700 hover:bg-gray-100 font-medium"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleGoToCodes()
+                }}
+              >
+                Acessar Códigos
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Card Comunidade WhatsApp */}
+          <Card
+            className="bg-gradient-to-br from-green-500 to-emerald-600 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
+            onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+          >
+            <CardContent className="p-6">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
+                <MessageCircle className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2 text-white">Comunidade WhatsApp</h3>
+              <p className="text-white/90 text-sm mb-4">
+                Conecte-se com desenvolvedores, compartilhe conhecimento e colabore em projetos.
+              </p>
+              <Button
+                variant="secondary"
+                className="w-full bg-white text-green-600 hover:bg-gray-100 font-medium"
+              >
+                Entrar na comunidade
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Featured Videos */}
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Videoaulas em Destaque</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {featuredVideos.map((video, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle className="text-lg">{video.title}</CardTitle>
-                <CardDescription>
-                  Por {video.instructor} • {video.duration}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progresso</span>
-                    <span>{video.progress}%</span>
+      {videos.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Videoaulas em Destaque</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {videos.map((video) => (
+              <Card key={video.id} className="hover:shadow-lg transition-shadow overflow-hidden">
+                <div className="relative group cursor-pointer" onClick={() => handleViewVideo(video.id)}>
+                  <img
+                    src={video.thumbnail}
+                    alt={video.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                    <Play className="h-12 w-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <Progress value={video.progress} className="h-2" />
                 </div>
-                <Button className="w-full mt-4" variant={video.progress > 0 ? "default" : "outline"}>
-                  <Play className="h-4 w-4 mr-2" />
-                  {video.progress > 0 ? "Continuar" : "Começar"}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                <CardHeader>
+                  <CardTitle
+                    className="text-lg line-clamp-2 cursor-pointer hover:text-blue-600"
+                    onClick={() => handleViewVideo(video.id)}
+                  >
+                    {video.title}
+                  </CardTitle>
+                  {video.description && (
+                    <CardDescription className="line-clamp-2">
+                      {video.description}
+                    </CardDescription>
+                  )}
+                  {video.category && (
+                    <CardDescription className="text-xs mt-1">
+                      {video.category}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" onClick={() => handleViewVideo(video.id)}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Assistir
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Featured Projects */}
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Projetos em Destaque</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {featuredProjects.map((project, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{project.title}</CardTitle>
-                  <Badge variant="secondary">{project.difficulty}</Badge>
-                </div>
-                <CardDescription>{project.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {project.tech.map((tech, techIndex) => (
-                      <Badge key={techIndex} variant="outline">
-                        {tech}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1">
-                      <Star className="h-4 w-4 text-yellow-500" />
-                      <span className="text-sm">{project.stars}</span>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (project.title === "Dashboard Analytics") {
-                            platformState.setActiveTab("dashboard");
-                          }
-                        }}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Acessar
-                      </Button>
-                      <Button size="sm">
-                        <GitBranch className="h-4 w-4 mr-2" />
-                        Clonar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="rounded-2xl border bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4 sm:p-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900">Projetos</h2>
+          </div>
+          <Button
+            variant="outline"
+            className="shrink-0 bg-white/70"
+            onClick={handleGoToProjects}
+          >
+            Ver todos
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         </div>
+
+        {projects.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <Card
+                key={project.id}
+                className="group cursor-pointer hover:shadow-lg transition-all bg-white/80 backdrop-blur border-white/60"
+                onClick={() => handleViewProject(project.id)}
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="mt-0.5 h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white">
+                        <FolderKanban className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="truncate">{project.name}</CardTitle>
+                        {project.description && (
+                          <CardDescription className="mt-1 line-clamp-2">{project.description}</CardDescription>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-700 transition-colors mt-1" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
+                      <Users className="h-4 w-4 text-gray-600" />
+                      <span className="font-medium">{project.memberCount || 0}</span>
+                      <span className="text-gray-500">membros</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
+                      <FileCode className="h-4 w-4 text-gray-600" />
+                      <span className="font-medium">{project.cardCount || 0}</span>
+                      <span className="text-gray-500">cards</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
+                      <Calendar className="h-4 w-4 text-gray-600" />
+                      <span className="text-gray-600">{new Date(project.createdAt).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="bg-white/80 border-dashed">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white shrink-0">
+                    <FolderKanban className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">Crie seu primeiro projeto</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Organize cards por objetivo (ex.: “App”, “API”, “Landing”) e compartilhe com seu time.
+                    </div>
+                  </div>
+                </div>
+                <Button onClick={handleGoToProjects} className="w-full sm:w-auto">
+                  Novo Projeto
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

@@ -11,9 +11,9 @@ const corsOptions = {
       'https://10xdev.vercel.app',    // Production frontend
       'https://v0-10xdev.vercel.app', // Current Vercel deployment
       'https://web-frontend-10xdev.azurewebsites.net', // Azure frontend
-      'https://10xdev.com.br',        // Domínio customizado
-      'https://www.10xdev.com.br',    // Domínio customizado com www
-      'https://api.10xdev.com.br',    // Domínio customizado da API
+      'https://10xdev.com.br', // Domínio customizado
+      'https://www.10xdev.com.br', // Domínio customizado com www
+      'https://api.10xdev.com.br', // Domínio customizado da API
       process.env.CORS_ORIGIN         // Origem do .env
     ].filter(Boolean) // Remove undefined values
 

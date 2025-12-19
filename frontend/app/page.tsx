@@ -8,7 +8,6 @@ import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
-import Dashboard from "@/pages/Dashboard"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
@@ -49,9 +48,6 @@ export default function DevPlatform() {
 
               {/* Codes Tab */}
               {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
-
-              {/* Dashboard Tab */}
-              {platformState.activeTab === "dashboard" && <Dashboard platformState={platformState} />}
 
               {/* Videos Tab */}
               {activeTab === "videos" && videoId ? (

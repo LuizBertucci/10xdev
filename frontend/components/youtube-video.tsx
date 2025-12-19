@@ -69,7 +69,7 @@ export default function YouTubeVideo({ url, mode = "embed", className = "" }: Yo
       <iframe
         src={embedUrl}
         title="YouTube video player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
         className="absolute top-0 left-0 w-full h-full rounded-lg border-0"
       />

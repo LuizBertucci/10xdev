@@ -1,8 +1,8 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X, Loader2, FileJson, Lock, Globe, Copy } from "lucide-react"
+import { X, Loader2, FileJson, Lock, Globe, Copy, Check } from "lucide-react"
 import { toast } from "sonner"
 import type { CreateCardFeatureData } from "@/types"
 import { ContentType, CardType } from "@/types"
@@ -22,7 +22,7 @@ const JSON_PLACEHOLDER = `{
       "blocks": [
         {
           "type": "code",
-          "content": "import React from 'react'\\n\\nexport default function Example() {\\n  return <div>Hello World</div>\\n}",
+          "content": "import React from 'react'\\n\\nexport default function Example() {\\n return <div>Hello World</div>\\n}",
           "language": "typescript",
           "title": "Componente React",
           "route": "src/components/Example.tsx",
@@ -37,13 +37,13 @@ const JSON_PLACEHOLDER = `{
       ]
     },
     {
-      "name": "Tests",
-      "description": "Testes unitários",
+      "name": "Test",
+      "description": "Testes do componente",
       "route": "src/components/Example.test.tsx",
       "blocks": [
         {
           "type": "code",
-          "content": "import { render } from '@testing-library/react'\\nimport Example from './Example'\\n\\ntest('renders', () => {\\n  render(<Example />)\\n})",
+          "content": "import { render } from '@testing-library/react'\\nimport Example from './Example'\\n\\ntest('renders', () => {\\n render(<Example />)\\n})",
           "language": "typescript",
           "route": "src/components/Example.test.tsx",
           "order": 0
@@ -69,10 +69,20 @@ export default function CardFeatureFormJSON({
   const [jsonInput, setJsonInput] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isPrivate, setIsPrivate] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const resetCopiedTimeoutRef = useRef<number | null>(null)
 
   const handleCopyExample = async () => {
     try {
       await navigator.clipboard.writeText(JSON_PLACEHOLDER)
+      setCopied(true)
+      if (resetCopiedTimeoutRef.current) {
+        window.clearTimeout(resetCopiedTimeoutRef.current)
+      }
+      resetCopiedTimeoutRef.current = window.setTimeout(() => {
+        setCopied(false)
+        resetCopiedTimeoutRef.current = null
+      }, 2000)
       toast.success("Exemplo JSON copiado! Cole em sua IA preferida.")
     } catch (err) {
       toast.error("Erro ao copiar exemplo")
@@ -194,9 +204,19 @@ export default function CardFeatureFormJSON({
               variant="outline"
               size="sm"
               onClick={handleCopyExample}
+              disabled={copied}
             >
-              <Copy className="h-4 w-4 mr-2" />
-              Copiar Exemplo
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Copiado!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copiar Exemplo
+                </>
+              )}
             </Button>
             <Button
               variant="ghost"

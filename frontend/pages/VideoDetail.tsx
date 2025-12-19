@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Tag, ExternalLink, Search, Code2 } from "lucide-react"
+import { ArrowLeft, Calendar, Tag, ExternalLink, Search, Code2, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react"
 import YouTubeVideo from "@/components/youtube-video"
-import CardFeature from "@/components/CardFeature"
+import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -36,6 +36,7 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [loadingCards, setLoadingCards] = useState(false)
+  const [isEditMode, setIsEditMode] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -75,7 +76,8 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
   const fetchCardFeatures = async () => {
     setLoadingCards(true)
     try {
-      const res = await cardFeatureService.getAll()
+      // Buscar um volume maior para a busca local não “sumir” cards por paginação default do backend
+      const res = await cardFeatureService.getAll({ limit: 200 })
       if (res.success && res.data) {
         setCardFeatures(res.data)
       } else {
@@ -150,6 +152,7 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
     try {
       await videoService.updateSelectedCardFeature(video.id, null)
       setSelectedCardFeature(null)
+      setIsEditMode(false)
       toast({
         title: "Sucesso!",
         description: "CardFeature removido com sucesso.",
@@ -171,10 +174,22 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
     router.push(`/?${params.toString()}`)
   }
 
+  const goToTab = (tab: 'home' | 'videos') => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    params.delete('id')
+    if (tab === 'home') {
+      params.delete('tab')
+    } else {
+      params.set('tab', tab)
+    }
+    const qs = params.toString()
+    router.push(qs ? `/?${qs}` : '/')
+  }
+
   const filteredCardFeatures = cardFeatures.filter(cf =>
-    cf.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cf.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cf.tech.toLowerCase().includes(searchTerm.toLowerCase())
+    (cf.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (cf.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (cf.tech || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const formatDate = (iso?: string) => {
@@ -215,28 +230,27 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
-          </Button>
-          <h1 className="text-2xl font-bold text-gray-900">{video.title}</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {selectedCardFeature && (
-            <Button 
-              variant="outline" 
-              onClick={handleRemoveCardFeature}
-              className="text-red-600 hover:text-red-700"
-            >
-              Remover CardFeature
-            </Button>
-          )}
-          <Button onClick={handleSearchCardFeatures} className="bg-blue-600 hover:bg-blue-700">
-            <Code2 className="h-4 w-4 mr-2" /> Buscar CardFeatures
-          </Button>
-        </div>
+      {/* Breadcrumb */}
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <button
+          type="button"
+          onClick={() => goToTab('home')}
+          className="hover:text-gray-900"
+        >
+          Início
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <button
+          type="button"
+          onClick={handleBack}
+          className="hover:text-gray-900"
+        >
+          Vídeos
+        </button>
+        <ChevronRight className="h-4 w-4 text-gray-400" />
+        <span className="text-gray-900 font-medium truncate max-w-[160px] sm:max-w-none">
+          {video.title}
+        </span>
       </div>
 
       {/* Layout: Video + CardFeature */}
@@ -301,14 +315,55 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
         </div>
 
         {/* Right: CardFeature (1/2) */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-4">
+          {/* Título e Botões */}
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-gray-900 truncate">Cards relacionados</h2>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {selectedCardFeature && (
+                <Button
+                  variant={isEditMode ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() => setIsEditMode((v) => !v)}
+                  title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                >
+                  <Pencil className={`h-4 w-4 ${isEditMode ? "text-blue-600" : "text-gray-600"}`} />
+                </Button>
+              )}
+              <Button onClick={handleSearchCardFeatures} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" /> Adicionar
+              </Button>
+            </div>
+          </div>
+
+          {/* Card ou Estado vazio */}
           {selectedCardFeature ? (
-            <CardFeature
-              snippet={selectedCardFeature}
-              onEdit={() => {}}
-              onExpand={() => {}}
-              onDelete={() => {}}
-            />
+            <div className="relative">
+              <CardFeatureCompact
+                snippet={selectedCardFeature}
+                onEdit={() => {}}
+                onDelete={() => {}}
+              />
+
+              {/* Ações por card (apenas no modo de edição) */}
+              {isEditMode && (
+                <div className="absolute top-3 right-3 rounded-lg shadow-md border bg-white p-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveCardFeature()
+                    }}
+                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                    title="Remover CardFeature relacionado"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm border p-8 text-center h-full flex flex-col items-center justify-center">
               <Code2 className="h-12 w-12 text-gray-400 mb-3" />
@@ -317,7 +372,7 @@ export default function VideoDetail({ platformState }: VideoDetailProps) {
               </p>
               <Button onClick={handleSearchCardFeatures} variant="outline" size="sm">
                 <Search className="h-4 w-4 mr-2" />
-                Buscar CardFeatures
+                + Adicionar
               </Button>
             </div>
           )}

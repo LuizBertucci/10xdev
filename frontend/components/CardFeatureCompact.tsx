@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock, Share2 } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
@@ -33,8 +33,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   
   // URL da API baseada no ambiente
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-  const apiBaseUrl = isLocalhost 
-    ? 'http://localhost:3001/api' 
+  const apiBaseUrl = isLocalhost
+    ? 'http://localhost:3001/api'
     : 'https://api.10xdev.com.br/api'
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
 
@@ -51,19 +51,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
       setCopied(true)
       toast.success("Link copiado!")
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      toast.error("Erro ao copiar link")
-    }
-  }
-
-  // Função para compartilhar card (copiar URL do frontend)
-  const handleShareCard = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    try {
-      // Gerar URL do frontend para visualizar o card
-      const frontendUrl = `${window.location.origin}/?tab=codes&id=${snippet.id}`
-      await navigator.clipboard.writeText(frontendUrl)
-      toast.success("Link do card copiado!")
     } catch (err) {
       toast.error("Erro ao copiar link")
     }
@@ -155,25 +142,22 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
               <div className="md:hidden space-y-2">
                 {/* Título com Menu */}
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">{snippet.title}</h3>
+                  <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">
+                    {snippet.title}
+                  </h3>
                   {/* Menu ⋮ - Na altura do título */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                      >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {!snippet.isPrivate && (
-                        <DropdownMenuItem onClick={handleShareCard}>
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Compartilhar
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => onEdit(snippet)}
-                        disabled={!canEdit}
-                      >
+                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
                       </DropdownMenuItem>
@@ -239,7 +223,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
                       {copied ? 'Copiado!' : 'Copiar para IDE'}
                     </Button>
-                    
+
                     {/* Toggle - extrema direita */}
                     <div className="text-gray-400 ml-1">
                       {isExpanded ? (
@@ -268,12 +252,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {!snippet.isPrivate && (
-                    <DropdownMenuItem onClick={handleShareCard}>
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Compartilhar
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuItem
                     onClick={() => onEdit(snippet)}
                     disabled={!canEdit}
