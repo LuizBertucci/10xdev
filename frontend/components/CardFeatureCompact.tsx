@@ -140,8 +140,38 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
               {/* Layout Mobile - Vertical com ícones em linha */}
               <div className="md:hidden space-y-2">
-                {/* Título */}
-                <h3 className="font-semibold text-gray-900 leading-snug break-words">{snippet.title}</h3>
+                {/* Título com Menu */}
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">
+                    {snippet.title}
+                  </h3>
+                  {/* Menu ⋮ - Na altura do título */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDelete(snippet.id)}
+                        className="text-red-600"
+                        disabled={!canEdit}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -183,32 +213,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 <div className="border-t border-gray-200 pt-2">
                   {/* Ícones em linha horizontal - alinhados à direita */}
                   <div className="flex items-center justify-end gap-2">
-                    {/* Menu ⋮ */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          onClick={() => onEdit(snippet)}
-                          disabled={!canEdit}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => onDelete(snippet.id)} 
-                          className="text-red-600"
-                          disabled={!canEdit}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    
                     {/* Botão Copiar para IDE */}
                     <Button 
                       variant="outline" 
@@ -219,7 +223,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
                       {copied ? 'Copiado!' : 'Copiar para IDE'}
                     </Button>
-                    
+
                     {/* Toggle - extrema direita */}
                     <div className="text-gray-400 ml-1">
                       {isExpanded ? (
