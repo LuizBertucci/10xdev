@@ -415,3 +415,27 @@ export interface ImportConfig {
   validateData: boolean
   generateNewIds: boolean
 }
+
+// ================================================
+// REVIEW TYPES
+// ================================================
+
+/**
+ * Estatísticas de reviews de um CardFeature
+ */
+export interface ReviewStats {
+  averageRating: number  // Média calculada (0-5)
+  totalReviews: number      // Total de avaliações
+  userReview?: {            // Review do usuário atual (se existir)
+    id: string
+    rating: number
+    created_at: string
+  }
+}
+
+/**
+ * Dados para criar ou atualizar uma review
+ */
+export interface CreateReviewRequest {
+  rating: number  // 1-5
+}
