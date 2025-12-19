@@ -189,8 +189,29 @@ export class CardFeatureModel {
   // CREATE
   // ================================================
 
-  static async create(data: CreateCardFeatureRequest): Promise<ModelResult<CardFeatureResponse>> {
+  static async create(
+    data: CreateCardFeatureRequest,
+    userId?: string,
+    projectId?: string
+  ): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Validar dados básicos
+      if (!data.title || !data.tech || !data.language) {
+        return {
+          success: false,
+          error: 'Campos obrigatórios: title, tech, language',
+          statusCode: 400
+        }
+      }
+
+      if (!data.screens || !Array.isArray(data.screens) || data.screens.length === 0) {
+        return {
+          success: false,
+          error: 'Pelo menos uma screen é obrigatória',
+          statusCode: 400
+        }
+      }
+
       // Processar screens para adicionar IDs e order aos blocos
       const processedScreens = data.screens.map(screen => ({
         ...screen,
@@ -203,19 +224,22 @@ export class CardFeatureModel {
 
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
-        title: data.title || '',
-        tech: data.tech || 'React',
-        language: data.language || 'typescript',
+        title: data.title,
+        tech: data.tech,
+        language: data.language,
         description: data.description || '',
         content_type: data.content_type || 'code',
         card_type: data.card_type || 'codigos',
         screens: processedScreens,
+        created_by: userId || null,
+        is_private: projectId ? false : (data.is_private ?? false),
+        created_in_project_id: projectId || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
 
       const { data: result } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .insert(insertData)
           .select()
@@ -228,6 +252,7 @@ export class CardFeatureModel {
         statusCode: 201
       }
     } catch (error: any) {
+      console.error('Erro ao criar CardFeature:', error)
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
