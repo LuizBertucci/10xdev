@@ -265,15 +265,38 @@ export class CardFeatureModel {
   // READ
   // ================================================
 
-  static async findById(id: string): Promise<ModelResult<CardFeatureResponse>> {
+  static async findById(
+    id: string,
+    userId?: string,
+    userName?: string | null
+  ): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Verificar permissão de visualização
+      const hasPermission = await this.checkViewPermission(id, userId, userName)
+
+      if (!hasPermission) {
+        return {
+          success: false,
+          error: 'CardFeature não encontrado ou você não tem permissão',
+          statusCode: 404
+        }
+      }
+
       const { data } = await executeQuery(
-        supabase
+        supabaseAdmin
           .from('card_features')
           .select('*')
           .eq('id', id)
           .single()
       )
+
+      if (!data) {
+        return {
+          success: false,
+          error: 'CardFeature não encontrado',
+          statusCode: 404
+        }
+      }
 
       return {
         success: true,
@@ -281,6 +304,7 @@ export class CardFeatureModel {
         statusCode: 200
       }
     } catch (error: any) {
+      console.error('Erro ao buscar CardFeature:', error)
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
