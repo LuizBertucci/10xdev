@@ -1,6 +1,6 @@
 "use client"
 
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
@@ -20,6 +20,15 @@ const navItems = [
 
 export default function AppSidebar({ platformState }: AppSidebarProps) {
   const { user, logout } = useAuth()
+  const { setOpenMobile, isMobile } = useSidebar()
+
+  const handleNavClick = (key: string) => {
+    platformState.setActiveTab(key)
+    // Fecha a sidebar no mobile após clicar
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -79,7 +88,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
-                    onClick={() => platformState.setActiveTab(item.key)}
+                    onClick={() => handleNavClick(item.key)}
                     isActive={platformState.activeTab === item.key}
                     tooltip={item.tooltip}
                   >
@@ -98,7 +107,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton>
               <Avatar className="size-6">
-                <AvatarImage src="/placeholder.svg?height=24&width=24" />
+                <AvatarImage src={user?.avatarUrl || ""} />
                 <AvatarFallback>{getUserInitials()}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 text-left text-sm">
