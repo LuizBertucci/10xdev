@@ -8,7 +8,9 @@ import type {
   CardFeatureQueryParams,
   ModelResult,
   ModelListResult,
-  CreateCardFeatureRequest
+  CreateCardFeatureRequest,
+  CardFeatureReview,
+  ReviewStats
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
@@ -408,6 +410,175 @@ export class CardFeatureModel {
       return {
         success: true,
         data: { deletedCount: count || 0 },
+        statusCode: 200
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  // ================================================
+  // REVIEWS
+  // ================================================
+
+  static async createOrUpdateReview(
+    cardFeatureId: string, 
+    userId: string, 
+    rating: number
+  ): Promise<ModelResult<CardFeatureReview>> {
+    try {
+      // Validar rating
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return {
+          success: false,
+          error: 'Rating deve ser um inteiro entre 1 e 5',
+          statusCode: 400
+        }
+      }
+
+      // Verificar se já existe review
+      const { data: existing } = await executeQuery(
+        supabase
+          .from('card_feature_reviews')
+          .select('*')
+          .eq('card_feature_id', cardFeatureId)
+          .eq('user_id', userId)
+          .maybeSingle()
+      )
+
+      const now = new Date().toISOString()
+
+      if (existing) {
+        // UPDATE: Atualizar review existente
+        const { data: updated } = await executeQuery(
+          supabase
+            .from('card_feature_reviews')
+            .update({
+              rating,
+              updated_at: now
+            })
+            .eq('id', existing.id)
+            .select()
+            .single()
+        )
+
+        return {
+          success: true,
+          data: updated,
+          statusCode: 200
+        }
+      } else {
+        // INSERT: Criar nova review
+        const { data: created } = await executeQuery(
+          supabase
+            .from('card_feature_reviews')
+            .insert({
+              id: randomUUID(),
+              card_feature_id: cardFeatureId,
+              user_id: userId,
+              rating,
+              created_at: now,
+              updated_at: now
+            })
+            .select()
+            .single()
+        )
+
+        return {
+          success: true,
+          data: created,
+          statusCode: 201
+        }
+      }
+    } catch (error: any) {
+      // Tratar erro de constraint UNIQUE (não deveria acontecer, mas por segurança)
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'Você já avaliou este card',
+          statusCode: 409
+        }
+      }
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async deleteReview(
+    cardFeatureId: string, 
+    userId: string
+  ): Promise<ModelResult<null>> {
+    try {
+      await executeQuery(
+        supabase
+          .from('card_feature_reviews')
+          .delete()
+          .eq('card_feature_id', cardFeatureId)
+          .eq('user_id', userId)
+      )
+
+      return {
+        success: true,
+        data: null,
+        statusCode: 200
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async getReviewStats(
+    cardFeatureId: string, 
+    userId?: string
+  ): Promise<ModelResult<ReviewStats>> {
+    try {
+      // Buscar todas as reviews do card
+      const { data: reviews } = await executeQuery(
+        supabase
+          .from('card_feature_reviews')
+          .select('*')
+          .eq('card_feature_id', cardFeatureId)
+      )
+
+      const reviewsArray = reviews || []
+      const totalReviews = reviewsArray.length
+
+      // Calcular média
+      const averageRating = totalReviews > 0
+        ? Number((reviewsArray.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(2))
+        : 0
+
+      // Buscar review do usuário (se fornecido)
+      let userReview: ReviewStats['userReview'] = undefined
+      if (userId) {
+        const userReviewData = reviewsArray.find(r => r.user_id === userId)
+        if (userReviewData) {
+          userReview = {
+            id: userReviewData.id,
+            rating: userReviewData.rating,
+            created_at: userReviewData.created_at
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          averageRating,
+          totalReviews,
+          userReview
+        },
         statusCode: 200
       }
     } catch (error: any) {
