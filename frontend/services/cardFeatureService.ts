@@ -1,5 +1,5 @@
 import { apiClient, ApiResponse } from './apiClient'
-import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats } from '@/types'
+import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats, ReviewStats, CreateReviewRequest } from '@/types'
 
 class CardFeatureService {
   private readonly endpoint = '/card-features'
@@ -140,6 +140,22 @@ class CardFeatureService {
       screenCount: cardFeature.screens.length
     }
   }
+
+  // ================================================
+  // REVIEWS
+  // ================================================
+
+  async createOrUpdateReview(cardId: string, data: CreateReviewRequest): Promise<ApiResponse<ReviewStats> | undefined> {
+    return apiClient.post<ReviewStats>(`${this.endpoint}/${cardId}/reviews`, data)
+  }
+
+  async deleteReview(cardId: string): Promise<ApiResponse<{ success: boolean }> | undefined> {
+    return apiClient.delete<{ success: boolean }>(`${this.endpoint}/${cardId}/reviews`)
+  }
+
+  async getReviewStats(cardId: string): Promise<ApiResponse<ReviewStats> | undefined> {
+    return apiClient.get<ReviewStats>(`${this.endpoint}/${cardId}/reviews/stats`)
+  }
 }
 
 // Instância singleton
@@ -153,5 +169,7 @@ export type {
   UpdateCardFeatureData,
   QueryParams,
   CardFeatureListResponse,
-  CardFeatureStats
+  CardFeatureStats,
+  ReviewStats,
+  CreateReviewRequest
 }
