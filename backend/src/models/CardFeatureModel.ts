@@ -314,7 +314,7 @@ export class CardFeatureModel {
   // UPDATE
   // ================================================
 
-  static async update(id: string, data: Partial<CreateCardFeatureRequest>, userId: string): Promise<ModelResult<CardFeatureResponse>> {
+  static async update(id: string, data: Partial<CreateCardFeatureRequest>, userId: string, userRole?: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
       // Verificar se existe e se usuário é o criador
       const existingCheck = await this.findById(id, userId)
@@ -322,8 +322,9 @@ export class CardFeatureModel {
         return existingCheck
       }
 
-      // Verificar ownership
-      if (existingCheck.data?.createdBy !== userId) {
+      // Verificar ownership - admins podem editar qualquer card
+      const isAdmin = userRole === 'admin'
+      if (!isAdmin && existingCheck.data?.createdBy !== userId) {
         return {
           success: false,
           error: 'Você não tem permissão para atualizar este card',
@@ -376,7 +377,7 @@ export class CardFeatureModel {
   // DELETE
   // ================================================
 
-  static async delete(id: string, userId: string): Promise<ModelResult<null>> {
+  static async delete(id: string, userId: string, userRole?: string): Promise<ModelResult<null>> {
     try {
       // Verificar se existe e se usuário é o criador
       const existingCheck = await this.findById(id, userId)
@@ -388,8 +389,9 @@ export class CardFeatureModel {
         }
       }
 
-      // Verificar ownership
-      if (existingCheck.data?.createdBy !== userId) {
+      // Verificar ownership - admins podem deletar qualquer card
+      const isAdmin = userRole === 'admin'
+      if (!isAdmin && existingCheck.data?.createdBy !== userId) {
         return {
           success: false,
           error: 'Você não tem permissão para deletar este card',

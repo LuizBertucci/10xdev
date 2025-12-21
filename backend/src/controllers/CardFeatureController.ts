@@ -285,6 +285,7 @@ export class CardFeatureController {
       const { id } = req.params
       const data: UpdateCardFeatureRequest = req.body
       const userId = req.user.id
+      const userRole = req.user.role || req.user.user_metadata?.role
 
       if (!id) {
         res.status(400).json({
@@ -294,7 +295,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.update(id, data, userId)
+      const result = await CardFeatureModel.update(id, data, userId, userRole)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -334,6 +335,7 @@ export class CardFeatureController {
 
       const { id } = req.params
       const userId = req.user.id
+      const userRole = req.user.role || req.user.user_metadata?.role
 
       if (!id) {
         res.status(400).json({
@@ -343,7 +345,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.delete(id, userId)
+      const result = await CardFeatureModel.delete(id, userId, userRole)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
