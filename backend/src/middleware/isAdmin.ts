@@ -6,16 +6,13 @@ import { Request, Response, NextFunction } from 'express'
  * IMPORTANTE: Este middleware deve ser usado APÓS o middleware `authenticate`
  * pois depende de `req.user` estar populado.
  *
- * Usuários com role 'admin' OU com emails específicos de administradores
- * (Luiz Bertucci e Augusto Amado) têm acesso autorizado.
+ * Usuários com role 'admin' OU com email específico de administrador
+ * têm acesso autorizado.
  */
 
 // Lista de emails de administradores (hardcoded conforme requisitos)
 const ADMIN_EMAILS = [
-  'luizbertucci@10xdev.com',
-  'augustoamado@10xdev.com',
-  'luiz@10xdev.com',
-  'augusto@10xdev.com'
+  'augustoc.amado@gmail.com'
 ]
 
 export const isAdmin = (req: Request, res: Response, next: NextFunction): void => {

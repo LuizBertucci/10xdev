@@ -8,6 +8,9 @@ export type User = {
   id: string
   email: string | null
   name?: string | null
+  role?: string
+  status?: string
+  avatarUrl?: string | null
 }
 
 export type RegisterData = {

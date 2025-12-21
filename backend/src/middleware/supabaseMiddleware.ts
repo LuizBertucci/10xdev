@@ -9,6 +9,9 @@ declare global {
         id: string
         email: string
         name?: string | null
+        role?: string
+        status?: string
+        avatarUrl?: string | null
       }
     }
   }
@@ -50,13 +53,13 @@ export const supabaseMiddleware = async (
     }
 
     // Verificar se usuário existe na tabela users
-    let userProfile: { id: string; email: string; name?: string | null } | null = null
+    let userProfile: { id: string; email: string; name?: string | null; role?: string; status?: string; avatar_url?: string | null } | null = null
 
     try {
       const result = await executeQuery(
         supabaseAdmin
           .from('users')
-          .select('id, email, name')
+          .select('id, email, name, role, status, avatar_url')
           .eq('id', user.id)
           .maybeSingle()
       )
@@ -96,7 +99,10 @@ export const supabaseMiddleware = async (
         userProfile = {
           id: user.id,
           email: email,
-          name: name
+          name: name,
+          role: 'user',
+          status: 'active',
+          avatar_url: null
         }
       } catch (upsertError: any) {
         console.error('Erro ao criar perfil padrão:', upsertError.message)
@@ -104,7 +110,10 @@ export const supabaseMiddleware = async (
         userProfile = {
           id: user.id,
           email: email,
-          name: name
+          name: name,
+          role: 'user',
+          status: 'active',
+          avatar_url: null
         }
       }
     }
@@ -113,7 +122,10 @@ export const supabaseMiddleware = async (
     req.user = {
       id: userProfile.id,
       email: userProfile.email,
-      name: userProfile.name || null
+      name: userProfile.name || null,
+      role: userProfile.role || 'user',
+      status: userProfile.status || 'active',
+      avatarUrl: userProfile.avatar_url || null
     }
 
     next()
