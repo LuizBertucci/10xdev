@@ -20,3 +20,4 @@ export {
 } from './errorHandler'
 export { supabaseMiddleware } from './supabaseMiddleware'
 export { authenticate } from './authenticate'
+export { isAdmin } from './isAdmin'
