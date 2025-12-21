@@ -2,9 +2,11 @@
 
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
-import { LogOut } from "lucide-react"
+import { LogOut, ShieldCheck } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface AppSidebarProps {
   platformState: any
@@ -20,9 +22,20 @@ const navItems = [
 export default function AppSidebar({ platformState }: AppSidebarProps) {
   const { user, logout } = useAuth()
   const { setOpenMobile, isMobile } = useSidebar()
+  const router = useRouter()
+
+  const isAdmin = user?.role === 'admin'
 
   const handleNavClick = (key: string) => {
     platformState.setActiveTab(key)
+    // Fecha a sidebar no mobile após clicar
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
+
+  const handleAdminClick = () => {
+    router.push('/admin')
     // Fecha a sidebar no mobile após clicar
     if (isMobile) {
       setOpenMobile(false)
@@ -96,6 +109,23 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Painel de Controle - Apenas para administradores */}
+              {isAdmin && (
+                <>
+                  <Separator className="my-2" />
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={handleAdminClick}
+                      tooltip="Painel de Controle"
+                      className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                    >
+                      <span className="text-base">🛡️</span>
+                      <span className="font-medium">Painel de Controle</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
