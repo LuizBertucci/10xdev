@@ -4,6 +4,7 @@ import { authRoutes } from './authRoutes'
 import { videoRoutes } from './videoRoutes'
 import { projectRoutes } from './projectRoutes'
 import { userRoutes } from './userRoutes'
+import { adminRoutes } from './adminRoutes'
 
 const router = Router()
 
@@ -35,6 +36,9 @@ router.use('/projects', projectRoutes)
 
 // Users routes
 router.use('/users', userRoutes)
+
+// Admin routes (requires admin role)
+router.use('/admin', adminRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
@@ -88,6 +92,14 @@ router.get('/', (req, res) => {
       },
       users: {
         search: 'GET /api/users/search?q=term'
+      },
+      admin: {
+        stats: 'GET /api/admin/stats',
+        listUsers: 'GET /api/admin/users',
+        getUserById: 'GET /api/admin/users/:id',
+        updateUserRole: 'PUT /api/admin/users/:id/role',
+        updateUserStatus: 'PUT /api/admin/users/:id/status',
+        deleteUser: 'DELETE /api/admin/users/:id'
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'
