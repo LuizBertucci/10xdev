@@ -7,10 +7,11 @@ import { getDefaultRoute } from '@/utils/routes'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
+  requireRole?: 'admin' | 'user' | 'consultor'
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth()
+export default function ProtectedRoute({ children, requireRole }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -30,7 +31,15 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       // Usar replace ao invés de push para não criar entrada no histórico
       router.replace(`/login${redirectUrl}`)
     }
-  }, [isAuthenticated, isLoading, router, pathname, searchParams])
+
+    // Verificar role se especificado
+    if (!isLoading && isAuthenticated && requireRole && user) {
+      if (user.role !== requireRole) {
+        // Redirecionar para home se não tiver o role necessário
+        router.replace('/')
+      }
+    }
+  }, [isAuthenticated, isLoading, user, requireRole, router, pathname, searchParams])
 
   // Mostrar loading durante verificação
   if (isLoading) {
