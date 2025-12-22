@@ -29,6 +29,9 @@ yarn-error.log*
 
 .cursor/mcp.json
 
+# local scripts (never commit secrets)
+check-users.js
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
