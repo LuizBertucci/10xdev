@@ -25,10 +25,10 @@ export default function LoginPage() {
     if (!isLoading && isAuthenticated) {
       const redirect = searchParams?.get('redirect')
       if (redirect) {
-        router.push(redirect)
+        router.replace(redirect)
       } else {
         // Redirecionar para home (tela inicial - default após login)
-        router.push(getDefaultRoute())
+        router.replace(getDefaultRoute())
       }
     }
   }, [isAuthenticated, isLoading, router, searchParams])
@@ -45,13 +45,7 @@ export default function LoginPage() {
     try {
       await login({ email, password })
       toast.success('Login realizado com sucesso!')
-      const redirect = searchParams?.get('redirect')
-      if (redirect) {
-        router.push(redirect)
-      } else {
-        // Redirecionar para home (tela inicial - default após login)
-        router.push(getDefaultRoute())
-      }
+      // Redirect é tratado pelo useEffect quando isAuthenticated virar true
     } catch (error: any) {
       // Log apenas em desenvolvimento
       if (process.env.NODE_ENV === 'development') {

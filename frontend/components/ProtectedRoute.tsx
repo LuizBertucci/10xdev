@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { getDefaultRoute } from '@/utils/routes'
@@ -16,12 +16,16 @@ export default function ProtectedRoute({ children, requireRole }: ProtectedRoute
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  const search = useMemo(() => searchParams.toString(), [searchParams])
+
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return
+
+    if (!isAuthenticated) {
       // Redirecionar para login com query param redirect para voltar após login
       // Preservar query params se existirem (ex: ?tab=home)
-      const currentPath = pathname === '/' && searchParams.toString() 
-        ? `/?${searchParams.toString()}`
+      const currentPath = pathname === '/' && search
+        ? `/?${search}`
         : pathname
       
       const redirectUrl = currentPath !== '/' 
@@ -30,16 +34,15 @@ export default function ProtectedRoute({ children, requireRole }: ProtectedRoute
       
       // Usar replace ao invés de push para não criar entrada no histórico
       router.replace(`/login${redirectUrl}`)
+      return
     }
 
     // Verificar role se especificado
-    if (!isLoading && isAuthenticated && requireRole && user) {
-      if (user.role !== requireRole) {
-        // Redirecionar para home se não tiver o role necessário
-        router.replace('/')
-      }
+    if (requireRole && user && user.role !== requireRole) {
+      // Redirecionar para home se não tiver o role necessário
+      router.replace('/')
     }
-  }, [isAuthenticated, isLoading, user, requireRole, router, pathname, searchParams])
+  }, [isAuthenticated, isLoading, user?.role, requireRole, router, pathname, search])
 
   // Mostrar loading durante verificação
   if (isLoading) {
