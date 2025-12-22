@@ -1,49 +1,20 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const publicPaths = ['/login', '/register']
-
-export async function middleware(req: NextRequest) {
+/**
+ * Middleware da aplicação
+ *
+ * IMPORTANTE:
+ * O projeto usa autenticação client-side (Supabase no browser).
+ * Validar sessão aqui via cookies pode causar loop infinito (/ -> /login -> /)
+ * quando o browser tem sessão mas o middleware não consegue enxergar via cookies.
+ *
+ * A proteção de rotas fica a cargo do `ProtectedRoute` no client.
+ */
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
-
-  const isPublic = publicPaths.includes(pathname)
-
-  // Cria cliente Supabase para validar sessão
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value
-        },
-        set() {},
-        remove() {},
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-  const hasSession = !!user
-
-  // Bloqueia rotas privadas se não houver sessão válida
-  if (!isPublic && !hasSession) {
-    const url = req.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('redirect', pathname + req.nextUrl.search)
-    return NextResponse.redirect(url)
-  }
-
-  // Evita acesso a login/register se já autenticado
-  if (isPublic && hasSession) {
-    const url = req.nextUrl.clone()
-    url.pathname = '/'
-    url.search = ''
-    return NextResponse.redirect(url)
-  }
 
   return NextResponse.next()
 }
