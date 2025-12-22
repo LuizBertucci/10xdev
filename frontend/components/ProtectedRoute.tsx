@@ -61,6 +61,11 @@ export default function ProtectedRoute({ children, requireRole }: ProtectedRoute
     return null
   }
 
+  // Não renderizar children se não tiver o role necessário (redirecionamento está em andamento)
+  if (requireRole && user && user.role !== requireRole) {
+    return null
+  }
+
   return <>{children}</>
 }
 
