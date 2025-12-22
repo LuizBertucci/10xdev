@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useAdmin } from '@/hooks/useAdmin'
+import { useDebounceSearch } from '@/hooks/useDebounceSearch'
 import { SystemStatsCard } from '@/components/admin/SystemStatsCard'
 import { UserManagementTable } from '@/components/admin/UserManagementTable'
+import { UserFilters } from '@/components/admin/UserFilters'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -19,6 +21,7 @@ import {
   Calendar
 } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import type { UserRole, UserStatus } from '@/types/admin'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -35,6 +38,32 @@ export default function AdminPage() {
     deleteUser,
     refreshAll
   } = useAdmin()
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<UserStatus | 'all'>('all')
+
+  // Debounced search
+  const debouncedSearch = useDebounceSearch(searchTerm, 300)
+
+  // Filter users based on search and filters
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => {
+      // Filtro de busca (nome ou email)
+      const matchesSearch = debouncedSearch === '' ||
+        user.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        user.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+
+      // Filtro de role
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter
+
+      // Filtro de status
+      const matchesStatus = statusFilter === 'all' || user.status === statusFilter
+
+      return matchesSearch && matchesRole && matchesStatus
+    })
+  }, [users, debouncedSearch, roleFilter, statusFilter])
 
   // Verificar se o usuário é admin
   useEffect(() => {
@@ -217,9 +246,22 @@ export default function AdminPage() {
                     Visualize, edite e gerencie todos os usuários do sistema
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-6">
+                  {/* Filters */}
+                  <UserFilters
+                    searchTerm={searchTerm}
+                    roleFilter={roleFilter}
+                    statusFilter={statusFilter}
+                    onSearchChange={setSearchTerm}
+                    onRoleFilterChange={setRoleFilter}
+                    onStatusFilterChange={setStatusFilter}
+                    totalUsers={users.length}
+                    filteredCount={filteredUsers.length}
+                  />
+
+                  {/* User Table */}
                   <UserManagementTable
-                    users={users}
+                    users={filteredUsers}
                     currentUserId={user.id}
                     onUpdateRole={updateUserRole}
                     onUpdateStatus={updateUserStatus}
