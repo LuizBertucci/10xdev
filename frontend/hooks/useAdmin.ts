@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { adminService } from '@/services/adminService'
 import { useToast } from './use-toast'
 import type {
@@ -35,6 +35,7 @@ interface AdminState {
  */
 export function useAdmin(): UseAdminReturn {
   const { toast } = useToast()
+  const mountedRef = useRef(true)
 
   const [state, setState] = useState<AdminState>({
     users: [],
@@ -48,6 +49,13 @@ export function useAdmin(): UseAdminReturn {
     error: null
   })
 
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
   // ================================================
   // FETCH OPERATIONS
   // ================================================
@@ -56,27 +64,33 @@ export function useAdmin(): UseAdminReturn {
    * Busca lista de todos os usuários com suas estatísticas
    */
   const fetchUsers = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, loading: true, error: null }))
+    }
 
     try {
       const response = await adminService.getAllUsers()
 
       if (response && response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          users: response.data || [],
-          loading: false
-        }))
+        if (mountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            users: response.data || [],
+            loading: false
+          }))
+        }
       } else {
         throw new Error(response?.error || 'Erro ao carregar usuários')
       }
     } catch (error: any) {
       const errorMessage = error?.error || error?.message || 'Erro ao carregar usuários'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        loading: false
-      }))
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          loading: false
+        }))
+      }
 
       toast({
         title: 'Erro ao carregar usuários',
@@ -90,27 +104,33 @@ export function useAdmin(): UseAdminReturn {
    * Busca estatísticas gerais do sistema
    */
   const fetchStats = useCallback(async () => {
-    setState(prev => ({ ...prev, loadingStats: true, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, loadingStats: true, error: null }))
+    }
 
     try {
       const response = await adminService.getSystemStats()
 
       if (response && response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          stats: response.data || null,
-          loadingStats: false
-        }))
+        if (mountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            stats: response.data || null,
+            loadingStats: false
+          }))
+        }
       } else {
         throw new Error(response?.error || 'Erro ao carregar estatísticas')
       }
     } catch (error: any) {
       const errorMessage = error?.error || error?.message || 'Erro ao carregar estatísticas'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        loadingStats: false
-      }))
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          loadingStats: false
+        }))
+      }
 
       toast({
         title: 'Erro ao carregar estatísticas',
@@ -124,27 +144,33 @@ export function useAdmin(): UseAdminReturn {
    * Busca detalhes de um usuário específico
    */
   const fetchUserById = useCallback(async (userId: string) => {
-    setState(prev => ({ ...prev, loadingUser: true, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, loadingUser: true, error: null }))
+    }
 
     try {
       const response = await adminService.getUserById(userId)
 
       if (response && response.success && response.data) {
-        setState(prev => ({
-          ...prev,
-          selectedUser: response.data as UserDetail,
-          loadingUser: false
-        }))
+        if (mountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            selectedUser: response.data as UserDetail,
+            loadingUser: false
+          }))
+        }
       } else {
         throw new Error(response?.error || 'Erro ao carregar detalhes do usuário')
       }
     } catch (error: any) {
       const errorMessage = error?.error || error?.message || 'Erro ao carregar usuário'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        loadingUser: false
-      }))
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          loadingUser: false
+        }))
+      }
 
       toast({
         title: 'Erro ao carregar usuário',
@@ -162,20 +188,24 @@ export function useAdmin(): UseAdminReturn {
    * Atualiza o role de um usuário
    */
   const updateUserRole = useCallback(async (userId: string, role: UserRole) => {
-    setState(prev => ({ ...prev, updating: true, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, updating: true, error: null }))
+    }
 
     try {
       const response = await adminService.updateUserRole(userId, role)
 
       if (response && response.success) {
         // Atualizar a lista de usuários
-        setState(prev => ({
-          ...prev,
-          users: prev.users.map(user =>
-            user.id === userId ? { ...user, role } : user
-          ),
-          updating: false
-        }))
+        if (mountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            users: prev.users.map(user =>
+              user.id === userId ? { ...user, role } : user
+            ),
+            updating: false
+          }))
+        }
 
         toast({
           title: 'Role atualizado com sucesso',
@@ -190,11 +220,13 @@ export function useAdmin(): UseAdminReturn {
       }
     } catch (error: any) {
       const errorMessage = error?.error || error?.message || 'Erro ao atualizar role'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        updating: false
-      }))
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          updating: false
+        }))
+      }
 
       toast({
         title: 'Erro ao atualizar role',
@@ -208,20 +240,24 @@ export function useAdmin(): UseAdminReturn {
    * Atualiza o status de um usuário (ativo/inativo)
    */
   const updateUserStatus = useCallback(async (userId: string, status: UserStatus) => {
-    setState(prev => ({ ...prev, updating: true, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, updating: true, error: null }))
+    }
 
     try {
       const response = await adminService.updateUserStatus(userId, status)
 
       if (response && response.success) {
         // Atualizar a lista de usuários
-        setState(prev => ({
-          ...prev,
-          users: prev.users.map(user =>
-            user.id === userId ? { ...user, status } : user
-          ),
-          updating: false
-        }))
+        if (mountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            users: prev.users.map(user =>
+              user.id === userId ? { ...user, status } : user
+            ),
+            updating: false
+          }))
+        }
 
         const statusLabel = status === 'active' ? 'ativado' : 'desativado'
         toast({
@@ -237,11 +273,13 @@ export function useAdmin(): UseAdminReturn {
       }
     } catch (error: any) {
       const errorMessage = error?.error || error?.message || 'Erro ao atualizar status'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        updating: false
-      }))
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          updating: false
+        }))
+      }
 
       toast({
         title: 'Erro ao atualizar status',
@@ -260,18 +298,22 @@ export function useAdmin(): UseAdminReturn {
    * ATENÇÃO: Esta operação é irreversível
    */
   const deleteUser = useCallback(async (userId: string) => {
-    setState(prev => ({ ...prev, deleting: true, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, deleting: true, error: null }))
+    }
 
     try {
       const response = await adminService.deleteUser(userId)
 
       if (response && response.success) {
         // Remover usuário da lista
-        setState(prev => ({
-          ...prev,
-          users: prev.users.filter(user => user.id !== userId),
-          deleting: false
-        }))
+        if (mountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            users: prev.users.filter(user => user.id !== userId),
+            deleting: false
+          }))
+        }
 
         toast({
           title: 'Usuário deletado com sucesso',
@@ -286,11 +328,13 @@ export function useAdmin(): UseAdminReturn {
       }
     } catch (error: any) {
       const errorMessage = error?.error || error?.message || 'Erro ao deletar usuário'
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        deleting: false
-      }))
+      if (mountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          error: errorMessage,
+          deleting: false
+        }))
+      }
 
       toast({
         title: 'Erro ao deletar usuário',
@@ -308,14 +352,19 @@ export function useAdmin(): UseAdminReturn {
    * Limpa mensagem de erro
    */
   const clearError = useCallback(() => {
-    setState(prev => ({ ...prev, error: null }))
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, error: null }))
+    }
   }, [])
 
   /**
    * Recarrega todos os dados (usuários + estatísticas)
    */
   const refreshAll = useCallback(async () => {
-    await Promise.all([fetchUsers(), fetchStats()])
+    if (mountedRef.current) {
+      setState(prev => ({ ...prev, error: null }))
+    }
+    await Promise.allSettled([fetchUsers(), fetchStats()])
   }, [fetchUsers, fetchStats])
 
   // ================================================

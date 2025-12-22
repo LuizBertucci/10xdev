@@ -1,16 +1,17 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAdmin } from '@/hooks/useAdmin'
 import { useDebounceSearch } from '@/hooks/useDebounceSearch'
 import { SystemStatsCard } from '@/components/admin/SystemStatsCard'
 import { UserManagementTable } from '@/components/admin/UserManagementTable'
 import { UserFilters } from '@/components/admin/UserFilters'
-import { RoleDistributionChart } from '@/components/admin/charts/RoleDistributionChart'
+import { GrowthChart } from '@/components/admin/charts/GrowthChart'
 import { UserActivityChart } from '@/components/admin/charts/UserActivityChart'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import {
   Users,
   Code2,
@@ -25,19 +26,6 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import type { UserRole, UserStatus } from '@/types/admin'
 
 export default function AdminPage() {
-  const { isLoading: authLoading } = useAuth()
-
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando painel administrativo...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <ProtectedRoute requireRole="admin">
       <AdminDashboard />
@@ -51,12 +39,60 @@ function AdminDashboard() {
     users,
     stats,
     loading,
+    loadingStats,
+    error,
     updating,
     deleting,
     updateUserRole,
     updateUserStatus,
-    deleteUser
+    deleteUser,
+    refreshAll
   } = useAdmin()
+
+  // =========================================================
+  // DEV DIAGNOSTICS (only in development)
+  // =========================================================
+  const isDev = process.env.NODE_ENV === 'development'
+  const apiBaseUrl =
+    typeof window !== 'undefined' && window.location.hostname === 'localhost'
+      ? 'http://localhost:3001/api'
+      : 'https://api.10xdev.com.br/api'
+
+  const mountTsRef = useRef<number>(Date.now())
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [health, setHealth] = useState<{ ok: boolean; status?: number; ms?: number; error?: string } | null>(null)
+
+  useEffect(() => {
+    if (!isDev) return
+    const id = window.setInterval(() => setElapsedMs(Date.now() - mountTsRef.current), 250)
+    return () => window.clearInterval(id)
+  }, [isDev])
+
+  useEffect(() => {
+    if (!isDev) return
+    let cancelled = false
+    const controller = new AbortController()
+    const startedAt = performance.now()
+
+    const run = async () => {
+      try {
+        const timeoutId = window.setTimeout(() => controller.abort(), 4000)
+        const res = await fetch(`${apiBaseUrl}/health`, { signal: controller.signal })
+        window.clearTimeout(timeoutId)
+        const ms = Math.round(performance.now() - startedAt)
+        if (!cancelled) setHealth({ ok: res.ok, status: res.status, ms })
+      } catch (e: any) {
+        const ms = Math.round(performance.now() - startedAt)
+        if (!cancelled) setHealth({ ok: false, ms, error: e?.name === 'AbortError' ? 'timeout' : (e?.message || 'erro') })
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [isDev, apiBaseUrl])
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('')
@@ -84,13 +120,56 @@ function AdminDashboard() {
     })
   }, [users, debouncedSearch, roleFilter, statusFilter])
 
-  if (loading) {
+  const isInitialLoading = (loading || loadingStats) && users.length === 0 && !stats && !error
+
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-muted-foreground">Carregando painel administrativo...</p>
+          {isDev && (
+            <div className="mt-4 text-xs text-muted-foreground space-y-1">
+              <div>Diagnóstico (dev):</div>
+              <div>API: {apiBaseUrl}</div>
+              <div>Mount: {(elapsedMs / 1000).toFixed(1)}s</div>
+              <div>Em andamento: {loading ? '/admin/users' : loadingStats ? '/admin/stats' : '—'}</div>
+              <div>
+                Health: {health ? (health.ok ? `ok (${health.status}) ${health.ms}ms` : `falha ${health.status ?? ''} ${health.ms}ms (${health.error})`) : 'checando...'}
+              </div>
+            </div>
+          )}
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <Card className="w-full max-w-xl">
+          <CardHeader>
+            <CardTitle>Não foi possível carregar o Painel</CardTitle>
+            <CardDescription>
+              O painel não conseguiu buscar os dados necessários. Abaixo está a mensagem retornada.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+              {error}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => refreshAll()} disabled={loading || loadingStats}>
+                Tentar novamente
+              </Button>
+              {isDev && (
+                <div className="text-xs text-muted-foreground">
+                  API: {apiBaseUrl} • Health: {health ? (health.ok ? `ok ${health.ms}ms` : `falha ${health.ms}ms (${health.error})`) : '—'}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -107,6 +186,12 @@ function AdminDashboard() {
           <p className="mt-2 text-muted-foreground">
             Gerencie usuários, visualize estatísticas e controle o sistema
           </p>
+          {isDev && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              API: {apiBaseUrl} • Health: {health ? (health.ok ? `ok (${health.status}) ${health.ms}ms` : `falha ${health.status ?? ''} ${health.ms}ms (${health.error})`) : 'checando...'}
+              {(loading || loadingStats) ? ` • carregando: ${loading ? '/admin/users' : loadingStats ? '/admin/stats' : '—'}` : ''}
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -162,10 +247,9 @@ function AdminDashboard() {
               />
             </div>
 
-            {/* Gráficos de Crescimento */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <RoleDistributionChart stats={stats} />
-              <UserActivityChart stats={stats} />
+            {/* Gráfico de Crescimento */}
+            <div className="grid gap-4">
+              <GrowthChart users={users} />
             </div>
 
             {/* Estatísticas Detalhadas */}

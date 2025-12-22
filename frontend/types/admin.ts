@@ -237,3 +237,42 @@ export const STATUS_COLORS: Record<UserStatus, string> = {
   active: 'bg-green-100 text-green-800 border-green-200',
   inactive: 'bg-gray-100 text-gray-800 border-gray-200'
 }
+
+// ================================================
+// HISTORICAL DATA TYPES
+// ================================================
+
+export type TimePeriod = 'day' | 'week' | 'month' | 'year' | 'all'
+
+export interface HistoricalDataPoint {
+  date: string
+  count: number
+}
+
+export interface HistoricalDataParams {
+  period: TimePeriod
+  userId?: string // Para filtrar cards por usuário
+}
+
+export interface CardsHistoricalResponse {
+  success: boolean
+  data: HistoricalDataPoint[]
+  period: TimePeriod
+  total: number
+}
+
+export interface UsersHistoricalResponse {
+  success: boolean
+  data: HistoricalDataPoint[]
+  period: TimePeriod
+  total: number
+}
+
+// Labels para os períodos
+export const PERIOD_LABELS: Record<TimePeriod, string> = {
+  day: 'Dia',
+  week: 'Semana',
+  month: 'Mês',
+  year: 'Ano',
+  all: 'Geral'
+}

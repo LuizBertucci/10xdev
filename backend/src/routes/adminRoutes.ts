@@ -9,6 +9,29 @@ const router = Router()
 // ADMIN ROUTES
 // ================================================
 
+// Instrumentação: latência e timeout por rota admin
+router.use((req, res, next) => {
+  const startNs = process.hrtime.bigint()
+  const timeoutMs = Number(process.env.ADMIN_RESPONSE_TIMEOUT_MS) || Number(process.env.RESPONSE_TIMEOUT_MS) || 20000
+
+  // Timeout específico do admin (sobrescreve o geral se menor)
+  res.setTimeout(timeoutMs, () => {
+    const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']
+    console.error(`[admin-timeout] ${req.method} ${req.originalUrl} após ${timeoutMs}ms rid=${String(rid ?? '')}`)
+    if (!res.headersSent) {
+      res.status(504).json({ success: false, error: 'Timeout: operação admin demorou para responder' })
+    }
+  })
+
+  res.on('finish', () => {
+    const durMs = Number(process.hrtime.bigint() - startNs) / 1_000_000
+    const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']
+    console.log(`[admin] ${req.method} ${req.originalUrl} ${res.statusCode} ${durMs.toFixed(1)}ms rid=${String(rid ?? '')}`)
+  })
+
+  next()
+})
+
 // IMPORTANTE: Todas as rotas administrativas requerem:
 // 1. supabaseMiddleware - Valida JWT token do Supabase
 // 2. authenticate - Garante que req.user existe
@@ -25,6 +48,16 @@ router.use(isAdmin)
 
 // GET /api/admin/stats - Estatísticas gerais do sistema
 router.get('/stats', AdminController.getSystemStats)
+
+// ================================================
+// HISTORICAL DATA
+// ================================================
+
+// GET /api/admin/history/cards - Dados históricos de criação de cards
+router.get('/history/cards', AdminController.getCardsHistory)
+
+// GET /api/admin/history/users - Dados históricos de cadastro de usuários
+router.get('/history/users', AdminController.getUsersHistory)
 
 // ================================================
 // USER MANAGEMENT

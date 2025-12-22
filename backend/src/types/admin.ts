@@ -96,8 +96,35 @@ export interface SystemStatsResponse {
   usersThisMonth: number
 }
 
+// Historical data types
+export type TimePeriod = 'day' | 'week' | 'month' | 'year' | 'all'
+
+export interface HistoricalDataPoint {
+  date: string
+  count: number
+}
+
+export interface HistoricalDataParams {
+  period: TimePeriod
+  userId?: string // Para filtrar cards por usuário
+}
+
+export interface CardsHistoricalResponse {
+  period: TimePeriod
+  data: HistoricalDataPoint[]
+  total: number
+}
+
+export interface UsersHistoricalResponse {
+  period: TimePeriod
+  data: HistoricalDataPoint[]
+  total: number
+}
+
 // Model result types
 export type AdminUserResult = ModelResult<UserWithStats>
 export type AdminUsersResult = ModelListResult<UserWithStats>
 export type AdminStatsResult = ModelResult<SystemStats>
 export type AdminDeleteResult = ModelResult<{ id: string }>
+export type CardsHistoricalResult = ModelResult<HistoricalDataPoint[]>
+export type UsersHistoricalResult = ModelResult<HistoricalDataPoint[]>

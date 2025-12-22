@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
   // Helper para buscar perfil completo do usuário da tabela users
   const fetchUserProfile = async (userId: string): Promise<User | null> => {
@@ -55,42 +55,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Inicializar sessão ao montar
   useEffect(() => {
+    let mounted = true
+
     const initSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
 
+        if (!mounted) return
+
         if (error) {
           console.error('Erro ao obter sessão:', error)
           setUser(null)
-          setIsLoading(false)
           return
         }
 
         if (session?.user) {
-          // Buscar perfil completo da tabela users
-          const userProfile = await fetchUserProfile(session.user.id)
-
-          if (userProfile) {
-            setUser(userProfile)
-          } else {
-            // Fallback para dados do auth se perfil não existir
-            const userData: User = {
-              id: session.user.id,
-              email: session.user.email,
-              name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
-              role: 'user',
-              status: 'active'
-            }
-            setUser(userData)
+          // Define dados básicos do auth imediatamente
+          const basicUserData: User = {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+            role: 'user',
+            status: 'active'
           }
+          setUser(basicUserData)
+
+          // Busca perfil completo em background
+          fetchUserProfile(session.user.id).then(userProfile => {
+            if (mounted && userProfile) {
+              setUser(userProfile)
+            }
+          }).catch(err => {
+            console.error('Erro ao buscar perfil completo:', err)
+          })
         } else {
           setUser(null)
         }
       } catch (error) {
         console.error('Erro ao inicializar sessão:', error)
-        setUser(null)
-      } finally {
-        setIsLoading(false)
+        if (mounted) {
+          setUser(null)
+          setIsLoading(false)
+        }
       }
     }
 
@@ -98,13 +104,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+
       if (session?.user) {
         // Buscar perfil completo da tabela users
         const userProfile = await fetchUserProfile(session.user.id)
 
-        if (userProfile) {
+        if (mounted && userProfile) {
           setUser(userProfile)
-        } else {
+        } else if (mounted) {
           // Fallback para dados do auth
           const userData: User = {
             id: session.user.id,
@@ -115,13 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           setUser(userData)
         }
-      } else {
+      } else if (mounted) {
         setUser(null)
       }
-      setIsLoading(false)
     })
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])

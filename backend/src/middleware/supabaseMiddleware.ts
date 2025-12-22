@@ -33,6 +33,8 @@ export const supabaseMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']
+    const t0 = Date.now()
     const authHeader = req.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -44,10 +46,13 @@ export const supabaseMiddleware = async (
 
     // Validar token usando Supabase Auth API (com SERVICE_ROLE_KEY para bypass RLS)
     // Isso verifica: assinatura, expiração, revogação, etc.
+    const tAuth0 = Date.now()
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+    const tAuthMs = Date.now() - tAuth0
 
     if (error || !user) {
       console.error('Erro ao validar token Supabase:', error?.message || 'User não encontrado')
+      console.error(`[supabaseMiddleware] rid=${String(rid ?? '')} authMs=${tAuthMs}`)
       res.status(401).json({ error: 'Token inválido ou expirado' })
       return
     }
@@ -56,6 +61,7 @@ export const supabaseMiddleware = async (
     let userProfile: { id: string; email: string; name?: string | null; role?: string; status?: string; avatar_url?: string | null } | null = null
 
     try {
+      const tProfile0 = Date.now()
       const result = await executeQuery(
         supabaseAdmin
           .from('users')
@@ -63,10 +69,15 @@ export const supabaseMiddleware = async (
           .eq('id', user.id)
           .maybeSingle()
       )
+      const tProfileMs = Date.now() - tProfile0
 
       userProfile = result.data
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[supabaseMiddleware] rid=${String(rid ?? '')} authMs=${tAuthMs} profileSelectMs=${tProfileMs} found=${Boolean(userProfile)}`)
+      }
     } catch (err: any) {
       console.error('Erro ao buscar perfil do usuário:', err.message)
+      console.error(`[supabaseMiddleware] rid=${String(rid ?? '')} authMs=${tAuthMs} profileSelectError`)
       // Continua para criar perfil padrão
     }
 
@@ -89,13 +100,18 @@ export const supabaseMiddleware = async (
       }
 
       try {
+        const tInsert0 = Date.now()
         await executeQuery(
           supabaseAdmin
             .from('users')
             .insert(defaultUserData)
         )
+        const tInsertMs = Date.now() - tInsert0
 
         console.log(`Perfil padrão criado para novo usuário: ${user.id}`)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[supabaseMiddleware] rid=${String(rid ?? '')} insertProfileMs=${tInsertMs}`)
+        }
         userProfile = {
           id: user.id,
           email: email,
@@ -106,6 +122,7 @@ export const supabaseMiddleware = async (
         }
       } catch (upsertError: any) {
         console.error('Erro ao criar perfil padrão:', upsertError.message)
+        console.error(`[supabaseMiddleware] rid=${String(rid ?? '')} insertProfileError`)
         // Continua mesmo com erro, usando dados do auth user
         userProfile = {
           id: user.id,
@@ -128,6 +145,9 @@ export const supabaseMiddleware = async (
       avatarUrl: userProfile.avatar_url || null
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[supabaseMiddleware] rid=${String(rid ?? '')} totalMs=${Date.now() - t0} userId=${req.user.id}`)
+    }
     next()
   } catch (error: any) {
     console.error('Erro no middleware Supabase:', error?.message || error)

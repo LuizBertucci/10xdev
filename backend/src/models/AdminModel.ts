@@ -9,7 +9,11 @@ import type {
   AdminUsersResult,
   AdminStatsResult,
   AdminDeleteResult,
-  UserDetail
+  UserDetail,
+  TimePeriod,
+  HistoricalDataPoint,
+  CardsHistoricalResult,
+  UsersHistoricalResult
 } from '@/types/admin'
 
 export class AdminModel {
@@ -403,6 +407,202 @@ export class AdminModel {
       return {
         success: false,
         error: error.message || 'Erro ao buscar detalhes',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  // ================================================
+  // HISTORICAL DATA
+  // ================================================
+
+  /**
+   * Helper para determinar o truncamento de data baseado no período
+   */
+  private static getDateTruncate(period: TimePeriod): string {
+    switch (period) {
+      case 'day':
+        return 'hour'
+      case 'week':
+        return 'day'
+      case 'month':
+        return 'day'
+      case 'year':
+        return 'month'
+      case 'all':
+        return 'month'
+      default:
+        return 'day'
+    }
+  }
+
+  /**
+   * Helper para calcular a data de início baseado no período
+   */
+  private static getStartDate(period: TimePeriod): Date | null {
+    const now = new Date()
+
+    switch (period) {
+      case 'day':
+        return new Date(now.getTime() - 24 * 60 * 60 * 1000)
+      case 'week':
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      case 'month':
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      case 'year':
+        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+      case 'all':
+        return null // Sem filtro de data
+      default:
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    }
+  }
+
+  /**
+   * Busca dados históricos de criação de cards
+   */
+  static async getCardsHistoricalData(
+    period: TimePeriod,
+    userId?: string
+  ): Promise<CardsHistoricalResult> {
+    try {
+      const truncate = this.getDateTruncate(period)
+      const startDate = this.getStartDate(period)
+
+      // Query com agrupamento por data
+      let query = supabaseAdmin
+        .from('card_features')
+        .select('created_at')
+
+      // Aplicar filtro de data se não for 'all'
+      if (startDate) {
+        query = query.gte('created_at', startDate.toISOString())
+      }
+
+      // Aplicar filtro de usuário se fornecido
+      if (userId) {
+        query = query.eq('created_by', userId)
+      }
+
+      const result = await executeQuery(query)
+
+      if (!result.data) {
+        return {
+          success: true,
+          data: []
+        }
+      }
+
+      // Agrupar dados manualmente por período
+      const grouped = new Map<string, number>()
+
+      result.data.forEach((card: any) => {
+        const date = new Date(card.created_at)
+        let key: string
+
+        switch (truncate) {
+          case 'hour':
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`
+            break
+          case 'day':
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+            break
+          case 'month':
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+            break
+          default:
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+        }
+
+        grouped.set(key, (grouped.get(key) || 0) + 1)
+      })
+
+      // Converter Map para array e ordenar
+      const data: HistoricalDataPoint[] = Array.from(grouped.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+      return {
+        success: true,
+        data
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar dados históricos de cards:', error)
+      return {
+        success: false,
+        error: error.message || 'Erro ao buscar dados históricos',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  /**
+   * Busca dados históricos de cadastro de usuários
+   */
+  static async getUsersHistoricalData(
+    period: TimePeriod
+  ): Promise<UsersHistoricalResult> {
+    try {
+      const truncate = this.getDateTruncate(period)
+      const startDate = this.getStartDate(period)
+
+      // Query com agrupamento por data
+      let query = supabaseAdmin
+        .from('users')
+        .select('created_at')
+
+      // Aplicar filtro de data se não for 'all'
+      if (startDate) {
+        query = query.gte('created_at', startDate.toISOString())
+      }
+
+      const result = await executeQuery(query)
+
+      if (!result.data) {
+        return {
+          success: true,
+          data: []
+        }
+      }
+
+      // Agrupar dados manualmente por período
+      const grouped = new Map<string, number>()
+
+      result.data.forEach((user: any) => {
+        const date = new Date(user.created_at)
+        let key: string
+
+        switch (truncate) {
+          case 'hour':
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`
+            break
+          case 'day':
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+            break
+          case 'month':
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+            break
+          default:
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+        }
+
+        grouped.set(key, (grouped.get(key) || 0) + 1)
+      })
+
+      // Converter Map para array e ordenar
+      const data: HistoricalDataPoint[] = Array.from(grouped.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+      return {
+        success: true,
+        data
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar dados históricos de usuários:', error)
+      return {
+        success: false,
+        error: error.message || 'Erro ao buscar dados históricos',
         statusCode: error.statusCode || 500
       }
     }

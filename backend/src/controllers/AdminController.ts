@@ -347,4 +347,111 @@ export class AdminController {
       })
     }
   }
+
+  // ================================================
+  // HISTORICAL DATA
+  // ================================================
+
+  /**
+   * Retorna dados históricos de criação de cards
+   * GET /api/admin/history/cards?period=month&userId=123
+   */
+  static async getCardsHistory(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      const { period = 'month', userId } = req.query
+
+      const validPeriods = ['day', 'week', 'month', 'year', 'all']
+      if (!validPeriods.includes(period as string)) {
+        res.status(400).json({
+          success: false,
+          error: `Período inválido. Valores aceitos: ${validPeriods.join(', ')}`
+        })
+        return
+      }
+
+      const result = await AdminModel.getCardsHistoricalData(
+        period as any,
+        userId as string | undefined
+      )
+
+      if (!result.success) {
+        res.status(result.statusCode || 500).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        period,
+        total: result.data?.length || 0
+      })
+    } catch (error) {
+      console.error('Erro no controller getCardsHistory:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  /**
+   * Retorna dados históricos de cadastro de usuários
+   * GET /api/admin/history/users?period=month
+   */
+  static async getUsersHistory(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      const { period = 'month' } = req.query
+
+      const validPeriods = ['day', 'week', 'month', 'year', 'all']
+      if (!validPeriods.includes(period as string)) {
+        res.status(400).json({
+          success: false,
+          error: `Período inválido. Valores aceitos: ${validPeriods.join(', ')}`
+        })
+        return
+      }
+
+      const result = await AdminModel.getUsersHistoricalData(period as any)
+
+      if (!result.success) {
+        res.status(result.statusCode || 500).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        period,
+        total: result.data?.length || 0
+      })
+    } catch (error) {
+      console.error('Erro no controller getUsersHistory:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
 }

@@ -91,6 +91,19 @@ app.use((req, res, next) => {
   next()
 })
 
+// Timeout de resposta para evitar requests pendurados indefinidamente
+app.use((req, res, next) => {
+  const timeoutMs = Number(process.env.RESPONSE_TIMEOUT_MS) || 20000
+  res.setTimeout(timeoutMs, () => {
+    const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']
+    console.error(`[timeout] ${req.method} ${req.originalUrl} após ${timeoutMs}ms rid=${String(rid ?? '')}`)
+    if (!res.headersSent) {
+      res.status(504).json({ success: false, error: 'Timeout: servidor demorou para responder' })
+    }
+  })
+  next()
+})
+
 // ================================================
 // ROUTES
 // ================================================

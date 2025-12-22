@@ -10,7 +10,10 @@ import type {
   AdminStatsResponse,
   AdminDeleteUserResponse,
   UpdateUserRoleRequest,
-  UpdateUserStatusRequest
+  UpdateUserStatusRequest,
+  TimePeriod,
+  CardsHistoricalResponse,
+  UsersHistoricalResponse
 } from '@/types/admin'
 
 /**
@@ -84,6 +87,32 @@ class AdminService {
    */
   async deleteUser(userId: string) {
     const res = await apiClient.delete<{ id: string }>(`/admin/users/${userId}`)
+    return res
+  }
+
+  // ================================================
+  // HISTORICAL DATA
+  // ================================================
+
+  /**
+   * Busca dados históricos de criação de cards
+   * GET /api/admin/history/cards?period=month&userId=123
+   */
+  async getCardsHistory(period: TimePeriod, userId?: string) {
+    const params = new URLSearchParams({ period })
+    if (userId) {
+      params.append('userId', userId)
+    }
+    const res = await apiClient.get<CardsHistoricalResponse>(`/admin/history/cards?${params.toString()}`)
+    return res
+  }
+
+  /**
+   * Busca dados históricos de cadastro de usuários
+   * GET /api/admin/history/users?period=month
+   */
+  async getUsersHistory(period: TimePeriod) {
+    const res = await apiClient.get<UsersHistoricalResponse>(`/admin/history/users?period=${period}`)
     return res
   }
 
