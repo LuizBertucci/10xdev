@@ -26,7 +26,7 @@ export const isAdmin = (req: Request, res: Response, next: NextFunction): void =
   }
 
   // Verificar role do usuário
-  const userRole = req.user.role || req.user.user_metadata?.role
+  const userRole = req.user.role
   const userEmail = req.user.email?.toLowerCase()
 
   // Permitir acesso se:

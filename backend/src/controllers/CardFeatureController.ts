@@ -285,7 +285,7 @@ export class CardFeatureController {
       const { id } = req.params
       const data: UpdateCardFeatureRequest = req.body
       const userId = req.user.id
-      const userRole = req.user.role || req.user.user_metadata?.role
+      const userRole = req.user.role
 
       if (!id) {
         res.status(400).json({
@@ -335,7 +335,7 @@ export class CardFeatureController {
 
       const { id } = req.params
       const userId = req.user.id
-      const userRole = req.user.role || req.user.user_metadata?.role
+      const userRole = req.user.role
 
       if (!id) {
         res.status(400).json({
