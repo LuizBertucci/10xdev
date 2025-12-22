@@ -163,7 +163,7 @@ app.use(errorHandler)
 // SERVER STARTUP
 // ================================================
 
-const PORT = process.env.PORT || 3001
+const PORT = Number(process.env.PORT) || 3001
 const NODE_ENV = process.env.NODE_ENV || 'development'
 
 const server = app.listen(PORT, () => {
@@ -186,6 +186,25 @@ const server = app.listen(PORT, () => {
    
 ⏰ Timestamp: ${new Date().toISOString()}
   `)
+})
+
+// Listener para erros do servidor (ex.: porta em uso)
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ Porta ${PORT} já está em uso (EADDRINUSE).`)
+    console.error(`   - Finalize o processo que está usando a porta ou rode com outra porta.`)
+    console.error(`   - Exemplo: PORT=3002 npm run dev`)
+    process.exit(1)
+  }
+
+  console.error('\n❌ Erro ao iniciar o servidor HTTP:', {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    stack: err.stack,
+    timestamp: new Date().toISOString()
+  })
+  process.exit(1)
 })
 
 // Graceful shutdown
