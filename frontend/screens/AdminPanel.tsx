@@ -8,8 +8,9 @@ import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import DeleteUserConfirmationDialog from "@/components/DeleteUserConfirmationDialog"
 import { toast } from "sonner"
-import { Loader2, Users } from "lucide-react"
+import { Loader2, Users, Trash2 } from "lucide-react"
 
 type SortKey = "name_asc" | "cards_desc" | "cards_asc"
 
@@ -20,6 +21,7 @@ export default function AdminPanel() {
   const [query, setQuery] = useState("")
   const [updating, setUpdating] = useState<Record<string, boolean>>({})
   const [sortKey, setSortKey] = useState<SortKey>("name_asc")
+  const [deleteTarget, setDeleteTarget] = useState<AdminUserRow | null>(null)
 
   const isAdmin = user?.role === "admin"
 
@@ -126,6 +128,24 @@ export default function AdminPanel() {
       toast.error(err?.error || "Erro ao atualizar role")
     } finally {
       setUpdating(prev => ({ ...prev, [u.id]: false }))
+    }
+  }
+
+  const handleDeleteUser = async (u: AdminUserRow) => {
+    setUpdating(prev => ({ ...prev, [u.id]: true }))
+    try {
+      const res = await adminService.deleteUser(u.id)
+      if (res?.success) {
+        setItems(prev => prev.filter(x => x.id !== u.id))
+        toast.success("Usuário excluído")
+      } else {
+        toast.error(res?.error || "Falha ao excluir usuário")
+      }
+    } catch (err: any) {
+      toast.error(err?.error || "Erro ao excluir usuário")
+    } finally {
+      setUpdating(prev => ({ ...prev, [u.id]: false }))
+      setDeleteTarget(null)
     }
   }
 
@@ -251,15 +271,10 @@ export default function AdminPanel() {
                           </Select>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={status === "active" ? "secondary" : "destructive"}>
-                            {status === "active" ? "ativo" : "inativo"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span className="font-medium">{u.cardCount ?? 0}</span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-3">
+                          <div className="flex items-center gap-3">
+                            <Badge variant={status === "active" ? "secondary" : "destructive"}>
+                              {status === "active" ? "ativo" : "inativo"}
+                            </Badge>
                             <div className="flex items-center gap-2">
                               <Switch
                                 checked={status === "active"}
@@ -271,6 +286,20 @@ export default function AdminPanel() {
                               </span>
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-medium">{u.cardCount ?? 0}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setDeleteTarget(u)}
+                            disabled={busy || u.id === user?.id}
+                            title={u.id === user?.id ? "Você não pode excluir sua própria conta" : "Excluir usuário"}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     )
@@ -288,6 +317,17 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
       </div>
+
+      <DeleteUserConfirmationDialog
+        isOpen={Boolean(deleteTarget)}
+        userNameOrEmail={deleteTarget?.name || deleteTarget?.email || "Usuário"}
+        isDeleting={Boolean(deleteTarget?.id && updating[deleteTarget.id])}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          handleDeleteUser(deleteTarget)
+        }}
+      />
     </div>
   )
 }

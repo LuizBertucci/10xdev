@@ -26,6 +26,10 @@ class AdminService {
   async setUserRole(userId: string, role: 'admin' | 'user'): Promise<ApiResponse<{ id: string; role: 'admin' | 'user' }> | undefined> {
     return apiClient.patch<{ id: string; role: 'admin' | 'user' }>(`${this.endpoint}/users/${userId}/role`, { role })
   }
+
+  async deleteUser(userId: string): Promise<ApiResponse<{ id: string; anonymizedCards: number; deletedProjects: number }> | undefined> {
+    return apiClient.delete<{ id: string; anonymizedCards: number; deletedProjects: number }>(`${this.endpoint}/users/${userId}`)
+  }
 }
 
 export const adminService = new AdminService()
