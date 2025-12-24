@@ -195,13 +195,22 @@ export class UserModel {
 
   static async cleanupUserRefs(userId: string): Promise<ModelResult<null>> {
     try {
-      // Remove shares destinados ao usuário (FK ON DELETE CASCADE ajudaria, mas limpamos mesmo assim)
-      await executeQuery(
-        supabaseAdmin
-          .from('card_shares')
-          .delete()
-          .eq('shared_with_user_id', userId)
-      )
+      // Remove shares destinados ao usuário.
+      // Observação: algumas instalações usam `shared_with_user_ids` (jsonb) em `card_features`
+      // e não possuem a tabela `card_shares`. Nesses casos, ignoramos a ausência da tabela.
+      try {
+        await executeQuery(
+          supabaseAdmin
+            .from('card_shares')
+            .delete()
+            .eq('shared_with_user_id', userId)
+        )
+      } catch (err: any) {
+        const code = err?.code
+        const msg = String(err?.message || '')
+        const isMissingRelation = code === '42P01' || msg.includes('card_shares') || msg.includes('relation')
+        if (!isMissingRelation) throw err
+      }
 
       // Remove memberships do usuário em projetos
       await executeQuery(
