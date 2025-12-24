@@ -97,6 +97,12 @@ export class AdminController {
         return
       }
 
+      // Proteção: evitar self-modification
+      if (req.user.id === id) {
+        res.status(400).json({ success: false, error: 'Você não pode alterar sua própria role' })
+        return
+      }
+
       if (role !== 'admin' && role !== 'user') {
         res.status(400).json({ success: false, error: 'Role inválida. Use admin ou user.' })
         return
