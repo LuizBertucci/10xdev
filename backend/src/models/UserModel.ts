@@ -144,5 +144,25 @@ export class UserModel {
       }
     }
   }
+
+  static async setRole(userId: string, role: 'admin' | 'user'): Promise<ModelResult<null>> {
+    try {
+      await executeQuery(
+        supabaseAdmin
+          .from('users')
+          .update({ role, updated_at: new Date().toISOString() })
+          .eq('id', userId)
+      )
+
+      return { success: true, data: null, statusCode: 200 }
+    } catch (error: any) {
+      console.error('Error updating user role:', error)
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
 }
 

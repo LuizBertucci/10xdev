@@ -11,5 +11,6 @@ router.use(requireAdmin)
 
 router.get('/users', AdminController.listUsers)
 router.patch('/users/:id/status', AdminController.setUserStatus)
+router.patch('/users/:id/role', AdminController.setUserRole)
 
 export { router as adminRoutes }

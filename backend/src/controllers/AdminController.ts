@@ -81,7 +81,45 @@ export class AdminController {
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
+
+  static async setUserRole(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+
+      const { id } = req.params
+      const { role } = req.body || {}
+
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID é obrigatório' })
+        return
+      }
+
+      if (role !== 'admin' && role !== 'user') {
+        res.status(400).json({ success: false, error: 'Role inválida. Use admin ou user.' })
+        return
+      }
+
+      const result = await UserModel.setRole(id, role)
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Role do usuário atualizada com sucesso',
+        data: { id, role }
+      })
+    } catch (error) {
+      console.error('Erro no controller setUserRole:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
 }
+
 
 
 
