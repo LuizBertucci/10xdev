@@ -4,7 +4,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupConte
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
-import { LogOut } from "lucide-react"
+import { Crown, LogOut } from "lucide-react"
 
 interface AppSidebarProps {
   platformState: any
@@ -112,7 +112,10 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
                 <AvatarFallback>{getUserInitials()}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 text-left text-sm">
-                <span className="truncate font-medium">{user?.name || 'Usuário'}</span>
+                <span className="truncate font-medium flex items-center gap-1">
+                  {user?.name || 'Usuário'}
+                  {isAdmin ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : null}
+                </span>
                 <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
               </div>
             </SidebarMenuButton>
