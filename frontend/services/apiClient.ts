@@ -24,6 +24,7 @@ export interface ApiError {
 class ApiClient {
   private baseURL: string
   private defaultHeaders: Record<string, string>
+  private requestTimeoutMs: number
 
   constructor() {
     // Configuração automática da URL da API baseada no ambiente
@@ -36,6 +37,63 @@ class ApiClient {
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
+    }
+
+    // Timeout padrão para evitar requests pendurados indefinidamente (ms)
+    // Pode ser sobrescrito via env pública do Next.
+    const envTimeout = typeof process !== 'undefined'
+      ? Number((process.env as any)?.NEXT_PUBLIC_API_TIMEOUT_MS)
+      : NaN
+    this.requestTimeoutMs = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 15000
+  }
+
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    timeoutMs: number
+  ): Promise<Response> {
+    // Se não existir timeout, delega direto para fetch
+    if (!timeoutMs || timeoutMs <= 0) {
+      return fetch(url, init)
+    }
+
+    const controller = new AbortController()
+    let timedOut = false
+
+    // Se veio um signal externo, propagar abort para o nosso controller
+    const externalSignal = init.signal
+    const onAbort = () => controller.abort()
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        controller.abort()
+      } else {
+        externalSignal.addEventListener('abort', onAbort, { once: true })
+      }
+    }
+
+    const timeoutId = setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, timeoutMs)
+
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal })
+      return response
+    } catch (error: any) {
+      // Normalizar timeout para um ApiError consistente
+      if (error?.name === 'AbortError' && timedOut) {
+        throw {
+          success: false,
+          error: `Timeout: API não respondeu em ${Math.round(timeoutMs / 1000)}s`,
+          statusCode: 408
+        } as ApiError
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', onAbort as any)
+      }
     }
   }
 
@@ -129,11 +187,11 @@ class ApiClient {
       const url = this.buildURL(endpoint, params)
       const headers = await this.getHeaders()
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithTimeout(url, {
         method: 'GET',
         headers,
         credentials: 'include'
-      })
+      }, this.requestTimeoutMs)
 
       return await this.handleResponse<T>(response)
     } catch (error) {
@@ -158,12 +216,12 @@ class ApiClient {
 
       console.log('POST request headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : 'none' })
       
-      const response = await fetch(url, {
+      const response = await this.fetchWithTimeout(url, {
         method: 'POST',
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
-      })
+      }, this.requestTimeoutMs)
 
       console.log('POST response status:', response.status)
       console.log('POST response ok:', response.ok)
@@ -193,12 +251,12 @@ class ApiClient {
 
       const headers = await this.getHeaders()
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithTimeout(url, {
         method: 'PUT',
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
-      })
+      }, this.requestTimeoutMs)
 
       console.log('PUT response status:', response.status)
       console.log('PUT response ok:', response.ok)
@@ -222,12 +280,12 @@ class ApiClient {
 
       const headers = await this.getHeaders()
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithTimeout(url, {
         method: 'PATCH',
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
-      })
+      }, this.requestTimeoutMs)
 
       return await this.handleResponse<T>(response)
     } catch (error) {
@@ -248,11 +306,11 @@ class ApiClient {
 
       const headers = await this.getHeaders()
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithTimeout(url, {
         method: 'DELETE',
         headers,
         credentials: 'include'
-      })
+      }, this.requestTimeoutMs)
 
       return await this.handleResponse<T>(response)
     } catch (error) {
@@ -273,12 +331,12 @@ class ApiClient {
 
       const headers = await this.getHeaders()
 
-      const response = await fetch(url, {
+      const response = await this.fetchWithTimeout(url, {
         method: 'DELETE',
         headers,
         body: data ? JSON.stringify(data) : undefined,
         credentials: 'include'
-      })
+      }, this.requestTimeoutMs)
 
       return await this.handleResponse<T>(response)
     } catch (error) {
@@ -306,6 +364,12 @@ class ApiClient {
   // Método para definir base URL
   setBaseURL(url: string): void {
     this.baseURL = url
+  }
+
+  // Método para definir timeout de request (ms)
+  setTimeoutMs(timeoutMs: number): void {
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return
+    this.requestTimeoutMs = timeoutMs
   }
 
   // Health check
