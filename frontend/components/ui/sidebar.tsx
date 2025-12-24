@@ -571,7 +571,9 @@ const SidebarMenuButton = React.forwardRef<
       />
     )
 
-    if (!tooltip) {
+    // Tooltip só faz sentido quando a sidebar está colapsada (modo ícone) e em desktop.
+    // Evita montar Tooltip/Slot desnecessariamente, o que pode causar loops de ref em dev.
+    if (!tooltip || state !== "collapsed" || isMobile) {
       return button
     }
 
