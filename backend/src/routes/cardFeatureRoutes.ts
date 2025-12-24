@@ -24,13 +24,13 @@ router.get('/tech/:tech', CardFeatureController.getByTech)
 router.get('/', CardFeatureController.getAll)
 router.get('/:id', CardFeatureController.getById)
 
+// BULK OPERATIONS - Devem vir ANTES das rotas parametrizadas para evitar conflito
+router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
+router.delete('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkDelete)
+
 // Rotas de escrita: middleware obrigatório (seguindo padrão projectRoutes)
 router.post('/', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.create)
 router.put('/:id', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.update)
 router.delete('/:id', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.delete)
-
-// BULK OPERATIONS - Requerem autenticação
-router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
-router.delete('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkDelete)
 
 export { router as cardFeatureRoutes }
