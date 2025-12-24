@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { CardFeature } from '@/types';
 import { normalizeTab, isValidTab, type TabKey } from '@/utils/routes';
@@ -8,6 +8,7 @@ export function usePlatform() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const pendingTabRef = useRef<TabKey | null>(null);
   
   // Get initial tab from URL or default to 'home'
   const getInitialTab = (): TabKey => {
@@ -55,6 +56,7 @@ export function usePlatform() {
   const setActiveTabWithUrl = useCallback((tab: string) => {
     // Normalizar a tab para garantir que é válida
     const normalizedTab = normalizeTab(tab);
+    pendingTabRef.current = normalizedTab;
     setActiveTab(normalizedTab);
     
     const params = new URLSearchParams(searchParams?.toString() || '');
@@ -80,6 +82,14 @@ export function usePlatform() {
   // Listen to URL changes and update tab accordingly
   useEffect(() => {
     const tabFromUrl = normalizeTab(searchParams.get('tab'));
+
+    // Evita um race condition: durante a navegação, o state pode mudar antes da URL.
+    // Enquanto a URL não refletir a tab solicitada, não sobrescrevemos o state.
+    if (pendingTabRef.current && pendingTabRef.current !== tabFromUrl) {
+      return;
+    }
+    pendingTabRef.current = null;
+
     if (tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     }

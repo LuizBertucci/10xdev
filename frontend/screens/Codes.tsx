@@ -71,9 +71,12 @@ export default function Codes({ platformState }: CodesProps) {
 
   // Manter URL sincronizada com a paginação atual
   useEffect(() => {
+    // Se o usuário está navegando para outra tab, NÃO forçar tab=codes de volta.
+    const currentTab = searchParams?.get('tab') || 'home'
+    if (currentTab !== 'codes') return
+
     const params = new URLSearchParams(searchParams?.toString() || '')
-    // Só persistimos page na aba codes
-    params.set('tab', 'codes')
+    // Só persistimos page na aba codes (não tocar no param tab aqui)
     if (cardFeatures.currentPage <= 1) {
       params.delete('page')
     } else {
@@ -81,7 +84,10 @@ export default function Codes({ platformState }: CodesProps) {
     }
     const qs = params.toString()
     const url = qs ? `${pathname}?${qs}` : pathname
-    router.replace(url, { scroll: false })
+    const currentUrl = searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname
+    if (url !== currentUrl) {
+      router.replace(url, { scroll: false })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardFeatures.currentPage, pathname, router, searchParams])
 
