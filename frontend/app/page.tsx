@@ -76,7 +76,7 @@ export default function DevPlatform() {
               )}
 
               {/* Admin Tab */}
-              {platformState.activeTab === "admin" && <AdminPanel />}
+              {platformState.activeTab === "admin" && user?.role === "admin" && <AdminPanel />}
             </main>
           </div>
         </SidebarInset>

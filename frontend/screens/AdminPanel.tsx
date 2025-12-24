@@ -117,7 +117,10 @@ export default function AdminPanel() {
       if (res?.success) {
         setItems(prev => prev.map(x => (x.id === u.id ? { ...x, role: nextRole } : x)))
         if (u.id === user?.id) {
-          toast.success("Seu role foi atualizado. A navegação pode mudar em seguida.")
+          toast.success("Seu role foi atualizado. Redirecionando...")
+          setTimeout(() => {
+            window.location.href = "/?tab=codes"
+          }, 1500)
         } else {
           toast.success("Role do usuário atualizada")
         }
