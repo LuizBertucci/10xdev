@@ -164,5 +164,135 @@ export class UserModel {
       }
     }
   }
+
+  static async anonymizeCards(userId: string): Promise<ModelResult<{ updatedCount: number }>> {
+    try {
+      // Contar antes de anonimizar (depois do update, a contagem seria 0)
+      const { count } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_by', userId)
+      )
+
+      await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .update({ created_by: null, updated_at: new Date().toISOString() } as any)
+          .eq('created_by', userId)
+      )
+
+      return { success: true, data: { updatedCount: count || 0 }, statusCode: 200 }
+    } catch (error: any) {
+      console.error('Error anonymizing cards:', error)
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async cleanupUserRefs(userId: string): Promise<ModelResult<null>> {
+    try {
+      // Remove shares destinados ao usuário (FK ON DELETE CASCADE ajudaria, mas limpamos mesmo assim)
+      await executeQuery(
+        supabaseAdmin
+          .from('card_shares')
+          .delete()
+          .eq('shared_with_user_id', userId)
+      )
+
+      // Remove memberships do usuário em projetos
+      await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .delete()
+          .eq('user_id', userId)
+      )
+
+      // Remove registros onde ele adicionou cards em projetos
+      await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .delete()
+          .eq('added_by', userId)
+      )
+
+      return { success: true, data: null, statusCode: 200 }
+    } catch (error: any) {
+      console.error('Error cleaning user references:', error)
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async deleteProjectsByCreator(userId: string): Promise<ModelResult<{ deletedProjects: number }>> {
+    try {
+      const { data: projects } = await executeQuery(
+        supabaseAdmin
+          .from('projects')
+          .select('id')
+          .eq('created_by', userId)
+      )
+
+      const projectIds: string[] = (projects ?? []).map((p: any) => p.id).filter(Boolean)
+      if (projectIds.length === 0) {
+        return { success: true, data: { deletedProjects: 0 }, statusCode: 200 }
+      }
+
+      // Limpar dependências antes de remover projetos
+      await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .delete()
+          .in('project_id', projectIds)
+      )
+      await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .delete()
+          .in('project_id', projectIds)
+      )
+      await executeQuery(
+        supabaseAdmin
+          .from('projects')
+          .delete()
+          .in('id', projectIds)
+      )
+
+      return { success: true, data: { deletedProjects: projectIds.length }, statusCode: 200 }
+    } catch (error: any) {
+      console.error('Error deleting projects by creator:', error)
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async deleteProfileRow(userId: string): Promise<ModelResult<null>> {
+    try {
+      await executeQuery(
+        supabaseAdmin
+          .from('users')
+          .delete()
+          .eq('id', userId)
+      )
+
+      return { success: true, data: null, statusCode: 200 }
+    } catch (error: any) {
+      console.error('Error deleting user profile row:', error)
+      return {
+        success: false,
+        error: error.message || 'Internal server error',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
 }
 

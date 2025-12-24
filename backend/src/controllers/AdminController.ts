@@ -118,6 +118,71 @@ export class AdminController {
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
+
+  static async deleteUser(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+
+      const { id } = req.params
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID é obrigatório' })
+        return
+      }
+
+      // Proteção: evitar se auto-deletar por acidente
+      if (req.user.id === id) {
+        res.status(400).json({ success: false, error: 'Você não pode excluir sua própria conta' })
+        return
+      }
+
+      // 1) Anonimiza cards
+      const anon = await UserModel.anonymizeCards(id)
+      if (!anon.success) {
+        res.status(anon.statusCode || 400).json({ success: false, error: anon.error })
+        return
+      }
+
+      // 2) Deleta projetos criados pelo usuário (e dependências)
+      const delProjects = await UserModel.deleteProjectsByCreator(id)
+      if (!delProjects.success) {
+        res.status(delProjects.statusCode || 400).json({ success: false, error: delProjects.error })
+        return
+      }
+
+      // 3) Limpa referências (shares/memberships/etc)
+      const cleanup = await UserModel.cleanupUserRefs(id)
+      if (!cleanup.success) {
+        res.status(cleanup.statusCode || 400).json({ success: false, error: cleanup.error })
+        return
+      }
+
+      // 4) Deleta no Supabase Auth
+      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(id)
+      if (authErr) {
+        res.status(400).json({ success: false, error: authErr.message || 'Falha ao deletar usuário no Auth' })
+        return
+      }
+
+      // 5) Garantir remoção do profile (se trigger não remover, removemos aqui)
+      await UserModel.deleteProfileRow(id)
+
+      res.status(200).json({
+        success: true,
+        message: 'Usuário excluído com sucesso',
+        data: {
+          id,
+          anonymizedCards: anon.data?.updatedCount ?? 0,
+          deletedProjects: delProjects.data?.deletedProjects ?? 0
+        }
+      })
+    } catch (error: any) {
+      console.error('Erro no controller deleteUser:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
 }
 
 

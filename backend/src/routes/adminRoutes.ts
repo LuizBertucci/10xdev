@@ -12,5 +12,6 @@ router.use(requireAdmin)
 router.get('/users', AdminController.listUsers)
 router.patch('/users/:id/status', AdminController.setUserStatus)
 router.patch('/users/:id/role', AdminController.setUserRole)
+router.delete('/users/:id', AdminController.deleteUser)
 
 export { router as adminRoutes }
