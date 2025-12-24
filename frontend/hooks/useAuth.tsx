@@ -7,6 +7,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 interface AuthContextType {
   user: User | null
   isLoading: boolean
+  isProfileLoaded: boolean
   isAuthenticated: boolean
   login: (data: LoginData) => Promise<void>
   register: (data: RegisterData) => Promise<void>
@@ -21,6 +22,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   // Começa em loading para evitar redirect prematuro antes de checar a sessão
   const [isLoading, setIsLoading] = useState(true)
+  // Flag: indica quando já tentamos carregar o perfil (role/status) do user atual
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false)
 
   // Helper para buscar perfil completo do usuário da tabela users
   const fetchUserProfile = async (userId: string): Promise<User | null> => {
@@ -73,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (session?.user) {
+          setIsProfileLoaded(false)
           // Define dados básicos do auth imediatamente
           const basicUserData: User = {
             id: session.user.id,
@@ -89,14 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (mounted && profile) setUser(profile)
             })
             .catch(err => console.error('Erro ao buscar perfil completo:', err))
+            .finally(() => {
+              if (mounted) setIsProfileLoaded(true)
+            })
         } else {
           setUser(null)
+          setIsProfileLoaded(true)
         }
       } catch (error) {
         console.error('Erro ao inicializar sessão:', error)
         if (mounted) {
           setUser(null)
         }
+        if (mounted) setIsProfileLoaded(true)
       } finally {
         if (mounted) setIsLoading(false)
       }
@@ -110,13 +119,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (session?.user) {
+          setIsProfileLoaded(false)
           // Define dados básicos rapidamente
           setUser({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
-            role: 'user',
-            status: 'active'
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+              role: 'user',
+              status: 'active'
           })
 
           // Atualiza role/status em background
@@ -125,8 +135,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (mounted && profile) setUser(profile)
             })
             .catch(err => console.error('Erro ao buscar perfil completo:', err))
+            .finally(() => {
+              if (mounted) setIsProfileLoaded(true)
+            })
         } else if (mounted) {
           setUser(null)
+          setIsProfileLoaded(true)
         }
       } catch (err) {
         console.error('Erro no onAuthStateChange:', err)
@@ -140,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             status: 'active'
           })
         }
+        if (mounted) setIsProfileLoaded(true)
       }
     })
 
@@ -174,13 +189,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (authData.user) {
+        setIsProfileLoaded(false)
         // Igual à main: não bloquear login com chamadas extras
         setUser({
-          id: authData.user.id,
-          email: authData.user.email,
-          name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null,
-          role: 'user',
-          status: 'active'
+            id: authData.user.id,
+            email: authData.user.email,
+            name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null,
+            role: 'user',
+            status: 'active'
         })
 
         // Atualiza role/status em background
@@ -189,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (profile) setUser(profile)
           })
           .catch(err => console.error('Erro ao buscar perfil completo:', err))
+          .finally(() => setIsProfileLoaded(true))
       }
     } catch (error: any) {
       console.error('Erro no login:', error)
@@ -229,12 +246,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (authData.user) {
+        setIsProfileLoaded(false)
         setUser({
-          id: authData.user.id,
-          email: authData.user.email,
-          name: data.name,
-          role: 'user',
-          status: 'active'
+            id: authData.user.id,
+            email: authData.user.email,
+            name: data.name,
+            role: 'user',
+            status: 'active'
         })
 
         fetchUserProfile(authData.user.id)
@@ -242,6 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (profile) setUser(profile)
           })
           .catch(err => console.error('Erro ao buscar perfil completo:', err))
+          .finally(() => setIsProfileLoaded(true))
       }
     } catch (error: any) {
       console.error('Erro no registro:', error)
@@ -312,6 +331,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     isLoading,
+    isProfileLoaded,
     isAuthenticated: !!user,
     login,
     register,

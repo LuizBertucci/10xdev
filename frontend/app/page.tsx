@@ -23,14 +23,15 @@ export default function DevPlatform() {
   const activeTab = platformState.activeTab
   const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
-  const { user } = useAuth()
+  const { user, isProfileLoaded } = useAuth()
 
   // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
   useEffect(() => {
-    if (platformState.activeTab === "admin" && user?.role !== "admin") {
+    // Importante: só aplicar o redirect depois que tentamos carregar o perfil (role/status).
+    if (platformState.activeTab === "admin" && isProfileLoaded && user?.role !== "admin") {
       platformState.setActiveTab("home")
     }
-  }, [platformState, user?.role])
+  }, [platformState, user?.role, isProfileLoaded])
 
   return (
     <ProtectedRoute>
