@@ -1,7 +1,14 @@
 import { Request, Response, NextFunction } from 'express'
 import { supabaseAdmin, executeQuery } from '@/database/supabase'
 
-const ADMIN_EMAILS = new Set(['augustoc.amado@gmail.com'])
+// Carregar admin emails de variável de ambiente
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean)
+)
+
 const isAdminEmail = (email: string | undefined | null): boolean =>
   Boolean(email && ADMIN_EMAILS.has(email.toLowerCase()))
 
