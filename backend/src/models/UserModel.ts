@@ -93,18 +93,35 @@ export class UserModel {
         return { success: true, data: [], count: 0, statusCode: 200 }
       }
 
-      // Contagem simples em memória (suficiente para volume atual; podemos migrar para SQL/RPC depois)
-      const { data: cards } = await executeQuery(
-        supabaseAdmin
-          .from('card_features')
-          .select('created_by')
-      )
+      // Usar RPC function para contagem eficiente (escalável até 1M+ cards)
+      // Fallback para query client-side se RPC não existir
+      let counts = new Map<string, number>()
 
-      const counts = new Map<string, number>()
-      for (const c of cards ?? []) {
-        const creator = (c as any)?.created_by as string | null
-        if (!creator) continue
-        counts.set(creator, (counts.get(creator) ?? 0) + 1)
+      try {
+        // Tentar usar RPC function (mais eficiente)
+        const { data: rpcCounts } = await executeQuery(
+          supabaseAdmin.rpc('get_user_card_counts')
+        )
+
+        if (rpcCounts && Array.isArray(rpcCounts)) {
+          for (const row of rpcCounts) {
+            counts.set(row.user_id, Number(row.card_count) || 0)
+          }
+        }
+      } catch (rpcError: any) {
+        // Fallback: contagem client-side se RPC não existir
+        console.warn('RPC get_user_card_counts não encontrada, usando fallback client-side')
+        const { data: cards } = await executeQuery(
+          supabaseAdmin
+            .from('card_features')
+            .select('created_by')
+        )
+
+        for (const c of cards ?? []) {
+          const creator = (c as any)?.created_by as string | null
+          if (!creator) continue
+          counts.set(creator, (counts.get(creator) ?? 0) + 1)
+        }
       }
 
       const enriched = base.map((u) => ({ ...u, cardCount: counts.get(u.id) ?? 0 }))
