@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,6 +12,7 @@ import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import type { CardFeature as CardFeatureType, CreateCardFeatureData } from "@/types"
 import { useAuth } from "@/hooks/useAuth"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 interface PlatformState {
   activeTab?: string
@@ -30,6 +31,9 @@ interface CodesProps {
 export default function Codes({ platformState }: CodesProps) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   // Default platform state for when component is rendered without props
   const defaultPlatformState: PlatformState = {
     activeTab: 'codes',
@@ -42,6 +46,12 @@ export default function Codes({ platformState }: CodesProps) {
   }
 
   const activePlatformState = platformState || defaultPlatformState
+
+  // URL state: ?page= (somente para tab=codes)
+  const initialPage = useMemo(() => {
+    const p = Number(searchParams?.get('page') || 1)
+    return Number.isFinite(p) && p > 0 ? Math.floor(p) : 1
+  }, [searchParams])
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
   // ================================================
@@ -52,12 +62,28 @@ export default function Codes({ platformState }: CodesProps) {
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
   // Hook principal para operações CRUD e dados da API com filtros do platformState
-  const cardFeatures = useCardFeatures({}, {
+  const cardFeatures = useCardFeatures({ initialPage }, {
     searchTerm: activePlatformState.searchTerm,
     selectedTech: activePlatformState.selectedTech,
     setSearchTerm: activePlatformState.setSearchTerm,
     setSelectedTech: activePlatformState.setSelectedTech
   })
+
+  // Manter URL sincronizada com a paginação atual
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    // Só persistimos page na aba codes
+    params.set('tab', 'codes')
+    if (cardFeatures.currentPage <= 1) {
+      params.delete('page')
+    } else {
+      params.set('page', String(cardFeatures.currentPage))
+    }
+    const qs = params.toString()
+    const url = qs ? `${pathname}?${qs}` : pathname
+    router.replace(url, { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardFeatures.currentPage, pathname, router, searchParams])
 
   // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems.filter(item => {

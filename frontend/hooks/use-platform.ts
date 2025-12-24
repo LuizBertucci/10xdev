@@ -63,6 +63,10 @@ export function usePlatform() {
     } else {
       params.set('tab', normalizedTab);
     }
+    // Limpar paginação quando sair de Códigos para evitar carregar state incorreto em outras tabs
+    if (normalizedTab !== 'codes') {
+      params.delete('page');
+    }
     // Quando navegamos para a lista de videos ou projects via sidebar, removemos o parâmetro id
     // para evitar renderizar a página de detalhes em vez da lista
     if (normalizedTab === 'videos' || normalizedTab === 'projects') {

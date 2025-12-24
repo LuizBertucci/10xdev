@@ -355,6 +355,8 @@ export interface UseCardFeaturesOptions {
   autoLoad?: boolean              // Carregar dados automaticamente
   storageKey?: string            // Chave para localStorage
   enableRealTimeSync?: boolean   // Sincronização em tempo real
+  initialPage?: number           // Página inicial (para persistir via URL)
+  itemsPerPage?: number          // Itens por página (default 10)
 }
 
 // ================================================
