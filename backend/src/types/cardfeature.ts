@@ -43,7 +43,7 @@ export interface CardFeatureRow {
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType          // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]
-  created_by: string           // ID do usuário que criou o card
+  created_by: string | null    // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   is_private: boolean          // Se o card é privado (apenas criador pode ver)
   created_in_project_id?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   created_at: string
@@ -106,7 +106,7 @@ export interface CardFeatureResponse {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
-  createdBy: string            // ID do usuário que criou (camelCase para API)
+  createdBy: string | null     // ID do usuário que criou (camelCase para API). Pode ser null quando autor é anônimo
   author?: string | null       // Nome do usuário criador (vem do JOIN com users)
   isPrivate: boolean           // Se o card é privado (camelCase para API)
   createdInProjectId?: string | null  // ID do projeto onde foi criado (camelCase para API)
