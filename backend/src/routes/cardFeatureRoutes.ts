@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { CardFeatureController } from '@/controllers/CardFeatureController'
-import { supabaseMiddleware, authenticate } from '@/middleware'
+import { supabaseMiddleware, authenticate, requireAdmin } from '@/middleware'
 
 const router = Router()
 
@@ -25,12 +25,12 @@ router.get('/', CardFeatureController.getAll)
 router.get('/:id', CardFeatureController.getById)
 
 // Rotas de escrita: middleware obrigatório (seguindo padrão projectRoutes)
-router.post('/', supabaseMiddleware, authenticate, CardFeatureController.create)
-router.put('/:id', supabaseMiddleware, authenticate, CardFeatureController.update)
-router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.delete)
+router.post('/', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.create)
+router.put('/:id', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.update)
+router.delete('/:id', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.delete)
 
 // BULK OPERATIONS - Requerem autenticação
-router.post('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkCreate)
-router.delete('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkDelete)
+router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
+router.delete('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkDelete)
 
 export { router as cardFeatureRoutes }

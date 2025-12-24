@@ -294,7 +294,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.update(id, data, userId)
+      const result = await CardFeatureModel.update(id, data, userId, req.user.role || 'user')
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -343,7 +343,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.delete(id, userId)
+      const result = await CardFeatureModel.delete(id, userId, req.user.role || 'user')
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
