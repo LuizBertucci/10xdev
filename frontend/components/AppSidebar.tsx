@@ -10,16 +10,18 @@ interface AppSidebarProps {
   platformState: any
 }
 
-const navItems = [
-  { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
-  { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
-  { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
-  { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
-]
-
 export default function AppSidebar({ platformState }: AppSidebarProps) {
   const { user, logout } = useAuth()
   const { setOpenMobile, isMobile } = useSidebar()
+  const isAdmin = user?.role === 'admin'
+
+  const navItems = [
+    { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
+    { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
+    { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
+    { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
+    ...(isAdmin ? [{ key: "admin", title: "Painel de Controle", icon: "🛠️", tooltip: "Painel de Controle" }] : [])
+  ]
 
   const handleNavClick = (key: string) => {
     platformState.setActiveTab(key)

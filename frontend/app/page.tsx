@@ -6,13 +6,16 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { usePlatform } from "@/hooks/use-platform"
 import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
-import Home from "@/pages/Home"
-import Codes from "@/pages/Codes"
+import Home from "@/screens/Home"
+import Codes from "@/screens/Codes"
 import ProtectedRoute from "@/components/ProtectedRoute"
-import Videos from "@/pages/Videos"
-import VideoDetail from "@/pages/VideoDetail"
-import Projects from "@/pages/Projects"
-import ProjectDetail from "@/pages/ProjectDetail"
+import Videos from "@/screens/Videos"
+import VideoDetail from "@/screens/VideoDetail"
+import Projects from "@/screens/Projects"
+import ProjectDetail from "@/screens/ProjectDetail"
+import AdminPanel from "@/screens/AdminPanel"
+import { useAuth } from "@/hooks/useAuth"
+import { useEffect } from "react"
 
 export default function DevPlatform() {
   const platformState = usePlatform()
@@ -20,6 +23,14 @@ export default function DevPlatform() {
   const activeTab = platformState.activeTab
   const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
+  const { user } = useAuth()
+
+  // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
+  useEffect(() => {
+    if (platformState.activeTab === "admin" && user?.role !== "admin") {
+      platformState.setActiveTab("home")
+    }
+  }, [platformState, user?.role])
 
   return (
     <ProtectedRoute>
@@ -62,6 +73,9 @@ export default function DevPlatform() {
               ) : (
                 activeTab === "projects" && <Projects platformState={platformState} />
               )}
+
+              {/* Admin Tab */}
+              {platformState.activeTab === "admin" && <AdminPanel />}
             </main>
           </div>
         </SidebarInset>
