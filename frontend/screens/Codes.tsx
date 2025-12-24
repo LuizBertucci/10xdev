@@ -11,6 +11,7 @@ import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import type { CardFeature as CardFeatureType, CreateCardFeatureData } from "@/types"
+import { useAuth } from "@/hooks/useAuth"
 
 interface PlatformState {
   activeTab?: string
@@ -27,6 +28,8 @@ interface CodesProps {
 }
 
 export default function Codes({ platformState }: CodesProps) {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   // Default platform state for when component is rendered without props
   const defaultPlatformState: PlatformState = {
     activeTab: 'codes',
@@ -279,40 +282,42 @@ export default function Codes({ platformState }: CodesProps) {
 
           {/* Right side actions group */}
           <div className="flex items-center gap-2">
-            {/* Create Button with Dropdown */}
-            <div className="flex flex-shrink-0">
-              <Button
-                onClick={cardFeatures.startCreating}
-                disabled={cardFeatures.loading || cardFeatures.creating}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                <span className="sm:hidden">
-                  {cardFeatures.creating ? 'Criando...' : 'Novo card'}
-                </span>
-                <span className="hidden sm:inline">
-                  {cardFeatures.creating ? 'Criando...' : 'Novo Card'}
-                </span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    disabled={cardFeatures.loading || cardFeatures.creating}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
-                    <FileJson className="h-4 w-4 mr-2" />
-                    Criar via JSON
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            {/* Create Button with Dropdown (admin only) */}
+            {isAdmin && (
+              <div className="flex flex-shrink-0">
+                <Button
+                  onClick={cardFeatures.startCreating}
+                  disabled={cardFeatures.loading || cardFeatures.creating}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="sm:hidden">
+                    {cardFeatures.creating ? 'Criando...' : 'Novo card'}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {cardFeatures.creating ? 'Criando...' : 'Novo Card'}
+                  </span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      disabled={cardFeatures.loading || cardFeatures.creating}
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
+                      <FileJson className="h-4 w-4 mr-2" />
+                      Criar via JSON
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -369,8 +374,14 @@ export default function Codes({ platformState }: CodesProps) {
               <CardFeatureCompact
                 key={snippet.id}
                 snippet={snippet}
-                onEdit={(snippet) => cardFeatures.startEditing(snippet)}
-                onDelete={handleDeleteClick}
+                onEdit={(snippet) => {
+                  if (!isAdmin) return
+                  cardFeatures.startEditing(snippet)
+                }}
+                onDelete={(snippetId) => {
+                  if (!isAdmin) return
+                  handleDeleteClick(snippetId)
+                }}
               />
             ))}
           </div>
@@ -462,40 +473,48 @@ export default function Codes({ platformState }: CodesProps) {
 
       {/* ===== MODAIS - Formulários e Confirmações ===== */}
       {/* Create CardFeature Modal */}
-      <CardFeatureForm
-        isOpen={cardFeatures.isCreating}
-        mode="create"
-        isLoading={cardFeatures.creating}
-        onClose={cardFeatures.cancelCreating}
-        onSubmit={handleCreateSubmit}
-      />
+      {isAdmin && (
+        <CardFeatureForm
+          isOpen={cardFeatures.isCreating}
+          mode="create"
+          isLoading={cardFeatures.creating}
+          onClose={cardFeatures.cancelCreating}
+          onSubmit={handleCreateSubmit}
+        />
+      )}
 
       {/* Create CardFeature via JSON Modal */}
-      <CardFeatureFormJSON
-        isOpen={isCreatingJSON}
-        isLoading={isCreatingJSONLoading}
-        onClose={() => setIsCreatingJSON(false)}
-        onSubmit={handleCreateJSONSubmit}
-      />
+      {isAdmin && (
+        <CardFeatureFormJSON
+          isOpen={isCreatingJSON}
+          isLoading={isCreatingJSONLoading}
+          onClose={() => setIsCreatingJSON(false)}
+          onSubmit={handleCreateJSONSubmit}
+        />
+      )}
 
       {/* Edit CardFeature Modal */}
-      <CardFeatureForm
-        isOpen={cardFeatures.isEditing}
-        mode="edit"
-        initialData={cardFeatures.editingItem || undefined}
-        isLoading={cardFeatures.updating}
-        onClose={cardFeatures.cancelEditing}
-        onSubmit={handleEditSubmit}
-      />
+      {isAdmin && (
+        <CardFeatureForm
+          isOpen={cardFeatures.isEditing}
+          mode="edit"
+          initialData={cardFeatures.editingItem || undefined}
+          isLoading={cardFeatures.updating}
+          onClose={cardFeatures.cancelEditing}
+          onSubmit={handleEditSubmit}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
-      <DeleteConfirmationDialog
-        isOpen={!!deletingSnippet}
-        snippet={deletingSnippet}
-        isDeleting={cardFeatures.deleting}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-      />
+      {isAdmin && (
+        <DeleteConfirmationDialog
+          isOpen={!!deletingSnippet}
+          snippet={deletingSnippet}
+          isDeleting={cardFeatures.deleting}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
 
     </div>
   )
