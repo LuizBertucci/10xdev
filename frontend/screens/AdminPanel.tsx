@@ -137,7 +137,9 @@ export default function AdminPanel() {
       const res = await adminService.deleteUser(u.id)
       if (res?.success) {
         setItems(prev => prev.filter(x => x.id !== u.id))
-        toast.success("Usuário excluído")
+        const anonymizedCards = res.data?.anonymizedCards ?? 0
+        const deletedProjects = res.data?.deletedProjects ?? 0
+        toast.success(`Usuário excluído. Cards anonimizados: ${anonymizedCards}. Projetos removidos: ${deletedProjects}.`)
       } else {
         toast.error(res?.error || "Falha ao excluir usuário")
       }
