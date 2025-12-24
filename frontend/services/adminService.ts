@@ -5,8 +5,8 @@ export type AdminUserRow = {
   email: string
   name: string | null
   avatarUrl: string | null
-  role: string | null
-  status: string | null
+  role: 'admin' | 'user' | null
+  status: 'active' | 'inactive' | null
   createdAt: string | null
   updatedAt: string | null
   cardCount: number
@@ -22,9 +22,14 @@ class AdminService {
   async setUserStatus(userId: string, status: 'active' | 'inactive'): Promise<ApiResponse<{ id: string; status: 'active' | 'inactive' }> | undefined> {
     return apiClient.patch<{ id: string; status: 'active' | 'inactive' }>(`${this.endpoint}/users/${userId}/status`, { status })
   }
+
+  async setUserRole(userId: string, role: 'admin' | 'user'): Promise<ApiResponse<{ id: string; role: 'admin' | 'user' }> | undefined> {
+    return apiClient.patch<{ id: string; role: 'admin' | 'user' }>(`${this.endpoint}/users/${userId}/role`, { role })
+  }
 }
 
 export const adminService = new AdminService()
+
 
 
 

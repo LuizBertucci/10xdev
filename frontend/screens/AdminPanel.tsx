@@ -7,8 +7,11 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { Loader2, Users } from "lucide-react"
+
+type SortKey = "name_asc" | "cards_desc" | "cards_asc"
 
 export default function AdminPanel() {
   const { user } = useAuth()
@@ -16,6 +19,7 @@ export default function AdminPanel() {
   const [items, setItems] = useState<AdminUserRow[]>([])
   const [query, setQuery] = useState("")
   const [updating, setUpdating] = useState<Record<string, boolean>>({})
+  const [sortKey, setSortKey] = useState<SortKey>("name_asc")
 
   const isAdmin = user?.role === "admin"
 
@@ -52,14 +56,35 @@ export default function AdminPanel() {
     }
   }, [isAdmin])
 
-  const filtered = useMemo(() => {
+  const filteredAndSorted = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return items
-    return items.filter(u =>
-      u.email.toLowerCase().includes(q) ||
-      (u.name || "").toLowerCase().includes(q)
-    )
-  }, [items, query])
+    const filtered = !q
+      ? items
+      : items.filter(u =>
+        u.email.toLowerCase().includes(q) ||
+        (u.name || "").toLowerCase().includes(q)
+      )
+
+    const arr = [...filtered]
+    arr.sort((a, b) => {
+      if (sortKey === "cards_desc") {
+        const diff = (b.cardCount ?? 0) - (a.cardCount ?? 0)
+        if (diff !== 0) return diff
+      }
+      if (sortKey === "cards_asc") {
+        const diff = (a.cardCount ?? 0) - (b.cardCount ?? 0)
+        if (diff !== 0) return diff
+      }
+
+      const aKey = (a.name || a.email || "").toLowerCase()
+      const bKey = (b.name || b.email || "").toLowerCase()
+      const nameDiff = aKey.localeCompare(bKey, "pt-BR", { sensitivity: "base" })
+      if (nameDiff !== 0) return nameDiff
+      return a.email.toLowerCase().localeCompare(b.email.toLowerCase(), "pt-BR", { sensitivity: "base" })
+    })
+
+    return arr
+  }, [items, query, sortKey])
 
   const handleToggleStatus = async (u: AdminUserRow) => {
     const nextStatus: "active" | "inactive" = u.status === "active" ? "inactive" : "active"
@@ -75,6 +100,30 @@ export default function AdminPanel() {
       }
     } catch (err: any) {
       toast.error(err?.error || "Erro ao atualizar status")
+    } finally {
+      setUpdating(prev => ({ ...prev, [u.id]: false }))
+    }
+  }
+
+  const handleChangeRole = async (u: AdminUserRow, nextRole: "admin" | "user") => {
+    const currentRole = u.role || "user"
+    if (currentRole === nextRole) return
+
+    setUpdating(prev => ({ ...prev, [u.id]: true }))
+    try {
+      const res = await adminService.setUserRole(u.id, nextRole)
+      if (res?.success) {
+        setItems(prev => prev.map(x => (x.id === u.id ? { ...x, role: nextRole } : x)))
+        if (u.id === user?.id) {
+          toast.success("Seu role foi atualizado. A navegação pode mudar em seguida.")
+        } else {
+          toast.success("Role do usuário atualizada")
+        }
+      } else {
+        toast.error(res?.error || "Falha ao atualizar role")
+      }
+    } catch (err: any) {
+      toast.error(err?.error || "Erro ao atualizar role")
     } finally {
       setUpdating(prev => ({ ...prev, [u.id]: false }))
     }
@@ -139,8 +188,18 @@ export default function AdminPanel() {
             placeholder="Buscar por nome ou email..."
             className="max-w-sm"
           />
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Ordenar por..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name_asc">Nome (A–Z)</SelectItem>
+              <SelectItem value="cards_desc">Cards (maior → menor)</SelectItem>
+              <SelectItem value="cards_asc">Cards (menor → maior)</SelectItem>
+            </SelectContent>
+          </Select>
           <Badge variant="secondary" className="whitespace-nowrap">
-            {filtered.length} usuários
+            {filteredAndSorted.length} usuários
           </Badge>
         </div>
       </div>
@@ -165,7 +224,7 @@ export default function AdminPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((u) => {
+                  {filteredAndSorted.map((u) => {
                     const busy = Boolean(updating[u.id])
                     const status = u.status || "active"
                     return (
@@ -177,9 +236,19 @@ export default function AdminPanel() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={u.role === "admin" ? "default" : "secondary"}>
-                            {u.role || "user"}
-                          </Badge>
+                          <Select
+                            value={u.role || "user"}
+                            onValueChange={(v) => handleChangeRole(u, v as "admin" | "user")}
+                            disabled={busy}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">admin</SelectItem>
+                              <SelectItem value="user">user</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <Badge variant={status === "active" ? "secondary" : "destructive"}>
@@ -206,7 +275,7 @@ export default function AdminPanel() {
                       </TableRow>
                     )
                   })}
-                  {filtered.length === 0 && (
+                  {filteredAndSorted.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5}>
                         <div className="p-8 text-center text-gray-600">Nenhum usuário encontrado.</div>
