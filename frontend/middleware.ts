@@ -11,7 +11,7 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = publicPaths.includes(pathname)
 
-  // Cria cliente Supabase para validar sessão
+  // Cria cliente Supabase para validar sessão (igual à main)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

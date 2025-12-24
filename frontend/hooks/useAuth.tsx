@@ -19,36 +19,86 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  // Começa em loading para evitar redirect prematuro antes de checar a sessão
   const [isLoading, setIsLoading] = useState(true)
+
+  // Helper para buscar perfil completo do usuário da tabela users
+  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, name, role, status, avatar_url')
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Erro ao buscar perfil do usuário:', error)
+        return null
+      }
+
+      if (data) {
+        return {
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          status: data.status,
+          avatarUrl: data.avatar_url
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error)
+      return null
+    }
+  }
 
   // Inicializar sessão ao montar
   useEffect(() => {
+    let mounted = true
+
     const initSession = async () => {
+      // Marca loading durante a checagem inicial de sessão
+      if (mounted) setIsLoading(true)
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (!mounted) return
 
         if (error) {
           console.error('Erro ao obter sessão:', error)
           setUser(null)
-          setIsLoading(false)
           return
         }
 
         if (session?.user) {
-          const userData: User = {
+          // Define dados básicos do auth imediatamente
+          const basicUserData: User = {
             id: session.user.id,
             email: session.user.email,
-            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null
+            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+            role: 'user',
+            status: 'active'
           }
-          setUser(userData)
+          setUser(basicUserData)
+
+          // Busca perfil completo em background (não pode travar o fluxo de login)
+          fetchUserProfile(session.user.id)
+            .then(profile => {
+              if (mounted && profile) setUser(profile)
+            })
+            .catch(err => console.error('Erro ao buscar perfil completo:', err))
         } else {
           setUser(null)
         }
       } catch (error) {
         console.error('Erro ao inicializar sessão:', error)
-        setUser(null)
+        if (mounted) {
+          setUser(null)
+        }
       } finally {
-        setIsLoading(false)
+        if (mounted) setIsLoading(false)
       }
     }
 
@@ -56,20 +106,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const userData: User = {
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null
+      if (!mounted) return
+
+      try {
+        if (session?.user) {
+          // Define dados básicos rapidamente
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+            role: 'user',
+            status: 'active'
+          })
+
+          // Atualiza role/status em background
+          fetchUserProfile(session.user.id)
+            .then(profile => {
+              if (mounted && profile) setUser(profile)
+            })
+            .catch(err => console.error('Erro ao buscar perfil completo:', err))
+        } else if (mounted) {
+          setUser(null)
         }
-        setUser(userData)
-      } else {
-        setUser(null)
+      } catch (err) {
+        console.error('Erro no onAuthStateChange:', err)
+        // Não derruba a sessão local por falha de perfil; mantém pelo menos o auth user quando possível
+        if (mounted && session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+            role: 'user',
+            status: 'active'
+          })
+        }
       }
-      setIsLoading(false)
     })
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
@@ -99,12 +174,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (authData.user) {
-        const userData: User = {
+        // Igual à main: não bloquear login com chamadas extras
+        setUser({
           id: authData.user.id,
           email: authData.user.email,
-          name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null
-        }
-        setUser(userData)
+          name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null,
+          role: 'user',
+          status: 'active'
+        })
+
+        // Atualiza role/status em background
+        fetchUserProfile(authData.user.id)
+          .then(profile => {
+            if (profile) setUser(profile)
+          })
+          .catch(err => console.error('Erro ao buscar perfil completo:', err))
       }
     } catch (error: any) {
       console.error('Erro no login:', error)
@@ -145,12 +229,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (authData.user) {
-        const userData: User = {
+        setUser({
           id: authData.user.id,
           email: authData.user.email,
-          name: data.name
-        }
-        setUser(userData)
+          name: data.name,
+          role: 'user',
+          status: 'active'
+        })
+
+        fetchUserProfile(authData.user.id)
+          .then(profile => {
+            if (profile) setUser(profile)
+          })
+          .catch(err => console.error('Erro ao buscar perfil completo:', err))
       }
     } catch (error: any) {
       console.error('Erro no registro:', error)
@@ -192,12 +283,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error
 
       if (authData.user) {
-        const userData: User = {
-          id: authData.user.id,
-          email: authData.user.email,
-          name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null
+        // Buscar perfil completo após atualização
+        const userProfile = await fetchUserProfile(authData.user.id)
+
+        if (userProfile) {
+          setUser(userProfile)
+        } else {
+          const userData: User = {
+            id: authData.user.id,
+            email: authData.user.email,
+            name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null,
+            role: user?.role || 'user',
+            status: user?.status || 'active'
+          }
+          setUser(userData)
         }
-        setUser(userData)
       }
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error)
