@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { savedItemService, type ItemType, type SavedItem } from '@/services/savedItemService'
+import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 
 interface UseSavedItemsReturn {
@@ -20,6 +21,7 @@ interface UseSavedItemsReturn {
 }
 
 export function useSavedItems(): UseSavedItemsReturn {
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [savedCards, setSavedCards] = useState<Set<string>>(new Set())
   const [savedVideos, setSavedVideos] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
@@ -32,8 +34,11 @@ export function useSavedItems(): UseSavedItemsReturn {
     return savedVideos.has(itemId)
   }, [savedCards, savedVideos])
 
-  // Carregar itens salvos
+  // Carregar itens salvos (só se autenticado)
   const loadSavedItems = useCallback(async (itemType?: ItemType) => {
+    // Não fazer chamada se não estiver autenticado
+    if (!isAuthenticated) return
+    
     try {
       setLoading(true)
       const response = await savedItemService.list(itemType)
@@ -62,11 +67,11 @@ export function useSavedItems(): UseSavedItemsReturn {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Verificar múltiplos itens de uma vez
   const checkMultiple = useCallback(async (itemType: ItemType, itemIds: string[]) => {
-    if (itemIds.length === 0) return
+    if (!isAuthenticated || itemIds.length === 0) return
 
     try {
       const response = await savedItemService.checkMultiple(itemType, itemIds)
@@ -99,10 +104,15 @@ export function useSavedItems(): UseSavedItemsReturn {
     } catch (error) {
       console.error('Erro ao verificar itens salvos:', error)
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Salvar item
   const saveItem = useCallback(async (itemType: ItemType, itemId: string): Promise<boolean> => {
+    if (!isAuthenticated) {
+      toast.error('Você precisa estar logado para salvar itens')
+      return false
+    }
+    
     try {
       const response = await savedItemService.save(itemType, itemId)
       
@@ -123,10 +133,15 @@ export function useSavedItems(): UseSavedItemsReturn {
       toast.error(error?.error || 'Erro ao salvar item')
       return false
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Remover item salvo
   const unsaveItem = useCallback(async (itemType: ItemType, itemId: string): Promise<boolean> => {
+    if (!isAuthenticated) {
+      toast.error('Você precisa estar logado')
+      return false
+    }
+    
     try {
       const response = await savedItemService.unsave(itemType, itemId)
       
@@ -155,7 +170,7 @@ export function useSavedItems(): UseSavedItemsReturn {
       toast.error(error?.error || 'Erro ao remover item')
       return false
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Toggle salvar/remover
   const toggleSave = useCallback(async (itemType: ItemType, itemId: string): Promise<boolean> => {
@@ -165,10 +180,12 @@ export function useSavedItems(): UseSavedItemsReturn {
     return saveItem(itemType, itemId)
   }, [isSaved, saveItem, unsaveItem])
 
-  // Carregar itens salvos ao montar
+  // Carregar itens salvos quando autenticado
   useEffect(() => {
-    loadSavedItems()
-  }, [loadSavedItems])
+    if (isAuthenticated && !authLoading) {
+      loadSavedItems()
+    }
+  }, [isAuthenticated, authLoading, loadSavedItems])
 
   return {
     savedCards,
