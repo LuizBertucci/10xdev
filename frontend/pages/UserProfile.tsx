@@ -15,11 +15,7 @@ import { toast } from "sonner"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import TrainingVideoCard from "@/components/TrainingVideoCard"
 import type { CardFeature } from "@/types"
-
-interface PlatformState {
-  activeTab?: string
-  setActiveTab?: (tab: string) => void
-}
+import type { PlatformState } from "@/types/platform"
 
 interface UserProfileProps {
   platformState?: PlatformState
@@ -197,7 +193,19 @@ export default function UserProfile({ platformState }: UserProfileProps) {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="password" className="w-full">
+      <Tabs
+        defaultValue="password"
+        className="w-full"
+        onValueChange={(value) => {
+          // Lazy load das tabs de itens salvos
+          if (value === 'saved-videos' && !savedVideosLoaded) {
+            loadSavedVideos(true)
+          }
+          if (value === 'saved-cards' && !savedCardsLoaded) {
+            loadSavedCards(true)
+          }
+        }}
+      >
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="password" className="gap-2">
             <Key className="h-4 w-4" />
@@ -209,28 +217,12 @@ export default function UserProfile({ platformState }: UserProfileProps) {
             <span className="hidden sm:inline">Meus Cards</span>
             <span className="sm:hidden">Cards</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="saved-videos" 
-            className="gap-2"
-            onClick={() => {
-              if (!savedVideosLoaded) {
-                loadSavedVideos(true)
-              }
-            }}
-          >
+          <TabsTrigger value="saved-videos" className="gap-2">
             <Video className="h-4 w-4" />
             <span className="hidden sm:inline">Vídeos Salvos</span>
             <span className="sm:hidden">Vídeos</span>
           </TabsTrigger>
-          <TabsTrigger 
-            value="saved-cards" 
-            className="gap-2"
-            onClick={() => {
-              if (!savedCardsLoaded) {
-                loadSavedCards(true)
-              }
-            }}
-          >
+          <TabsTrigger value="saved-cards" className="gap-2">
             <Bookmark className="h-4 w-4" />
             <span className="hidden sm:inline">Cards Salvos</span>
             <span className="sm:hidden">Salvos</span>
