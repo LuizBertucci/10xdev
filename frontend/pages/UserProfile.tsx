@@ -73,19 +73,21 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }, [])
 
-  // Carregar videos salvos (lazy - só quando clicar na tab)
+  // Carregar vídeos salvos (lazy - só quando clicar na tab)
   const loadSavedVideos = useCallback(async (showLoading = true) => {
     if (showLoading) setLoadingSavedVideos(true)
     try {
       const response = await savedItemService.list('video')
-      if (response?.success && response.data) {
+      if (response?.success) {
         startTransition(() => {
-          setSavedVideos(response.data)
+          setSavedVideos(response.data || [])
           setSavedVideosLoaded(true)
         })
       }
     } catch (error) {
       console.error('Erro ao carregar vídeos salvos:', error)
+      setSavedVideos([])
+      setSavedVideosLoaded(true)
     } finally {
       setLoadingSavedVideos(false)
     }
@@ -96,14 +98,16 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     if (showLoading) setLoadingSavedCards(true)
     try {
       const response = await savedItemService.list('card')
-      if (response?.success && response.data) {
+      if (response?.success) {
         startTransition(() => {
-          setSavedCards(response.data)
+          setSavedCards(response.data || [])
           setSavedCardsLoaded(true)
         })
       }
     } catch (error) {
       console.error('Erro ao carregar cards salvos:', error)
+      setSavedCards([])
+      setSavedCardsLoaded(true)
     } finally {
       setLoadingSavedCards(false)
     }
@@ -205,12 +209,28 @@ export default function UserProfile({ platformState }: UserProfileProps) {
             <span className="hidden sm:inline">Meus Cards</span>
             <span className="sm:hidden">Cards</span>
           </TabsTrigger>
-          <TabsTrigger value="saved-videos" className="gap-2">
+          <TabsTrigger 
+            value="saved-videos" 
+            className="gap-2"
+            onClick={() => {
+              if (!savedVideosLoaded) {
+                loadSavedVideos(true)
+              }
+            }}
+          >
             <Video className="h-4 w-4" />
             <span className="hidden sm:inline">Vídeos Salvos</span>
             <span className="sm:hidden">Vídeos</span>
           </TabsTrigger>
-          <TabsTrigger value="saved-cards" className="gap-2">
+          <TabsTrigger 
+            value="saved-cards" 
+            className="gap-2"
+            onClick={() => {
+              if (!savedCardsLoaded) {
+                loadSavedCards(true)
+              }
+            }}
+          >
             <Bookmark className="h-4 w-4" />
             <span className="hidden sm:inline">Cards Salvos</span>
             <span className="sm:hidden">Salvos</span>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
+import { SavedItemsProvider } from '@/hooks/useSavedItems'
 
 export const metadata: Metadata = {
   title: '10xDev',
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SavedItemsProvider>{children}</SavedItemsProvider>
+        </AuthProvider>
       </body>
     </html>
   )

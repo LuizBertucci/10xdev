@@ -1,6 +1,14 @@
+/**
+ * Itens Salvos (Vídeos/Cards) - estado compartilhado no cliente
+ *
+ * IMPORTANTE:
+ * Este deve ser um provider compartilhado. Se cada componente de card/vídeo
+ * chamar um hook simples com estado local, eles ficarão dessincronizados e
+ * você terá conflitos 409 (tentando salvar algo que já está salvo) + UX/performance ruim.
+ */
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { savedItemService, type ItemType, type SavedItem } from '@/services/savedItemService'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
@@ -20,7 +28,9 @@ interface UseSavedItemsReturn {
   checkMultiple: (itemType: ItemType, itemIds: string[]) => Promise<void>
 }
 
-export function useSavedItems(): UseSavedItemsReturn {
+const SavedItemsContext = createContext<UseSavedItemsReturn | undefined>(undefined)
+
+export function SavedItemsProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [savedCards, setSavedCards] = useState<Set<string>>(new Set())
   const [savedVideos, setSavedVideos] = useState<Set<string>>(new Set())
@@ -129,6 +139,15 @@ export function useSavedItems(): UseSavedItemsReturn {
         return false
       }
     } catch (error: any) {
+      // 409 = já existe (idempotência). Tratar como sucesso e sincronizar estado local
+      if (error?.statusCode === 409) {
+        if (itemType === 'card') {
+          setSavedCards(prev => new Set(prev).add(itemId))
+        } else {
+          setSavedVideos(prev => new Set(prev).add(itemId))
+        }
+        return true
+      }
       console.error('Erro ao salvar item:', error)
       toast.error(error?.error || 'Erro ao salvar item')
       return false
@@ -185,9 +204,14 @@ export function useSavedItems(): UseSavedItemsReturn {
     if (isAuthenticated && !authLoading) {
       loadSavedItems()
     }
+    if (!isAuthenticated && !authLoading) {
+      // Limpar cache local ao fazer logout
+      setSavedCards(new Set())
+      setSavedVideos(new Set())
+    }
   }, [isAuthenticated, authLoading, loadSavedItems])
 
-  return {
+  const value = useMemo<UseSavedItemsReturn>(() => ({
     savedCards,
     savedVideos,
     loading,
@@ -197,6 +221,26 @@ export function useSavedItems(): UseSavedItemsReturn {
     isSaved,
     loadSavedItems,
     checkMultiple
+  }), [
+    savedCards,
+    savedVideos,
+    loading,
+    saveItem,
+    unsaveItem,
+    toggleSave,
+    isSaved,
+    loadSavedItems,
+    checkMultiple
+  ])
+
+  return <SavedItemsContext.Provider value={value}>{children}</SavedItemsContext.Provider>
+}
+
+export function useSavedItems(): UseSavedItemsReturn {
+  const ctx = useContext(SavedItemsContext)
+  if (!ctx) {
+    throw new Error('useSavedItems deve ser usado dentro de um SavedItemsProvider')
   }
+  return ctx
 }
 
