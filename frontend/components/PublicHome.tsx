@@ -7,7 +7,7 @@ import { Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import Home from '@/screens/Home'
+import Home from '@/pages/Home'
 import { videoService, type Video } from '@/services/videoService'
 import { Play } from 'lucide-react'
 
