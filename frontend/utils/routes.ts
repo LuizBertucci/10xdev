@@ -2,13 +2,15 @@
  * Helper para gerenciar rotas e tabs da aplicação
  */
 
-export type TabKey = 'home' | 'codes' | 'videos' | 'projects'
+export type TabKey = 'home' | 'codes' | 'videos' | 'projects' | 'admin'
 
 export const TABS: Record<TabKey, { key: TabKey; title: string; route: string }> = {
   home: {
     key: 'home',
     title: 'Início',
-    route: '/'
+    // IMPORTANTE:
+    // `/` é landing pública. O app autenticado usa `/?tab=home`.
+    route: '/?tab=home'
   },
   codes: {
     key: 'codes',
@@ -24,6 +26,11 @@ export const TABS: Record<TabKey, { key: TabKey; title: string; route: string }>
     key: 'projects',
     title: 'Projetos',
     route: '/?tab=projects'
+  },
+  admin: {
+    key: 'admin',
+    title: 'Painel de Controle',
+    route: '/?tab=admin'
   }
 }
 

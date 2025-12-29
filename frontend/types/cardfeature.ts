@@ -60,7 +60,7 @@ export interface CardFeature {
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType    // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]  // Array de abas/arquivos
-  createdBy?: string     // ID do usuário que criou o card
+  createdBy?: string | null     // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   isPrivate?: boolean    // Se o card é privado (apenas criador pode ver)
   createdInProjectId?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   createdAt: string      // ISO string do backend
@@ -355,6 +355,8 @@ export interface UseCardFeaturesOptions {
   autoLoad?: boolean              // Carregar dados automaticamente
   storageKey?: string            // Chave para localStorage
   enableRealTimeSync?: boolean   // Sincronização em tempo real
+  initialPage?: number           // Página inicial (para persistir via URL)
+  itemsPerPage?: number          // Itens por página (default 10)
 }
 
 // ================================================

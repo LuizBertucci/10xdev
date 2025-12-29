@@ -13,20 +13,36 @@ interface PlatformState {
 }
 
 interface HomeProps {
-  platformState: PlatformState
+  platformState?: PlatformState
+  /**
+   * Quando true, a tela funciona como landing pública:
+   * - não chama APIs privadas
+   * - cliques que dependem do app redirecionam para /login com ?redirect=...
+   */
+  isPublic?: boolean
 }
 
-export default function Home({ platformState }: HomeProps) {
+export default function Home({ platformState, isPublic = false }: HomeProps) {
   const router = useRouter()
   const [videos, setVideos] = useState<Video[]>([])
   const [projects, setProjects] = useState<Project[]>([])
 
+  const goToLoginWithRedirect = (redirectTo: string) => {
+    router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`)
+  }
+
   const handleGoToCodes = () => {
-    platformState.setSelectedTech("all")
-    platformState.setActiveTab("codes")
+    if (isPublic) {
+      goToLoginWithRedirect('/?tab=codes')
+      return
+    }
+    platformState?.setSelectedTech("all")
+    platformState?.setActiveTab("codes")
   }
 
   useEffect(() => {
+    if (isPublic) return
+
     const loadVideos = async () => {
       try {
         const res = await videoService.listVideos()
@@ -51,20 +67,32 @@ export default function Home({ platformState }: HomeProps) {
 
     loadVideos()
     loadProjects()
-  }, [])
+  }, [isPublic])
 
   const handleViewVideo = (videoId: string) => {
-    platformState.setActiveTab("videos")
+    if (isPublic) {
+      goToLoginWithRedirect(`/?tab=videos&id=${videoId}`)
+      return
+    }
+    platformState?.setActiveTab("videos")
     router.push(`?tab=videos&id=${videoId}`)
   }
 
   const handleViewProject = (projectId: string) => {
-    platformState.setActiveTab("projects")
+    if (isPublic) {
+      goToLoginWithRedirect(`/?tab=projects&id=${projectId}`)
+      return
+    }
+    platformState?.setActiveTab("projects")
     router.push(`?tab=projects&id=${projectId}`)
   }
 
   const handleGoToProjects = () => {
-    platformState.setActiveTab("projects")
+    if (isPublic) {
+      goToLoginWithRedirect('/?tab=projects')
+      return
+    }
+    platformState?.setActiveTab("projects")
   }
 
   return (
@@ -106,20 +134,22 @@ export default function Home({ platformState }: HomeProps) {
             </Button>
           </div>
 
-          <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-600">
-            <div className="rounded-xl border bg-white/60 px-4 py-3">
-              <div className="font-semibold text-gray-900">Snippets</div>
-              <div className="text-gray-600">cards prontos e reutilizáveis</div>
+          {!isPublic && (
+            <div className="pt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-600">
+              <div className="rounded-xl border bg-white/60 px-4 py-3">
+                <div className="font-semibold text-gray-900">Snippets</div>
+                <div className="text-gray-600">cards prontos e reutilizáveis</div>
+              </div>
+              <div className="rounded-xl border bg-white/60 px-4 py-3">
+                <div className="font-semibold text-gray-900">Vídeos</div>
+                <div className="text-gray-600">aprenda com contexto e prática</div>
+              </div>
+              <div className="rounded-xl border bg-white/60 px-4 py-3">
+                <div className="font-semibold text-gray-900">Projetos</div>
+                <div className="text-gray-600">organize cards por objetivo</div>
+              </div>
             </div>
-            <div className="rounded-xl border bg-white/60 px-4 py-3">
-              <div className="font-semibold text-gray-900">Vídeos</div>
-              <div className="text-gray-600">aprenda com contexto e prática</div>
-            </div>
-            <div className="rounded-xl border bg-white/60 px-4 py-3">
-              <div className="font-semibold text-gray-900">Projetos</div>
-              <div className="text-gray-600">organize cards por objetivo</div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

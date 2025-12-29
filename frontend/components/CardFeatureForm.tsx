@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -462,11 +462,36 @@ export default function CardFeatureForm({
                   onValueChange={(value) => handleInputChange('is_private', value === 'private')}
                 >
                   <SelectTrigger className="bg-white">
-                    <SelectValue />
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {formData.is_private ? (
+                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
+                      ) : (
+                        <Globe className="h-4 w-4 shrink-0 text-green-600" />
+                      )}
+                      <span className="truncate">
+                        {formData.is_private ? "Privado" : "Público"}
+                      </span>
+                    </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="public">Público</SelectItem>
-                    <SelectItem value="private">Privado</SelectItem>
+                    <SelectItem value="public">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 shrink-0 text-green-600" />
+                        <div className="min-w-0">
+                          <div className="font-medium leading-5">Público</div>
+                          <div className="text-xs text-muted-foreground leading-4">Qualquer pessoa pode ver</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="private">
+                      <div className="flex items-center gap-2">
+                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
+                        <div className="min-w-0">
+                          <div className="font-medium leading-5">Privado</div>
+                          <div className="text-xs text-muted-foreground leading-4">Só você (e compartilhados, se houver)</div>
+                        </div>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 mt-1">

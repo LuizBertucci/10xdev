@@ -38,3 +38,7 @@ export type {
 // User Service
 export { userService } from './userService'
 export type { User } from './userService'
+
+// Admin Service
+export { adminService } from './adminService'
+export type { AdminUserRow } from './adminService'

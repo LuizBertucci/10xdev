@@ -13,13 +13,34 @@ import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
 import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
+import AdminPanel from "@/pages/AdminPanel"
+import { useAuth } from "@/hooks/useAuth"
+import { useEffect } from "react"
+import PublicHome from "@/components/PublicHome"
 
 export default function DevPlatform() {
-  const platformState = usePlatform()
   const searchParams = useSearchParams()
+  const tab = searchParams?.get('tab')
+
+  // Hooks must be called before any early returns
+  const platformState = usePlatform()
+  const { user, isProfileLoaded } = useAuth()
   const activeTab = platformState.activeTab
   const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
+
+  // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
+  useEffect(() => {
+    // Importante: só aplicar o redirect depois que tentamos carregar o perfil (role/status).
+    if (platformState.activeTab === "admin" && isProfileLoaded && user?.role !== "admin") {
+      platformState.setActiveTab("home")
+    }
+  }, [platformState, user?.role, isProfileLoaded])
+
+  // Landing pública (somente `/` sem `tab`) - return after hooks are initialized
+  if (!tab) {
+    return <PublicHome />
+  }
 
   return (
     <ProtectedRoute>
@@ -62,6 +83,9 @@ export default function DevPlatform() {
               ) : (
                 activeTab === "projects" && <Projects platformState={platformState} />
               )}
+
+              {/* Admin Tab */}
+              {platformState.activeTab === "admin" && user?.role === "admin" && <AdminPanel />}
             </main>
           </div>
         </SidebarInset>

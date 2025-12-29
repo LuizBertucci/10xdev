@@ -12,6 +12,13 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   setSelectedTech?: (tech: string) => void
 }): UseCardFeaturesReturn {
 
+  const initialPage = Number.isFinite(options.initialPage) && (options.initialPage as number) > 0
+    ? (options.initialPage as number)
+    : 1
+  const itemsPerPage = Number.isFinite(options.itemsPerPage) && (options.itemsPerPage as number) > 0
+    ? (options.itemsPerPage as number)
+    : 10
+
   const [state, setState] = useState<CardFeatureState>({
     // Dados principais
     items: [],
@@ -100,8 +107,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   }, [fetchCardFeaturesWithPagination])
 
   const pagination = usePagination(paginationFetchFn, {
-    itemsPerPage: 10,
-    initialPage: 1
+    itemsPerPage,
+    initialPage
   })
 
   // Atualizar a ref quando pagination for criado
@@ -114,11 +121,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     useCallback(async (term: string) => {
       await fetchCardFeaturesWithPagination({
         page: 1,
-        limit: 10,
+        limit: itemsPerPage,
         search: term.trim() || undefined,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
       })
-    }, [fetchCardFeaturesWithPagination, state.selectedTech]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, state.selectedTech]),
     { delay: 500 }
   )
 
@@ -318,8 +325,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
 
   // Carregar dados na inicialização
   useEffect(() => {
-    fetchCardFeaturesWithPagination({ page: 1, limit: 10 })
-  }, [fetchCardFeaturesWithPagination])
+    if (options.autoLoad === false) return
+    fetchCardFeaturesWithPagination({ page: initialPage, limit: itemsPerPage })
+  }, [fetchCardFeaturesWithPagination, initialPage, itemsPerPage, options.autoLoad])
 
 
   // Retorna estado e ações para os componentes
@@ -356,18 +364,18 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     fetchCardFeatures: useCallback(async (params?: QueryParams) => {
       await fetchCardFeaturesWithPagination({
         page: params?.page || 1,
-        limit: params?.limit || 10,
+        limit: params?.limit || itemsPerPage,
         search: params?.search,
         tech: params?.tech
       })
-    }, [fetchCardFeaturesWithPagination]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage]),
     searchCardFeatures: useCallback(async (searchTerm: string) => {
       await fetchCardFeaturesWithPagination({
         page: 1,
-        limit: 10,
+        limit: itemsPerPage,
         search: searchTerm.trim() || undefined
       })
-    }, [fetchCardFeaturesWithPagination]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage]),
 
     setSearchTerm,
     setSelectedTech,

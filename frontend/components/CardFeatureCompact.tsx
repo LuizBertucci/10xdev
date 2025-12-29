@@ -27,9 +27,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
   
-  // Verificar se o usuário é o criador do card
-  const isOwner = user?.id === snippet.createdBy
-  const canEdit = isOwner
+  const canEdit = user?.role === 'admin'
   
   // URL da API baseada no ambiente
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'

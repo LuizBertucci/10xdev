@@ -4,6 +4,7 @@ import { authRoutes } from './authRoutes'
 import { videoRoutes } from './videoRoutes'
 import { projectRoutes } from './projectRoutes'
 import { userRoutes } from './userRoutes'
+import { adminRoutes } from './adminRoutes'
 
 const router = Router()
 
@@ -35,6 +36,9 @@ router.use('/projects', projectRoutes)
 
 // Users routes
 router.use('/users', userRoutes)
+
+// Admin routes
+router.use('/admin', adminRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
