@@ -60,11 +60,9 @@ export function usePlatform() {
     setActiveTab(normalizedTab);
     
     const params = new URLSearchParams(searchParams?.toString() || '');
-    if (normalizedTab === 'home') {
-      params.delete('tab');
-    } else {
-      params.set('tab', normalizedTab);
-    }
+    // `/` é landing pública. No app, sempre mantemos `tab` (incluindo `home`)
+    // para evitar cair na landing ao trocar de tab/atualizar a página.
+    params.set('tab', normalizedTab);
     // Limpar paginação quando sair de Códigos para evitar carregar state incorreto em outras tabs
     if (normalizedTab !== 'codes') {
       params.delete('page');

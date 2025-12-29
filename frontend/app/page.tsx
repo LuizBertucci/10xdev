@@ -16,10 +16,18 @@ import ProjectDetail from "@/pages/ProjectDetail"
 import AdminPanel from "@/pages/AdminPanel"
 import { useAuth } from "@/hooks/useAuth"
 import { useEffect } from "react"
+import PublicHome from "@/components/PublicHome"
 
 export default function DevPlatform() {
-  const platformState = usePlatform()
   const searchParams = useSearchParams()
+  const tab = searchParams?.get('tab')
+
+  // Landing pública (somente `/` sem `tab`)
+  if (!tab) {
+    return <PublicHome />
+  }
+
+  const platformState = usePlatform()
   const activeTab = platformState.activeTab
   const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null

@@ -1,15 +1,20 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Rotas públicas (acessíveis sem conta)
 const publicPaths = ['/login', '/register']
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
+  const { pathname, searchParams } = req.nextUrl
 
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
 
-  const isPublic = publicPaths.includes(pathname)
+  // Regra especial:
+  // - `/` (sem query `tab`) é público
+  // - `/?tab=...` é privado (app)
+  const isRootLanding = pathname === '/' && !searchParams.get('tab')
+  const isPublic = isRootLanding || publicPaths.includes(pathname)
 
   // Cria cliente Supabase para validar sessão (igual à main)
   const supabase = createServerClient(
@@ -41,7 +46,8 @@ export async function middleware(req: NextRequest) {
   if (isPublic && hasSession) {
     const url = req.nextUrl.clone()
     url.pathname = '/'
-    url.search = ''
+    // Usuário autenticado deve cair no app (não na landing)
+    url.search = '?tab=home'
     return NextResponse.redirect(url)
   }
 

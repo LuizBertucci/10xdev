@@ -8,7 +8,9 @@ export const TABS: Record<TabKey, { key: TabKey; title: string; route: string }>
   home: {
     key: 'home',
     title: 'Início',
-    route: '/'
+    // IMPORTANTE:
+    // `/` é landing pública. O app autenticado usa `/?tab=home`.
+    route: '/?tab=home'
   },
   codes: {
     key: 'codes',
