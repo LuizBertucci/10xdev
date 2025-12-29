@@ -13,6 +13,7 @@ import Videos from "@/pages/Videos"
 import VideoDetail from "@/pages/VideoDetail"
 import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
+import UserProfile from "@/pages/UserProfile"
 
 export default function DevPlatform() {
   const platformState = usePlatform()
@@ -62,6 +63,9 @@ export default function DevPlatform() {
               ) : (
                 activeTab === "projects" && <Projects platformState={platformState} />
               )}
+
+              {/* Profile Tab */}
+              {activeTab === "profile" && <UserProfile platformState={platformState} />}
             </main>
           </div>
         </SidebarInset>

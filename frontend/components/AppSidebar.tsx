@@ -104,7 +104,10 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton>
+            <SidebarMenuButton
+              onClick={() => handleNavClick("profile")}
+              className="cursor-pointer hover:bg-sidebar-accent"
+            >
               <Avatar className="size-6">
                 <AvatarImage src={user?.avatarUrl || ""} />
                 <AvatarFallback>{getUserInitials()}</AvatarFallback>
