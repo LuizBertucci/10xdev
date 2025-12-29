@@ -29,7 +29,7 @@ interface CodesProps {
 }
 
 export default function Codes({ platformState }: CodesProps) {
-  const { user } = useAuth()
+  const { user, isProfileLoaded } = useAuth()
   const isAdmin = user?.role === 'admin'
   const router = useRouter()
   const pathname = usePathname()
@@ -315,7 +315,7 @@ export default function Codes({ platformState }: CodesProps) {
           {/* Right side actions group */}
           <div className="flex items-center gap-2">
             {/* Create Button with Dropdown (admin only) */}
-            {isAdmin && (
+            {(isProfileLoaded && isAdmin) && (
               <div className="flex flex-shrink-0">
                 <Button
                   onClick={cardFeatures.startCreating}
@@ -505,7 +505,7 @@ export default function Codes({ platformState }: CodesProps) {
 
       {/* ===== MODAIS - Formulários e Confirmações ===== */}
       {/* Create CardFeature Modal */}
-      {isAdmin && (
+      {(isProfileLoaded && isAdmin) && (
         <CardFeatureForm
           isOpen={cardFeatures.isCreating}
           mode="create"
@@ -516,7 +516,7 @@ export default function Codes({ platformState }: CodesProps) {
       )}
 
       {/* Create CardFeature via JSON Modal */}
-      {isAdmin && (
+      {(isProfileLoaded && isAdmin) && (
         <CardFeatureFormJSON
           isOpen={isCreatingJSON}
           isLoading={isCreatingJSONLoading}
@@ -526,7 +526,7 @@ export default function Codes({ platformState }: CodesProps) {
       )}
 
       {/* Edit CardFeature Modal */}
-      {isAdmin && (
+      {(isProfileLoaded && isAdmin) && (
         <CardFeatureForm
           isOpen={cardFeatures.isEditing}
           mode="edit"
@@ -538,7 +538,7 @@ export default function Codes({ platformState }: CodesProps) {
       )}
 
       {/* Delete Confirmation Dialog */}
-      {isAdmin && (
+      {(isProfileLoaded && isAdmin) && (
         <DeleteConfirmationDialog
           isOpen={!!deletingSnippet}
           snippet={deletingSnippet}
