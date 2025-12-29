@@ -11,27 +11,31 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = publicPaths.includes(pathname)
 
-  // Cria uma response mutável para permitir que o Supabase atualize cookies (refresh de sessão)
-  let res = NextResponse.next()
+  // Response mutável (necessária para o Supabase persistir cookies da sessão)
+  // Obs: @supabase/ssr (v0.1.x) usa a API cookies.getAll/setAll.
+  let res = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  })
 
-  // Cria cliente Supabase para validar/atualizar sessão
+  // Cria cliente Supabase para validar/atualizar sessão (cookies)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value
+        getAll() {
+          return req.cookies.getAll()
         },
-        set(name: string, value: string, options: any) {
-          // Atualiza cookies na request (para o fluxo atual) e na response (para persistir no browser)
-          req.cookies.set({ name, value, ...options })
-          res.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          req.cookies.set({ name, value: '', ...options })
-          res.cookies.set({ name, value: '', ...options })
-        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // Atualiza para o request atual (execução do middleware)...
+            req.cookies.set(name, value)
+            // ... e persiste no browser via response.
+            res.cookies.set(name, value, options)
+          })
+        }
       },
     }
   )
