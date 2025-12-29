@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { ChevronRight, Key, Code2, Video, Bookmark, Loader2, Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +17,7 @@ import CardFeatureCompact from "@/components/CardFeatureCompact"
 import TrainingVideoCard from "@/components/TrainingVideoCard"
 import type { CardFeature } from "@/types"
 import type { PlatformState } from "@/types/platform"
+import supabase from "@/services/auth"
 
 interface UserProfileProps {
   platformState?: PlatformState
@@ -25,6 +27,7 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   const { user } = useAuth()
   const { savedCards: savedCardsSet, savedVideos: savedVideosSet } = useSavedItems()
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
   
   // Estado para alterar senha
   const [currentPassword, setCurrentPassword] = useState("")
@@ -117,29 +120,38 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   // Handler para alterar senha
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (newPassword !== confirmPassword) {
       toast.error("As senhas não coincidem")
       return
     }
-    
+
     if (newPassword.length < 6) {
       toast.error("A nova senha deve ter pelo menos 6 caracteres")
       return
     }
-    
+
     setChangingPassword(true)
     try {
       const response = await userService.changePassword({
         currentPassword,
         newPassword
       })
-      
+
       if (response?.success) {
-        toast.success("Senha alterada com sucesso!")
+        toast.success("Senha alterada com sucesso! Faça login novamente.")
+
+        // Limpa os campos
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
+
+        // Faz logout local (sem chamar API do Supabase pois a sessão já foi invalidada)
+        // Apenas limpa os cookies localmente
+        await supabase.auth.signOut({ scope: 'local' })
+
+        // Redireciona para login
+        router.push('/login')
       } else {
         toast.error(response?.error || "Erro ao alterar senha")
       }
