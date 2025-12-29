@@ -3,12 +3,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock, Bookmark } from "lucide-react"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
+import { useSavedItems } from "@/hooks/useSavedItems"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -20,16 +21,31 @@ interface CardFeatureCompactProps {
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
   const { user } = useAuth()
+  const { isSaved, toggleSave } = useSavedItems()
+  
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
   // Estado para controlar a aba ativa (similar ao CardFeature)
   const [activeTab, setActiveTab] = useState(0)
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
+  // Estado para loading do salvar
+  const [savingItem, setSavingItem] = useState(false)
   
   // Verificar se o usuário é o criador do card
   const isOwner = user?.id === snippet.createdBy
   const canEdit = isOwner
+  
+  // Verificar se o card está salvo
+  const isCardSaved = isSaved('card', snippet.id)
+  
+  // Handler para salvar/remover card
+  const handleToggleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSavingItem(true)
+    await toggleSave('card', snippet.id)
+    setSavingItem(false)
+  }
   
   // URL da API baseada no ambiente
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
@@ -157,6 +173,14 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={handleToggleSave}
+                        disabled={savingItem}
+                      >
+                        <Bookmark className={`h-4 w-4 mr-2 ${isCardSaved ? 'fill-current text-yellow-500' : ''}`} />
+                        {isCardSaved ? 'Remover dos salvos' : 'Salvar'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
@@ -239,6 +263,24 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
             {/* Seção de Actions - Visível apenas no desktop */}
             <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+
+              {/* Botão Salvar - Desktop */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleSave}
+                    disabled={savingItem}
+                    className={`transition-all duration-200 p-2 ${isCardSaved ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-500 hover:text-yellow-500 hover:bg-yellow-50'}`}
+                  >
+                    <Bookmark className={`h-4 w-4 ${isCardSaved ? 'fill-current' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isCardSaved ? "Remover dos salvos" : "Salvar card"}</p>
+                </TooltipContent>
+              </Tooltip>
 
               {/* Menu Dropdown - Desktop */}
               <DropdownMenu>
