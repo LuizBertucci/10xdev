@@ -4,6 +4,7 @@ import { authRoutes } from './authRoutes'
 import { videoRoutes } from './videoRoutes'
 import { projectRoutes } from './projectRoutes'
 import { userRoutes } from './userRoutes'
+import { savedItemRoutes } from './savedItemRoutes'
 
 const router = Router()
 
@@ -35,6 +36,9 @@ router.use('/projects', projectRoutes)
 
 // Users routes
 router.use('/users', userRoutes)
+
+// Saved Items routes
+router.use('/saved-items', savedItemRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
@@ -87,7 +91,16 @@ router.get('/', (req, res) => {
         removeCard: 'DELETE /api/projects/:id/cards/:cardFeatureId'
       },
       users: {
-        search: 'GET /api/users/search?q=term'
+        search: 'GET /api/users/search?q=term',
+        myCards: 'GET /api/users/my-cards',
+        changePassword: 'POST /api/users/change-password'
+      },
+      savedItems: {
+        list: 'GET /api/saved-items?type=video|card',
+        save: 'POST /api/saved-items',
+        unsave: 'DELETE /api/saved-items/:itemType/:itemId',
+        check: 'GET /api/saved-items/check/:itemType/:itemId',
+        checkMultiple: 'POST /api/saved-items/check-multiple'
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'
