@@ -1,13 +1,14 @@
 "use client"
 
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar } from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
 import { LogOut } from "lucide-react"
+import type { PlatformState } from "@/types/platform"
 
 interface AppSidebarProps {
-  platformState: any
+  platformState: PlatformState
 }
 
 const navItems = [
@@ -32,12 +33,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
   const handleLogout = async () => {
     try {
       await logout()
-      // Aguardar um pouco para garantir que o estado foi atualizado
-      // e então forçar redirecionamento
-      setTimeout(() => {
-        // Usar window.location para garantir redirecionamento mesmo se o router falhar
-        window.location.href = '/login'
-      }, 200)
+      // ProtectedRoute redireciona automaticamente quando isAuthenticated = false
     } catch (error: any) {
       console.error('Erro no logout:', error)
       toast.error('Erro ao fazer logout')
@@ -109,7 +105,6 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
               className="cursor-pointer hover:bg-sidebar-accent"
             >
               <Avatar className="size-6">
-                <AvatarImage src={user?.avatarUrl || ""} />
                 <AvatarFallback>{getUserInitials()}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 text-left text-sm">
