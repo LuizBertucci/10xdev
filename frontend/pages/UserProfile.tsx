@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useTransition } from "react"
 import { ChevronRight, Key, Code2, Video, Bookmark, Loader2, Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +26,7 @@ interface UserProfileProps {
 
 export default function UserProfile({ platformState }: UserProfileProps) {
   const { user } = useAuth()
+  const [isPending, startTransition] = useTransition()
   
   // Estado para alterar senha
   const [currentPassword, setCurrentPassword] = useState("")
@@ -37,61 +38,80 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   
   // Estado para meus cards
   const [myCards, setMyCards] = useState<CardFeature[]>([])
-  const [loadingMyCards, setLoadingMyCards] = useState(false)
+  const [loadingMyCards, setLoadingMyCards] = useState(true)
+  const [myCardsLoaded, setMyCardsLoaded] = useState(false)
   
   // Estado para itens salvos
   const [savedVideos, setSavedVideos] = useState<SavedItem[]>([])
   const [savedCards, setSavedCards] = useState<SavedItem[]>([])
-  const [loadingSavedVideos, setLoadingSavedVideos] = useState(false)
-  const [loadingSavedCards, setLoadingSavedCards] = useState(false)
+  const [loadingSavedVideos, setLoadingSavedVideos] = useState(true)
+  const [loadingSavedCards, setLoadingSavedCards] = useState(true)
+  const [savedVideosLoaded, setSavedVideosLoaded] = useState(false)
+  const [savedCardsLoaded, setSavedCardsLoaded] = useState(false)
+  
+  // Estado para itens sendo removidos (para animação)
+  const [removingItems, setRemovingItems] = useState<Set<string>>(new Set())
 
-  // Carregar meus cards
-  useEffect(() => {
-    const loadMyCards = async () => {
-      setLoadingMyCards(true)
-      try {
-        const response = await userService.getMyCards()
-        if (response?.success && response.data) {
+  // Carregar meus cards (sem limite)
+  const loadMyCards = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoadingMyCards(true)
+    try {
+      const response = await userService.getMyCards(1, 9999)
+      if (response?.success && response.data) {
+        startTransition(() => {
           setMyCards(response.data)
-        }
-      } catch (error) {
-        console.error('Erro ao carregar meus cards:', error)
-      } finally {
-        setLoadingMyCards(false)
+          setMyCardsLoaded(true)
+        })
       }
+    } catch (error) {
+      console.error('Erro ao carregar meus cards:', error)
+    } finally {
+      setLoadingMyCards(false)
     }
-    loadMyCards()
   }, [])
 
   // Carregar videos salvos
-  const loadSavedVideos = async () => {
-    setLoadingSavedVideos(true)
+  const loadSavedVideos = useCallback(async (showLoading = true) => {
+    if (showLoading && !savedVideosLoaded) setLoadingSavedVideos(true)
     try {
       const response = await savedItemService.list('video')
       if (response?.success && response.data) {
-        setSavedVideos(response.data)
+        startTransition(() => {
+          setSavedVideos(response.data)
+          setSavedVideosLoaded(true)
+        })
       }
     } catch (error) {
       console.error('Erro ao carregar vídeos salvos:', error)
     } finally {
       setLoadingSavedVideos(false)
     }
-  }
+  }, [savedVideosLoaded])
 
   // Carregar cards salvos
-  const loadSavedCards = async () => {
-    setLoadingSavedCards(true)
+  const loadSavedCards = useCallback(async (showLoading = true) => {
+    if (showLoading && !savedCardsLoaded) setLoadingSavedCards(true)
     try {
       const response = await savedItemService.list('card')
       if (response?.success && response.data) {
-        setSavedCards(response.data)
+        startTransition(() => {
+          setSavedCards(response.data)
+          setSavedCardsLoaded(true)
+        })
       }
     } catch (error) {
       console.error('Erro ao carregar cards salvos:', error)
     } finally {
       setLoadingSavedCards(false)
     }
-  }
+  }, [savedCardsLoaded])
+
+  // Carregar todos os dados ao montar
+  useEffect(() => {
+    loadMyCards()
+    loadSavedVideos()
+    loadSavedCards()
+  }, [loadMyCards, loadSavedVideos, loadSavedCards])
 
   // Handler para alterar senha
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -130,33 +150,84 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }
 
-  // Handler para remover video salvo
+  // Handler para remover video salvo (otimista - remove imediatamente da UI)
   const handleUnsaveVideo = async (itemId: string) => {
+    // Adiciona ao set de removendo para animação
+    setRemovingItems(prev => new Set(prev).add(`video-${itemId}`))
+    
+    // Remove imediatamente da UI (otimistic update)
+    setSavedVideos(prev => prev.filter(item => item.itemId !== itemId))
+    toast.success("Vídeo removido dos salvos")
+    
+    // Faz a chamada API em background
     try {
-      const response = await savedItemService.unsave('video', itemId)
-      if (response?.success) {
-        setSavedVideos(prev => prev.filter(item => item.itemId !== itemId))
-        toast.success("Vídeo removido dos salvos")
-      }
+      await savedItemService.unsave('video', itemId)
     } catch (error) {
       console.error('Erro ao remover vídeo:', error)
-      toast.error("Erro ao remover vídeo")
+      // Se falhar, recarrega a lista
+      loadSavedVideos(false)
+      toast.error("Erro ao remover vídeo, recarregando...")
+    } finally {
+      setRemovingItems(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(`video-${itemId}`)
+        return newSet
+      })
     }
   }
 
-  // Handler para remover card salvo
+  // Handler para remover card salvo (otimista - remove imediatamente da UI)
   const handleUnsaveCard = async (itemId: string) => {
+    // Adiciona ao set de removendo para animação
+    setRemovingItems(prev => new Set(prev).add(`card-${itemId}`))
+    
+    // Remove imediatamente da UI (otimistic update)
+    setSavedCards(prev => prev.filter(item => item.itemId !== itemId))
+    toast.success("Card removido dos salvos")
+    
+    // Faz a chamada API em background
     try {
-      const response = await savedItemService.unsave('card', itemId)
-      if (response?.success) {
-        setSavedCards(prev => prev.filter(item => item.itemId !== itemId))
-        toast.success("Card removido dos salvos")
-      }
+      await savedItemService.unsave('card', itemId)
     } catch (error) {
       console.error('Erro ao remover card:', error)
-      toast.error("Erro ao remover card")
+      // Se falhar, recarrega a lista
+      loadSavedCards(false)
+      toast.error("Erro ao remover card, recarregando...")
+    } finally {
+      setRemovingItems(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(`card-${itemId}`)
+        return newSet
+      })
     }
   }
+
+  // Refresh automático quando a página ganha foco
+  useEffect(() => {
+    const handleFocus = () => {
+      // Recarrega silenciosamente (sem loading spinner)
+      loadMyCards(false)
+      loadSavedVideos(false)
+      loadSavedCards(false)
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [loadMyCards, loadSavedVideos, loadSavedCards])
+
+  // Refresh automático quando a tab do navegador fica visível
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadMyCards(false)
+        loadSavedVideos(false)
+        loadSavedCards(false)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [loadMyCards, loadSavedVideos, loadSavedCards])
 
   return (
     <div className="space-y-6">
@@ -196,12 +267,12 @@ export default function UserProfile({ platformState }: UserProfileProps) {
             <span className="hidden sm:inline">Meus Cards</span>
             <span className="sm:hidden">Cards</span>
           </TabsTrigger>
-          <TabsTrigger value="saved-videos" className="gap-2" onClick={loadSavedVideos}>
+          <TabsTrigger value="saved-videos" className="gap-2">
             <Video className="h-4 w-4" />
             <span className="hidden sm:inline">Vídeos Salvos</span>
             <span className="sm:hidden">Vídeos</span>
           </TabsTrigger>
-          <TabsTrigger value="saved-cards" className="gap-2" onClick={loadSavedCards}>
+          <TabsTrigger value="saved-cards" className="gap-2">
             <Bookmark className="h-4 w-4" />
             <span className="hidden sm:inline">Cards Salvos</span>
             <span className="sm:hidden">Salvos</span>
