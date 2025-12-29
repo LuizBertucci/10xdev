@@ -22,16 +22,12 @@ export default function DevPlatform() {
   const searchParams = useSearchParams()
   const tab = searchParams?.get('tab')
 
-  // Landing pública (somente `/` sem `tab`)
-  if (!tab) {
-    return <PublicHome />
-  }
-
+  // Hooks must be called before any early returns
   const platformState = usePlatform()
+  const { user, isProfileLoaded } = useAuth()
   const activeTab = platformState.activeTab
   const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
-  const { user, isProfileLoaded } = useAuth()
 
   // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
   useEffect(() => {
@@ -40,6 +36,11 @@ export default function DevPlatform() {
       platformState.setActiveTab("home")
     }
   }, [platformState, user?.role, isProfileLoaded])
+
+  // Landing pública (somente `/` sem `tab`) - return after hooks are initialized
+  if (!tab) {
+    return <PublicHome />
+  }
 
   return (
     <ProtectedRoute>
