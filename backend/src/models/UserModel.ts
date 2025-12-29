@@ -144,12 +144,22 @@ export class UserModel {
 
   static async setStatus(userId: string, status: 'active' | 'inactive'): Promise<ModelResult<null>> {
     try {
-      await executeQuery(
+      const { data } = await executeQuery(
         supabaseAdmin
           .from('users')
           .update({ status, updated_at: new Date().toISOString() })
           .eq('id', userId)
+          .select()
       )
+
+      // Verify that a row was actually affected
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        return {
+          success: false,
+          error: 'User not found',
+          statusCode: 404
+        }
+      }
 
       return { success: true, data: null, statusCode: 200 }
     } catch (error: any) {
@@ -164,12 +174,22 @@ export class UserModel {
 
   static async setRole(userId: string, role: 'admin' | 'user'): Promise<ModelResult<null>> {
     try {
-      await executeQuery(
+      const { data } = await executeQuery(
         supabaseAdmin
           .from('users')
           .update({ role, updated_at: new Date().toISOString() })
           .eq('id', userId)
+          .select()
       )
+
+      // Verify that a row was actually affected
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        return {
+          success: false,
+          error: 'User not found',
+          statusCode: 404
+        }
+      }
 
       return { success: true, data: null, statusCode: 200 }
     } catch (error: any) {
