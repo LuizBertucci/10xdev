@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { ChevronRight, Key, Code2, Video, Bookmark, Loader2, Eye, EyeOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +26,6 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   const { user } = useAuth()
   const { savedCards: savedCardsSet, savedVideos: savedVideosSet } = useSavedItems()
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
   
   // Estado para alterar senha
   const [currentPassword, setCurrentPassword] = useState("")
@@ -139,19 +137,15 @@ export default function UserProfile({ platformState }: UserProfileProps) {
       })
 
       if (response?.success) {
-        toast.success("Senha alterada com sucesso! Faça login novamente.")
-
-        // Limpa os campos
-        setCurrentPassword("")
-        setNewPassword("")
-        setConfirmPassword("")
+        toast.success("Senha alterada com sucesso! Redirecionando para login...")
 
         // Faz logout local (sem chamar API do Supabase pois a sessão já foi invalidada)
         // Apenas limpa os cookies localmente
         await supabase.auth.signOut({ scope: 'local' })
 
-        // Redireciona para login
-        router.push('/login')
+        // Força refresh completo para limpar todo o estado React
+        window.location.href = '/login'
+        return
       } else {
         toast.error(response?.error || "Erro ao alterar senha")
       }
