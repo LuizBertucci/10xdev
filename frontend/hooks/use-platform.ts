@@ -73,13 +73,12 @@ export function usePlatform() {
     router.push(newUrl, { scroll: false });
   }, [router, searchParams]);
 
-  // Listen to URL changes and update tab accordingly
+  // Sincroniza tab com URL quando URL muda (ex: navegação do browser)
+  // Nota: NÃO incluir activeTab nas dependências para evitar loop
   useEffect(() => {
-    const tabFromUrl = normalizeTab(searchParams.get('tab'));
-    if (tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [searchParams, activeTab]);
+    const tabFromUrl = normalizeTab(searchParams?.get('tab') ?? null);
+    setActiveTab(tabFromUrl);
+  }, [searchParams]);
 
   // Return all state and functions
   return {
