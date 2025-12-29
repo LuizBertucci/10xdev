@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/hooks/useAuth"
+import { useSavedItems } from "@/hooks/useSavedItems"
 import { userService } from "@/services/userService"
 import { savedItemService, type SavedItem } from "@/services/savedItemService"
 import { toast } from "sonner"
@@ -26,6 +27,7 @@ interface UserProfileProps {
 
 export default function UserProfile({ platformState }: UserProfileProps) {
   const { user } = useAuth()
+  const { savedCards: savedCardsSet, savedVideos: savedVideosSet } = useSavedItems()
   const [isPending, startTransition] = useTransition()
   
   // Estado para alterar senha
@@ -50,9 +52,6 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   const [loadingSavedCards, setLoadingSavedCards] = useState(true)
   const [savedVideosLoaded, setSavedVideosLoaded] = useState(false)
   const [savedCardsLoaded, setSavedCardsLoaded] = useState(false)
-  
-  // Estado para itens sendo removidos (para animação)
-  const [removingItems, setRemovingItems] = useState<Set<string>>(new Set())
 
   // Carregar meus cards (paginado de 10 em 10)
   const loadMyCards = useCallback(async (page: number = 1, showLoading = true) => {
@@ -152,61 +151,20 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }
 
-  // Handler para remover video salvo (com refresh automático)
-  const handleUnsaveVideo = async (itemId: string) => {
-    // Adiciona ao set de removendo para animação
-    setRemovingItems(prev => new Set(prev).add(`video-${itemId}`))
-    
-    // Remove imediatamente da UI (otimistic update)
-    setSavedVideos(prev => prev.filter(item => item.itemId !== itemId))
-    toast.success("Vídeo removido dos salvos")
-    
-    // Faz a chamada API em background
-    try {
-      await savedItemService.unsave('video', itemId)
-      // Recarrega a lista após remover com sucesso
-      setTimeout(() => loadSavedVideos(false), 500)
-    } catch (error) {
-      console.error('Erro ao remover vídeo:', error)
-      // Se falhar, recarrega a lista
+  // Recarregar listas quando itens salvos mudam (via useSavedItems)
+  useEffect(() => {
+    if (savedVideosLoaded) {
+      // Recarrega a lista se houver mudança no Set de vídeos salvos
       loadSavedVideos(false)
-      toast.error("Erro ao remover vídeo, recarregando...")
-    } finally {
-      setRemovingItems(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(`video-${itemId}`)
-        return newSet
-      })
     }
-  }
+  }, [savedVideosSet.size, loadSavedVideos, savedVideosLoaded])
 
-  // Handler para remover card salvo (com refresh automático)
-  const handleUnsaveCard = async (itemId: string) => {
-    // Adiciona ao set de removendo para animação
-    setRemovingItems(prev => new Set(prev).add(`card-${itemId}`))
-    
-    // Remove imediatamente da UI (otimistic update)
-    setSavedCards(prev => prev.filter(item => item.itemId !== itemId))
-    toast.success("Card removido dos salvos")
-    
-    // Faz a chamada API em background
-    try {
-      await savedItemService.unsave('card', itemId)
-      // Recarrega a lista após remover com sucesso
-      setTimeout(() => loadSavedCards(false), 500)
-    } catch (error) {
-      console.error('Erro ao remover card:', error)
-      // Se falhar, recarrega a lista
+  useEffect(() => {
+    if (savedCardsLoaded) {
+      // Recarrega a lista se houver mudança no Set de cards salvos
       loadSavedCards(false)
-      toast.error("Erro ao remover card, recarregando...")
-    } finally {
-      setRemovingItems(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(`card-${itemId}`)
-        return newSet
-      })
     }
-  }
+  }, [savedCardsSet.size, loadSavedCards, savedCardsLoaded])
 
 
   return (
@@ -462,7 +420,7 @@ export default function UserProfile({ platformState }: UserProfileProps) {
                           platformState?.setActiveTab?.("videos")
                         }}
                         onEdit={() => {}}
-                        onDelete={() => handleUnsaveVideo(savedItem.itemId)}
+                        onDelete={() => {}}
                       />
                     </div>
                   )
@@ -521,7 +479,7 @@ export default function UserProfile({ platformState }: UserProfileProps) {
                         updatedAt: savedItem.item.createdAt
                       }}
                       onEdit={() => {}}
-                      onDelete={() => handleUnsaveCard(savedItem.itemId)}
+                      onDelete={() => {}}
                     />
                   )
                 ))}
