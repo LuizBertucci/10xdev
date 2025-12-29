@@ -36,10 +36,12 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   
-  // Estado para meus cards
+  // Estado para meus cards (com paginação)
   const [myCards, setMyCards] = useState<CardFeature[]>([])
   const [loadingMyCards, setLoadingMyCards] = useState(true)
   const [myCardsLoaded, setMyCardsLoaded] = useState(false)
+  const [myCardsPage, setMyCardsPage] = useState(1)
+  const [myCardsTotalPages, setMyCardsTotalPages] = useState(1)
   
   // Estado para itens salvos
   const [savedVideos, setSavedVideos] = useState<SavedItem[]>([])
@@ -52,14 +54,16 @@ export default function UserProfile({ platformState }: UserProfileProps) {
   // Estado para itens sendo removidos (para animação)
   const [removingItems, setRemovingItems] = useState<Set<string>>(new Set())
 
-  // Carregar meus cards (sem limite)
-  const loadMyCards = useCallback(async (showLoading = true) => {
+  // Carregar meus cards (paginado de 10 em 10)
+  const loadMyCards = useCallback(async (page: number = 1, showLoading = true) => {
     if (showLoading) setLoadingMyCards(true)
     try {
-      const response = await userService.getMyCards(1, 9999)
+      const response = await userService.getMyCards(page, 10)
       if (response?.success && response.data) {
         startTransition(() => {
           setMyCards(response.data)
+          setMyCardsPage(page)
+          setMyCardsTotalPages(response.totalPages || 1)
           setMyCardsLoaded(true)
         })
       }
@@ -70,9 +74,9 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }, [])
 
-  // Carregar videos salvos
+  // Carregar videos salvos (lazy - só quando clicar na tab)
   const loadSavedVideos = useCallback(async (showLoading = true) => {
-    if (showLoading && !savedVideosLoaded) setLoadingSavedVideos(true)
+    if (showLoading) setLoadingSavedVideos(true)
     try {
       const response = await savedItemService.list('video')
       if (response?.success && response.data) {
@@ -86,11 +90,11 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     } finally {
       setLoadingSavedVideos(false)
     }
-  }, [savedVideosLoaded])
+  }, [])
 
-  // Carregar cards salvos
+  // Carregar cards salvos (lazy - só quando clicar na tab)
   const loadSavedCards = useCallback(async (showLoading = true) => {
-    if (showLoading && !savedCardsLoaded) setLoadingSavedCards(true)
+    if (showLoading) setLoadingSavedCards(true)
     try {
       const response = await savedItemService.list('card')
       if (response?.success && response.data) {
@@ -104,14 +108,12 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     } finally {
       setLoadingSavedCards(false)
     }
-  }, [savedCardsLoaded])
+  }, [])
 
-  // Carregar todos os dados ao montar
+  // Carregar apenas "Meus Cards" ao montar (lazy load para o resto)
   useEffect(() => {
-    loadMyCards()
-    loadSavedVideos()
-    loadSavedCards()
-  }, [loadMyCards, loadSavedVideos, loadSavedCards])
+    loadMyCards(1)
+  }, [loadMyCards])
 
   // Handler para alterar senha
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -150,7 +152,7 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }
 
-  // Handler para remover video salvo (otimista - remove imediatamente da UI)
+  // Handler para remover video salvo (com refresh automático)
   const handleUnsaveVideo = async (itemId: string) => {
     // Adiciona ao set de removendo para animação
     setRemovingItems(prev => new Set(prev).add(`video-${itemId}`))
@@ -162,6 +164,8 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     // Faz a chamada API em background
     try {
       await savedItemService.unsave('video', itemId)
+      // Recarrega a lista após remover com sucesso
+      setTimeout(() => loadSavedVideos(false), 500)
     } catch (error) {
       console.error('Erro ao remover vídeo:', error)
       // Se falhar, recarrega a lista
@@ -176,7 +180,7 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }
 
-  // Handler para remover card salvo (otimista - remove imediatamente da UI)
+  // Handler para remover card salvo (com refresh automático)
   const handleUnsaveCard = async (itemId: string) => {
     // Adiciona ao set de removendo para animação
     setRemovingItems(prev => new Set(prev).add(`card-${itemId}`))
@@ -188,6 +192,8 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     // Faz a chamada API em background
     try {
       await savedItemService.unsave('card', itemId)
+      // Recarrega a lista após remover com sucesso
+      setTimeout(() => loadSavedCards(false), 500)
     } catch (error) {
       console.error('Erro ao remover card:', error)
       // Se falhar, recarrega a lista
@@ -202,32 +208,6 @@ export default function UserProfile({ platformState }: UserProfileProps) {
     }
   }
 
-  // Refresh automático quando a página ganha foco
-  useEffect(() => {
-    const handleFocus = () => {
-      // Recarrega silenciosamente (sem loading spinner)
-      loadMyCards(false)
-      loadSavedVideos(false)
-      loadSavedCards(false)
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [loadMyCards, loadSavedVideos, loadSavedCards])
-
-  // Refresh automático quando a tab do navegador fica visível
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadMyCards(false)
-        loadSavedVideos(false)
-        loadSavedCards(false)
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [loadMyCards, loadSavedVideos, loadSavedCards])
 
   return (
     <div className="space-y-6">
@@ -393,16 +373,41 @@ export default function UserProfile({ platformState }: UserProfileProps) {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4 max-w-[900px]">
-                {myCards.map((card) => (
-                  <CardFeatureCompact
-                    key={card.id}
-                    snippet={card}
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="space-y-4 max-w-[900px]">
+                  {myCards.map((card) => (
+                    <CardFeatureCompact
+                      key={card.id}
+                      snippet={card}
+                      onEdit={() => {}}
+                      onDelete={() => {}}
+                    />
+                  ))}
+                </div>
+                {myCardsTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <Button
+                      onClick={() => loadMyCards(myCardsPage - 1)}
+                      disabled={myCardsPage === 1 || loadingMyCards}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-gray-600 px-3">
+                      Página {myCardsPage} de {myCardsTotalPages}
+                    </span>
+                    <Button
+                      onClick={() => loadMyCards(myCardsPage + 1)}
+                      disabled={myCardsPage === myCardsTotalPages || loadingMyCards}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </TabsContent>
