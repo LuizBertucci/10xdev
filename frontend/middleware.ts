@@ -6,10 +6,19 @@ const publicPaths = ['/login', '/register']
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Evita interceptar rotas de API
-  if (pathname.startsWith('/api')) return NextResponse.next()
+  // Evita interceptar rotas de API e arquivos estáticos
+  if (pathname.startsWith('/api') || pathname.startsWith('/_next')) {
+    return NextResponse.next()
+  }
 
   const isPublic = publicPaths.includes(pathname)
+
+  // Cria response para poder modificar cookies
+  let response = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  })
 
   // Cria cliente Supabase para validar sessão
   const supabase = createServerClient(
@@ -20,14 +29,19 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value
         },
-        set() {},
-        remove() {},
+        set(name: string, value: string, options: any) {
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          response.cookies.set({ name, value: '', ...options })
+        },
       },
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const hasSession = !!user
+  // Usa getSession ao invés de getUser - não faz chamada de rede se já tem cookie válido
+  const { data: { session } } = await supabase.auth.getSession()
+  const hasSession = !!session
 
   // Bloqueia rotas privadas se não houver sessão válida
   if (!isPublic && !hasSession) {
@@ -45,7 +59,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
