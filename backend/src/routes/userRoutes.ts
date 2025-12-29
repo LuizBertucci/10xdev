@@ -11,5 +11,11 @@ router.use(authenticate)
 // Search users
 router.get('/search', UserController.search)
 
+// Get my cards
+router.get('/my-cards', UserController.getMyCards)
+
+// Change password
+router.post('/change-password', UserController.changePassword)
+
 export { router as userRoutes }
 
