@@ -11,31 +11,17 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = publicPaths.includes(pathname)
 
-  // Response mutável (necessária para o Supabase persistir cookies da sessão)
-  // Obs: @supabase/ssr (v0.1.x) usa a API cookies.getAll/setAll.
-  let res = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
-  })
-
-  // Cria cliente Supabase para validar/atualizar sessão (cookies)
+  // Cria cliente Supabase para validar sessão
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return req.cookies.getAll()
+        get(name: string) {
+          return req.cookies.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            // Atualiza para o request atual (execução do middleware)...
-            req.cookies.set(name, value)
-            // ... e persiste no browser via response.
-            res.cookies.set(name, value, options)
-          })
-        }
+        set() {},
+        remove() {},
       },
     }
   )
@@ -48,10 +34,7 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname + req.nextUrl.search)
-    const redirectRes = NextResponse.redirect(url)
-    // Preserva possíveis cookies atualizados pelo Supabase (ex: refresh/logout)
-    res.cookies.getAll().forEach((cookie) => redirectRes.cookies.set(cookie))
-    return redirectRes
+    return NextResponse.redirect(url)
   }
 
   // Evita acesso a login/register se já autenticado
@@ -59,12 +42,10 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone()
     url.pathname = '/'
     url.search = ''
-    const redirectRes = NextResponse.redirect(url)
-    res.cookies.getAll().forEach((cookie) => redirectRes.cookies.set(cookie))
-    return redirectRes
+    return NextResponse.redirect(url)
   }
 
-  return res
+  return NextResponse.next()
 }
 
 export const config = {
