@@ -18,6 +18,6 @@ export {
   validateContentType,
   sanitizeInput
 } from './errorHandler'
-export { supabaseMiddleware } from './supabaseMiddleware'
+export { supabaseMiddleware, optionalAuth } from './supabaseMiddleware'
 export { authenticate } from './authenticate'
 export { requireAdmin } from './requireAdmin'
