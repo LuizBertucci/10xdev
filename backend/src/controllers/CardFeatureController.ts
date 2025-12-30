@@ -59,7 +59,8 @@ export class CardFeatureController {
       const page = req.query.page ? parseInt(req.query.page as string) : 1
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
       const userId = req.user?.id // Opcional: permite acesso público
-      
+      const userRole = req.user?.role // Admin vê todos os cards
+
       const params: CardFeatureQueryParams = {
         page,
         limit,
@@ -72,7 +73,7 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.findAll(params, userId)
+      const result = await CardFeatureModel.findAll(params, userId, userRole)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -112,6 +113,7 @@ export class CardFeatureController {
     try {
       const { id } = req.params
       const userId = req.user?.id // Opcional: permite acesso público
+      const userRole = req.user?.role // Admin vê todos os cards
 
       if (!id) {
         res.status(400).json({
@@ -121,7 +123,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.findById(id, userId)
+      const result = await CardFeatureModel.findById(id, userId, userRole)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -152,6 +154,7 @@ export class CardFeatureController {
     try {
       const searchTerm = req.query.q as string
       const userId = req.user?.id // Opcional: permite acesso público
+      const userRole = req.user?.role // Admin vê todos os cards
 
       if (!searchTerm) {
         res.status(400).json({
@@ -163,7 +166,7 @@ export class CardFeatureController {
 
       const page = req.query.page ? parseInt(req.query.page as string) : 1
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
-      
+
       const params: CardFeatureQueryParams = {
         page,
         limit,
@@ -174,7 +177,7 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.search(searchTerm, params, userId)
+      const result = await CardFeatureModel.search(searchTerm, params, userId, userRole)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -214,6 +217,7 @@ export class CardFeatureController {
     try {
       const { tech } = req.params
       const userId = req.user?.id // Opcional: permite acesso público
+      const userRole = req.user?.role // Admin vê todos os cards
 
       if (!tech) {
         res.status(400).json({
@@ -225,7 +229,7 @@ export class CardFeatureController {
 
       const page = req.query.page ? parseInt(req.query.page as string) : 1
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10
-      
+
       const params: CardFeatureQueryParams = {
         page,
         limit,
@@ -236,7 +240,7 @@ export class CardFeatureController {
         sortOrder: req.query.sortOrder as any
       }
 
-      const result = await CardFeatureModel.findByTech(tech, params, userId)
+      const result = await CardFeatureModel.findByTech(tech, params, userId, userRole)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({

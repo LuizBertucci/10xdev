@@ -38,14 +38,19 @@ export class CardFeatureModel {
     }
   }
 
-  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string) {
+  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string) {
     // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
     let query = supabaseAdmin
       .from('card_features')
       .select('*', { count: 'exact' })
 
-    // Filtro de visibilidade: públicos OU privados do próprio usuário OU compartilhados comigo
-    if (userId) {
+    // Filtro de visibilidade:
+    // - Admin vê TODOS os cards (públicos e privados de qualquer usuário)
+    // - Usuário autenticado vê: públicos + seus privados + compartilhados
+    // - Não autenticado vê: apenas públicos
+    if (userRole === 'admin') {
+      // Admin vê todos os cards - não aplica filtro de visibilidade
+    } else if (userId) {
       // Usar SQL raw para incluir cards compartilhados via EXISTS
       // (is_private=false) OR (is_private=true AND created_by=userId) OR (EXISTS compartilhamento)
       query = query.or(
@@ -170,7 +175,7 @@ export class CardFeatureModel {
   // READ
   // ================================================
 
-  static async findById(id: string, userId?: string): Promise<ModelResult<CardFeatureResponse>> {
+  static async findById(id: string, userId?: string, userRole?: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
       let query = supabaseAdmin
         .from('card_features')
@@ -178,7 +183,10 @@ export class CardFeatureModel {
         .eq('id', id)
 
       // Aplicar filtro de visibilidade
-      if (userId) {
+      // Admin vê todos os cards - não aplica filtro
+      if (userRole === 'admin') {
+        // Admin vê todos - não aplica filtro de visibilidade
+      } else if (userId) {
         // Cards públicos OU cards privados do próprio usuário
         query = query.or(`is_private.eq.false,and(is_private.eq.true,created_by.eq.${userId})`)
       } else {
@@ -197,8 +205,8 @@ export class CardFeatureModel {
         }
       }
 
-      // Verificação adicional: se privado, deve ser do usuário
-      if (data.is_private && data.created_by !== userId) {
+      // Verificação adicional: se privado, deve ser do usuário OU admin
+      if (data.is_private && data.created_by !== userId && userRole !== 'admin') {
         return {
           success: false,
           error: 'Você não tem permissão para visualizar este card',
@@ -233,9 +241,9 @@ export class CardFeatureModel {
     }
   }
 
-  static async findAll(params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
+  static async findAll(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
-      const query = this.buildQuery(params, userId)
+      const query = this.buildQuery(params, userId, userRole)
       const { data, count } = await executeQuery(query)
 
       if (!data || data.length === 0) {
@@ -282,10 +290,10 @@ export class CardFeatureModel {
     }
   }
 
-  static async search(searchTerm: string, params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
+  static async search(searchTerm: string, params: CardFeatureQueryParams = {}, userId?: string, userRole?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const searchParams = { ...params, search: searchTerm }
-      return await this.findAll(searchParams, userId)
+      return await this.findAll(searchParams, userId, userRole)
     } catch (error) {
       console.error('Erro interno ao buscar CardFeatures:', error)
       return {
@@ -296,10 +304,10 @@ export class CardFeatureModel {
     }
   }
 
-  static async findByTech(tech: string, params: CardFeatureQueryParams = {}, userId?: string): Promise<ModelListResult<CardFeatureResponse>> {
+  static async findByTech(tech: string, params: CardFeatureQueryParams = {}, userId?: string, userRole?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const techParams = { ...params, tech }
-      return await this.findAll(techParams, userId)
+      return await this.findAll(techParams, userId, userRole)
     } catch (error) {
       console.error('Erro interno ao buscar CardFeatures por tech:', error)
       return {
@@ -321,13 +329,13 @@ export class CardFeatureModel {
     actorRole: string = 'user'
   ): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      // Verificar se existe e se usuário é o criador
-      const existingCheck = await this.findById(id, userId)
+      const isAdmin = actorRole === 'admin'
+
+      // Verificar se existe e se usuário tem acesso (admin pode ver qualquer card)
+      const existingCheck = await this.findById(id, userId, actorRole)
       if (!existingCheck.success) {
         return existingCheck
       }
-
-      const isAdmin = actorRole === 'admin'
 
       // Verificar ownership (admin pode editar qualquer card)
       if (!isAdmin && existingCheck.data?.createdBy !== userId) {
@@ -385,8 +393,10 @@ export class CardFeatureModel {
 
   static async delete(id: string, userId: string, actorRole: string = 'user'): Promise<ModelResult<null>> {
     try {
-      // Verificar se existe e se usuário é o criador
-      const existingCheck = await this.findById(id, userId)
+      const isAdmin = actorRole === 'admin'
+
+      // Verificar se existe e se usuário tem acesso (admin pode ver qualquer card)
+      const existingCheck = await this.findById(id, userId, actorRole)
       if (!existingCheck.success) {
         return {
           success: false,
@@ -394,8 +404,6 @@ export class CardFeatureModel {
           statusCode: existingCheck.statusCode || 404
         }
       }
-
-      const isAdmin = actorRole === 'admin'
 
       // Verificar ownership (admin pode deletar qualquer card)
       if (!isAdmin && existingCheck.data?.createdBy !== userId) {

@@ -383,15 +383,20 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
       )}
 
-      {/* Empty State - só mostra se não está carregando E tem filtros aplicados */}
-      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all') && (
+      {/* Empty State - mostra quando não há cards (com ou sem filtros) */}
+      {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length === 0 && (
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum snippet encontrado</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'all'
+              ? 'Nenhum snippet encontrado'
+              : 'Nenhum card disponível'
+            }
+          </h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'all'
               ? 'Tente ajustar seus filtros de busca'
-              : 'Ainda não há snippets de código disponíveis'
+              : 'Ainda não há snippets de código disponíveis para visualização'
             }
           </p>
         </div>
