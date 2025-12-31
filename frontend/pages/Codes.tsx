@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -55,6 +55,7 @@ export default function Codes({ platformState }: CodesProps) {
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
   // ================================================
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
   const [selectedVisibility, setSelectedVisibility] = useState<string>('all')
@@ -90,6 +91,19 @@ export default function Codes({ platformState }: CodesProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardFeatures.currentPage, pathname, router, searchParams])
+
+  // Manter foco no input de busca após carregar resultados
+  useEffect(() => {
+    if (cardFeatures.searchTerm && !cardFeatures.loading && searchInputRef.current) {
+      // Só restaura foco se o input não está focado e tem termo de busca
+      if (document.activeElement !== searchInputRef.current) {
+        searchInputRef.current.focus()
+        // Coloca cursor no final do texto
+        const len = cardFeatures.searchTerm.length
+        searchInputRef.current.setSelectionRange(len, len)
+      }
+    }
+  }, [cardFeatures.loading, cardFeatures.searchTerm])
 
   // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems.filter(item => {
@@ -236,11 +250,11 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="relative w-full min-w-0 mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
+            ref={searchInputRef}
             placeholder="Buscar snippets..."
             value={cardFeatures.searchTerm}
             onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
             className="pl-10 w-full"
-            disabled={cardFeatures.loading}
           />
         </div>
 
