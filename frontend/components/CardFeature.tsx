@@ -3,11 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Expand, Edit, Trash2, Lock } from "lucide-react"
+import { Expand, Edit, Trash2, Lock, Link2 } from "lucide-react"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
+import { Visibility } from "@/types"
 
 interface CardFeatureProps {
   snippet: CardFeatureType
@@ -33,13 +34,23 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <CardTitle className="text-base">{snippet.title}</CardTitle>
-                {snippet.isPrivate && (
+                {/* Badge de Visibilidade */}
+                {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
                   <Badge
                     variant="secondary"
                     className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
                   >
                     <Lock className="h-3 w-3 mr-1" />
                     Privado
+                  </Badge>
+                )}
+                {snippet.visibility === Visibility.UNLISTED && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                  >
+                    <Link2 className="h-3 w-3 mr-1" />
+                    Não Listado
                   </Badge>
                 )}
               </div>

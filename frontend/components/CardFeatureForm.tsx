@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2 } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
-import { ContentType, CardType } from "@/types"
+import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -19,7 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
-  is_private: false,
+  visibility: Visibility.PUBLIC,
   screens: [
     {
       name: 'Main',
@@ -45,7 +45,7 @@ interface CardFeatureFormData {
   description: string
   content_type: ContentType
   card_type: CardType
-  is_private?: boolean
+  visibility: Visibility
   screens: CreateScreenData[]
 }
 
@@ -135,7 +135,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
-        is_private: initialData.isPrivate ?? false,
+        visibility: initialData.visibility ?? Visibility.PUBLIC,
         screens: initialData.screens
       }
     }
@@ -163,6 +163,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
+        visibility: initialData.visibility ?? Visibility.PUBLIC,
         screens: initialData.screens
       })
     } else if (mode === 'create') {
@@ -171,7 +172,7 @@ export default function CardFeatureForm({
   }, [mode, initialData])
 
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -340,7 +341,7 @@ export default function CardFeatureForm({
     await onSubmit(formData)
 
     // Se for card privado e tiver emails para compartilhar, chamar API
-    if (formData.is_private && shareEmails && shareEmailsInput) {
+    if (formData.visibility === Visibility.PRIVATE && shareEmails && shareEmailsInput) {
       try {
         // Precisamos do ID do card recém-criado (será passado pelo onSubmit)
         // Por ora, vamos apenas limpar o campo
@@ -360,9 +361,9 @@ export default function CardFeatureForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b shrink-0">
-          <h3 className="text-xl font-semibold">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[95vh] sm:h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b shrink-0">
+          <h3 className="text-base sm:text-xl font-semibold">
             {mode === 'create' ? 'Novo CardFeature' : 'Editar CardFeature'}
           </h3>
           <Button
@@ -374,13 +375,13 @@ export default function CardFeatureForm({
           </Button>
         </div>
         
-        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
           {/* LEFT COLUMN: Configuration & Metadata */}
-          <div className="w-full lg:w-[350px] border-r bg-gray-50 p-6 overflow-y-auto flex-shrink-0 flex flex-col gap-6">
-            
-            <div className="space-y-4">
+          <div className="w-full md:w-[300px] lg:w-[350px] border-b md:border-b-0 md:border-r bg-gray-50 p-4 sm:p-6 overflow-y-auto flex-shrink-0 flex flex-col gap-4 sm:gap-6 max-h-[40vh] md:max-h-none">
+
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Título *
                 </label>
                 <Input
@@ -392,7 +393,7 @@ export default function CardFeatureForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Tipo do Card *
                 </label>
                 <Select
@@ -411,7 +412,7 @@ export default function CardFeatureForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Tecnologia *
                 </label>
                 <Select
@@ -433,7 +434,7 @@ export default function CardFeatureForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Linguagem *
                 </label>
                 <Select
@@ -454,55 +455,72 @@ export default function CardFeatureForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Visibilidade
                 </label>
                 <Select
-                  value={formData.is_private ? 'private' : 'public'}
-                  onValueChange={(value) => handleInputChange('is_private', value === 'private')}
+                  value={formData.visibility}
+                  onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
                 >
                   <SelectTrigger className="bg-white">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {formData.is_private ? (
-                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
-                      ) : (
+                      {formData.visibility === Visibility.PUBLIC && (
                         <Globe className="h-4 w-4 shrink-0 text-green-600" />
                       )}
+                      {formData.visibility === Visibility.UNLISTED && (
+                        <Link2 className="h-4 w-4 shrink-0 text-blue-600" />
+                      )}
+                      {formData.visibility === Visibility.PRIVATE && (
+                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
+                      )}
                       <span className="truncate">
-                        {formData.is_private ? "Privado" : "Público"}
+                        {formData.visibility === Visibility.PUBLIC && "Público"}
+                        {formData.visibility === Visibility.UNLISTED && "Não Listado"}
+                        {formData.visibility === Visibility.PRIVATE && "Privado"}
                       </span>
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="public">
+                    <SelectItem value={Visibility.PUBLIC}>
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4 shrink-0 text-green-600" />
                         <div className="min-w-0">
                           <div className="font-medium leading-5">Público</div>
-                          <div className="text-xs text-muted-foreground leading-4">Qualquer pessoa pode ver</div>
+                          <div className="text-xs text-muted-foreground leading-4">Aparece nas listagens</div>
                         </div>
                       </div>
                     </SelectItem>
-                    <SelectItem value="private">
+                    <SelectItem value={Visibility.UNLISTED}>
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 shrink-0 text-blue-600" />
+                        <div className="min-w-0">
+                          <div className="font-medium leading-5">Não Listado</div>
+                          <div className="text-xs text-muted-foreground leading-4">Só quem tem o link pode ver</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value={Visibility.PRIVATE}>
                       <div className="flex items-center gap-2">
                         <Lock className="h-4 w-4 shrink-0 text-orange-600" />
                         <div className="min-w-0">
                           <div className="font-medium leading-5">Privado</div>
-                          <div className="text-xs text-muted-foreground leading-4">Só você (e compartilhados, se houver)</div>
+                          <div className="text-xs text-muted-foreground leading-4">Só você pode ver</div>
                         </div>
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Cards privados são visíveis apenas para você
+                  {formData.visibility === Visibility.PUBLIC && "Qualquer pessoa pode ver este card"}
+                  {formData.visibility === Visibility.UNLISTED && "Não aparece em listagens, mas qualquer um com o link pode ver"}
+                  {formData.visibility === Visibility.PRIVATE && "Apenas você pode ver este card"}
                 </p>
               </div>
 
               {/* Campo de Compartilhamento - Apenas para cards privados */}
-              {formData.is_private && (
+              {formData.visibility === Visibility.PRIVATE && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Compartilhar com (opcional)
                   </label>
                   <Input
@@ -519,14 +537,14 @@ export default function CardFeatureForm({
             </div>
 
             <div className="flex-1 flex flex-col">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Descrição
               </label>
               <Textarea
                 placeholder="Descreva o que este CardFeature faz..."
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                className="flex-1 min-h-[150px] bg-white"
+                className="flex-1 min-h-[80px] sm:min-h-[150px] bg-white text-sm"
               />
             </div>
           </div>
@@ -751,7 +769,7 @@ export default function CardFeatureForm({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-4 border-t bg-gray-50 shrink-0">
+        <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-4 border-t bg-gray-50 shrink-0">
           <Button
             variant="outline"
             onClick={onClose}

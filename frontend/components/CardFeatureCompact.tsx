@@ -9,7 +9,9 @@ import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
+import { useCardTabState } from "@/hooks/useCardTabState"
 import type { CardFeature as CardFeatureType } from "@/types"
+import { Visibility } from "@/types"
 
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
@@ -22,8 +24,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
-  // Estado para controlar a aba ativa (similar ao CardFeature)
-  const [activeTab, setActiveTab] = useState(0)
+  // Estado para controlar a aba ativa - persiste na URL
+  const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
   
@@ -100,13 +102,23 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 <div className="flex items-center justify-between gap-2 flex-shrink-0">
                   {/* Autor e privacidade à esquerda */}
                   <div className="flex items-center gap-2">
-                    {snippet.isPrivate && (
+                    {/* Badge de Visibilidade */}
+                    {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
                       <Badge
                         variant="secondary"
                         className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
                       >
                         <Lock className="h-3 w-3 mr-1" />
                         Privado
+                      </Badge>
+                    )}
+                    {snippet.visibility === Visibility.UNLISTED && (
+                      <Badge
+                        variant="secondary"
+                        className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                      >
+                        <Link2 className="h-3 w-3 mr-1" />
+                        Não Listado
                       </Badge>
                     )}
                     <Badge
@@ -173,7 +185,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {snippet.isPrivate && (
+                  {/* Badge de Visibilidade Mobile */}
+                  {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
                     <>
                       <Badge
                         variant="secondary"
@@ -181,6 +194,18 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                       >
                         <Lock className="h-2.5 w-2.5 mr-0.5" />
                         Privado
+                      </Badge>
+                      <span className="text-gray-400 text-[8px]">●</span>
+                    </>
+                  )}
+                  {snippet.visibility === Visibility.UNLISTED && (
+                    <>
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                      >
+                        <Link2 className="h-2.5 w-2.5 mr-0.5" />
+                        Não Listado
                       </Badge>
                       <span className="text-gray-400 text-[8px]">●</span>
                     </>

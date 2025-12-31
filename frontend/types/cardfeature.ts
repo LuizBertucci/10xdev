@@ -25,6 +25,15 @@ export enum CardType {
 }
 
 /**
+ * Visibilidade do card
+ */
+export enum Visibility {
+  PUBLIC = 'public',      // Aparece em listagens, qualquer um pode ver
+  PRIVATE = 'private',    // Só o criador (e compartilhados) pode ver
+  UNLISTED = 'unlisted'   // Não aparece em listagens, mas qualquer um com link pode ver
+}
+
+/**
  * Bloco individual de conteúdo
  */
 export interface ContentBlock {
@@ -61,7 +70,8 @@ export interface CardFeature {
   card_type: CardType    // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdBy?: string | null     // ID do usuário que criou o card (pode ser null quando autor é anônimo)
-  isPrivate?: boolean    // Se o card é privado (apenas criador pode ver)
+  isPrivate?: boolean    // LEGADO: mantido para compatibilidade
+  visibility?: Visibility // NOVO: controle de visibilidade (public/private/unlisted)
   createdInProjectId?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
@@ -95,7 +105,8 @@ export interface CreateCardFeatureData {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
-  is_private?: boolean  // Visibilidade do card (padrão: false = público)
+  is_private?: boolean  // LEGADO: mantido para compatibilidade
+  visibility?: Visibility  // NOVO: controle de visibilidade (padrão: public)
   created_in_project_id?: string  // ID do projeto onde será criado (opcional)
 }
 

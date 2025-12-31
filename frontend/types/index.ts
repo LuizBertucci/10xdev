@@ -72,6 +72,7 @@ export type {
 export {
   ContentType,
   CardType,
+  Visibility,
   SupportedTech,
   SupportedLanguage,
   CrudStatus

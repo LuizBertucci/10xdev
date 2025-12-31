@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Eye } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2 } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
@@ -11,6 +12,7 @@ import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import type { CardFeature as CardFeatureType, CreateCardFeatureData } from "@/types"
+import { Visibility } from "@/types"
 import { useAuth } from "@/hooks/useAuth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
@@ -55,6 +57,7 @@ export default function Codes({ platformState }: CodesProps) {
   // ================================================
   // ESTADO E HOOKS - Gerenciamento de estado da página
   // ================================================
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
   const [selectedVisibility, setSelectedVisibility] = useState<string>('all')
@@ -91,17 +94,33 @@ export default function Codes({ platformState }: CodesProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardFeatures.currentPage, pathname, router, searchParams])
 
+  // Manter foco no input de busca após carregar resultados
+  useEffect(() => {
+    if (cardFeatures.searchTerm && !cardFeatures.loading && searchInputRef.current) {
+      // Só restaura foco se o input não está focado e tem termo de busca
+      if (document.activeElement !== searchInputRef.current) {
+        searchInputRef.current.focus()
+        // Coloca cursor no final do texto
+        const len = cardFeatures.searchTerm.length
+        searchInputRef.current.setSelectionRange(len, len)
+      }
+    }
+  }, [cardFeatures.loading, cardFeatures.searchTerm])
+
   // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems.filter(item => {
     // Filtro por tipo de card
     const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
 
-    // Filtro por visibilidade
+    // Filtro por visibilidade (usando visibility com fallback para isPrivate)
+    const itemVisibility = item.visibility || (item.isPrivate ? Visibility.PRIVATE : Visibility.PUBLIC)
     let matchesVisibility = true
     if (selectedVisibility === 'public') {
-      matchesVisibility = !item.isPrivate
+      matchesVisibility = itemVisibility === Visibility.PUBLIC
     } else if (selectedVisibility === 'private') {
-      matchesVisibility = item.isPrivate === true
+      matchesVisibility = itemVisibility === Visibility.PRIVATE
+    } else if (selectedVisibility === 'unlisted') {
+      matchesVisibility = itemVisibility === Visibility.UNLISTED
     }
     // 'all' não filtra por visibilidade
 
@@ -236,11 +255,11 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="relative w-full min-w-0 mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
+            ref={searchInputRef}
             placeholder="Buscar snippets..."
             value={cardFeatures.searchTerm}
             onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
             className="pl-10 w-full"
-            disabled={cardFeatures.loading}
           />
         </div>
 
@@ -264,32 +283,26 @@ export default function Codes({ platformState }: CodesProps) {
             </SelectContent>
           </Select>
 
-          {/* Visibility Filter */}
-          <Select
-            value={selectedVisibility}
-            onValueChange={setSelectedVisibility}
-            disabled={cardFeatures.loading}
-          >
-            <SelectTrigger className="w-28 sm:w-40">
-              <Eye className="h-4 w-4 mr-1 sm:mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="public">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-green-600" />
-                  <span>Públicos</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="private">
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-orange-600" />
-                  <span>Privados</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Visibility Tabs */}
+          <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-auto">
+            <TabsList className="h-9 bg-gray-100">
+              <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                Todos
+              </TabsTrigger>
+              <TabsTrigger value="public" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-green-600" />
+                <span className="hidden sm:inline">Públicos</span>
+              </TabsTrigger>
+              <TabsTrigger value="unlisted" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-blue-600" />
+                <span className="hidden sm:inline">Não Listados</span>
+              </TabsTrigger>
+              <TabsTrigger value="private" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-orange-600" />
+                <span className="hidden sm:inline">Privados</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Tech Filter - Hidden on mobile */}
           <div className="hidden sm:block">
@@ -315,9 +328,10 @@ export default function Codes({ platformState }: CodesProps) {
           {/* Right side actions group */}
           <div className="flex items-center gap-2">
             {/* Create Button with Dropdown (admin only) */}
-            {(isProfileLoaded && isAdmin) && (
-              <div className="flex flex-shrink-0">
-                <Button
+            <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
+              isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+            }`}>
+              <Button
                   onClick={cardFeatures.startCreating}
                   disabled={cardFeatures.loading || cardFeatures.creating}
                   size="sm"
@@ -348,8 +362,7 @@ export default function Codes({ platformState }: CodesProps) {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
