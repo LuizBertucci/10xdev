@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2 } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
-import { ContentType, CardType } from "@/types"
+import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
@@ -19,7 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
-  is_private: false,
+  visibility: Visibility.PUBLIC,
   screens: [
     {
       name: 'Main',
@@ -45,7 +45,7 @@ interface CardFeatureFormData {
   description: string
   content_type: ContentType
   card_type: CardType
-  is_private?: boolean
+  visibility: Visibility
   screens: CreateScreenData[]
 }
 
@@ -135,7 +135,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
-        is_private: initialData.isPrivate ?? false,
+        visibility: initialData.visibility ?? Visibility.PUBLIC,
         screens: initialData.screens
       }
     }
@@ -163,6 +163,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
+        visibility: initialData.visibility ?? Visibility.PUBLIC,
         screens: initialData.screens
       })
     } else if (mode === 'create') {
@@ -340,7 +341,7 @@ export default function CardFeatureForm({
     await onSubmit(formData)
 
     // Se for card privado e tiver emails para compartilhar, chamar API
-    if (formData.is_private && shareEmails && shareEmailsInput) {
+    if (formData.visibility === Visibility.PRIVATE && shareEmails && shareEmailsInput) {
       try {
         // Precisamos do ID do card recém-criado (será passado pelo onSubmit)
         // Por ora, vamos apenas limpar o campo
@@ -458,49 +459,66 @@ export default function CardFeatureForm({
                   Visibilidade
                 </label>
                 <Select
-                  value={formData.is_private ? 'private' : 'public'}
-                  onValueChange={(value) => handleInputChange('is_private', value === 'private')}
+                  value={formData.visibility}
+                  onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
                 >
                   <SelectTrigger className="bg-white">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {formData.is_private ? (
-                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
-                      ) : (
+                      {formData.visibility === Visibility.PUBLIC && (
                         <Globe className="h-4 w-4 shrink-0 text-green-600" />
                       )}
+                      {formData.visibility === Visibility.UNLISTED && (
+                        <Link2 className="h-4 w-4 shrink-0 text-blue-600" />
+                      )}
+                      {formData.visibility === Visibility.PRIVATE && (
+                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
+                      )}
                       <span className="truncate">
-                        {formData.is_private ? "Privado" : "Público"}
+                        {formData.visibility === Visibility.PUBLIC && "Público"}
+                        {formData.visibility === Visibility.UNLISTED && "Não Listado"}
+                        {formData.visibility === Visibility.PRIVATE && "Privado"}
                       </span>
                     </div>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="public">
+                    <SelectItem value={Visibility.PUBLIC}>
                       <div className="flex items-center gap-2">
                         <Globe className="h-4 w-4 shrink-0 text-green-600" />
                         <div className="min-w-0">
                           <div className="font-medium leading-5">Público</div>
-                          <div className="text-xs text-muted-foreground leading-4">Qualquer pessoa pode ver</div>
+                          <div className="text-xs text-muted-foreground leading-4">Aparece nas listagens</div>
                         </div>
                       </div>
                     </SelectItem>
-                    <SelectItem value="private">
+                    <SelectItem value={Visibility.UNLISTED}>
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 shrink-0 text-blue-600" />
+                        <div className="min-w-0">
+                          <div className="font-medium leading-5">Não Listado</div>
+                          <div className="text-xs text-muted-foreground leading-4">Só quem tem o link pode ver</div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value={Visibility.PRIVATE}>
                       <div className="flex items-center gap-2">
                         <Lock className="h-4 w-4 shrink-0 text-orange-600" />
                         <div className="min-w-0">
                           <div className="font-medium leading-5">Privado</div>
-                          <div className="text-xs text-muted-foreground leading-4">Só você (e compartilhados, se houver)</div>
+                          <div className="text-xs text-muted-foreground leading-4">Só você pode ver</div>
                         </div>
                       </div>
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Cards privados são visíveis apenas para você
+                  {formData.visibility === Visibility.PUBLIC && "Qualquer pessoa pode ver este card"}
+                  {formData.visibility === Visibility.UNLISTED && "Não aparece em listagens, mas qualquer um com o link pode ver"}
+                  {formData.visibility === Visibility.PRIVATE && "Apenas você pode ver este card"}
                 </p>
               </div>
 
               {/* Campo de Compartilhamento - Apenas para cards privados */}
-              {formData.is_private && (
+              {formData.visibility === Visibility.PRIVATE && (
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Compartilhar com (opcional)

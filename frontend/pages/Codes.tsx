@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Eye } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2 } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
@@ -11,6 +12,7 @@ import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import type { CardFeature as CardFeatureType, CreateCardFeatureData } from "@/types"
+import { Visibility } from "@/types"
 import { useAuth } from "@/hooks/useAuth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
@@ -110,12 +112,15 @@ export default function Codes({ platformState }: CodesProps) {
     // Filtro por tipo de card
     const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
 
-    // Filtro por visibilidade
+    // Filtro por visibilidade (usando visibility com fallback para isPrivate)
+    const itemVisibility = item.visibility || (item.isPrivate ? Visibility.PRIVATE : Visibility.PUBLIC)
     let matchesVisibility = true
     if (selectedVisibility === 'public') {
-      matchesVisibility = !item.isPrivate
+      matchesVisibility = itemVisibility === Visibility.PUBLIC
     } else if (selectedVisibility === 'private') {
-      matchesVisibility = item.isPrivate === true
+      matchesVisibility = itemVisibility === Visibility.PRIVATE
+    } else if (selectedVisibility === 'unlisted') {
+      matchesVisibility = itemVisibility === Visibility.UNLISTED
     }
     // 'all' não filtra por visibilidade
 
@@ -278,32 +283,26 @@ export default function Codes({ platformState }: CodesProps) {
             </SelectContent>
           </Select>
 
-          {/* Visibility Filter */}
-          <Select
-            value={selectedVisibility}
-            onValueChange={setSelectedVisibility}
-            disabled={cardFeatures.loading}
-          >
-            <SelectTrigger className="w-28 sm:w-40">
-              <Eye className="h-4 w-4 mr-1 sm:mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="public">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-green-600" />
-                  <span>Públicos</span>
-                </div>
-              </SelectItem>
-              <SelectItem value="private">
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-orange-600" />
-                  <span>Privados</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Visibility Tabs */}
+          <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-auto">
+            <TabsList className="h-9 bg-gray-100">
+              <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                Todos
+              </TabsTrigger>
+              <TabsTrigger value="public" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-green-600" />
+                <span className="hidden sm:inline">Públicos</span>
+              </TabsTrigger>
+              <TabsTrigger value="unlisted" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-blue-600" />
+                <span className="hidden sm:inline">Não Listados</span>
+              </TabsTrigger>
+              <TabsTrigger value="private" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
+                <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-orange-600" />
+                <span className="hidden sm:inline">Privados</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Tech Filter - Hidden on mobile */}
           <div className="hidden sm:block">
