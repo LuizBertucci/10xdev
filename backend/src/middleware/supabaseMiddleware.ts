@@ -246,6 +246,13 @@ export const optionalAuth = async (
       return
     }
 
+    // Verificar se usuário está ativo (mesma verificação do supabaseMiddleware)
+    if (userProfile.status && userProfile.status !== 'active') {
+      // Usuário desativado, continua sem autenticação
+      next()
+      return
+    }
+
     // Garantir admin para emails allowlisted
     if (isAdminEmail(userProfile.email) && userProfile.role !== 'admin') {
       try {
