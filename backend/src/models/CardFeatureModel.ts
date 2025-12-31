@@ -266,13 +266,40 @@ export class CardFeatureModel {
   static async findAll(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const query = this.buildQuery(params, userId, userRole)
-      const { data, count } = await executeQuery(query)
+      const { data } = await executeQuery(query)
+
+      // IMPORTANTE: Count sempre conta apenas cards públicos (não conta private/unlisted)
+      // Isso garante que o total exibido seja consistente e não inclua cards privados
+      const countQuery = supabaseAdmin
+        .from('card_features')
+        .select('*', { count: 'exact', head: true })
+        .eq('visibility', Visibility.PUBLIC)
+        .is('created_in_project_id', null)
+
+      // Aplicar os mesmos filtros da query principal (exceto visibilidade)
+      if (params.tech && params.tech !== 'all') {
+        countQuery.ilike('tech', params.tech)
+      }
+      if (params.language && params.language !== 'all') {
+        countQuery.ilike('language', params.language)
+      }
+      if (params.content_type && params.content_type !== 'all') {
+        countQuery.eq('content_type', params.content_type)
+      }
+      if (params.card_type && params.card_type !== 'all') {
+        countQuery.eq('card_type', params.card_type)
+      }
+      if (params.search) {
+        countQuery.ilike('title', `%${params.search}%`)
+      }
+
+      const { count } = await executeQuery(countQuery)
 
       if (!data || data.length === 0) {
         return {
           success: true,
           data: [],
-          count: 0,
+          count: count || 0,
           statusCode: 200
         }
       }
@@ -473,7 +500,7 @@ export class CardFeatureModel {
         supabaseAdmin
           .from('card_features')
           .select('*', { count: 'exact', head: true })
-          .eq('is_private', false)
+          .eq('visibility', Visibility.PUBLIC)
       )
 
       // Group by tech (apenas públicos)
@@ -481,7 +508,7 @@ export class CardFeatureModel {
         supabaseAdmin
           .from('card_features')
           .select('tech')
-          .eq('is_private', false)
+          .eq('visibility', Visibility.PUBLIC)
       )
 
       // Group by language (apenas públicos)
@@ -489,7 +516,7 @@ export class CardFeatureModel {
         supabaseAdmin
           .from('card_features')
           .select('language')
-          .eq('is_private', false)
+          .eq('visibility', Visibility.PUBLIC)
       )
 
       // Recent count (last 7 days, apenas públicos)
@@ -500,7 +527,7 @@ export class CardFeatureModel {
         supabaseAdmin
           .from('card_features')
           .select('*', { count: 'exact', head: true })
-          .eq('is_private', false)
+          .eq('visibility', Visibility.PUBLIC)
           .gte('created_at', sevenDaysAgo.toISOString())
       )
 
