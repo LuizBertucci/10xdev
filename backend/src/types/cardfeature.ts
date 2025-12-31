@@ -16,6 +16,13 @@ export enum CardType {
   WORKFLOWS = 'workflows'
 }
 
+// Enum para visibilidade do card
+export enum Visibility {
+  PUBLIC = 'public',      // Aparece em listagens, qualquer um pode ver
+  PRIVATE = 'private',    // Só o criador (e compartilhados) pode ver
+  UNLISTED = 'unlisted'   // Não aparece em listagens, mas qualquer um com link pode ver
+}
+
 // NOVA estrutura - Bloco individual de conteúdo
 export interface ContentBlock {
   id: string                    // UUID único
@@ -44,7 +51,8 @@ export interface CardFeatureRow {
   card_type: CardType          // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]
   created_by: string | null    // ID do usuário que criou o card (pode ser null quando autor é anônimo)
-  is_private: boolean          // Se o card é privado (apenas criador pode ver)
+  is_private: boolean          // LEGADO: mantido para compatibilidade
+  visibility: Visibility       // NOVO: controle de visibilidade (public/private/unlisted)
   created_in_project_id?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   created_at: string
   updated_at: string
@@ -60,7 +68,8 @@ export interface CardFeatureInsert {
   card_type: CardType
   screens: CardFeatureScreen[]
   created_by?: string          // ID do usuário (backend preenche automaticamente)
-  is_private?: boolean         // Visibilidade do card (padrão: false = público)
+  is_private?: boolean         // LEGADO: mantido para compatibilidade
+  visibility?: Visibility      // NOVO: controle de visibilidade (padrão: public)
   created_in_project_id?: string | null  // ID do projeto onde foi criado (opcional)
   created_at?: string
   updated_at?: string
@@ -75,7 +84,8 @@ export interface CardFeatureUpdate {
   content_type?: ContentType
   card_type?: CardType
   screens?: CardFeatureScreen[]
-  is_private?: boolean         // Permite alterar visibilidade
+  is_private?: boolean         // LEGADO: mantido para compatibilidade
+  visibility?: Visibility      // NOVO: permite alterar visibilidade
   updated_at?: string
 }
 
@@ -91,7 +101,8 @@ export interface CreateCardFeatureRequest {
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
-  is_private?: boolean         // Visibilidade do card (padrão: false = público)
+  is_private?: boolean         // LEGADO: mantido para compatibilidade
+  visibility?: Visibility      // NOVO: controle de visibilidade (padrão: public)
   created_in_project_id?: string  // ID do projeto onde foi criado (opcional)
 }
 
@@ -108,7 +119,8 @@ export interface CardFeatureResponse {
   screens: CardFeatureScreen[]
   createdBy: string | null     // ID do usuário que criou (camelCase para API). Pode ser null quando autor é anônimo
   author?: string | null       // Nome do usuário criador (vem do JOIN com users)
-  isPrivate: boolean           // Se o card é privado (camelCase para API)
+  isPrivate: boolean           // LEGADO: mantido para compatibilidade
+  visibility: Visibility       // NOVO: controle de visibilidade (public/private/unlisted)
   createdInProjectId?: string | null  // ID do projeto onde foi criado (camelCase para API)
   createdAt: string
   updatedAt: string

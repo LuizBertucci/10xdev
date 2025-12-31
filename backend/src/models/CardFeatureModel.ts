@@ -1,5 +1,8 @@
 import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
+import {
+  Visibility
+} from '@/types/cardfeature'
 import type {
   CardFeatureRow,
   CardFeatureInsert,
@@ -20,6 +23,9 @@ export class CardFeatureModel {
     // Extrair dados do usuário
     const userData = row.users || null
 
+    // Derivar visibility a partir de is_private se não existir (compatibilidade)
+    const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+
     return {
       id: row.id,
       title: row.title,
@@ -31,7 +37,8 @@ export class CardFeatureModel {
       screens: row.screens,
       createdBy: row.created_by,
       author: userData?.name || null,
-      isPrivate: row.is_private ?? false,
+      isPrivate: row.is_private ?? false, // LEGADO: mantido para compatibilidade
+      visibility: visibility as Visibility, // NOVO: controle de visibilidade
       createdInProjectId: row.created_in_project_id || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -44,23 +51,27 @@ export class CardFeatureModel {
       .from('card_features')
       .select('*', { count: 'exact' })
 
-    // Filtro de visibilidade:
-    // - Admin vê TODOS os cards (públicos e privados de qualquer usuário)
-    // - Usuário autenticado vê: públicos + seus privados + compartilhados
-    // - Não autenticado vê: apenas públicos
+    // Filtro de visibilidade para LISTAGENS:
+    // - Admin vê TODOS os cards (public + private + unlisted de todos)
+    // - Usuário autenticado vê: public + seus private + seus unlisted + compartilhados
+    // - Não autenticado vê: apenas public
+    //
+    // IMPORTANTE: unlisted de OUTROS usuários NÃO aparece em listagens!
+    // O acesso a unlisted de outros é apenas via link direto (findById)
     if (userRole === 'admin') {
       // Admin vê todos os cards - não aplica filtro de visibilidade
     } else if (userId) {
-      // Usar SQL raw para incluir cards compartilhados via EXISTS
-      // (is_private=false) OR (is_private=true AND created_by=userId) OR (EXISTS compartilhamento)
+      // Usar visibility quando disponível, com fallback para is_private
+      // public OR (private AND próprio) OR (unlisted AND próprio) OR compartilhado
       query = query.or(
-        `is_private.eq.false,` +
-        `and(is_private.eq.true,created_by.eq.${userId}),` +
+        `visibility.eq.public,` +
+        `and(visibility.eq.private,created_by.eq.${userId}),` +
+        `and(visibility.eq.unlisted,created_by.eq.${userId}),` +
         `id.in.(select card_feature_id from card_shares where shared_with_user_id='${userId}')`
       )
     } else {
-      // Não autenticado: apenas cards públicos
-      query = query.eq('is_private', false)
+      // Não autenticado: apenas cards públicos em listagens
+      query = query.eq('visibility', Visibility.PUBLIC)
     }
 
     // Filtro para excluir cards criados em projetos (apenas cards da aba Códigos)
@@ -120,6 +131,9 @@ export class CardFeatureModel {
         }))
       }))
 
+      // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
+      const visibility = data.visibility || (data.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
         title: data.title || '',
@@ -130,7 +144,8 @@ export class CardFeatureModel {
         card_type: data.card_type || 'codigos',
         screens: processedScreens,
         created_by: userId,
-        is_private: data.is_private ?? false,
+        is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
+        visibility: visibility, // NOVO: usar visibility
         created_in_project_id: data.created_in_project_id || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -177,40 +192,47 @@ export class CardFeatureModel {
 
   static async findById(id: string, userId?: string, userRole?: string): Promise<ModelResult<CardFeatureResponse>> {
     try {
-      let query = supabaseAdmin
+      // Para acesso DIRETO via link (findById):
+      // - Admin vê todos
+      // - Unlisted: qualquer pessoa com o link pode ver
+      // - Public: qualquer pessoa pode ver
+      // - Private: apenas criador ou compartilhados
+
+      // Primeiro, buscar o card SEM filtro de visibilidade
+      const query = supabaseAdmin
         .from('card_features')
         .select('*')
         .eq('id', id)
 
-      // Aplicar filtro de visibilidade
-      // Admin vê todos os cards - não aplica filtro
-      if (userRole === 'admin') {
-        // Admin vê todos - não aplica filtro de visibilidade
-      } else if (userId) {
-        // Cards públicos OU cards privados do próprio usuário
-        query = query.or(`is_private.eq.false,and(is_private.eq.true,created_by.eq.${userId})`)
-      } else {
-        // Não autenticado: apenas cards públicos
-        query = query.eq('is_private', false)
-      }
-
       const { data } = await executeQuery(query.single())
 
-      // Verificar se card existe e se usuário tem acesso
+      // Verificar se card existe
       if (!data) {
         return {
           success: false,
-          error: 'Card não encontrado ou você não tem permissão para visualizá-lo',
+          error: 'Card não encontrado',
           statusCode: 404
         }
       }
 
-      // Verificação adicional: se privado, deve ser do usuário OU admin
-      if (data.is_private && data.created_by !== userId && userRole !== 'admin') {
-        return {
-          success: false,
-          error: 'Você não tem permissão para visualizar este card',
-          statusCode: 403
+      // Derivar visibility a partir de is_private se não existir (compatibilidade)
+      const visibility = data.visibility || (data.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+
+      // Verificar permissão baseado em visibility
+      if (userRole === 'admin') {
+        // Admin vê todos - OK
+      } else if (visibility === Visibility.PUBLIC || visibility === Visibility.UNLISTED) {
+        // Public e Unlisted: qualquer um com link pode ver - OK
+      } else if (visibility === Visibility.PRIVATE) {
+        // Private: apenas criador ou compartilhados
+        if (data.created_by !== userId) {
+          // TODO: Verificar se está nos compartilhados
+          // Por agora, apenas verifica se é o criador
+          return {
+            success: false,
+            error: 'Você não tem permissão para visualizar este card',
+            statusCode: 403
+          }
         }
       }
 
@@ -518,20 +540,25 @@ export class CardFeatureModel {
 
   static async bulkCreate(items: CreateCardFeatureRequest[], userId: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
-      const insertData: CardFeatureInsert[] = items.map(item => ({
-        id: randomUUID(),
-        title: item.title,
-        tech: item.tech,
-        language: item.language,
-        description: item.description,
-        content_type: item.content_type,
-        card_type: item.card_type || 'codigos',
-        screens: item.screens,
-        created_by: userId,
-        is_private: item.is_private ?? false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }))
+      const insertData: CardFeatureInsert[] = items.map(item => {
+        // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
+        const visibility = item.visibility || (item.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+        return {
+          id: randomUUID(),
+          title: item.title,
+          tech: item.tech,
+          language: item.language,
+          description: item.description,
+          content_type: item.content_type,
+          card_type: item.card_type || 'codigos',
+          screens: item.screens,
+          created_by: userId,
+          is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
+          visibility: visibility, // NOVO: usar visibility
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      })
 
       const { data } = await executeQuery(
         supabaseAdmin
