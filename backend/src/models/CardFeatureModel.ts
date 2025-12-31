@@ -86,7 +86,7 @@ export class CardFeatureModel {
     }
 
     if (params.search) {
-      query = query.or(`title.ilike.%${params.search}%,description.ilike.%${params.search}%,tech.ilike.%${params.search}%`)
+      query = query.ilike('title', `%${params.search}%`)
     }
 
     // Ordenação

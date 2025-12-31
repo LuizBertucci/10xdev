@@ -315,9 +315,10 @@ export default function Codes({ platformState }: CodesProps) {
           {/* Right side actions group */}
           <div className="flex items-center gap-2">
             {/* Create Button with Dropdown (admin only) */}
-            {(isProfileLoaded && isAdmin) && (
-              <div className="flex flex-shrink-0">
-                <Button
+            <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
+              isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+            }`}>
+              <Button
                   onClick={cardFeatures.startCreating}
                   disabled={cardFeatures.loading || cardFeatures.creating}
                   size="sm"
@@ -348,8 +349,7 @@ export default function Codes({ platformState }: CodesProps) {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
+import { useCardTabState } from "@/hooks/useCardTabState"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CardFeatureCompactProps {
@@ -22,8 +23,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
-  // Estado para controlar a aba ativa (similar ao CardFeature)
-  const [activeTab, setActiveTab] = useState(0)
+  // Estado para controlar a aba ativa - persiste na URL
+  const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
   
