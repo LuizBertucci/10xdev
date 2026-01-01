@@ -384,7 +384,7 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
 
         {/* Visibility Tabs Row - Moved above filters */}
-        <div className="flex justify-start sm:justify-end mt-2 mb-3 w-full max-w-[900px] mx-auto">
+        <div className="flex justify-start sm:justify-end mt-2 mb-6 w-full max-w-[900px] mx-auto">
           <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-full sm:w-auto">
             <TabsList className="h-10 w-full sm:w-auto grid grid-cols-3 sm:flex bg-gray-100 p-1 rounded-lg">
               <TabsTrigger 
@@ -419,29 +419,6 @@ export default function Codes({ platformState }: CodesProps) {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </div>
-
-        {/* Tech Filter Row - Agora apenas com filtro de tech alinhado à direita */}
-        <div className="flex justify-end gap-2 sm:gap-3 items-center mb-6">
-          <div className="hidden sm:block">
-            <Select
-              value={cardFeatures.selectedTech}
-              onValueChange={cardFeatures.setSelectedTech}
-              disabled={cardFeatures.loading}
-            >
-              <SelectTrigger className="w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="react">React</SelectItem>
-                <SelectItem value="node.js">Node.js</SelectItem>
-                <SelectItem value="python">Python</SelectItem>
-                <SelectItem value="javascript">JavaScript</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 

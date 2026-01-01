@@ -247,68 +247,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {/* Badge de Visibilidade Mobile - Lógica unificada */}
-                  {snippet.visibility ? (
-                    <>
-                      {snippet.visibility === Visibility.PUBLIC && (
-                        <>
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-green-300 bg-green-50 text-green-700"
-                          >
-                            <Globe className="h-2.5 w-2.5 mr-0.5" />
-                            Público
-                          </Badge>
-                          <span className="text-gray-400 text-[8px]">●</span>
-                        </>
-                      )}
-                      {snippet.visibility === Visibility.PRIVATE && (
-                        <>
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
-                          >
-                            <Lock className="h-2.5 w-2.5 mr-0.5" />
-                            Privado
-                          </Badge>
-                          <span className="text-gray-400 text-[8px]">●</span>
-                        </>
-                      )}
-                      {snippet.visibility === Visibility.UNLISTED && (
-                        <>
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
-                          >
-                            <Link2 className="h-2.5 w-2.5 mr-0.5" />
-                            Não Listado
-                          </Badge>
-                          <span className="text-gray-400 text-[8px]">●</span>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    /* Fallback mobile */
-                    <>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                      >
-                        {snippet.isPrivate ? (
-                          <>
-                            <Lock className="h-2.5 w-2.5 mr-0.5 text-orange-600" />
-                            Privado
-                          </>
-                        ) : (
-                          <>
-                            <Globe className="h-2.5 w-2.5 mr-0.5 text-green-600" />
-                            Público
-                          </>
-                        )}
-                      </Badge>
-                      <span className="text-gray-400 text-[8px]">●</span>
-                    </>
-                  )}
                   <Badge
                     variant="secondary"
                     className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
@@ -323,36 +261,93 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
                     {snippet.tech}
                   </Badge>
-                  <Badge
-                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                  >
-                    <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                    {snippet.language}
-                  </Badge>
+                  {snippet.language.toLowerCase() !== snippet.tech.toLowerCase() && (
+                    <Badge
+                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                    >
+                      <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                      {snippet.language}
+                    </Badge>
+                  )}
                 </div>
                 
                 {/* Linha separatória */}
                 <div className="border-t border-gray-200 pt-2">
                   {/* Ícones em linha horizontal - alinhados à direita */}
-                  <div className="flex items-center justify-end gap-2">
-                    {/* Botão Copiar para IDE */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyUrl}
-                    >
-                      {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {copied ? 'Copiado!' : 'Copiar para IDE'}
-                    </Button>
-
-                    {/* Toggle - extrema direita */}
-                    <div className="text-gray-400 ml-1">
-                      {isExpanded ? (
-                        <ChevronUp className="h-5 w-5" />
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Badge de Visibilidade Mobile (Lado Esquerdo) */}
+                    <div className="flex-shrink-0">
+                      {snippet.visibility ? (
+                        <>
+                          {snippet.visibility === Visibility.PUBLIC && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-green-300 bg-green-50 text-green-700"
+                            >
+                              <Globe className="h-2.5 w-2.5 mr-0.5" />
+                              Público
+                            </Badge>
+                          )}
+                          {snippet.visibility === Visibility.PRIVATE && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                            >
+                              <Lock className="h-2.5 w-2.5 mr-0.5" />
+                              Privado
+                            </Badge>
+                          )}
+                          {snippet.visibility === Visibility.UNLISTED && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                            >
+                              <Link2 className="h-2.5 w-2.5 mr-0.5" />
+                              Não Listado
+                            </Badge>
+                          )}
+                        </>
                       ) : (
-                        <ChevronDown className="h-5 w-5" />
+                        /* Fallback mobile */
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                        >
+                          {snippet.isPrivate ? (
+                            <>
+                              <Lock className="h-2.5 w-2.5 mr-0.5 text-orange-600" />
+                              Privado
+                            </>
+                          ) : (
+                            <>
+                              <Globe className="h-2.5 w-2.5 mr-0.5 text-green-600" />
+                              Público
+                            </>
+                          )}
+                        </Badge>
                       )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Botão Copiar para IDE */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                        onClick={handleCopyUrl}
+                      >
+                        {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                        {copied ? 'Copiado!' : 'Copiar para IDE'}
+                      </Button>
+
+                      {/* Toggle - extrema direita */}
+                      <div className="text-gray-400 ml-1">
+                        {isExpanded ? (
+                          <ChevronUp className="h-5 w-5" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
