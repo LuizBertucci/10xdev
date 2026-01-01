@@ -69,6 +69,7 @@ export class CardFeatureController {
         content_type: req.query.content_type as string,
         card_type: req.query.card_type as string,
         search: req.query.search as string,
+        visibility: req.query.visibility as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
       }

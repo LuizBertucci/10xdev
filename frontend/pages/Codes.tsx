@@ -68,6 +68,8 @@ export default function Codes({ platformState }: CodesProps) {
   const cardFeatures = useCardFeatures({ initialPage }, {
     searchTerm: activePlatformState.searchTerm,
     selectedTech: activePlatformState.selectedTech,
+    selectedVisibility,
+    selectedCardType,
     setSearchTerm: activePlatformState.setSearchTerm,
     setSelectedTech: activePlatformState.setSelectedTech
   })
@@ -109,25 +111,8 @@ export default function Codes({ platformState }: CodesProps) {
     }
   }, [cardFeatures.loading, cardFeatures.searchTerm])
 
-  // Dados filtrados vindos da API
-  const codeSnippets = cardFeatures.filteredItems.filter(item => {
-    // Filtro por tipo de card
-    const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
-
-    // Filtro por visibilidade (usando visibility com fallback para isPrivate)
-    const itemVisibility = item.visibility || (item.isPrivate ? Visibility.PRIVATE : Visibility.PUBLIC)
-    let matchesVisibility = true
-    if (selectedVisibility === 'public') {
-      matchesVisibility = itemVisibility === Visibility.PUBLIC
-    } else if (selectedVisibility === 'private') {
-      matchesVisibility = itemVisibility === Visibility.PRIVATE
-    } else if (selectedVisibility === 'unlisted') {
-      matchesVisibility = itemVisibility === Visibility.UNLISTED
-    }
-    // 'all' não filtra por visibilidade
-
-    return matchesCardType && matchesVisibility
-  })
+  // A API já retorna os dados filtrados e a contagem correta para paginação
+  const codeSnippets = cardFeatures.filteredItems
 
   // ================================================
   // EVENT HANDLERS - Funções para lidar com ações do usuário
@@ -424,13 +409,13 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'all'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'public'
               ? 'Nenhum snippet encontrado'
               : 'Nenhum card disponível'
             }
           </h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'all'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'public'
               ? 'Tente ajustar seus filtros de busca'
               : 'Ainda não há snippets de código disponíveis para visualização'
             }

@@ -150,6 +150,7 @@ export interface CardFeatureQueryParams {
   content_type?: string
   card_type?: string
   search?: string
+  visibility?: string
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'
 }

@@ -8,6 +8,8 @@ import type { CardFeature, CardFeatureState, CreateCardFeatureData, UpdateCardFe
 export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFilters?: {
   searchTerm?: string
   selectedTech?: string
+  selectedVisibility?: string
+  selectedCardType?: string
   setSearchTerm?: (term: string) => void
   setSelectedTech?: (tech: string) => void
 }): UseCardFeaturesReturn {
@@ -61,12 +63,14 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     try {
       const queryParams: QueryParams = {
         ...params,
-        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
+        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
+        visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
+        card_type: externalFilters?.selectedCardType !== 'all' ? externalFilters?.selectedCardType : undefined
       }
       
       const response = await cardFeatureService.getAll(queryParams)
       
-      if (response.success && response.data) {
+      if (response && response.success && response.data) {
         const items = Array.isArray(response.data) ? response.data : []
         setState(prev => ({
           ...prev,
@@ -87,7 +91,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         
         return response
       } else {
-        throw new Error(response.error || 'Erro ao carregar CardFeatures')
+        throw new Error(response?.error || 'Erro ao carregar CardFeatures')
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar CardFeatures'
@@ -99,7 +103,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       throw error
     }
-  }, [state.selectedTech])
+  }, [state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedCardType])
 
   // Wrapper para usePagination (precisa retornar void)
   const paginationFetchFn = useCallback(async (params: FetchParams) => {
@@ -110,6 +114,13 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     itemsPerPage,
     initialPage
   })
+
+  // ✅ NOVO: Observar mudanças na visibilidade ou tipo externos
+  useEffect(() => {
+    if (externalFilters?.selectedVisibility || externalFilters?.selectedCardType) {
+      pagination.goToPage(1)
+    }
+  }, [externalFilters?.selectedVisibility, externalFilters?.selectedCardType])
 
   // Atualizar a ref quando pagination for criado
   useEffect(() => {
@@ -123,9 +134,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         page: 1,
         limit: itemsPerPage,
         search: term.trim() || undefined,
-        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined
+        tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
+        visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
+        card_type: externalFilters?.selectedCardType !== 'all' ? externalFilters?.selectedCardType : undefined
       })
-    }, [fetchCardFeaturesWithPagination, itemsPerPage, state.selectedTech]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedCardType]),
     { delay: 500 }
   )
 
@@ -145,7 +158,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       const response = await cardFeatureService.create(data)
       console.log('Resposta da API:', response)
       
-      if (response.success && response.data) {
+      if (response && response.success && response.data) {
         setState(prev => ({
           ...prev,
           items: [response.data!, ...(Array.isArray(prev.items) ? prev.items : [])],
@@ -154,7 +167,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         setModalState(prev => ({ ...prev, isCreating: false }))
         return response.data
       } else {
-        throw new Error(response.error || 'Erro ao criar CardFeature')
+        throw new Error(response?.error || 'Erro ao criar CardFeature')
       }
     } catch (error) {
       console.error('Erro ao criar CardFeature:', error)
@@ -183,11 +196,11 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     try {
       const response = await cardFeatureService.getById(id)
       
-      if (response.success && response.data) {
+      if (response && response.success && response.data) {
         setState(prev => ({ ...prev, fetching: false }))
         return response.data
       } else {
-        throw new Error(response.error || 'CardFeature não encontrado')
+        throw new Error(response?.error || 'CardFeature não encontrado')
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao buscar CardFeature'
@@ -223,7 +236,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       const response = await cardFeatureService.update(id, data)
       console.log('Resposta da API (update):', response)
       
-      if (response.success && response.data) {
+      if (response && response.success && response.data) {
         console.log('CardFeature atualizado com sucesso! Fechando modal...')
         setState(prev => ({
           ...prev,
@@ -236,7 +249,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         console.log('Modal fechado, retornando dados:', response.data)
         return response.data
       } else {
-        throw new Error(response.error || 'Erro ao atualizar CardFeature')
+        throw new Error(response?.error || 'Erro ao atualizar CardFeature')
       }
     } catch (error) {
       console.error('Erro ao atualizar CardFeature:', error)
@@ -265,7 +278,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     try {
       const response = await cardFeatureService.delete(id)
       
-      if (response.success) {
+      if (response && response.success) {
         setState(prev => ({
           ...prev,
           items: (Array.isArray(prev.items) ? prev.items : []).filter(item => item.id !== id),
@@ -273,7 +286,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         }))
         return true
       } else {
-        throw new Error(response.error || 'Erro ao remover CardFeature')
+        throw new Error(response?.error || 'Erro ao remover CardFeature')
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao remover CardFeature'
@@ -366,16 +379,20 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         page: params?.page || 1,
         limit: params?.limit || itemsPerPage,
         search: params?.search,
-        tech: params?.tech
+        tech: params?.tech,
+        visibility: params?.visibility || externalFilters?.selectedVisibility,
+        card_type: params?.card_type || externalFilters?.selectedCardType
       })
-    }, [fetchCardFeaturesWithPagination, itemsPerPage]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedCardType]),
     searchCardFeatures: useCallback(async (searchTerm: string) => {
       await fetchCardFeaturesWithPagination({
         page: 1,
         limit: itemsPerPage,
-        search: searchTerm.trim() || undefined
+        search: searchTerm.trim() || undefined,
+        visibility: externalFilters?.selectedVisibility,
+        card_type: externalFilters?.selectedCardType
       })
-    }, [fetchCardFeaturesWithPagination, itemsPerPage]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedCardType]),
 
     setSearchTerm,
     setSelectedTech,
