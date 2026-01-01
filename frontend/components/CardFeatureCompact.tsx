@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check } from "lucide-react"
+import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
@@ -103,24 +104,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   {/* Autor e privacidade à esquerda */}
                   <div className="flex items-center gap-2">
                     {/* Badge de Visibilidade */}
-                    {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
-                      >
-                        <Lock className="h-3 w-3 mr-1" />
-                        Privado
-                      </Badge>
-                    )}
-                    {snippet.visibility === Visibility.UNLISTED && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
-                      >
-                        <Link2 className="h-3 w-3 mr-1" />
-                        Não Listado
-                      </Badge>
-                    )}
+                    <VisibilityTab visibility={snippet.visibility} isPrivate={snippet.isPrivate} />
+                    
                     <Badge
                       variant="secondary"
                       className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
@@ -185,31 +170,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {/* Badge de Visibilidade Mobile */}
-                  {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
-                    <>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
-                      >
-                        <Lock className="h-2.5 w-2.5 mr-0.5" />
-                        Privado
-                      </Badge>
-                      <span className="text-gray-400 text-[8px]">●</span>
-                    </>
-                  )}
-                  {snippet.visibility === Visibility.UNLISTED && (
-                    <>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
-                      >
-                        <Link2 className="h-2.5 w-2.5 mr-0.5" />
-                        Não Listado
-                      </Badge>
-                      <span className="text-gray-400 text-[8px]">●</span>
-                    </>
-                  )}
                   <Badge
                     variant="secondary"
                     className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
@@ -224,36 +184,49 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                     <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
                     {snippet.tech}
                   </Badge>
-                  <Badge
-                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                  >
-                    <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                    {snippet.language}
-                  </Badge>
+                  {snippet.language.toLowerCase() !== snippet.tech.toLowerCase() && (
+                    <Badge
+                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
+                    >
+                      <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                      {snippet.language}
+                    </Badge>
+                  )}
                 </div>
                 
                 {/* Linha separatória */}
                 <div className="border-t border-gray-200 pt-2">
                   {/* Ícones em linha horizontal - alinhados à direita */}
-                  <div className="flex items-center justify-end gap-2">
-                    {/* Botão Copiar para IDE */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyUrl}
-                    >
-                      {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {copied ? 'Copiado!' : 'Copiar para IDE'}
-                    </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Badge de Visibilidade Mobile (Lado Esquerdo) */}
+                    <div className="flex-shrink-0">
+                      <VisibilityTab 
+                        visibility={snippet.visibility} 
+                        isPrivate={snippet.isPrivate} 
+                        size="small" 
+                      />
+                    </div>
 
-                    {/* Toggle - extrema direita */}
-                    <div className="text-gray-400 ml-1">
-                      {isExpanded ? (
-                        <ChevronUp className="h-5 w-5" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5" />
-                      )}
+                    <div className="flex items-center gap-2">
+                      {/* Botão Copiar para IDE */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                        onClick={handleCopyUrl}
+                      >
+                        {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                        {copied ? 'Copiado!' : 'Copiar para IDE'}
+                      </Button>
+
+                      {/* Toggle - extrema direita */}
+                      <div className="text-gray-400 ml-1">
+                        {isExpanded ? (
+                          <ChevronUp className="h-5 w-5" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

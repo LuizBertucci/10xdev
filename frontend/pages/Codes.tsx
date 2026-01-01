@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2 } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2, User } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
@@ -60,7 +60,7 @@ export default function Codes({ platformState }: CodesProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
-  const [selectedVisibility, setSelectedVisibility] = useState<string>('all')
+  const [selectedVisibility, setSelectedVisibility] = useState<string>('public')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
@@ -86,9 +86,11 @@ export default function Codes({ platformState }: CodesProps) {
       params.set('page', String(cardFeatures.currentPage))
     }
     const qs = params.toString()
-    const url = qs ? `${pathname}?${qs}` : pathname
-    const currentUrl = searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname
-    if (url !== currentUrl) {
+    
+    const url = pathname ? (qs ? `${pathname}?${qs}` : pathname) : null
+    const currentUrl = pathname ? (searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname) : null
+    
+    if (url && url !== currentUrl) {
       router.replace(url, { scroll: false })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,7 +224,7 @@ export default function Codes({ platformState }: CodesProps) {
 
   // HEADER - Breadcrumb + Busca + Filtros + Botão Criar
   return (
-    <div className="space-y-6 w-full overflow-x-hidden">
+    <div className="space-y-6 w-full overflow-x-hidden px-1">
       {/* Header - Layout Responsivo */}
       <div className="space-y-4 w-full max-w-[900px] mx-auto">
         {/* Breadcrumb Navigation */}
@@ -251,120 +253,141 @@ export default function Codes({ platformState }: CodesProps) {
           )}
         </div>
 
-        {/* Search Input - Primeira linha no mobile para fácil acesso */}
-        <div className="relative w-full min-w-0 mb-3">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Buscar snippets..."
-            value={cardFeatures.searchTerm}
-            onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
-            className="pl-10 w-full"
-          />
-        </div>
-
-        {/* Filters and Actions Row - Layout otimizado para mobile */}
-        <div className="flex justify-between sm:justify-end gap-2 sm:gap-3 items-center mb-3">
-          {/* Card Type Filter */}
-          <Select
-            value={selectedCardType}
-            onValueChange={setSelectedCardType}
-            disabled={cardFeatures.loading}
-          >
-            <SelectTrigger className="w-28 sm:w-40">
-              <Filter className="h-4 w-4 mr-1 sm:mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="dicas">Dicas</SelectItem>
-              <SelectItem value="codigos">Códigos</SelectItem>
-              <SelectItem value="workflows">Workflows</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Visibility Tabs */}
-          <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-auto">
-            <TabsList className="h-9 bg-gray-100">
-              <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                Todos
-              </TabsTrigger>
-              <TabsTrigger value="public" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-green-600" />
-                <span className="hidden sm:inline">Públicos</span>
-              </TabsTrigger>
-              <TabsTrigger value="unlisted" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-blue-600" />
-                <span className="hidden sm:inline">Não Listados</span>
-              </TabsTrigger>
-              <TabsTrigger value="private" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-orange-600" />
-                <span className="hidden sm:inline">Privados</span>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* Tech Filter - Hidden on mobile */}
-          <div className="hidden sm:block">
-            <Select
-              value={cardFeatures.selectedTech}
-              onValueChange={cardFeatures.setSelectedTech}
-              disabled={cardFeatures.loading}
-            >
-              <SelectTrigger className="w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="react">React</SelectItem>
-                <SelectItem value="node.js">Node.js</SelectItem>
-                <SelectItem value="python">Python</SelectItem>
-                <SelectItem value="javascript">JavaScript</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Right side actions group */}
-          <div className="flex items-center gap-2">
-            {/* Create Button with Dropdown (admin only) */}
-            <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
-              isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
-            }`}>
-              <Button
-                  onClick={cardFeatures.startCreating}
-                  disabled={cardFeatures.loading || cardFeatures.creating}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="sm:hidden">
-                    {cardFeatures.creating ? 'Criando...' : 'Novo card'}
-                  </span>
-                  <span className="hidden sm:inline">
-                    {cardFeatures.creating ? 'Criando...' : 'Novo Card'}
-                  </span>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      disabled={cardFeatures.loading || cardFeatures.creating}
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
-                      <FileJson className="h-4 w-4 mr-2" />
-                      Criar via JSON
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+        {/* Search Input and Create Button Row - Unificados na mesma linha com filtro interno */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Buscar snippets..."
+              value={cardFeatures.searchTerm}
+              onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
+              className="pl-10 pr-10 w-full h-10"
+            />
+            
+            {/* Card Type Filter - Posicionado ABSOLUTAMENTE dentro da busca na direita */}
+            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={`h-8 w-8 p-0 hover:bg-gray-100 ${selectedCardType !== 'all' ? 'text-blue-600' : 'text-gray-400'}`}
+                    title="Filtrar por tipo"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setSelectedCardType('all')} className={selectedCardType === 'all' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Todos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedCardType('dicas')} className={selectedCardType === 'dicas' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Dicas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedCardType('codigos')} className={selectedCardType === 'codigos' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Códigos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedCardType('workflows')} className={selectedCardType === 'workflows' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Workflows
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+
+          {/* Create Button with Dropdown (admin only) */}
+          <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
+            isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+          }`}>
+            <Button
+                onClick={cardFeatures.startCreating}
+                disabled={cardFeatures.loading || cardFeatures.creating}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                <span className="sm:hidden">
+                  {cardFeatures.creating ? 'Criando...' : 'Criar'}
+                </span>
+                <span className="hidden sm:inline">
+                  {cardFeatures.creating ? 'Criando...' : 'Novo card'}
+                </span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    disabled={cardFeatures.loading || cardFeatures.creating}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
+                    <FileJson className="h-4 w-4 mr-2" />
+                    Criar via JSON
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
         </div>
+
+        {/* Visibility Tabs Row - Split into Global and Personal Groups */}
+        <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-full max-w-[900px] mx-auto mt-2 mb-6">
+          <div className="flex gap-3 sm:gap-6 items-end w-full">
+            {/* Group 1: Global Directory */}
+            <div className="flex flex-col gap-1.5 flex-[1] min-w-0">
+              <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
+                <Globe className="h-3 w-3 mr-1 text-green-600/50" />
+                Global
+              </div>
+              <TabsList className="h-10 w-full bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+                <TabsTrigger 
+                  value="public" 
+                  className="w-full text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <Globe className="h-4 w-4 sm:mr-2 text-green-600" />
+                    <span className="hidden sm:inline">Públicos</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Group 2: Personal Space */}
+            <div className="flex flex-col gap-1.5 flex-[2] min-w-0">
+              <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
+                <User className="h-3 w-3 mr-1 text-orange-600/50" />
+                Seu Espaço
+              </div>
+              <TabsList className="h-10 w-full grid grid-cols-2 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+                <TabsTrigger 
+                  value="unlisted" 
+                  className="text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <Link2 className="h-4 w-4 sm:mr-2 text-blue-600" />
+                    <span className="hidden sm:inline">Não Listados</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="private" 
+                  className="text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-orange-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <Lock className="h-4 w-4 sm:mr-2 text-orange-600" />
+                    <span className="hidden sm:inline">Privados</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
+        </Tabs>
       </div>
 
       {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
