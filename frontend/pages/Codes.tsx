@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2 } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2, User } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
@@ -383,43 +383,60 @@ export default function Codes({ platformState }: CodesProps) {
           </div>
         </div>
 
-        {/* Visibility Tabs Row - Moved above filters */}
-        <div className="flex justify-start sm:justify-end mt-2 mb-6 w-full max-w-[900px] mx-auto">
-          <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-full sm:w-auto">
-            <TabsList className="h-10 w-full sm:w-auto grid grid-cols-3 sm:flex bg-gray-100 p-1 rounded-lg">
-              <TabsTrigger 
-                value="public" 
-                className="text-xs sm:text-sm px-2 sm:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm" 
-                disabled={cardFeatures.loading}
-              >
-                <div className="flex items-center justify-center">
-                  <Globe className="h-4 w-4 sm:mr-2 text-green-600" />
-                  <span className="hidden sm:inline">Públicos</span>
-                </div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="unlisted" 
-                className="text-xs sm:text-sm px-2 sm:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm" 
-                disabled={cardFeatures.loading}
-              >
-                <div className="flex items-center justify-center">
-                  <Link2 className="h-4 w-4 sm:mr-2 text-blue-600" />
-                  <span className="hidden sm:inline">Não Listados</span>
-                </div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="private" 
-                className="text-xs sm:text-sm px-2 sm:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm" 
-                disabled={cardFeatures.loading}
-              >
-                <div className="flex items-center justify-center">
-                  <Lock className="h-4 w-4 sm:mr-2 text-orange-600" />
-                  <span className="hidden sm:inline">Privados</span>
-                </div>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* Visibility Tabs Row - Split into Global and Personal Groups */}
+        <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-full max-w-[900px] mx-auto mt-2 mb-6">
+          <div className="flex gap-3 sm:gap-6 items-end w-full">
+            {/* Group 1: Global Directory */}
+            <div className="flex flex-col gap-1.5 flex-[1] min-w-0">
+              <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
+                <Globe className="h-3 w-3 mr-1 text-green-600/50" />
+                Global
+              </div>
+              <TabsList className="h-10 w-full bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+                <TabsTrigger 
+                  value="public" 
+                  className="w-full text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <Globe className="h-4 w-4 sm:mr-2 text-green-600" />
+                    <span className="hidden sm:inline">Públicos</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Group 2: Personal Space */}
+            <div className="flex flex-col gap-1.5 flex-[2] min-w-0">
+              <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
+                <User className="h-3 w-3 mr-1 text-orange-600/50" />
+                Seu Espaço
+              </div>
+              <TabsList className="h-10 w-full grid grid-cols-2 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+                <TabsTrigger 
+                  value="unlisted" 
+                  className="text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <Link2 className="h-4 w-4 sm:mr-2 text-blue-600" />
+                    <span className="hidden sm:inline">Não Listados</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="private" 
+                  className="text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-orange-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <Lock className="h-4 w-4 sm:mr-2 text-orange-600" />
+                    <span className="hidden sm:inline">Privados</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
+        </Tabs>
       </div>
 
       {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
