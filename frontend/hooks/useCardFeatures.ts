@@ -116,11 +116,20 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   })
 
   // ✅ NOVO: Observar mudanças na visibilidade ou tipo externos
+  const isFirstMount = useRef(true)
   useEffect(() => {
-    if (externalFilters?.selectedVisibility || externalFilters?.selectedCardType) {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+
+    const hasVisibilityFilter = externalFilters?.selectedVisibility !== undefined && externalFilters.selectedVisibility !== 'all'
+    const hasCardTypeFilter = externalFilters?.selectedCardType !== undefined && externalFilters.selectedCardType !== 'all'
+
+    if (hasVisibilityFilter || hasCardTypeFilter) {
       pagination.goToPage(1)
     }
-  }, [externalFilters?.selectedVisibility, externalFilters?.selectedCardType])
+  }, [externalFilters?.selectedVisibility, externalFilters?.selectedCardType, pagination.goToPage])
 
   // Atualizar a ref quando pagination for criado
   useEffect(() => {
