@@ -455,6 +455,7 @@ export default function Codes({ platformState }: CodesProps) {
                   if (!isAdmin) return
                   handleDeleteClick(snippetId)
                 }}
+                onUpdate={cardFeatures.updateCardFeature}
               />
             ))}
           </div>

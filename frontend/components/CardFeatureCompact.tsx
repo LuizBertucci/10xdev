@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -18,10 +18,11 @@ interface CardFeatureCompactProps {
   snippet: CardFeatureType
   onEdit: (snippet: CardFeatureType) => void
   onDelete: (snippetId: string) => void
+  onUpdate?: (id: string, data: Partial<CardFeatureType>) => Promise<any>
   className?: string
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className }: CardFeatureCompactProps) {
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -69,6 +70,50 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
   // Screen ativa baseada na tab selecionada
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
 
+  // Função para mudar visibilidade rapidamente
+  const handleVisibilityChange = async (newVisibility: Visibility) => {
+    if (!onUpdate || !canEdit) return
+    
+    try {
+      await onUpdate(snippet.id, { visibility: newVisibility })
+      toast.success(`Visibilidade alterada para ${
+        newVisibility === Visibility.PUBLIC ? 'Público' : 
+        newVisibility === Visibility.PRIVATE ? 'Privado' : 'Não Listado'
+      }`)
+    } catch (err) {
+      toast.error("Erro ao alterar visibilidade")
+    }
+  }
+
+  const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <VisibilityTab 
+          visibility={snippet.visibility} 
+          isPrivate={snippet.isPrivate} 
+          size={size} 
+          isClickable={canEdit}
+        />
+      </DropdownMenuTrigger>
+      {canEdit && (
+        <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.PUBLIC)} className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-green-600" />
+            <span>Público</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.UNLISTED)} className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-blue-600" />
+            <span>Não Listado</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.PRIVATE)} className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-orange-600" />
+            <span>Privado</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      )}
+    </DropdownMenu>
+  )
+
   return (
     <TooltipProvider>
       <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${className || ''}`}>
@@ -104,7 +149,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   {/* Autor e privacidade à esquerda */}
                   <div className="flex items-center gap-2">
                     {/* Badge de Visibilidade */}
-                    <VisibilityTab visibility={snippet.visibility} isPrivate={snippet.isPrivate} />
+                    <VisibilityDropdown />
                     
                     <Badge
                       variant="secondary"
@@ -200,11 +245,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                   <div className="flex items-center justify-between gap-2">
                     {/* Badge de Visibilidade Mobile (Lado Esquerdo) */}
                     <div className="flex-shrink-0">
-                      <VisibilityTab 
-                        visibility={snippet.visibility} 
-                        isPrivate={snippet.isPrivate} 
-                        size="small" 
-                      />
+                      <VisibilityDropdown size="small" />
                     </div>
 
                     <div className="flex items-center gap-2">
