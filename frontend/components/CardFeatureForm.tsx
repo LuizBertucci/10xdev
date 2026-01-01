@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2 } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2 } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -73,6 +73,7 @@ function SortableTab({ screen, index, isActive, onRemove, onSelect, canRemove }:
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
   }
 
   return (
@@ -80,29 +81,41 @@ function SortableTab({ screen, index, isActive, onRemove, onSelect, canRemove }:
       ref={setNodeRef}
       style={style}
       value={index.toString()}
-      className="flex items-center justify-between gap-2 relative flex-shrink-0"
+      className={`
+        group flex items-center gap-2 px-3 py-1 h-7 min-w-[100px] max-w-[160px]
+        relative flex-shrink-0 transition-all duration-200
+        border rounded-md font-medium text-[11px]
+        ${isActive 
+          ? 'bg-white border-gray-200 text-blue-600 shadow-sm z-10' 
+          : 'bg-gray-100/40 border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+        }
+      `}
       onClick={onSelect}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab hover:cursor-grabbing p-1 rounded hover:bg-gray-100"
+          className="cursor-grab hover:cursor-grabbing p-0.5 rounded hover:bg-black/5 shrink-0"
           title="Arrastar para reordenar"
         >
           <GripVertical className="h-3 w-3 text-gray-400" />
         </div>
-        <span>{screen.name || `Arquivo ${index + 1}`}</span>
+        <span className="truncate flex-1 text-left">
+          {screen.name || `Arquivo ${index + 1}`}
+        </span>
       </div>
+      
       {canRemove && (
         <span
           onClick={(e) => {
             e.stopPropagation()
             onRemove()
           }}
-          className="h-4 w-4 p-0 text-gray-500 hover:text-red-600 cursor-pointer rounded flex items-center justify-center transition-colors"
+          className="h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 rounded flex items-center justify-center transition-all ml-1"
+          style={{ opacity: isActive ? 1 : undefined }} // Sempre mostrar se ativo
         >
-          <X className="h-3 w-3" />
+          <X className="h-2.5 w-2.5" />
         </span>
       )}
     </TabsTrigger>
@@ -144,6 +157,9 @@ export default function CardFeatureForm({
   
   // Estado para controlar aba ativa (0+ = arquivos)
   const [activeTab, setActiveTab] = useState<number>(0)
+
+  // Estado para visualização mobile (config ou codigo)
+  const [mobileViewTab, setMobileViewTab] = useState<'config' | 'code'>('config')
 
   // Sensores para drag and drop
   const sensors = useSensors(
@@ -361,7 +377,7 @@ export default function CardFeatureForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[95vh] sm:h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[85vh] sm:h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b shrink-0">
           <h3 className="text-base sm:text-xl font-semibold">
             {mode === 'create' ? 'Novo CardFeature' : 'Editar CardFeature'}
@@ -376,217 +392,276 @@ export default function CardFeatureForm({
         </div>
         
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+          {/* Seletor de Abas Mobile - Design Segmentado Moderno */}
+          <div className="md:hidden px-4 py-3 border-b shrink-0 bg-white">
+            <div className="flex p-1 bg-gray-100/80 rounded-xl border border-gray-200/50">
+              <button
+                type="button"
+                onClick={() => setMobileViewTab('config')}
+                className={`
+                  flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all duration-200
+                  ${mobileViewTab === 'config' 
+                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5' 
+                    : 'text-gray-500 hover:text-gray-700'
+                  }
+                `}
+              >
+                <Settings className={`h-3.5 w-3.5 ${mobileViewTab === 'config' ? 'text-blue-600' : 'text-gray-400'}`} />
+                Configurações
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileViewTab('code')}
+                className={`
+                  flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all duration-200
+                  ${mobileViewTab === 'code' 
+                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5' 
+                    : 'text-gray-500 hover:text-gray-700'
+                  }
+                `}
+              >
+                <Code2 className={`h-3.5 w-3.5 ${mobileViewTab === 'code' ? 'text-blue-600' : 'text-gray-400'}`} />
+                Código
+              </button>
+            </div>
+          </div>
+
           {/* LEFT COLUMN: Configuration & Metadata */}
-          <div className="w-full md:w-[300px] lg:w-[350px] border-b md:border-b-0 md:border-r bg-gray-50 p-4 sm:p-6 overflow-y-auto flex-shrink-0 flex flex-col gap-4 sm:gap-6 max-h-[40vh] md:max-h-none">
+          <div className={`w-full md:basis-[20%] md:grow-0 md:shrink-0 min-w-[200px] border-b md:border-b-0 md:border-r bg-gray-50/50 p-4 sm:p-6 overflow-y-auto flex flex-col gap-5 sm:gap-7 md:max-h-none ${
+            mobileViewTab === 'config' ? 'flex-1' : 'hidden md:flex'
+          }`}>
 
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Título *
+            <div className="space-y-4 sm:space-y-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                  Identificação
                 </label>
-                <Input
-                  placeholder="Ex: Sistema de Autenticação"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  className="bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Tipo do Card *
-                </label>
-                <Select
-                  value={formData.card_type}
-                  onValueChange={(value) => handleInputChange('card_type', value)}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dicas">Dicas</SelectItem>
-                    <SelectItem value="codigos">Códigos</SelectItem>
-                    <SelectItem value="workflows">Workflows</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Tecnologia *
-                </label>
-                <Select
-                  value={formData.tech}
-                  onValueChange={(value) => handleInputChange('tech', value)}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="React">React</SelectItem>
-                    <SelectItem value="Node.js">Node.js</SelectItem>
-                    <SelectItem value="Python">Python</SelectItem>
-                    <SelectItem value="JavaScript">JavaScript</SelectItem>
-                    <SelectItem value="Vue.js">Vue.js</SelectItem>
-                    <SelectItem value="Angular">Angular</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Linguagem *
-                </label>
-                <Select
-                  value={formData.language}
-                  onValueChange={(value) => handleInputChange('language', value)}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="typescript">TypeScript</SelectItem>
-                    <SelectItem value="javascript">JavaScript</SelectItem>
-                    <SelectItem value="python">Python</SelectItem>
-                    <SelectItem value="html">HTML</SelectItem>
-                    <SelectItem value="css">CSS</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Visibilidade
-                </label>
-                <Select
-                  value={formData.visibility}
-                  onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
-                >
-                  <SelectTrigger className="bg-white">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {formData.visibility === Visibility.PUBLIC && (
-                        <Globe className="h-4 w-4 shrink-0 text-green-600" />
-                      )}
-                      {formData.visibility === Visibility.UNLISTED && (
-                        <Link2 className="h-4 w-4 shrink-0 text-blue-600" />
-                      )}
-                      {formData.visibility === Visibility.PRIVATE && (
-                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
-                      )}
-                      <span className="truncate">
-                        {formData.visibility === Visibility.PUBLIC && "Público"}
-                        {formData.visibility === Visibility.UNLISTED && "Não Listado"}
-                        {formData.visibility === Visibility.PRIVATE && "Privado"}
-                      </span>
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={Visibility.PUBLIC}>
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 shrink-0 text-green-600" />
-                        <div className="min-w-0">
-                          <div className="font-medium leading-5">Público</div>
-                          <div className="text-xs text-muted-foreground leading-4">Aparece nas listagens</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value={Visibility.UNLISTED}>
-                      <div className="flex items-center gap-2">
-                        <Link2 className="h-4 w-4 shrink-0 text-blue-600" />
-                        <div className="min-w-0">
-                          <div className="font-medium leading-5">Não Listado</div>
-                          <div className="text-xs text-muted-foreground leading-4">Só quem tem o link pode ver</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value={Visibility.PRIVATE}>
-                      <div className="flex items-center gap-2">
-                        <Lock className="h-4 w-4 shrink-0 text-orange-600" />
-                        <div className="min-w-0">
-                          <div className="font-medium leading-5">Privado</div>
-                          <div className="text-xs text-muted-foreground leading-4">Só você pode ver</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {formData.visibility === Visibility.PUBLIC && "Qualquer pessoa pode ver este card"}
-                  {formData.visibility === Visibility.UNLISTED && "Não aparece em listagens, mas qualquer um com o link pode ver"}
-                  {formData.visibility === Visibility.PRIVATE && "Apenas você pode ver este card"}
-                </p>
-              </div>
-
-              {/* Campo de Compartilhamento - Apenas para cards privados */}
-              {formData.visibility === Visibility.PRIVATE && (
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Compartilhar com (opcional)
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Título do Card *
                   </label>
                   <Input
-                    type="text"
-                    placeholder="Digite emails separados por vírgula"
-                    className="bg-white"
-                    data-share-emails="true"
+                    placeholder="Ex: Sistema de Autenticação"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    className="bg-white border-gray-200 focus:border-blue-300 transition-all shadow-sm"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Exemplo: joao@email.com, maria@email.com
-                  </p>
                 </div>
-              )}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                  Categorização
+                </label>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Tipo do Card
+                    </label>
+                    <Select
+                      value={formData.card_type}
+                      onValueChange={(value) => handleInputChange('card_type', value)}
+                    >
+                      <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs">
+                        <SelectItem value="dicas">Dicas</SelectItem>
+                        <SelectItem value="codigos">Códigos</SelectItem>
+                        <SelectItem value="workflows">Workflows</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Tecnologia Principal
+                    </label>
+                    <Select
+                      value={formData.tech}
+                      onValueChange={(value) => handleInputChange('tech', value)}
+                    >
+                      <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs">
+                        <SelectItem value="React">React</SelectItem>
+                        <SelectItem value="Node.js">Node.js</SelectItem>
+                        <SelectItem value="Python">Python</SelectItem>
+                        <SelectItem value="JavaScript">JavaScript</SelectItem>
+                        <SelectItem value="Vue.js">Vue.js</SelectItem>
+                        <SelectItem value="Angular">Angular</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Linguagem Padrão
+                    </label>
+                    <Select
+                      value={formData.language}
+                      onValueChange={(value) => handleInputChange('language', value)}
+                    >
+                      <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs">
+                        <SelectItem value="typescript">TypeScript</SelectItem>
+                        <SelectItem value="javascript">JavaScript</SelectItem>
+                        <SelectItem value="python">Python</SelectItem>
+                        <SelectItem value="html">HTML</SelectItem>
+                        <SelectItem value="css">CSS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                  Acesso
+                </label>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Visibilidade
+                  </label>
+                  <Select
+                    value={formData.visibility}
+                    onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
+                  >
+                    <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {formData.visibility === Visibility.PUBLIC && (
+                          <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                        )}
+                        {formData.visibility === Visibility.UNLISTED && (
+                          <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                        )}
+                        {formData.visibility === Visibility.PRIVATE && (
+                          <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                        )}
+                        <span className="truncate">
+                          {formData.visibility === Visibility.PUBLIC && "Público"}
+                          {formData.visibility === Visibility.UNLISTED && "Não Listado"}
+                          {formData.visibility === Visibility.PRIVATE && "Privado"}
+                        </span>
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      <SelectItem value={Visibility.PUBLIC}>
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-xs">Público</div>
+                            <div className="text-[10px] text-muted-foreground">Aparece nas listagens</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value={Visibility.UNLISTED}>
+                        <div className="flex items-center gap-2">
+                          <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-xs">Não Listado</div>
+                            <div className="text-[10px] text-muted-foreground">Só quem tem o link pode ver</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value={Visibility.PRIVATE}>
+                        <div className="flex items-center gap-2">
+                          <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-xs">Privado</div>
+                            <div className="text-[10px] text-muted-foreground">Só você pode ver</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Campo de Compartilhamento - Apenas para cards privados */}
+                {formData.visibility === Visibility.PRIVATE && (
+                  <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Compartilhar com (e-mails)
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="joao@email.com, maria@..."
+                      className="bg-white border-gray-200 text-xs h-9 shadow-sm"
+                      data-share-emails="true"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex-1 flex flex-col">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                Descrição
+            <div className="flex-1 flex flex-col gap-1.5">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                Sobre
               </label>
-              <Textarea
-                placeholder="Descreva o que este CardFeature faz..."
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="flex-1 min-h-[80px] sm:min-h-[150px] bg-white text-sm"
-              />
+              <div className="flex-1 flex flex-col">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Descrição do Conteúdo
+                </label>
+                <Textarea
+                  placeholder="Descreva o que este CardFeature faz..."
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  className="flex-1 min-h-[100px] bg-white border-gray-200 focus:border-blue-300 text-xs resize-none shadow-sm"
+                />
+              </div>
             </div>
           </div>
 
           {/* RIGHT COLUMN: Files Editor */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white min-w-0">
-             <div className="p-4 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700">Arquivos do Projeto</h4>
-                  <p className="text-xs text-gray-500">Gerencie os arquivos e trechos de código</p>
+          <div className={`flex-1 flex flex-col overflow-hidden bg-white min-w-0 ${
+            mobileViewTab === 'code' ? 'flex-1 flex' : 'hidden md:flex'
+          }`}>
+             <div className="px-4 py-3 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                    <Save className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900 leading-none">Arquivos</h4>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Gerencie as abas</p>
+                  </div>
                 </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={addScreen}
-                  className="self-start sm:self-center"
+                  className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-blue-600 transition-all shadow-sm shrink-0"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Adicionar Arquivo
+                  <Plus className="h-3 w-3 mr-1" />
+                  Novo Arquivo
                 </Button>
              </div>
 
              <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))} className="flex-1 flex flex-col overflow-hidden">
-                <div className="border-b px-4 bg-gray-50">
+                <div className="px-4 py-2.5 bg-gray-50/50 border-b overflow-hidden">
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
                     onDragEnd={handleDragEnd}
                   >
-                    <TabsList className="form-tabs-scroll flex w-full h-auto p-1 overflow-x-auto justify-start bg-transparent">
+                    <TabsList className="form-tabs-scroll flex w-full h-8 p-0 gap-1 overflow-x-auto overflow-y-hidden justify-start bg-transparent border-none items-center">
                       <style>{`
                         .form-tabs-scroll::-webkit-scrollbar {
-                          height: 6px;
+                          height: 2px;
                         }
                         .form-tabs-scroll::-webkit-scrollbar-track {
-                          background: rgba(0, 0, 0, 0.1);
-                          border-radius: 3px;
+                          background: transparent;
                         }
                         .form-tabs-scroll::-webkit-scrollbar-thumb {
-                          background: rgba(0, 0, 0, 0.3);
-                          border-radius: 3px;
+                          background: rgba(0, 0, 0, 0.05);
+                          border-radius: 10px;
+                        }
+                        .form-tabs-scroll:hover::-webkit-scrollbar-thumb {
+                          background: rgba(0, 0, 0, 0.1);
                         }
                       `}</style>
                       
@@ -612,49 +687,53 @@ export default function CardFeatureForm({
 
                 {formData.screens.map((screen, index) => (
                   <TabsContent key={index} value={index.toString()} className="flex-1 overflow-hidden m-0 p-0 data-[state=active]:flex flex-col">
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                       {/* Campos do arquivo */}
-                      <div className="flex flex-col sm:flex-row gap-4 mb-6 items-start">
+                      <div className="flex flex-col sm:flex-row gap-3 mb-5 items-start">
                         <div className="flex-1 w-full">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                          <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">
                             Nome do Arquivo
                           </label>
                           <Input
-                            placeholder="Ex: Model, Controller, Routes"
+                            placeholder="Ex: Model, Controller..."
                             value={screen.name}
                             onChange={(e) => handleScreenChange(index, 'name', e.target.value)}
+                            className="h-8 text-xs bg-white border-gray-200 focus:border-blue-200"
                           />
                         </div>
                         <div className="w-full sm:w-auto">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Adicionar Conteúdo
+                          <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1.5">
+                            Adicionar Bloco
                           </label>
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
                               onClick={() => addBlock(index, ContentType.CODE)}
+                              className="h-8 px-2.5 text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-100 rounded-md transition-all"
                             >
-                              <Plus className="h-3 w-3 mr-1" />
+                              <Plus className="h-3 w-3 mr-1.5" />
                               Código
                             </Button>
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
                               onClick={() => addBlock(index, ContentType.TEXT)}
+                              className="h-8 px-2.5 text-[11px] bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 border border-purple-100 rounded-md transition-all"
                             >
-                              <Plus className="h-3 w-3 mr-1" />
+                              <Plus className="h-3 w-3 mr-1.5" />
                               Texto
                             </Button>
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
                               onClick={() => addBlock(index, ContentType.TERMINAL)}
+                              className="h-8 px-2.5 text-[11px] bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 border border-amber-100 rounded-md transition-all"
                             >
-                              <Plus className="h-3 w-3 mr-1" />
+                              <Plus className="h-3 w-3 mr-1.5" />
                               Terminal
                             </Button>
                           </div>
@@ -664,22 +743,28 @@ export default function CardFeatureForm({
                       {/* Blocos de Conteúdo */}
                       <div className="space-y-4">
                           {screen.blocks.map((block, blockIndex) => (
-                            <div key={blockIndex} className="border rounded-lg p-4 bg-gray-50 transition-all hover:shadow-md">
-                              <div className="flex items-center justify-between mb-3">
+                            <div key={blockIndex} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md">
+                              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b">
                                 <div className="flex items-center gap-3">
-                                  <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 bg-white px-2 py-1 rounded border">
-                                    {block.type === ContentType.CODE ? '💻 Código' : 
-                                     block.type === ContentType.TEXT ? '📄 Texto' : '⚡ Terminal'}
-                                  </span>
+                                  <div className={`
+                                    flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider
+                                    ${block.type === ContentType.CODE ? 'bg-blue-100 text-blue-700' : 
+                                      block.type === ContentType.TEXT ? 'bg-purple-100 text-purple-700' : 
+                                      'bg-amber-100 text-amber-700'}
+                                  `}>
+                                    {block.type === ContentType.CODE ? 'Código' : 
+                                     block.type === ContentType.TEXT ? 'Texto' : 'Terminal'}
+                                  </div>
+                                  
                                   {block.type === ContentType.CODE && (
                                     <Select
                                       value={block.language || 'typescript'}
                                       onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
                                     >
-                                      <SelectTrigger className="w-36 h-8 bg-white">
+                                      <SelectTrigger className="w-32 h-7 text-xs bg-white border-gray-200">
                                         <SelectValue />
                                       </SelectTrigger>
-                                      <SelectContent>
+                                      <SelectContent className="text-xs">
                                         <SelectItem value="typescript">TypeScript</SelectItem>
                                         <SelectItem value="javascript">JavaScript</SelectItem>
                                         <SelectItem value="python">Python</SelectItem>
@@ -690,18 +775,18 @@ export default function CardFeatureForm({
                                   )}
                                 </div>
                                 
-                                <div className="flex items-center gap-1 bg-white rounded-md border p-1">
+                                <div className="flex items-center gap-1">
                                   {screen.blocks.length > 1 && (
-                                    <>
+                                    <div className="flex items-center mr-2 pr-2 border-r border-gray-200">
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => moveBlockUp(index, blockIndex)}
                                         disabled={blockIndex === 0}
-                                        className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 disabled:opacity-30"
+                                        className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
                                       >
-                                        <ChevronUp className="h-3 w-3" />
+                                        <ChevronUp className="h-3.5 w-3.5" />
                                       </Button>
                                       
                                       <Button
@@ -710,47 +795,48 @@ export default function CardFeatureForm({
                                         size="sm"
                                         onClick={() => moveBlockDown(index, blockIndex)}
                                         disabled={blockIndex === screen.blocks.length - 1}
-                                        className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 disabled:opacity-30"
+                                        className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
                                       >
-                                        <ChevronDown className="h-3 w-3" />
+                                        <ChevronDown className="h-3.5 w-3.5" />
                                       </Button>
-                                      <div className="w-px h-4 bg-gray-200 mx-1" />
-                                    </>
+                                    </div>
                                   )}
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeBlock(index, blockIndex)}
-                                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeBlock(index, blockIndex)}
+                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
                               </div>
                               
-                              {block.type === ContentType.CODE && (
-                                <div className="mb-3">
-                                  <Input
-                                    placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
-                                    value={block.route || ''}
-                                    onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
-                                    className="text-xs font-mono bg-white"
-                                  />
-                                </div>
-                              )}
-                              
-                              <Textarea
-                                placeholder={
-                                  block.type === ContentType.CODE ? 'Cole seu código aqui...' :
-                                  block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
-                                  '$ comando terminal...'
-                                }
-                                value={block.content}
-                                onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                                rows={8}
-                                className={`bg-white ${block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-sm' : 'text-sm'}`}
-                              />
+                              <div className="p-4">
+                                {block.type === ContentType.CODE && (
+                                  <div className="mb-3">
+                                    <Input
+                                      placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
+                                      value={block.route || ''}
+                                      onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
+                                      className="text-xs font-mono bg-gray-50/50 border-gray-100 focus:bg-white"
+                                    />
+                                  </div>
+                                )}
+                                
+                                <Textarea
+                                  placeholder={
+                                    block.type === ContentType.CODE ? 'Cole seu código aqui...' :
+                                    block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
+                                    '$ comando terminal...'
+                                  }
+                                  value={block.content}
+                                  onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                  rows={8}
+                                  className={`bg-white border-gray-100 focus:border-blue-200 min-h-[120px] resize-none ${block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-[13px] leading-relaxed' : 'text-sm'}`}
+                                />
+                              </div>
                             </div>
                           ))}
                           

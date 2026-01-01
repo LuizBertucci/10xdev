@@ -45,11 +45,11 @@ export class CardFeatureModel {
     }
   }
 
-  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string) {
+  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string, head: boolean = false, matchedUserIds: string[] = []) {
     // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
     let query = supabaseAdmin
       .from('card_features')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head })
 
     // Filtro de visibilidade para LISTAGENS:
     // - Admin vê TODOS os cards (public + private + unlisted de todos)
@@ -77,6 +77,11 @@ export class CardFeatureModel {
     // Filtro para excluir cards criados em projetos (apenas cards da aba Códigos)
     query = query.is('created_in_project_id', null)
 
+    // Adicionar filtro por visibility se fornecido nos params
+    if (params.visibility && params.visibility !== 'all') {
+      query = query.eq('visibility', params.visibility)
+    }
+
     // Filtros
     if (params.tech && params.tech !== 'all') {
       query = query.ilike('tech', params.tech)
@@ -97,7 +102,12 @@ export class CardFeatureModel {
     }
 
     if (params.search) {
-      query = query.ilike('title', `%${params.search}%`)
+      // Busca pelo título ou pelos IDs de autores encontrados
+      if (matchedUserIds.length > 0) {
+        query = query.or(`title.ilike.%${params.search}%,created_by.in.(${matchedUserIds.join(',')})`)
+      } else {
+        query = query.ilike('title', `%${params.search}%`)
+      }
     }
 
     // Ordenação
@@ -265,35 +275,29 @@ export class CardFeatureModel {
 
   static async findAll(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
-      const query = this.buildQuery(params, userId, userRole)
-      const { data } = await executeQuery(query)
-
-      // IMPORTANTE: Count sempre conta apenas cards públicos (não conta private/unlisted)
-      // Isso garante que o total exibido seja consistente e não inclua cards privados
-      const countQuery = supabaseAdmin
-        .from('card_features')
-        .select('*', { count: 'exact', head: true })
-        .eq('visibility', Visibility.PUBLIC)
-        .is('created_in_project_id', null)
-
-      // Aplicar os mesmos filtros da query principal (exceto visibilidade)
-      if (params.tech && params.tech !== 'all') {
-        countQuery.ilike('tech', params.tech)
-      }
-      if (params.language && params.language !== 'all') {
-        countQuery.ilike('language', params.language)
-      }
-      if (params.content_type && params.content_type !== 'all') {
-        countQuery.eq('content_type', params.content_type)
-      }
-      if (params.card_type && params.card_type !== 'all') {
-        countQuery.eq('card_type', params.card_type)
-      }
+      // 1. Se houver busca, primeiro encontrar IDs de usuários que batem com o nome
+      let matchedUserIds: string[] = []
       if (params.search) {
-        countQuery.ilike('title', `%${params.search}%`)
+        const { data: users } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id')
+            .ilike('name', `%${params.search}%`)
+        )
+        matchedUserIds = users?.map((u: any) => u.id) || []
       }
 
-      const { count } = await executeQuery(countQuery)
+      // 2. Query principal para os dados (com range/ordenação)
+      const query = this.buildQuery(params, userId, userRole, false, matchedUserIds)
+      const { data, error: dataError } = await executeQuery(query)
+
+      // 3. Query para o COUNT (sem range, para pegar o total filtrado)
+      const countParams = { ...params }
+      delete countParams.page
+      delete countParams.limit
+      
+      const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds)
+      const { count, error: countError } = await executeQuery(countQuery)
 
       if (!data || data.length === 0) {
         return {
@@ -304,7 +308,7 @@ export class CardFeatureModel {
         }
       }
 
-      // Buscar IDs únicos de criadores
+      // 4. Buscar IDs únicos de criadores para enriquecer os dados
       const creatorIds = [...new Set(data.map((card: any) => card.created_by).filter(Boolean))]
 
       // Buscar dados dos usuários

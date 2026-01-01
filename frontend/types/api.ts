@@ -80,6 +80,9 @@ export interface FilterParams {
   tech?: string
   language?: string
   search?: string
+  visibility?: string
+  card_type?: string
+  content_type?: string
 }
 
 export interface QueryParams extends PaginationParams, SortParams, FilterParams {}
