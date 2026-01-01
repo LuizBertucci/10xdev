@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Lock, Globe } from "lucide-react"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
@@ -21,6 +21,35 @@ interface CardFeatureCompactProps {
 }
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
+  // #region agent log
+  const logSnippet = () => {
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'CardFeatureCompact.tsx:25',
+        message: 'Rendering CardFeatureCompact (post-fix)',
+        data: {
+          id: snippet.id,
+          title: snippet.title,
+          visibility: snippet.visibility,
+          isPrivate: snippet.isPrivate,
+          logicResult: {
+            hasVisibility: !!snippet.visibility,
+            showPrivate: snippet.visibility ? snippet.visibility === Visibility.PRIVATE : snippet.isPrivate,
+            showUnlisted: snippet.visibility === Visibility.UNLISTED
+          }
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'post-fix',
+        hypothesisId: 'A'
+      })
+    }).catch(() => {});
+  };
+  logSnippet();
+  // #endregion
+
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -102,24 +131,57 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
                 <div className="flex items-center justify-between gap-2 flex-shrink-0">
                   {/* Autor e privacidade à esquerda */}
                   <div className="flex items-center gap-2">
-                    {/* Badge de Visibilidade */}
-                    {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
-                      >
-                        <Lock className="h-3 w-3 mr-1" />
-                        Privado
-                      </Badge>
-                    )}
-                    {snippet.visibility === Visibility.UNLISTED && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
-                      >
-                        <Link2 className="h-3 w-3 mr-1" />
-                        Não Listado
-                      </Badge>
+                    {/* Badge de Visibilidade - Lógica unificada: visibility prioriza isPrivate */}
+                    {snippet.visibility ? (
+                      <>
+                        {snippet.visibility === Visibility.PUBLIC && (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs rounded-md shadow-sm border border-green-300 bg-green-50 text-green-700"
+                          >
+                            <Globe className="h-3 w-3 mr-1" />
+                            Público
+                          </Badge>
+                        )}
+                        {snippet.visibility === Visibility.PRIVATE && (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                          >
+                            <Lock className="h-3 w-3 mr-1" />
+                            Privado
+                          </Badge>
+                        )}
+                        {snippet.visibility === Visibility.UNLISTED && (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                          >
+                            <Link2 className="h-3 w-3 mr-1" />
+                            Não Listado
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      /* Fallback para legado isPrivate se visibility não existir */
+                      snippet.isPrivate ? (
+                        <Badge
+                          variant="secondary"
+                          className="text-xs rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                        >
+                          <Lock className="h-3 w-3 mr-1" />
+                          Privado
+                        </Badge>
+                      ) : (
+                        /* Se for legado e não for privado, assume-se público */
+                        <Badge
+                          variant="secondary"
+                          className="text-xs rounded-md shadow-sm border border-green-300 bg-green-50 text-green-700"
+                        >
+                          <Globe className="h-3 w-3 mr-1" />
+                          Público
+                        </Badge>
+                      )
                     )}
                     <Badge
                       variant="secondary"
@@ -185,27 +247,64 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, classNam
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {/* Badge de Visibilidade Mobile */}
-                  {(snippet.visibility === Visibility.PRIVATE || snippet.isPrivate) && (
+                  {/* Badge de Visibilidade Mobile - Lógica unificada */}
+                  {snippet.visibility ? (
                     <>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
-                      >
-                        <Lock className="h-2.5 w-2.5 mr-0.5" />
-                        Privado
-                      </Badge>
-                      <span className="text-gray-400 text-[8px]">●</span>
+                      {snippet.visibility === Visibility.PUBLIC && (
+                        <>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-green-300 bg-green-50 text-green-700"
+                          >
+                            <Globe className="h-2.5 w-2.5 mr-0.5" />
+                            Público
+                          </Badge>
+                          <span className="text-gray-400 text-[8px]">●</span>
+                        </>
+                      )}
+                      {snippet.visibility === Visibility.PRIVATE && (
+                        <>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-orange-300 bg-orange-50 text-orange-700"
+                          >
+                            <Lock className="h-2.5 w-2.5 mr-0.5" />
+                            Privado
+                          </Badge>
+                          <span className="text-gray-400 text-[8px]">●</span>
+                        </>
+                      )}
+                      {snippet.visibility === Visibility.UNLISTED && (
+                        <>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                          >
+                            <Link2 className="h-2.5 w-2.5 mr-0.5" />
+                            Não Listado
+                          </Badge>
+                          <span className="text-gray-400 text-[8px]">●</span>
+                        </>
+                      )}
                     </>
-                  )}
-                  {snippet.visibility === Visibility.UNLISTED && (
+                  ) : (
+                    /* Fallback mobile */
                     <>
                       <Badge
                         variant="secondary"
-                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
+                        className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
                       >
-                        <Link2 className="h-2.5 w-2.5 mr-0.5" />
-                        Não Listado
+                        {snippet.isPrivate ? (
+                          <>
+                            <Lock className="h-2.5 w-2.5 mr-0.5 text-orange-600" />
+                            Privado
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="h-2.5 w-2.5 mr-0.5 text-green-600" />
+                            Público
+                          </>
+                        )}
                       </Badge>
                       <span className="text-gray-400 text-[8px]">●</span>
                     </>

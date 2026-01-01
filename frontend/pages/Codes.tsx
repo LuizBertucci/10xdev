@@ -60,7 +60,7 @@ export default function Codes({ platformState }: CodesProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
-  const [selectedVisibility, setSelectedVisibility] = useState<string>('all')
+  const [selectedVisibility, setSelectedVisibility] = useState<string>('public')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
@@ -86,9 +86,33 @@ export default function Codes({ platformState }: CodesProps) {
       params.set('page', String(cardFeatures.currentPage))
     }
     const qs = params.toString()
-    const url = qs ? `${pathname}?${qs}` : pathname
-    const currentUrl = searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname
-    if (url !== currentUrl) {
+    
+    // #region agent log
+    const logUrlLogic = (p: string | null, q: string, u: string | null, cu: string | null) => {
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'Codes.tsx:89',
+          message: 'URL Synchronization Logic',
+          data: { pathname: p, qs: q, url: u, currentUrl: cu },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'type-fix-check',
+          hypothesisId: 'B'
+        })
+      }).catch(() => {});
+    };
+    // #endregion
+
+    const url = pathname ? (qs ? `${pathname}?${qs}` : pathname) : null
+    const currentUrl = pathname ? (searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname) : null
+    
+    // #region agent log
+    logUrlLogic(pathname, qs, url, currentUrl);
+    // #endregion
+
+    if (url && url !== currentUrl) {
       router.replace(url, { scroll: false })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,6 +133,23 @@ export default function Codes({ platformState }: CodesProps) {
 
   // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems.filter(item => {
+    // #region agent log
+    const logItem = (msg: string, data: any) => {
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'Codes.tsx:112',
+          message: msg,
+          data,
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          hypothesisId: 'A'
+        })
+      }).catch(() => {});
+    };
+    // #endregion
+
     // Filtro por tipo de card
     const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
 
@@ -123,6 +164,16 @@ export default function Codes({ platformState }: CodesProps) {
       matchesVisibility = itemVisibility === Visibility.UNLISTED
     }
     // 'all' não filtra por visibilidade
+
+    if (matchesCardType && matchesVisibility && selectedVisibility === 'public') {
+      logItem('Item passed PUBLIC filter', { 
+        id: item.id, 
+        title: item.title, 
+        visibility: item.visibility, 
+        isPrivate: item.isPrivate, 
+        calculatedVisibility: itemVisibility 
+      });
+    }
 
     return matchesCardType && matchesVisibility
   })
@@ -222,7 +273,7 @@ export default function Codes({ platformState }: CodesProps) {
 
   // HEADER - Breadcrumb + Busca + Filtros + Botão Criar
   return (
-    <div className="space-y-6 w-full overflow-x-hidden">
+    <div className="space-y-6 w-full overflow-x-hidden px-1">
       {/* Header - Layout Responsivo */}
       <div className="space-y-4 w-full max-w-[900px] mx-auto">
         {/* Breadcrumb Navigation */}
@@ -251,60 +302,127 @@ export default function Codes({ platformState }: CodesProps) {
           )}
         </div>
 
-        {/* Search Input - Primeira linha no mobile para fácil acesso */}
-        <div className="relative w-full min-w-0 mb-3">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Buscar snippets..."
-            value={cardFeatures.searchTerm}
-            onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
-            className="pl-10 w-full"
-          />
+        {/* Search Input and Create Button Row - Unificados na mesma linha com filtro interno */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Buscar snippets..."
+              value={cardFeatures.searchTerm}
+              onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
+              className="pl-10 pr-10 w-full h-10"
+            />
+            
+            {/* Card Type Filter - Posicionado ABSOLUTAMENTE dentro da busca na direita */}
+            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={`h-8 w-8 p-0 hover:bg-gray-100 ${selectedCardType !== 'all' ? 'text-blue-600' : 'text-gray-400'}`}
+                    title="Filtrar por tipo"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setSelectedCardType('all')} className={selectedCardType === 'all' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Todos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedCardType('dicas')} className={selectedCardType === 'dicas' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Dicas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedCardType('codigos')} className={selectedCardType === 'codigos' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Códigos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedCardType('workflows')} className={selectedCardType === 'workflows' ? 'bg-blue-50 text-blue-600' : ''}>
+                    Workflows
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Create Button with Dropdown (admin only) */}
+          <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
+            isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+          }`}>
+            <Button
+                onClick={cardFeatures.startCreating}
+                disabled={cardFeatures.loading || cardFeatures.creating}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                <span className="sm:hidden">
+                  {cardFeatures.creating ? 'Criando...' : 'Criar'}
+                </span>
+                <span className="hidden sm:inline">
+                  {cardFeatures.creating ? 'Criando...' : 'Novo card'}
+                </span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    disabled={cardFeatures.loading || cardFeatures.creating}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
+                    <FileJson className="h-4 w-4 mr-2" />
+                    Criar via JSON
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
         </div>
 
-        {/* Filters and Actions Row - Layout otimizado para mobile */}
-        <div className="flex justify-between sm:justify-end gap-2 sm:gap-3 items-center mb-3">
-          {/* Card Type Filter */}
-          <Select
-            value={selectedCardType}
-            onValueChange={setSelectedCardType}
-            disabled={cardFeatures.loading}
-          >
-            <SelectTrigger className="w-28 sm:w-40">
-              <Filter className="h-4 w-4 mr-1 sm:mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="dicas">Dicas</SelectItem>
-              <SelectItem value="codigos">Códigos</SelectItem>
-              <SelectItem value="workflows">Workflows</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Visibility Tabs */}
-          <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-auto">
-            <TabsList className="h-9 bg-gray-100">
-              <TabsTrigger value="all" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                Todos
+        {/* Visibility Tabs Row - Moved above filters */}
+        <div className="flex justify-start sm:justify-end mt-2 mb-3 w-full max-w-[900px] mx-auto">
+          <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-full sm:w-auto">
+            <TabsList className="h-10 w-full sm:w-auto grid grid-cols-3 sm:flex bg-gray-100 p-1 rounded-lg">
+              <TabsTrigger 
+                value="public" 
+                className="text-xs sm:text-sm px-2 sm:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm" 
+                disabled={cardFeatures.loading}
+              >
+                <div className="flex items-center justify-center">
+                  <Globe className="h-4 w-4 sm:mr-2 text-green-600" />
+                  <span className="hidden sm:inline">Públicos</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="public" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-green-600" />
-                <span className="hidden sm:inline">Públicos</span>
+              <TabsTrigger 
+                value="unlisted" 
+                className="text-xs sm:text-sm px-2 sm:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm" 
+                disabled={cardFeatures.loading}
+              >
+                <div className="flex items-center justify-center">
+                  <Link2 className="h-4 w-4 sm:mr-2 text-blue-600" />
+                  <span className="hidden sm:inline">Não Listados</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="unlisted" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-blue-600" />
-                <span className="hidden sm:inline">Não Listados</span>
-              </TabsTrigger>
-              <TabsTrigger value="private" className="text-xs sm:text-sm px-2 sm:px-3" disabled={cardFeatures.loading}>
-                <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 text-orange-600" />
-                <span className="hidden sm:inline">Privados</span>
+              <TabsTrigger 
+                value="private" 
+                className="text-xs sm:text-sm px-2 sm:px-4 h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm" 
+                disabled={cardFeatures.loading}
+              >
+                <div className="flex items-center justify-center">
+                  <Lock className="h-4 w-4 sm:mr-2 text-orange-600" />
+                  <span className="hidden sm:inline">Privados</span>
+                </div>
               </TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
 
-          {/* Tech Filter - Hidden on mobile */}
+        {/* Tech Filter Row - Agora apenas com filtro de tech alinhado à direita */}
+        <div className="flex justify-end gap-2 sm:gap-3 items-center mb-6">
           <div className="hidden sm:block">
             <Select
               value={cardFeatures.selectedTech}
@@ -323,46 +441,6 @@ export default function Codes({ platformState }: CodesProps) {
                 <SelectItem value="javascript">JavaScript</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Right side actions group */}
-          <div className="flex items-center gap-2">
-            {/* Create Button with Dropdown (admin only) */}
-            <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
-              isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
-            }`}>
-              <Button
-                  onClick={cardFeatures.startCreating}
-                  disabled={cardFeatures.loading || cardFeatures.creating}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="sm:hidden">
-                    {cardFeatures.creating ? 'Criando...' : 'Novo card'}
-                  </span>
-                  <span className="hidden sm:inline">
-                    {cardFeatures.creating ? 'Criando...' : 'Novo Card'}
-                  </span>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      disabled={cardFeatures.loading || cardFeatures.creating}
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
-                      <FileJson className="h-4 w-4 mr-2" />
-                      Criar via JSON
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
           </div>
         </div>
       </div>
