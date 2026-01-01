@@ -87,31 +87,9 @@ export default function Codes({ platformState }: CodesProps) {
     }
     const qs = params.toString()
     
-    // #region agent log
-    const logUrlLogic = (p: string | null, q: string, u: string | null, cu: string | null) => {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'Codes.tsx:89',
-          message: 'URL Synchronization Logic',
-          data: { pathname: p, qs: q, url: u, currentUrl: cu },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'type-fix-check',
-          hypothesisId: 'B'
-        })
-      }).catch(() => {});
-    };
-    // #endregion
-
     const url = pathname ? (qs ? `${pathname}?${qs}` : pathname) : null
     const currentUrl = pathname ? (searchParams?.toString() ? `${pathname}?${searchParams.toString()}` : pathname) : null
     
-    // #region agent log
-    logUrlLogic(pathname, qs, url, currentUrl);
-    // #endregion
-
     if (url && url !== currentUrl) {
       router.replace(url, { scroll: false })
     }
@@ -133,23 +111,6 @@ export default function Codes({ platformState }: CodesProps) {
 
   // Dados filtrados vindos da API
   const codeSnippets = cardFeatures.filteredItems.filter(item => {
-    // #region agent log
-    const logItem = (msg: string, data: any) => {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'Codes.tsx:112',
-          message: msg,
-          data,
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'A'
-        })
-      }).catch(() => {});
-    };
-    // #endregion
-
     // Filtro por tipo de card
     const matchesCardType = selectedCardType === 'all' || item.card_type === selectedCardType
 
@@ -164,16 +125,6 @@ export default function Codes({ platformState }: CodesProps) {
       matchesVisibility = itemVisibility === Visibility.UNLISTED
     }
     // 'all' não filtra por visibilidade
-
-    if (matchesCardType && matchesVisibility && selectedVisibility === 'public') {
-      logItem('Item passed PUBLIC filter', { 
-        id: item.id, 
-        title: item.title, 
-        visibility: item.visibility, 
-        isPrivate: item.isPrivate, 
-        calculatedVisibility: itemVisibility 
-      });
-    }
 
     return matchesCardType && matchesVisibility
   })

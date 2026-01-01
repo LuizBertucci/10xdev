@@ -21,35 +21,6 @@ interface CardFeatureCompactProps {
 }
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, className }: CardFeatureCompactProps) {
-  // #region agent log
-  const logSnippet = () => {
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'CardFeatureCompact.tsx:25',
-        message: 'Rendering CardFeatureCompact (post-fix)',
-        data: {
-          id: snippet.id,
-          title: snippet.title,
-          visibility: snippet.visibility,
-          isPrivate: snippet.isPrivate,
-          logicResult: {
-            hasVisibility: !!snippet.visibility,
-            showPrivate: snippet.visibility ? snippet.visibility === Visibility.PRIVATE : snippet.isPrivate,
-            showUnlisted: snippet.visibility === Visibility.UNLISTED
-          }
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'post-fix',
-        hypothesisId: 'A'
-      })
-    }).catch(() => {});
-  };
-  logSnippet();
-  // #endregion
-
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
