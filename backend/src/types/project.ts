@@ -207,4 +207,3 @@ export interface ImportFromGithubResponse {
   project: ProjectResponse
   jobId: string
 }
-
