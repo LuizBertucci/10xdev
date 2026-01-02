@@ -14,12 +14,20 @@ interface Project {
   id: string
   name: string
   description: string | null
+  repositoryUrl?: string | null
   createdAt: string
   updatedAt: string
   createdBy: string
   memberCount?: number
   cardCount?: number
   userRole?: ProjectMemberRole
+}
+
+export interface GithubRepoInfo {
+  name: string
+  description: string | null
+  url: string
+  isPrivate: boolean
 }
 
 interface ProjectMember {
@@ -56,6 +64,8 @@ interface ProjectCard {
 interface CreateProjectData {
   name: string
   description?: string
+  repositoryUrl?: string
+  addMemberEmail?: string
 }
 
 interface UpdateProjectData {
@@ -86,6 +96,25 @@ interface ProjectQueryParams {
 
 class ProjectService {
   private readonly endpoint = '/projects'
+
+  // ================================================
+  // GITHUB INTEGRATION
+  // ================================================
+
+  async getGithubInfo(data: { url: string; token?: string }): Promise<ApiResponse<GithubRepoInfo> | undefined> {
+    return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data)
+  }
+
+  async importFromGithub(data: {
+    url: string
+    token?: string
+    name?: string
+    description?: string
+    useAi?: boolean
+    addMemberEmail?: string
+  }): Promise<ApiResponse<{ project: Project; jobId: string }> | undefined> {
+    return apiClient.post<{ project: Project; jobId: string }>(`${this.endpoint}/import-from-github`, data)
+  }
 
   // ================================================
   // CREATE
