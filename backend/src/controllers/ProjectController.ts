@@ -147,8 +147,8 @@ export class ProjectController {
               onProgress: async (p) => {
                 await updateJob({
                   step: p.step as ImportJobStep,
-                  progress: p.progress,
-                  message: p.message
+                  progress: p.progress ?? 0,
+                  message: p.message ?? null
                 })
               }
             }

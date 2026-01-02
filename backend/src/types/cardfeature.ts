@@ -30,6 +30,7 @@ export interface ContentBlock {
   content: string              // Conteúdo
   language?: string            // Linguagem (para código)
   title?: string               // Título opcional
+  route?: string               // Caminho do arquivo (para importações)
   order: number                // Ordem do bloco
 }
 
