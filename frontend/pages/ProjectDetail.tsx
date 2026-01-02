@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { usePlatform } from "@/hooks/use-platform"
 
@@ -58,6 +59,42 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [userSearchResults, setUserSearchResults] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
+  const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
+
+  const showStatus = (
+    type: "info" | "success" | "error",
+    text: string,
+    options: { autoClear?: boolean; durationMs?: number } = {}
+  ) => {
+    const { autoClear = type !== "info", durationMs = 9000 } = options
+
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current)
+      statusTimeoutRef.current = null
+    }
+
+    setStatus({ type, text })
+
+    if (autoClear) {
+      statusTimeoutRef.current = setTimeout(() => setStatus(null), durationMs)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (grokEnabled) {
+      showStatus("success", "IA Grok ativada para importação de cards", { durationMs: 12000 })
+    }
+  }, [grokEnabled])
 
   useEffect(() => {
     let cancelled = false
@@ -83,17 +120,21 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return false
     
     try {
+      showStatus("info", "Carregando projeto...")
       setLoading(true)
       const response = await projectService.getById(projectId)
       if (response?.success && response?.data) {
         setProject(response.data)
+        showStatus("success", "Projeto carregado")
         return true
       } else {
+        showStatus("error", response?.error || "Erro ao carregar projeto")
         toast.error(response?.error || 'Erro ao carregar projeto')
         handleBack()
         return false
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao carregar projeto")
       toast.error(error.message || 'Erro ao carregar projeto')
       handleBack()
       return false
@@ -106,12 +147,15 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return
     
     try {
+      showStatus("info", "Carregando membros...")
       setLoadingMembers(true)
       const response = await projectService.getMembers(projectId)
       if (response?.success && response?.data) {
         setMembers(response.data)
+        showStatus("success", "Membros atualizados")
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao carregar membros")
       toast.error(error.message || 'Erro ao carregar membros')
     } finally {
       setLoadingMembers(false)
@@ -122,6 +166,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return
     
     try {
+      showStatus("info", "Carregando cards...")
       setLoadingCards(true)
       const response = await projectService.getCards(projectId)
       if (response?.success && response?.data) {
@@ -143,8 +188,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         
         const features = await Promise.all(cardFeaturePromises)
         setCardFeatures(features.filter((f): f is CardFeature => f !== null))
+        showStatus("success", "Cards atualizados")
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao carregar cards")
       toast.error(error.message || 'Erro ao carregar cards')
     } finally {
       setLoadingCards(false)
@@ -171,6 +218,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
 
     try {
+      showStatus("info", "Adicionando card ao projeto...")
       const response = await projectService.addCard(projectId, selectedCardId)
       if (response?.success) {
         toast.success('Card adicionado ao projeto!')
@@ -178,10 +226,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         setSelectedCardId("")
         loadCards()
         loadAvailableCards()
+        showStatus("success", "Card adicionado ao projeto")
       } else {
+        showStatus("error", response?.error || "Erro ao adicionar card")
         toast.error(response?.error || 'Erro ao adicionar card')
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao adicionar card")
       toast.error(error.message || 'Erro ao adicionar card')
     }
   }
@@ -192,15 +243,19 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
 
     try {
+      showStatus("info", "Removendo card...")
       const response = await projectService.removeCard(projectId!, cardFeatureId)
       if (response?.success) {
         toast.success('Card removido do projeto!')
         loadCards()
         loadAvailableCards()
+        showStatus("success", "Card removido do projeto")
       } else {
+        showStatus("error", response?.error || "Erro ao remover card")
         toast.error(response?.error || 'Erro ao remover card')
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao remover card")
       toast.error(error.message || 'Erro ao remover card')
     }
   }
@@ -209,14 +264,18 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return
     
     try {
+      showStatus("info", "Reordenando card...")
       const response = await projectService.reorderCard(projectId, cardFeatureId, direction)
       if (response?.success) {
         toast.success('Card reordenado com sucesso!')
         loadCards()
+        showStatus("success", "Ordem dos cards atualizada")
       } else {
+        showStatus("error", response?.error || "Erro ao reordenar card")
         toast.error(response?.error || 'Erro ao reordenar card')
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao reordenar card")
       toast.error(error.message || 'Erro ao reordenar card')
     }
   }
@@ -229,11 +288,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
 
     try {
+      showStatus("info", "Deletando projeto...")
       const response = await projectService.delete(projectId)
       if (response?.success) {
         toast.success('Projeto deletado com sucesso!')
+        showStatus("success", "Projeto deletado")
         handleBack()
       } else {
+        showStatus("error", response?.error || "Erro ao deletar projeto")
         toast.error(response?.error || 'Erro ao deletar projeto')
       }
     } catch (error: any) {
@@ -245,6 +307,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         errorMessage = error.message
       }
       toast.error(errorMessage)
+      showStatus("error", errorMessage)
     }
   }
 
@@ -277,6 +340,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!selectedUser || !projectId) return
     
     try {
+      showStatus("info", "Adicionando membro...")
       const response = await projectService.addMember(projectId, { userId: selectedUser.id })
       if (response?.success) {
         toast.success("Membro adicionado com sucesso")
@@ -286,10 +350,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         setSelectedUser(null)
         setUserSearchQuery("")
         setUserSearchResults([])
+        showStatus("success", "Membro adicionado ao projeto")
       } else {
+        showStatus("error", response?.error || "Erro ao adicionar membro")
         toast.error(response?.error || "Erro ao adicionar membro")
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao adicionar membro")
       toast.error(error.message || "Erro ao adicionar membro")
     }
   }
@@ -369,6 +436,36 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           {project.name}
         </span>
       </div>
+
+      {/* Status inline */}
+      {status && (
+        <Alert
+          variant={status.type === "error" ? "destructive" : "default"}
+          className="border border-gray-200"
+        >
+          <div className="flex items-start gap-2">
+            {status.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+            ) : status.type === "error" ? (
+              <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
+            ) : (
+              <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+            )}
+            <div>
+              <AlertTitle className="text-sm font-semibold">
+                {status.type === "success"
+                  ? "Tudo certo"
+                  : status.type === "error"
+                    ? "Algo deu errado"
+                    : "Em andamento"}
+              </AlertTitle>
+              <AlertDescription className="text-sm text-gray-700">
+                {status.text}
+              </AlertDescription>
+            </div>
+          </div>
+        </Alert>
+      )}
 
       {/* Header */}
       <div className="relative flex items-start justify-between gap-4">

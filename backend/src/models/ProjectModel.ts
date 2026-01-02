@@ -141,28 +141,25 @@ export class ProjectModel {
           .single()
       )
 
-      // Add creator as OWNER member (if not already added by trigger)
-      try {
-        await executeQuery(
-          supabaseAdmin
-            .from('project_members')
-            .insert({
+      // Add creator as OWNER member (idempotent to avoid duplicate key noise)
+      await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .upsert(
+            {
               id: randomUUID(),
               project_id: insertData.id,
               user_id: userId,
               role: ProjectMemberRole.OWNER,
               created_at: insertData.created_at,
               updated_at: insertData.updated_at
-            })
-        )
-      } catch (memberError: any) {
-        // If member already exists (e.g., from trigger), that's okay
-        if (memberError.code !== '23505') {
-          // Re-throw if it's a different error
-          throw memberError
-        }
-        // Otherwise, silently continue - member was already added
-      }
+            },
+            {
+              onConflict: 'project_id,user_id',
+              ignoreDuplicates: true
+            }
+          )
+      )
 
       return {
         success: true,

@@ -32,7 +32,11 @@ export class AiCardGroupingService {
   }
 
   static hasConfig(): boolean {
-    return Boolean(process.env.OPENAI_API_KEY)
+    return Boolean(this.resolveApiKey())
+  }
+
+  private static resolveApiKey(): string | undefined {
+    return process.env.OPENAI_API_KEY || process.env.GROK_API_KEY
   }
 
   static mode(): 'metadata' | 'full' {
@@ -72,7 +76,7 @@ export class AiCardGroupingService {
     files: FileMeta[]
     proposedGroups: ProposedGroup[]
   }): Promise<z.infer<typeof AiOutputSchema>> {
-    const apiKey = process.env.OPENAI_API_KEY
+    const apiKey = this.resolveApiKey()
     if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
     const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
