@@ -572,6 +572,16 @@ export class CardFeatureModel {
   static async bulkCreate(items: CreateCardFeatureRequest[], userId: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const insertData: CardFeatureInsert[] = items.map(item => {
+        // Processar screens para adicionar IDs e order aos blocos (mesma regra do create)
+        const processedScreens = (item.screens || []).map(screen => ({
+          ...screen,
+          blocks: (screen.blocks || []).map((block: any, index: number) => ({
+            ...block,
+            id: randomUUID(),
+            order: block.order || index
+          }))
+        }))
+
         // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
         const visibility = item.visibility || (item.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
         return {
@@ -582,10 +592,11 @@ export class CardFeatureModel {
           description: item.description,
           content_type: item.content_type,
           card_type: item.card_type || 'codigos',
-          screens: item.screens,
+          screens: processedScreens,
           created_by: userId,
           is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
           visibility: visibility, // NOVO: usar visibility
+          created_in_project_id: item.created_in_project_id || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }

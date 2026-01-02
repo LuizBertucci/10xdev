@@ -193,10 +193,9 @@ export class ProjectController {
               throw new Error(createdRes.error || 'Erro ao criar cards')
             }
 
-            // Associar cards ao projeto (por enquanto 1 a 1; otimizado em commit posterior)
-            for (const card of createdRes.data) {
-              await ProjectModel.addCard(projectId, card.id, userId)
-            }
+            const ids = createdRes.data.map((c) => c.id)
+            const assoc = await ProjectModel.addCardsBulk(projectId, ids, userId)
+            if (!assoc.success) throw new Error(assoc.error || 'Erro ao associar cards ao projeto')
 
             created += createdRes.data.length
             const pct = 70 + Math.min(25, Math.floor((created / total) * 25))

@@ -750,6 +750,78 @@ export class ProjectModel {
     }
   }
 
+  static async addCardsBulk(
+    projectId: string,
+    cardFeatureIds: string[],
+    userId: string
+  ): Promise<ModelResult<{ insertedCount: number }>> {
+    try {
+      if (!Array.isArray(cardFeatureIds) || cardFeatureIds.length === 0) {
+        return { success: true, data: { insertedCount: 0 }, statusCode: 200 }
+      }
+
+      // Verificar se o usuário é membro do projeto
+      const role = await this.getUserRole(projectId, userId)
+      if (!role) {
+        return {
+          success: false,
+          error: 'Você não é membro deste projeto',
+          statusCode: 403
+        }
+      }
+
+      // Buscar o maior order atual para definir o range de orders
+      const { data: existingCards } = await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .select('order')
+          .eq('project_id', projectId)
+          .order('order', { ascending: false, nullsFirst: false })
+          .limit(1)
+      )
+
+      const maxOrder =
+        existingCards && existingCards.length > 0 && existingCards[0].order !== null
+          ? existingCards[0].order
+          : -1
+
+      const now = new Date().toISOString()
+      const insertData: ProjectCardInsert[] = cardFeatureIds.map((cardFeatureId, idx) => ({
+        id: randomUUID(),
+        project_id: projectId,
+        card_feature_id: cardFeatureId,
+        added_by: userId,
+        created_at: now,
+        order: maxOrder + 1 + idx
+      }))
+
+      await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .insert(insertData)
+      )
+
+      return {
+        success: true,
+        data: { insertedCount: insertData.length },
+        statusCode: 201
+      }
+    } catch (error: any) {
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'Um ou mais cards já estão associados a este projeto',
+          statusCode: 409
+        }
+      }
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
   static async removeCard(projectId: string, cardFeatureId: string, userId: string): Promise<ModelResult<null>> {
     try {
       // Verificar se o usuário é membro do projeto
