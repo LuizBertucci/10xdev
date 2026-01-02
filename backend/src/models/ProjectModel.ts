@@ -127,8 +127,6 @@ export class ProjectModel {
         id: randomUUID(),
         name: data.name,
         description: data.description || null,
-        // Campo opcional no banco (migration 005). Se ainda não existir no schema, o PostgREST retornará erro.
-        // Para manter compatibilidade, só atribuímos quando vier no request.
         ...(data.repositoryUrl ? { repository_url: data.repositoryUrl } : {}),
         created_by: userId,
         created_at: new Date().toISOString(),
