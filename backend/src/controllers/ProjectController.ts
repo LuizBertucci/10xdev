@@ -145,6 +145,9 @@ export class ProjectController {
             {
               useAi: useAi === true,
               onProgress: async (p) => {
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'P1',location:'ProjectController.ts:onProgress',message:'Progress update',data:{step:p.step,progress:p.progress,msg:p.message?.slice(0,80)},timestamp:Date.now()})}).catch(()=>{})
+                // #endregion
                 await updateJob({
                   step: p.step as ImportJobStep,
                   progress: p.progress ?? 0,
@@ -154,7 +157,38 @@ export class ProjectController {
             }
           )
 
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              sessionId:'debug-session',
+              runId:'pre-fix',
+              hypothesisId:'K1',
+              location:'ProjectController.ts:importFromGithub:afterProcessRepo',
+              message:'Cards returned from processRepoToCards',
+              data:{cardsCount: cards.length, aiUsed, aiCardsCreated, filesProcessed},
+              timestamp:Date.now()
+            })
+          }).catch(()=>{})
+          // #endregion
+
           if (!cards.length) {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                sessionId:'debug-session',
+                runId:'pre-fix',
+                hypothesisId:'K2',
+                location:'ProjectController.ts:importFromGithub:noCards',
+                message:'No cards returned; aborting import',
+                data:{cardsCount: cards.length, aiUsed, aiCardsCreated},
+                timestamp:Date.now()
+              })
+            }).catch(()=>{})
+            // #endregion
             await updateJob({
               status: 'error',
               step: 'error',
@@ -188,13 +222,36 @@ export class ProjectController {
 
           for (let i = 0; i < cardsNormalized.length; i += batchSize) {
             const slice = cardsNormalized.slice(i, i + batchSize)
+
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({
+                sessionId:'debug-session',
+                runId:'pre-fix',
+                hypothesisId:'I',
+                location:'ProjectController.ts:importFromGithub:beforeBulkCreate',
+                message:'Bulk creating cards',
+                data:{batchSize: slice.length, total},
+                timestamp:Date.now()
+              })
+            }).catch(()=>{})
+            // #endregion
+
             const createdRes = await CardFeatureModel.bulkCreate(slice as any, userId)
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'M1',location:'ProjectController.ts:importFromGithub:afterBulkCreate',message:'bulkCreate result',data:{success:createdRes.success,createdCount:createdRes.data?.length||0,error:createdRes.error||null},timestamp:Date.now()})}).catch(()=>{})
+            // #endregion
             if (!createdRes.success || !createdRes.data) {
               throw new Error(createdRes.error || 'Erro ao criar cards')
             }
 
             const ids = createdRes.data.map((c) => c.id)
             const assoc = await ProjectModel.addCardsBulk(projectId, ids, userId)
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'M2',location:'ProjectController.ts:importFromGithub:afterAddCardsBulk',message:'addCardsBulk result',data:{success:assoc.success,idsCount:ids.length,error:assoc.error||null},timestamp:Date.now()})}).catch(()=>{})
+            // #endregion
             if (!assoc.success) throw new Error(assoc.error || 'Erro ao associar cards ao projeto')
 
             created += createdRes.data.length
@@ -211,6 +268,21 @@ export class ProjectController {
           await updateJob({ step: 'linking_cards', progress: 98, message: 'Finalizando...' })
           await updateJob({ status: 'done', step: 'done', progress: 100, message: 'Importação concluída.' })
         } catch (e: any) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+              sessionId:'debug-session',
+              runId:'pre-fix',
+              hypothesisId:'J',
+              location:'ProjectController.ts:importFromGithub:catch',
+              message:'Import job failed',
+              data:{error: String(e?.message || e)},
+              timestamp:Date.now()
+            })
+          }).catch(()=>{})
+          // #endregion
           await ImportJobModel.update(job.id, {
             status: 'error',
             step: 'error',

@@ -134,9 +134,14 @@ export default function ImportProgressWidget() {
             </div>
 
             <div className="mt-2 text-[11px] text-gray-600 flex flex-wrap gap-x-3 gap-y-1">
-              <span>Arquivos: {job?.files_processed ?? 0}</span>
-              <span>Cards: {job?.cards_created ?? 0}</span>
-              <span>IA: {job?.ai_requested ? (job?.ai_used ? 'usada' : 'pendente') : 'desativada'}</span>
+              <span>📁 {job?.files_processed ?? 0} arquivos</span>
+              <span>🗂️ {job?.cards_created ?? 0} cards</span>
+              {job?.ai_requested && (
+                <span className={job?.ai_used ? 'text-green-600 font-medium' : 'text-blue-600'}>
+                  {job?.ai_used ? `🤖 IA: ${job?.ai_cards_created ?? 0} cards` : '🤖 IA: processando...'}
+                </span>
+              )}
+              {!job?.ai_requested && <span className="text-gray-500">📋 Modo heurístico</span>}
             </div>
           </div>
         </div>

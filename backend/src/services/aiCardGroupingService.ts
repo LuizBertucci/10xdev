@@ -36,7 +36,24 @@ export class AiCardGroupingService {
   }
 
   private static resolveApiKey(): string | undefined {
-    return process.env.OPENAI_API_KEY || process.env.GROK_API_KEY
+    // Priorizar chave do Grok; fallback para OPENAI_API_KEY se não houver
+    const key = process.env.GROK_API_KEY || process.env.OPENAI_API_KEY
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        sessionId:'debug-session',
+        runId:'pre-fix',
+        hypothesisId:'C',
+        location:'aiCardGroupingService.ts:resolveApiKey',
+        message:'API key presence check',
+        data:{apiKeyPresent: Boolean(key), keyLength: key?.length || 0},
+        timestamp:Date.now()
+      })
+    }).catch(()=>{})
+    // #endregion
+    return key
   }
 
   static mode(): 'metadata' | 'full' {
@@ -44,7 +61,7 @@ export class AiCardGroupingService {
   }
 
   private static resolveChatCompletionsUrl(): string {
-    const raw = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions').trim()
+    const raw = (process.env.OPENAI_BASE_URL || 'https://api.x.ai/v1/chat/completions').trim()
     if (raw.endsWith('/chat/completions')) return raw
     if (raw.endsWith('/v1')) return `${raw}/chat/completions`
     if (raw.endsWith('/')) {
@@ -79,7 +96,7 @@ export class AiCardGroupingService {
     const apiKey = this.resolveApiKey()
     if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
-    const model = process.env.OPENAI_MODEL || 'gpt-4o-mini'
+    const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
     const endpoint = this.resolveChatCompletionsUrl()
     const mode = this.mode()
 
@@ -125,10 +142,112 @@ export class AiCardGroupingService {
       response_format: { type: 'json_object' }
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        sessionId:'debug-session',
+        runId:'pre-fix',
+        hypothesisId:'D',
+        location:'aiCardGroupingService.ts:refineGrouping:beforeCall',
+        message:'Calling LLM for grouping',
+        data:{
+          mode,
+          model,
+          endpoint,
+          filesTrimmed: filesTrimmed.length,
+          totalChars,
+          proposedGroups: params.proposedGroups.length
+        },
+        timestamp:Date.now()
+      })
+    }).catch(()=>{})
+    // #endregion
+
+    let llmContent: string | undefined
+
     try {
       const { content } = await this.callChatCompletions({ endpoint, apiKey, body })
-      return AiOutputSchema.parse(JSON.parse(content))
+      llmContent = content
+
+      // Normalizar saída do LLM para o schema esperado (fallbacks para Grok)
+      let parsed: any
+      try {
+        parsed = JSON.parse(content)
+      } catch (parseErr: any) {
+        throw new Error(`Resposta LLM não é JSON válido: ${String(parseErr?.message || parseErr)}`)
+      }
+
+      if (parsed?.cards && Array.isArray(parsed.cards)) {
+        parsed.cards = parsed.cards
+          .map((card: any, cardIdx: number) => {
+            const title = card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`
+            const screensRaw = Array.isArray(card?.screens) ? card.screens : []
+
+            const screens = screensRaw
+              .map((s: any, screenIdx: number) => {
+                const name = s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`
+                const files = Array.isArray(s?.files) ? s.files : []
+                if (!files.length) return null
+                return { name, files }
+              })
+              .filter(Boolean)
+
+            if (!title || !screens.length) return null
+
+            return {
+              title,
+              description: card?.description || '',
+              tech: card?.tech,
+              language: card?.language,
+              screens
+            }
+          })
+          .filter(Boolean)
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'pre-fix',
+          hypothesisId:'F',
+          location:'aiCardGroupingService.ts:refineGrouping:afterLLM',
+          message:'LLM returned content',
+          data:{
+            contentLength: content.length,
+            sample: content.slice(0, 400),
+            normalizedCards: parsed?.cards?.length || 0
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{})
+      // #endregion
+
+      return AiOutputSchema.parse(parsed)
     } catch (err: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'pre-fix',
+          hypothesisId:'E',
+          location:'aiCardGroupingService.ts:refineGrouping:error',
+          message:'LLM call failed, falling back',
+          data:{
+            error: String(err?.message || err),
+            contentSample: llmContent ? llmContent.slice(0, 400) : null,
+            contentLength: llmContent ? llmContent.length : null
+          },
+          timestamp:Date.now()
+        })
+      }).catch(()=>{})
+      // #endregion
       const msg = String(err?.message || err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
         const body2 = {

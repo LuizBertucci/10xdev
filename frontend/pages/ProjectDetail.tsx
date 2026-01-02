@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase"
+import { Progress } from "@/components/ui/progress"
 import {
   Dialog,
   DialogContent,
@@ -62,6 +64,21 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
   const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
+  
+  // Import job state
+  const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
+  const [importJob, setImportJob] = useState<{
+    id: string
+    status: string
+    step: string
+    progress: number
+    message: string | null
+    ai_requested: boolean
+    ai_used: boolean
+    ai_cards_created: number
+    files_processed: number
+    cards_created: number
+  } | null>(null)
 
   const showStatus = (
     type: "info" | "success" | "error",
@@ -95,6 +112,57 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       showStatus("success", "IA Grok ativada para importação de cards", { durationMs: 12000 })
     }
   }, [grokEnabled])
+
+  // Listen for import job updates
+  useEffect(() => {
+    if (!supabase || !projectId) return
+    let mounted = true
+
+    const fetchRunningJob = async () => {
+      const { data } = await supabase
+        .from('import_jobs')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'running')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (mounted && data) {
+        setImportJob(data)
+      }
+    }
+
+    fetchRunningJob()
+
+    const channel = supabase
+      .channel(`import_job_project:${projectId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'import_jobs',
+        filter: `project_id=eq.${projectId}`
+      }, (payload: any) => {
+        if (!mounted) return
+        const row = payload.new
+        if (row) {
+          setImportJob(row)
+          // If done, reload cards and clear after delay
+          if (row.status === 'done') {
+            loadCards()
+            setTimeout(() => { if (mounted) setImportJob(null) }, 8000)
+          } else if (row.status === 'error') {
+            setTimeout(() => { if (mounted) setImportJob(null) }, 10000)
+          }
+        }
+      })
+      .subscribe()
+
+    return () => {
+      mounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, projectId])
 
   useEffect(() => {
     let cancelled = false
@@ -465,6 +533,79 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </div>
           </div>
         </Alert>
+      )}
+
+      {/* Import Progress Banner */}
+      {importJob && (
+        <div className={`rounded-lg border p-4 ${
+          importJob.status === 'error' 
+            ? 'bg-red-50 border-red-200' 
+            : importJob.status === 'done'
+              ? 'bg-green-50 border-green-200'
+              : 'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-full ${
+              importJob.status === 'error'
+                ? 'bg-red-100'
+                : importJob.status === 'done'
+                  ? 'bg-green-100'
+                  : 'bg-blue-100'
+            }`}>
+              {importJob.status === 'running' ? (
+                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+              ) : importJob.status === 'done' ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className={`font-semibold text-sm ${
+                  importJob.status === 'error'
+                    ? 'text-red-800'
+                    : importJob.status === 'done'
+                      ? 'text-green-800'
+                      : 'text-blue-800'
+                }`}>
+                  {importJob.status === 'running' 
+                    ? '🚀 Importação em andamento' 
+                    : importJob.status === 'done'
+                      ? '✅ Importação concluída'
+                      : '❌ Erro na importação'}
+                </h3>
+                <span className={`text-xs font-medium ${
+                  importJob.status === 'error'
+                    ? 'text-red-600'
+                    : importJob.status === 'done'
+                      ? 'text-green-600'
+                      : 'text-blue-600'
+                }`}>
+                  {importJob.progress}%
+                </span>
+              </div>
+              <p className="text-sm text-gray-700 mt-1 truncate">
+                {importJob.message || 'Processando...'}
+              </p>
+              {importJob.status === 'running' && (
+                <Progress value={importJob.progress} className="h-2 mt-2" />
+              )}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+                <span>📁 {importJob.files_processed} arquivos</span>
+                <span>🗂️ {importJob.cards_created} cards</span>
+                {importJob.ai_requested && (
+                  <span className={importJob.ai_used ? 'text-green-600 font-medium' : 'text-blue-600'}>
+                    <Bot className="h-3 w-3 inline mr-1" />
+                    {importJob.ai_used 
+                      ? `IA: ${importJob.ai_cards_created} cards` 
+                      : 'IA: processando...'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Header */}
