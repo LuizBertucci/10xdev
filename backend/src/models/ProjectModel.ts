@@ -32,6 +32,7 @@ export class ProjectModel {
       id: row.id,
       name: row.name,
       description: row.description,
+      ...(typeof (row as any).repository_url !== 'undefined' ? { repositoryUrl: (row as any).repository_url } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       createdBy: row.created_by
@@ -126,6 +127,9 @@ export class ProjectModel {
         id: randomUUID(),
         name: data.name,
         description: data.description || null,
+        // Campo opcional no banco (migration 005). Se ainda não existir no schema, o PostgREST retornará erro.
+        // Para manter compatibilidade, só atribuímos quando vier no request.
+        ...(data.repositoryUrl ? { repository_url: data.repositoryUrl } : {}),
         created_by: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
