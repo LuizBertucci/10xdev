@@ -79,8 +79,22 @@ export const executeQuery = async (queryBuilder: any) => {
         err.details = error.details
         err.hint = error.hint
 
+        // Detectar rate limiting do Supabase
+        const errorMessage = (error.message || '').toLowerCase()
+        const isRateLimit = 
+          errorMessage.includes('rate limit') ||
+          errorMessage.includes('too many requests') ||
+          errorMessage.includes('quota exceeded') ||
+          errorMessage.includes('limite de requisições') ||
+          error.status === 429 ||
+          error.code === '429'
+
         // Mapear códigos do Supabase para HTTP status codes
-        if (error.code === 'PGRST116') {
+        if (isRateLimit) {
+          // Rate limiting: 429 Too Many Requests
+          err.statusCode = 429
+          err.message = 'Limite de requisições do Supabase excedido. Tente novamente em alguns instantes.'
+        } else if (error.code === 'PGRST116') {
           // PGRST116: No rows found (quando usa .single())
           err.statusCode = 404
         } else if (error.code === '23505') {

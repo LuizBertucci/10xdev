@@ -1,17 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase"
+import { Progress } from "@/components/ui/progress"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { usePlatform } from "@/hooks/use-platform"
 
@@ -46,7 +49,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [loading, setLoading] = useState(true)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [loadingCards, setLoadingCards] = useState(false)
+  const [loadingMoreCards, setLoadingMoreCards] = useState(false)
+  const [hasMoreCards, setHasMoreCards] = useState(false)
+  const [totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
+  
+  const CARDS_PER_PAGE = 10
   
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
@@ -58,6 +66,119 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [userSearchResults, setUserSearchResults] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
+  const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
+  
+  // Import job state
+  const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
+  const [importJob, setImportJob] = useState<{
+    id: string
+    status: string
+    step: string
+    progress: number
+    message: string | null
+    ai_requested: boolean
+    ai_used: boolean
+    ai_cards_created: number
+    files_processed: number
+    cards_created: number
+  } | null>(null)
+
+  const showStatus = (
+    type: "info" | "success" | "error",
+    text: string,
+    options: { autoClear?: boolean; durationMs?: number } = {}
+  ) => {
+    const { autoClear = type !== "info", durationMs = 9000 } = options
+
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current)
+      statusTimeoutRef.current = null
+    }
+
+    setStatus({ type, text })
+
+    if (autoClear) {
+      statusTimeoutRef.current = setTimeout(() => setStatus(null), durationMs)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (grokEnabled) {
+      showStatus("success", "IA Grok ativada para importação de cards", { durationMs: 12000 })
+    }
+  }, [grokEnabled])
+
+  // Listen for import job updates
+  const lastCardsCreatedRef = useRef<number>(0)
+  
+  useEffect(() => {
+    if (!supabase || !projectId) return
+    let mounted = true
+
+    const fetchRunningJob = async () => {
+      const { data } = await supabase
+        .from('import_jobs')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('status', 'running')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (mounted && data) {
+        const jobData = data as any
+        setImportJob(jobData)
+        lastCardsCreatedRef.current = jobData.cards_created || 0
+      }
+    }
+
+    fetchRunningJob()
+
+    const channel = supabase
+      .channel(`import_job_project:${projectId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'import_jobs',
+        filter: `project_id=eq.${projectId}`
+      }, (payload: any) => {
+        if (!mounted) return
+        const row = payload.new
+        if (row) {
+          setImportJob(row)
+          
+          // Reload cards when a new card is created (incremental mode)
+          const newCardsCreated = row.cards_created || 0
+          if (newCardsCreated > lastCardsCreatedRef.current) {
+            lastCardsCreatedRef.current = newCardsCreated
+            loadCards(true) // Incremental: não mostra "Carregando..." e adiciona apenas novos
+          }
+          
+          // If done, just clear the banner after delay (no reload needed - cards already loaded incrementally)
+          if (row.status === 'done') {
+            setTimeout(() => { if (mounted) setImportJob(null) }, 8000)
+          } else if (row.status === 'error') {
+            setTimeout(() => { if (mounted) setImportJob(null) }, 10000)
+          }
+        }
+      })
+      .subscribe()
+
+    return () => {
+      mounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, projectId])
 
   useEffect(() => {
     let cancelled = false
@@ -118,37 +239,116 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }
 
-  const loadCards = async () => {
+  const loadCards = async (incremental: boolean = false, loadMore: boolean = false) => {
     if (!projectId) return
     
     try {
-      setLoadingCards(true)
-      const response = await projectService.getCards(projectId)
+      if (loadMore) {
+        setLoadingMoreCards(true)
+      } else if (!incremental) {
+        setLoadingCards(true)
+      }
+      
+      // Durante importação incremental, carregar todos os cards para detectar novos
+      // No carregamento inicial e "carregar mais", usar paginação
+      let response
+      if (incremental) {
+        // Carregar todos os cards sem paginação para detectar novos durante importação
+        response = await projectService.getCards(projectId)
+      } else {
+        // Calcular offset baseado no número de cards já carregados
+        const offset = loadMore ? cards.length : 0
+        const limit = CARDS_PER_PAGE
+        response = await projectService.getCards(projectId, limit, offset)
+      }
       if (response?.success && response?.data) {
-        setCards(response.data)
+        const newCards = response.data
+        const totalCount = response.count || 0
         
-        // Buscar dados completos dos card features
-        const cardFeaturePromises = response.data.map(async (projectCard: any) => {
-          try {
-            const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
-            if (cardResponse?.success && cardResponse?.data) {
-              return cardResponse.data
-            }
-            return null
-          } catch (error) {
-            console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
-            return null
+        // Atualizar contador total e verificar se há mais cards (apenas se não for incremental)
+        if (!incremental) {
+          setTotalCardsCount(totalCount)
+          // No carregamento inicial (não loadMore), cards.length ainda tem valor antigo (stale)
+          // então usamos 0. No loadMore, usamos cards.length que já tem os cards anteriores
+          const previousCount = loadMore ? cards.length : 0
+          setHasMoreCards(previousCount + newCards.length < totalCount)
+        }
+        
+        // Merge incremental: adiciona apenas novos cards
+        if (incremental || loadMore) {
+          setCards(prevCards => {
+            const existingIds = new Set(prevCards.map((c: any) => c.cardFeatureId))
+            const uniqueNewCards = newCards.filter((c: any) => !existingIds.has(c.cardFeatureId))
+            return [...prevCards, ...uniqueNewCards]
+          })
+          
+          // Buscar apenas os novos card features
+          const newProjectCards = newCards.filter((c: any) => 
+            !cardFeatures.some(f => f.id === c.cardFeatureId)
+          )
+          
+          if (newProjectCards.length > 0) {
+            const cardFeaturePromises = newProjectCards.map(async (projectCard: any) => {
+              try {
+                const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
+                if (cardResponse?.success && cardResponse?.data) {
+                  return cardResponse.data
+                }
+                return null
+              } catch (error) {
+                console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
+                return null
+              }
+            })
+            
+            const newFeatures = await Promise.all(cardFeaturePromises)
+            setCardFeatures(prev => {
+              const existingIds = new Set(prev.map(f => f.id))
+              const uniqueNewFeatures = newFeatures.filter((f): f is CardFeature => 
+                f !== null && !existingIds.has(f.id)
+              )
+              return [...prev, ...uniqueNewFeatures]
+            })
           }
-        })
-        
-        const features = await Promise.all(cardFeaturePromises)
-        setCardFeatures(features.filter((f): f is CardFeature => f !== null))
+        } else {
+          // Carregamento inicial: substitui tudo
+          setCards(newCards)
+          
+          // Buscar dados completos dos card features apenas dos cards carregados
+          const cardFeaturePromises = newCards.map(async (projectCard: any) => {
+            try {
+              const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
+              if (cardResponse?.success && cardResponse?.data) {
+                return cardResponse.data
+              }
+              return null
+            } catch (error) {
+              console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
+              return null
+            }
+          })
+          
+          const features = await Promise.all(cardFeaturePromises)
+          setCardFeatures(features.filter((f): f is CardFeature => f !== null))
+        }
       }
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar cards')
+      if (!incremental && !loadMore) {
+        toast.error(error.message || 'Erro ao carregar cards')
+      } else if (loadMore) {
+        toast.error('Erro ao carregar mais cards')
+      }
     } finally {
-      setLoadingCards(false)
+      if (loadMore) {
+        setLoadingMoreCards(false)
+      } else if (!incremental) {
+        setLoadingCards(false)
+      }
     }
+  }
+  
+  const loadMoreCards = async () => {
+    await loadCards(false, true)
   }
 
   const loadAvailableCards = async () => {
@@ -171,6 +371,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
 
     try {
+      showStatus("info", "Adicionando card ao projeto...")
       const response = await projectService.addCard(projectId, selectedCardId)
       if (response?.success) {
         toast.success('Card adicionado ao projeto!')
@@ -178,10 +379,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         setSelectedCardId("")
         loadCards()
         loadAvailableCards()
+        showStatus("success", "Card adicionado ao projeto")
       } else {
+        showStatus("error", response?.error || "Erro ao adicionar card")
         toast.error(response?.error || 'Erro ao adicionar card')
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao adicionar card")
       toast.error(error.message || 'Erro ao adicionar card')
     }
   }
@@ -192,15 +396,19 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
 
     try {
+      showStatus("info", "Removendo card...")
       const response = await projectService.removeCard(projectId!, cardFeatureId)
       if (response?.success) {
         toast.success('Card removido do projeto!')
         loadCards()
         loadAvailableCards()
+        showStatus("success", "Card removido do projeto")
       } else {
+        showStatus("error", response?.error || "Erro ao remover card")
         toast.error(response?.error || 'Erro ao remover card')
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao remover card")
       toast.error(error.message || 'Erro ao remover card')
     }
   }
@@ -209,14 +417,18 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return
     
     try {
+      showStatus("info", "Reordenando card...")
       const response = await projectService.reorderCard(projectId, cardFeatureId, direction)
       if (response?.success) {
         toast.success('Card reordenado com sucesso!')
         loadCards()
+        showStatus("success", "Ordem dos cards atualizada")
       } else {
+        showStatus("error", response?.error || "Erro ao reordenar card")
         toast.error(response?.error || 'Erro ao reordenar card')
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao reordenar card")
       toast.error(error.message || 'Erro ao reordenar card')
     }
   }
@@ -229,11 +441,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
 
     try {
+      showStatus("info", "Deletando projeto...")
       const response = await projectService.delete(projectId)
       if (response?.success) {
         toast.success('Projeto deletado com sucesso!')
+        showStatus("success", "Projeto deletado")
         handleBack()
       } else {
+        showStatus("error", response?.error || "Erro ao deletar projeto")
         toast.error(response?.error || 'Erro ao deletar projeto')
       }
     } catch (error: any) {
@@ -245,6 +460,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         errorMessage = error.message
       }
       toast.error(errorMessage)
+      showStatus("error", errorMessage)
     }
   }
 
@@ -277,6 +493,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!selectedUser || !projectId) return
     
     try {
+      showStatus("info", "Adicionando membro...")
       const response = await projectService.addMember(projectId, { userId: selectedUser.id })
       if (response?.success) {
         toast.success("Membro adicionado com sucesso")
@@ -286,10 +503,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         setSelectedUser(null)
         setUserSearchQuery("")
         setUserSearchResults([])
+        showStatus("success", "Membro adicionado ao projeto")
       } else {
+        showStatus("error", response?.error || "Erro ao adicionar membro")
         toast.error(response?.error || "Erro ao adicionar membro")
       }
     } catch (error: any) {
+      showStatus("error", error.message || "Erro ao adicionar membro")
       toast.error(error.message || "Erro ao adicionar membro")
     }
   }
@@ -331,7 +551,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     )
   }
 
-  const filteredCards = cardFeatures
+  // Deduplicate cardFeatures by id to avoid duplicate keys
+  const uniqueCardFeatures = Array.from(
+    new Map(cardFeatures.map(f => [f.id, f])).values()
+  )
+
+  const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
@@ -370,6 +595,37 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         </span>
       </div>
 
+      {/* Status inline */}
+      {status && (
+        <Alert
+          variant={status.type === "error" ? "destructive" : "default"}
+          className="border border-gray-200"
+        >
+          <div className="flex items-start gap-2">
+            {status.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+            ) : status.type === "error" ? (
+              <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
+            ) : (
+              <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+            )}
+            <div>
+              <AlertTitle className="text-sm font-semibold">
+                {status.type === "success"
+                  ? "Tudo certo"
+                  : status.type === "error"
+                    ? "Algo deu errado"
+                    : "Em andamento"}
+              </AlertTitle>
+              <AlertDescription className="text-sm text-gray-700">
+                {status.text}
+              </AlertDescription>
+            </div>
+          </div>
+        </Alert>
+      )}
+
+
       {/* Header */}
       <div className="relative flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -398,43 +654,101 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           )}
         </div>
 
-        {/* Ações - Desktop: botão visível, Mobile: menu dropdown */}
+        {/* Ações - Menu dropdown */}
         {project.userRole === "owner" && (
-          <>
-            {/* Desktop */}
-            <div className="hidden sm:block">
-              <Button
-                variant="destructive"
-                size="sm"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
                 onClick={handleDeleteProject}
+                className="text-red-600"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Deletar Projeto
-              </Button>
-            </div>
-
-            {/* Mobile - Menu Dropdown */}
-            <div className="sm:hidden absolute top-0 right-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={handleDeleteProject}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Deletar Projeto
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
+
+      {/* Import Progress Banner - Sticky between Header and Tabs */}
+      {importJob && (
+        <div className="sticky top-0 z-50 mb-4 -mx-2 sm:-mx-0 px-2 sm:px-0">
+          <div className={`rounded-lg border p-3 md:p-4 shadow-md ${
+            importJob.status === 'error' 
+              ? 'bg-red-50 border-red-200' 
+              : importJob.status === 'done'
+                ? 'bg-green-50 border-green-200'
+                : 'bg-blue-50 border-blue-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-full ${
+                importJob.status === 'error'
+                  ? 'bg-red-100'
+                  : importJob.status === 'done'
+                    ? 'bg-green-100'
+                    : 'bg-blue-100'
+              }`}>
+                {importJob.status === 'running' ? (
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                ) : importJob.status === 'done' ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className={`font-semibold text-sm ${
+                    importJob.status === 'error'
+                      ? 'text-red-800'
+                      : importJob.status === 'done'
+                        ? 'text-green-800'
+                        : 'text-blue-800'
+                  }`}>
+                    {importJob.status === 'running' 
+                      ? '🚀 Importação em andamento' 
+                      : importJob.status === 'done'
+                        ? '✅ Importação concluída'
+                        : '❌ Erro na importação'}
+                  </h3>
+                  <span className={`text-xs font-medium ${
+                    importJob.status === 'error'
+                      ? 'text-red-600'
+                      : importJob.status === 'done'
+                        ? 'text-green-600'
+                        : 'text-blue-600'
+                  }`}>
+                    {importJob.progress}%
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 mt-1 truncate">
+                  {importJob.message || 'Processando...'}
+                </p>
+                {importJob.status === 'running' && (
+                  <Progress value={importJob.progress} className="h-2 mt-2" />
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+                  <span>📁 {importJob.files_processed} arquivos</span>
+                  <span>🗂️ {importJob.cards_created} cards</span>
+                  {importJob.ai_requested && (
+                    <span className={importJob.ai_used ? 'text-green-600 font-medium' : 'text-blue-600'}>
+                      <Bot className="h-3 w-3 inline mr-1" />
+                      {importJob.ai_used 
+                        ? `IA: ${importJob.ai_cards_created} cards` 
+                        : 'IA: processando...'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="cards" className="space-y-4">
@@ -488,7 +802,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           {loadingCards ? (
             <p className="text-gray-500 text-center py-8">Carregando...</p>
           ) : filteredCards.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
+            <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
           ) : (
             <div className="space-y-4">
               {filteredCards.map(({ cardFeature, projectCard }, index) => {
@@ -555,6 +869,30 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   </div>
                 )
               })}
+              
+              {/* Botão "Carregar mais cards" */}
+              {hasMoreCards && (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={loadMoreCards}
+                    disabled={loadingMoreCards}
+                    className="min-w-[200px]"
+                  >
+                    {loadingMoreCards ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Carregando...
+                      </>
+                    ) : (
+                      <>
+                        Carregar mais cards
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>

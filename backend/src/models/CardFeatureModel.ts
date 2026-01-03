@@ -45,7 +45,7 @@ export class CardFeatureModel {
     }
   }
 
-  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string, head: boolean = false, matchedUserIds: string[] = []) {
+  private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string, head: boolean = false, matchedUserIds: string[] = [], sharedCardIds: string[] = []) {
     // IMPORTANTE: Usar supabaseAdmin seguindo padrão do projeto (ProjectModel)
     let query = supabaseAdmin
       .from('card_features')
@@ -61,14 +61,24 @@ export class CardFeatureModel {
     if (userRole === 'admin') {
       // Admin vê todos os cards - não aplica filtro de visibilidade
     } else if (userId) {
-      // Usar visibility quando disponível, com fallback para is_private
-      // public OR (private AND próprio) OR (unlisted AND próprio) OR compartilhado
-      query = query.or(
-        `visibility.eq.public,` +
-        `and(visibility.eq.private,created_by.eq.${userId}),` +
-        `and(visibility.eq.unlisted,created_by.eq.${userId}),` +
-        `id.in.(select card_feature_id from card_shares where shared_with_user_id='${userId}')`
-      )
+      // Construir condições OR para visibilidade
+      const conditions: string[] = [
+        'visibility.eq.public',
+        `and(visibility.eq.private,created_by.eq.${userId})`,
+        `and(visibility.eq.unlisted,created_by.eq.${userId})`
+      ]
+      
+      // Se houver cards compartilhados, adicionar condição para eles
+      // PostgREST requer sintaxe específica para .in() dentro de .or()
+      if (sharedCardIds.length > 0) {
+        // Para cada ID compartilhado, criar uma condição id.eq.{id}
+        // Mas isso pode gerar muitas condições. Melhor usar uma abordagem diferente.
+        // Vamos adicionar os IDs compartilhados como condições individuais
+        const sharedConditions = sharedCardIds.map(id => `id.eq.${id}`)
+        conditions.push(...sharedConditions)
+      }
+      
+      query = query.or(conditions.join(','))
     } else {
       // Não autenticado: apenas cards públicos em listagens
       query = query.eq('visibility', Visibility.PUBLIC)
@@ -287,16 +297,33 @@ export class CardFeatureModel {
         matchedUserIds = users?.map((u: any) => u.id) || []
       }
 
-      // 2. Query principal para os dados (com range/ordenação)
-      const query = this.buildQuery(params, userId, userRole, false, matchedUserIds)
+      // 2. Buscar IDs dos cards compartilhados com o usuário (se autenticado e não admin)
+      let sharedCardIds: string[] = []
+      if (userId && userRole !== 'admin') {
+        try {
+          const { data: shares } = await executeQuery(
+            supabaseAdmin
+              .from('card_shares')
+              .select('card_feature_id')
+              .eq('shared_with_user_id', userId)
+          )
+          sharedCardIds = shares?.map((s: any) => s.card_feature_id).filter(Boolean) || []
+        } catch (error) {
+          console.error('Erro ao buscar cards compartilhados:', error)
+          // Continuar sem os cards compartilhados em caso de erro
+        }
+      }
+
+      // 3. Query principal para os dados (com range/ordenação)
+      const query = this.buildQuery(params, userId, userRole, false, matchedUserIds, sharedCardIds)
       const { data, error: dataError } = await executeQuery(query)
 
-      // 3. Query para o COUNT (sem range, para pegar o total filtrado)
+      // 4. Query para o COUNT (sem range, para pegar o total filtrado)
       const countParams = { ...params }
       delete countParams.page
       delete countParams.limit
       
-      const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds)
+      const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds, sharedCardIds)
       const { count, error: countError } = await executeQuery(countQuery)
 
       if (!data || data.length === 0) {
@@ -572,6 +599,16 @@ export class CardFeatureModel {
   static async bulkCreate(items: CreateCardFeatureRequest[], userId: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
       const insertData: CardFeatureInsert[] = items.map(item => {
+        // Processar screens para adicionar IDs e order aos blocos (mesma regra do create)
+        const processedScreens = (item.screens || []).map(screen => ({
+          ...screen,
+          blocks: (screen.blocks || []).map((block: any, index: number) => ({
+            ...block,
+            id: randomUUID(),
+            order: block.order || index
+          }))
+        }))
+
         // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
         const visibility = item.visibility || (item.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
         return {
@@ -582,10 +619,11 @@ export class CardFeatureModel {
           description: item.description,
           content_type: item.content_type,
           card_type: item.card_type || 'codigos',
-          screens: item.screens,
+          screens: processedScreens,
           created_by: userId,
           is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
           visibility: visibility, // NOVO: usar visibility
+          created_in_project_id: item.created_in_project_id || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }

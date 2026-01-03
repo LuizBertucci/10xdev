@@ -32,6 +32,7 @@ export class ProjectModel {
       id: row.id,
       name: row.name,
       description: row.description,
+      ...(typeof (row as any).repository_url !== 'undefined' ? { repositoryUrl: (row as any).repository_url } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       createdBy: row.created_by
@@ -126,6 +127,7 @@ export class ProjectModel {
         id: randomUUID(),
         name: data.name,
         description: data.description || null,
+        ...(data.repositoryUrl ? { repository_url: data.repositoryUrl } : {}),
         created_by: userId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -139,28 +141,25 @@ export class ProjectModel {
           .single()
       )
 
-      // Add creator as OWNER member (if not already added by trigger)
-      try {
-        await executeQuery(
-          supabaseAdmin
-            .from('project_members')
-            .insert({
+      // Add creator as OWNER member (idempotent to avoid duplicate key noise)
+      await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .upsert(
+            {
               id: randomUUID(),
               project_id: insertData.id,
               user_id: userId,
               role: ProjectMemberRole.OWNER,
               created_at: insertData.created_at,
               updated_at: insertData.updated_at
-            })
-        )
-      } catch (memberError: any) {
-        // If member already exists (e.g., from trigger), that's okay
-        if (memberError.code !== '23505') {
-          // Re-throw if it's a different error
-          throw memberError
-        }
-        // Otherwise, silently continue - member was already added
-      }
+            },
+            {
+              onConflict: 'project_id,user_id',
+              ignoreDuplicates: true
+            }
+          )
+      )
 
       return {
         success: true,
@@ -620,28 +619,34 @@ export class ProjectModel {
   // CARDS MANAGEMENT
   // ================================================
 
-  static async getCards(projectId: string): Promise<ModelListResult<ProjectCardResponse>> {
+  static async getCards(projectId: string, limit?: number, offset?: number): Promise<ModelListResult<ProjectCardResponse>> {
     try {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
       // recursão quando usamos o cliente público. O backend já valida permissões antes.
-      const { data, count } = await executeQuery(
-        supabaseAdmin
-          .from('project_cards')
-          .select(`
-            *,
-            card_feature:card_features!project_cards_card_feature_id_fkey (
-              id,
-              title,
-              tech,
-              language,
-              description
-            )
-          `)
-          .eq('project_id', projectId)
-          .order('order', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: true })
-      )
+      let query = supabaseAdmin
+        .from('project_cards')
+        .select(`
+          *,
+          card_feature:card_features!project_cards_card_feature_id_fkey (
+            id,
+            title,
+            tech,
+            language,
+            description
+          )
+        `, { count: 'exact' })
+        .eq('project_id', projectId)
+        .order('order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
+      
+      // Aplicar paginação se fornecida
+      if (typeof limit === 'number' && limit > 0) {
+        const offsetValue = typeof offset === 'number' && offset >= 0 ? offset : 0
+        query = query.range(offsetValue, offsetValue + limit - 1)
+      }
+      
+      const { data, count } = await executeQuery(query)
 
       if (!data) {
         return {
@@ -735,6 +740,78 @@ export class ProjectModel {
         return {
           success: false,
           error: 'Card já está associado a este projeto',
+          statusCode: 409
+        }
+      }
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async addCardsBulk(
+    projectId: string,
+    cardFeatureIds: string[],
+    userId: string
+  ): Promise<ModelResult<{ insertedCount: number }>> {
+    try {
+      if (!Array.isArray(cardFeatureIds) || cardFeatureIds.length === 0) {
+        return { success: true, data: { insertedCount: 0 }, statusCode: 200 }
+      }
+
+      // Verificar se o usuário é membro do projeto
+      const role = await this.getUserRole(projectId, userId)
+      if (!role) {
+        return {
+          success: false,
+          error: 'Você não é membro deste projeto',
+          statusCode: 403
+        }
+      }
+
+      // Buscar o maior order atual para definir o range de orders
+      const { data: existingCards } = await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .select('order')
+          .eq('project_id', projectId)
+          .order('order', { ascending: false, nullsFirst: false })
+          .limit(1)
+      )
+
+      const maxOrder =
+        existingCards && existingCards.length > 0 && existingCards[0].order !== null
+          ? existingCards[0].order
+          : -1
+
+      const now = new Date().toISOString()
+      const insertData: ProjectCardInsert[] = cardFeatureIds.map((cardFeatureId, idx) => ({
+        id: randomUUID(),
+        project_id: projectId,
+        card_feature_id: cardFeatureId,
+        added_by: userId,
+        created_at: now,
+        order: maxOrder + 1 + idx
+      }))
+
+      await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .insert(insertData)
+      )
+
+      return {
+        success: true,
+        data: { insertedCount: insertData.length },
+        statusCode: 201
+      }
+    } catch (error: any) {
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'Um ou mais cards já estão associados a este projeto',
           statusCode: 409
         }
       }

@@ -57,8 +57,26 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
         if (res?.success && res.data) {
           setVideos(res.data.slice(0, 3))
         }
-      } catch (error) {
-        console.error('Erro ao carregar videoaulas:', error)
+      } catch (error: any) {
+        // Melhorar serialização do erro para debug
+        const errorDetails = {
+          message: error?.message || error?.error || 'Erro desconhecido',
+          statusCode: error?.statusCode,
+          details: error?.details,
+          stack: error?.stack,
+          fullError: error instanceof Error ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          } : error
+        }
+        
+        console.error('Erro ao carregar videoaulas:', errorDetails)
+        
+        // Tratar especificamente rate limiting (429) ou timeout (408)
+        if (error?.statusCode === 429 || error?.statusCode === 408) {
+          console.warn('Rate limit ou timeout detectado. Aguardando antes de tentar novamente...')
+        }
       }
     }
 
@@ -68,8 +86,28 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
         if (res?.success && res.data) {
           setProjects(res.data.slice(0, 3))
         }
-      } catch (error) {
-        console.error('Erro ao carregar projetos:', error)
+      } catch (error: any) {
+        // Melhorar serialização do erro para debug
+        const errorDetails = {
+          message: error?.message || error?.error || 'Erro desconhecido',
+          statusCode: error?.statusCode,
+          details: error?.details,
+          stack: error?.stack,
+          // Serializar o erro completo
+          fullError: error instanceof Error ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          } : error
+        }
+        
+        console.error('Erro ao carregar projetos:', errorDetails)
+        
+        // Tratar especificamente rate limiting (429) ou timeout (408)
+        if (error?.statusCode === 429 || error?.statusCode === 408) {
+          console.warn('Rate limit ou timeout detectado. Aguardando antes de tentar novamente...')
+          // Não fazer retry automático aqui para evitar loops, apenas logar
+        }
       }
     }
 

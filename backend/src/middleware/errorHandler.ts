@@ -61,6 +61,14 @@ export const errorHandler = (
     error.statusCode = 403
   }
 
+  // Erro 429 - Rate Limiting (preservar se já estiver definido ou detectar na mensagem)
+  if (err.statusCode === 429 || err.message?.toLowerCase().includes('rate limit') || err.message?.toLowerCase().includes('limite de requisições')) {
+    error.statusCode = 429
+    if (!error.message?.includes('limite') && !error.message?.includes('rate limit')) {
+      error.message = 'Limite de requisições excedido. Tente novamente em alguns instantes.'
+    }
+  }
+
   res.status(error.statusCode || 500).json({
     success: false,
     error: error.message || 'Erro interno do servidor',

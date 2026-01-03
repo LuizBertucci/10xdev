@@ -3,6 +3,7 @@
 // ================================================
 
 export { CardFeatureModel } from './CardFeatureModel'
+export { ImportJobModel } from './ImportJobModel'
 
 // Re-export types for convenience
 export type {

@@ -40,13 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
+        const userData = data as {
+          id: string
+          email: string | null
+          name: string | null
+          role: string | null
+          status: string | null
+          avatar_url: string | null
+        }
+        
         return {
-          id: data.id,
-          email: data.email,
-          name: data.name,
-          role: data.role,
-          status: data.status,
-          avatarUrl: data.avatar_url
+          id: userData.id,
+          email: userData.email ?? null,
+          name: userData.name ?? null,
+          role: userData.role ?? null,
+          status: userData.status ?? null,
+          avatarUrl: userData.avatar_url ?? null
         }
       }
 
@@ -80,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Define dados básicos do auth imediatamente
           const basicUserData: User = {
             id: session.user.id,
-            email: session.user.email,
+            email: session.user.email ?? null,
             name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
             role: 'user',
             status: 'active'
@@ -123,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Define dados básicos rapidamente
           setUser({
               id: session.user.id,
-              email: session.user.email,
+              email: session.user.email ?? null,
               name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
               role: 'user',
               status: 'active'
@@ -148,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (mounted && session?.user) {
           setUser({
             id: session.user.id,
-            email: session.user.email,
+            email: session.user.email ?? null,
             name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
             role: 'user',
             status: 'active'
@@ -181,6 +190,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
         } else if (error.message?.includes('Invalid email')) {
           errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
+        } else if (error.message?.includes('Request rate limit') || error.message?.includes('rate limit')) {
+          errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos antes de tentar novamente.'
         }
         
         const customError: any = new Error(errorMessage)
@@ -193,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Igual à main: não bloquear login com chamadas extras
         setUser({
             id: authData.user.id,
-            email: authData.user.email,
+            email: authData.user.email ?? null,
             name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null,
             role: 'user',
             status: 'active'
@@ -238,6 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
         } else if (error.message?.includes('Password')) {
           errorMessage = 'A senha não atende aos requisitos mínimos.'
+        } else if (error.message?.includes('Request rate limit') || error.message?.includes('rate limit')) {
+          errorMessage = 'Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.'
         }
         
         const customError: any = new Error(errorMessage)
@@ -249,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsProfileLoaded(false)
         setUser({
             id: authData.user.id,
-            email: authData.user.email,
+            email: authData.user.email ?? null,
             name: data.name,
             role: 'user',
             status: 'active'
@@ -310,7 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           const userData: User = {
             id: authData.user.id,
-            email: authData.user.email,
+            email: authData.user.email ?? null,
             name: authData.user.user_metadata?.name || authData.user.user_metadata?.full_name || null,
             role: user?.role || 'user',
             status: user?.status || 'active'

@@ -12,6 +12,10 @@ router.use(authenticate)
 // PROJECTS ROUTES
 // ================================================
 
+// GITHUB INTEGRATION (must be before /:id routes)
+router.post('/github-info', ProjectController.getGithubInfo)
+router.post('/import-from-github', ProjectController.importFromGithub)
+
 // CRUD OPERATIONS
 router.post('/', ProjectController.create)
 router.get('/', ProjectController.getAll)
