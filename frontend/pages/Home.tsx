@@ -103,6 +103,14 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
     platformState?.setActiveTab("projects")
   }
 
+  const handleAccess = () => {
+    if (isPublic) {
+      goToLoginWithRedirect('/?tab=home')
+      return
+    }
+    platformState?.setActiveTab("home")
+  }
+
   return (
     <div className="space-y-10">
       {/* Hero Section */}
@@ -129,7 +137,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
 
           <div className="pt-4">
             <Button
-              onClick={() => router.push('/login')}
+              onClick={handleAccess}
               className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
             >
               Acessar
@@ -196,7 +204,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
             
             <div className="pt-4">
               <Button
-                onClick={() => router.push('/login')}
+                onClick={handleAccess}
                 className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
               >
                 Acessar
@@ -232,7 +240,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
             
             <div className="pt-4">
               <Button
-                onClick={() => router.push('/login')}
+                onClick={handleAccess}
                 className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
               >
                 Acessar
