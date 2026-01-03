@@ -262,10 +262,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card
-              className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-              onClick={handleGoToCodes}
-            >
+            <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0">
               <CardContent className="p-5">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
                   <Code2 className="h-5 w-5 text-white" />
@@ -275,20 +272,15 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <Button
                   variant="secondary"
                   className="w-full bg-white text-blue-700 hover:bg-gray-100 font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleGoToCodes()
-                  }}
+                  onClick={handleGoToCodes}
+                  aria-label="Acessar página de Códigos"
                 >
                   Acessar Códigos
                 </Button>
               </CardContent>
             </Card>
 
-            <Card
-              className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-              onClick={handleGoToVideos}
-            >
+            <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-0">
               <CardContent className="p-5">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
                   <Play className="h-5 w-5 text-white" />
@@ -298,20 +290,15 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <Button
                   variant="secondary"
                   className="w-full bg-white text-purple-700 hover:bg-gray-100 font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleGoToVideos()
-                  }}
+                  onClick={handleGoToVideos}
+                  aria-label="Acessar página de Vídeos"
                 >
                   Acessar Vídeos
                 </Button>
               </CardContent>
             </Card>
 
-            <Card
-              className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-              onClick={handleGoToProjects}
-            >
+            <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white border-0">
               <CardContent className="p-5">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
                   <FolderKanban className="h-5 w-5 text-white" />
@@ -321,10 +308,8 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <Button
                   variant="secondary"
                   className="w-full bg-white text-emerald-700 hover:bg-gray-100 font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleGoToProjects()
-                  }}
+                  onClick={handleGoToProjects}
+                  aria-label="Acessar página de Projetos"
                 >
                   Acessar Projetos
                 </Button>
@@ -332,10 +317,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
             </Card>
 
             {/* Card Comunidade WhatsApp */}
-            <Card
-              className="bg-gradient-to-br from-green-500 to-emerald-600 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-              onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
-            >
+            <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0">
               <CardContent className="p-5">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
                   <MessageCircle className="h-5 w-5 text-white" />
@@ -347,6 +329,8 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <Button
                   variant="secondary"
                   className="w-full bg-white text-green-600 hover:bg-gray-100 font-medium"
+                  onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+                  aria-label="Abrir comunidade no WhatsApp em nova aba"
                 >
                   Entrar na comunidade
                 </Button>
