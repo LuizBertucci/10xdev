@@ -118,6 +118,7 @@ export class AiCardGroupingService {
       'Organize arquivos de um repositório em "cards" por funcionalidade:',
       '- 1 card = 1 feature/sistema (ex: Autenticação, Equipe, Pagamentos)',
       '- Cada card tem várias "screens" por camada',
+      '- Cada card DEVE ter uma descrição clara e concisa explicando sua funcionalidade',
       '- O output DEVE ser JSON válido, sem markdown.'
     ].join('\n')
 

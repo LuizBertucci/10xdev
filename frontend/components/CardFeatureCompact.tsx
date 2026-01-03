@@ -118,217 +118,124 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     <TooltipProvider>
       <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${className || ''}`}>
         <CardContent className="p-3 md:p-4">
-          {/* Layout Horizontal - Clicável no mobile */}
+          {/* Layout Unificado - Vertical para mobile e desktop */}
           <div
-            className="flex items-start justify-between gap-3 md:gap-8 cursor-pointer md:cursor-default active:bg-gray-50 md:active:bg-transparent rounded-lg transition-colors"
+            className="cursor-pointer active:bg-gray-50 rounded-lg transition-colors"
             onClick={handleCardClick}
           >
+            <div className="space-y-2">
+              {/* Título com Menu */}
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">
+                  {snippet.title}
+                </h3>
+                {/* Menu ⋮ - Na altura do título */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onDelete(snippet.id)}
+                      className="text-red-600"
+                      disabled={!canEdit}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-            {/* Seção de Informações + Badges */}
-            <div className="flex-1 min-w-0 pr-1 md:pr-6 overflow-hidden">
-              {/* Layout Desktop - Horizontal */}
-              <div className="hidden md:flex flex-col gap-2">
-                {/* Informações */}
-                <div className="flex-1 min-w-0 pb-1 border-b border-gray-200">
-                  <h3 className="font-semibold text-gray-900 truncate">{snippet.title}</h3>
-                  <p className="text-sm text-gray-600 whitespace-normal">{snippet.description}</p>
-                  <a
-                    href={cardApiUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:text-blue-700 mt-1 font-mono truncate block underline"
-                    title={`Abrir card na API: ${snippet.id}`}
-                    onClick={(e) => e.stopPropagation()}
+              {/* Descrição (opcional) */}
+              {snippet.description && (
+                <p className="text-sm text-gray-600 line-clamp-2">{snippet.description}</p>
+              )}
+
+              {/* Badges */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                >
+                  <span className="mr-1">👤</span>
+                  {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
+                </Badge>
+                <span className="text-gray-400 text-[8px]">●</span>
+                <Badge
+                  className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                >
+                  <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                  {snippet.tech}
+                </Badge>
+                {snippet.language.toLowerCase() !== snippet.tech.toLowerCase() && (
+                  <Badge
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
                   >
-                    {cardApiUrl}
-                  </a>
-                </div>
+                    <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
+                    {snippet.language}
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Linha separatória */}
+              <div className="border-t border-gray-200 pt-2">
+                {/* Ícones em linha horizontal - alinhados à direita */}
+                <div className="flex items-center justify-between gap-2">
+                  {/* Badge de Visibilidade (Lado Esquerdo) */}
+                  <div className="flex-shrink-0">
+                    <VisibilityDropdown size="small" />
+                  </div>
 
-                {/* Badges - Própria linha abaixo */}
-                <div className="flex items-center justify-between gap-2 flex-shrink-0">
-                  {/* Autor e privacidade à esquerda */}
                   <div className="flex items-center gap-2">
-                    {/* Badge de Visibilidade */}
-                    <VisibilityDropdown />
-                    
-                    <Badge
-                      variant="secondary"
-                      className="text-xs rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                    {/* Botão Link do card */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyUrl}
                     >
-                      <span className="mr-1">👤</span>
-                      {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
-                    </Badge>
-                  </div>
-                  
-                  {/* Badges tech/language à direita */}
-                  <div className="flex gap-2 ml-auto">
-                    <Badge
-                      className={`text-xs rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                    >
-                      <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                      {snippet.tech}
-                    </Badge>
-                    <Badge
-                      className={`text-xs rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                    >
-                      <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                      {snippet.language}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
+                      {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {copied ? 'Copiado!' : 'Link do card'}
+                    </Button>
 
-              {/* Layout Mobile - Vertical com ícones em linha */}
-              <div className="md:hidden space-y-2">
-                {/* Título com Menu */}
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">
-                    {snippet.title}
-                  </h3>
-                  {/* Menu ⋮ - Na altura do título */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onDelete(snippet.id)}
-                        className="text-red-600"
-                        disabled={!canEdit}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Excluir
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Badges */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
-                  >
-                    <span className="mr-1">👤</span>
-                    {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
-                  </Badge>
-                  <span className="text-gray-400 text-[8px]">●</span>
-                  <Badge
-                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                  >
-                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                    {snippet.tech}
-                  </Badge>
-                  {snippet.language.toLowerCase() !== snippet.tech.toLowerCase() && (
-                    <Badge
-                      className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                    >
-                      <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                      {snippet.language}
-                    </Badge>
-                  )}
-                </div>
-                
-                {/* Linha separatória */}
-                <div className="border-t border-gray-200 pt-2">
-                  {/* Ícones em linha horizontal - alinhados à direita */}
-                  <div className="flex items-center justify-between gap-2">
-                    {/* Badge de Visibilidade Mobile (Lado Esquerdo) */}
-                    <div className="flex-shrink-0">
-                      <VisibilityDropdown size="small" />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* Botão Copiar para IDE */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                        onClick={handleCopyUrl}
-                      >
-                        {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                        {copied ? 'Copiado!' : 'Copiar para IDE'}
-                      </Button>
-
-                      {/* Toggle - extrema direita */}
-                      <div className="text-gray-400 ml-1">
-                        {isExpanded ? (
-                          <ChevronUp className="h-5 w-5" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5" />
-                        )}
-                      </div>
-                    </div>
+                    {/* Toggle - extrema direita */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleExpanded()
+                          }}
+                          className="text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-1 h-7 w-7"
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="h-5 w-5" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{isExpanded ? "Recolher código" : "Expandir código"}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Seção de Actions - Visível apenas no desktop */}
-            <div className="hidden md:flex items-center gap-1 flex-shrink-0">
-
-              {/* Menu Dropdown - Desktop */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-gray-500 hover:text-gray-600 hover:bg-gray-50 transition-all duration-200 p-2"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => onEdit(snippet)}
-                    disabled={!canEdit}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onDelete(snippet.id)}
-                    className="text-red-600"
-                    disabled={!canEdit}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Toggle Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleExpanded}
-                    className="text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-2"
-                  >
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isExpanded ? "Recolher código" : "Expandir código"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
           </div>
           
           {/* Área de Código Condicional */}

@@ -629,7 +629,7 @@ export class GithubService {
             if (screens.length === 0) continue
             const newCard: CreateCardFeatureRequest = {
               title: aiCard.title,
-              description: aiCard.description || '',
+              description: aiCard.description || this.generateFeatureDescription(featureName, featureFiles),
               tech: aiCard.tech || tech,
               language: aiCard.language || mainLanguage,
               content_type: ContentType.CODE,
