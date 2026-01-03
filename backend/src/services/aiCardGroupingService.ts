@@ -38,21 +38,25 @@ export class AiCardGroupingService {
   private static resolveApiKey(): string | undefined {
     // Priorizar chave do Grok; fallback para OPENAI_API_KEY se não houver
     const key = process.env.GROK_API_KEY || process.env.OPENAI_API_KEY
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        sessionId:'debug-session',
-        runId:'pre-fix',
-        hypothesisId:'C',
-        location:'aiCardGroupingService.ts:resolveApiKey',
-        message:'API key presence check',
-        data:{apiKeyPresent: Boolean(key), keyLength: key?.length || 0},
-        timestamp:Date.now()
-      })
-    }).catch(()=>{})
-    // #endregion
+    
+    // Log non-sensitive API key status (development only)
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const apiKeyPresent = Boolean(key)
+        const keyLength = key?.length || 0
+        // Log only presence and length (capped for security)
+        const cappedLength = keyLength > 0 ? `${keyLength > 20 ? '20+' : keyLength} chars` : '0'
+        console.debug('[AiCardGroupingService] API key status:', {
+          apiKeyPresent,
+          keyLength: cappedLength,
+          source: process.env.GROK_API_KEY ? 'GROK_API_KEY' : (process.env.OPENAI_API_KEY ? 'OPENAI_API_KEY' : 'none')
+        })
+      } catch (err) {
+        // Log error but don't fail the function
+        console.error('[AiCardGroupingService] Error logging API key status:', err)
+      }
+    }
+    
     return key
   }
 
@@ -84,6 +88,66 @@ export class AiCardGroupingService {
     const content = json?.choices?.[0]?.message?.content
     if (!content || typeof content !== 'string') throw new Error('LLM retornou resposta inválida')
     return { content }
+  }
+
+  /**
+   * Normalizes raw AI output to match AiOutputSchema expectations.
+   * Handles various LLM response formats by mapping name→title, populating
+   * missing descriptions, ensuring proper types, and filtering invalid entries.
+   */
+  private static normalizeAiOutput(raw: any): any {
+    if (!raw || typeof raw !== 'object') {
+      return { cards: [] }
+    }
+
+    if (raw?.cards && Array.isArray(raw.cards)) {
+      const normalizedCards = raw.cards
+        .map((card: any, cardIdx: number) => {
+          // Map name→title with fallbacks
+          const title = card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`
+          
+          // Normalize screens array
+          const screensRaw = Array.isArray(card?.screens) ? card.screens : []
+          const screens = screensRaw
+            .map((s: any, screenIdx: number) => {
+              const name = s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`
+              const files = Array.isArray(s?.files) ? s.files : []
+              if (!files.length) return null
+              return { name, files }
+            })
+            .filter(Boolean)
+
+          // Filter out invalid cards (no title or no screens)
+          if (!title || !screens.length) return null
+
+          // Build normalized card with required fields
+          const normalizedCard: any = {
+            title,
+            description: card?.description || '',
+            screens
+          }
+
+          // Add optional fields if present
+          if (card?.tech) normalizedCard.tech = String(card.tech)
+          if (card?.language) normalizedCard.language = String(card.language)
+
+          // Handle tags if present (coerce to array)
+          if (card?.tags !== undefined) {
+            if (Array.isArray(card.tags)) {
+              normalizedCard.tags = card.tags.map((t: any) => String(t))
+            } else if (typeof card.tags === 'string') {
+              normalizedCard.tags = [String(card.tags)]
+            }
+          }
+
+          return normalizedCard
+        })
+        .filter(Boolean)
+
+      return { cards: normalizedCards }
+    }
+
+    return { cards: [] }
   }
 
   static async refineGrouping(params: {
@@ -180,33 +244,8 @@ export class AiCardGroupingService {
         throw new Error(`Resposta LLM não é JSON válido: ${String(parseErr?.message || parseErr)}`)
       }
 
-      if (parsed?.cards && Array.isArray(parsed.cards)) {
-        parsed.cards = parsed.cards
-          .map((card: any, cardIdx: number) => {
-            const title = card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`
-            const screensRaw = Array.isArray(card?.screens) ? card.screens : []
-
-            const screens = screensRaw
-              .map((s: any, screenIdx: number) => {
-                const name = s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`
-                const files = Array.isArray(s?.files) ? s.files : []
-                if (!files.length) return null
-                return { name, files }
-              })
-              .filter(Boolean)
-
-            if (!title || !screens.length) return null
-
-            return {
-              title,
-              description: card?.description || '',
-              tech: card?.tech,
-              language: card?.language,
-              screens
-            }
-          })
-          .filter(Boolean)
-      }
+      // Normalize the parsed output using shared helper
+      const normalized = this.normalizeAiOutput(parsed)
 
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
@@ -221,14 +260,14 @@ export class AiCardGroupingService {
           data:{
             contentLength: content.length,
             sample: content.slice(0, 400),
-            normalizedCards: parsed?.cards?.length || 0
+            normalizedCards: normalized?.cards?.length || 0
           },
           timestamp:Date.now()
         })
       }).catch(()=>{})
       // #endregion
 
-      return AiOutputSchema.parse(parsed)
+      return AiOutputSchema.parse(normalized)
     } catch (err: any) {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
@@ -257,7 +296,17 @@ export class AiCardGroupingService {
           messages: [{ role: 'system', content: `${system}\n\nRetorne APENAS JSON válido.` }, { role: 'user', content: user }]
         }
         const { content } = await this.callChatCompletions({ endpoint, apiKey, body: body2 })
-        return AiOutputSchema.parse(JSON.parse(content))
+        
+        // Parse and normalize the retry response using the same helper
+        let retryParsed: any
+        try {
+          retryParsed = JSON.parse(content)
+        } catch (parseErr: any) {
+          throw new Error(`Resposta LLM (retry) não é JSON válido: ${String(parseErr?.message || parseErr)}`)
+        }
+        
+        const retryNormalized = this.normalizeAiOutput(retryParsed)
+        return AiOutputSchema.parse(retryNormalized)
       }
       throw err
     }

@@ -619,28 +619,34 @@ export class ProjectModel {
   // CARDS MANAGEMENT
   // ================================================
 
-  static async getCards(projectId: string): Promise<ModelListResult<ProjectCardResponse>> {
+  static async getCards(projectId: string, limit?: number, offset?: number): Promise<ModelListResult<ProjectCardResponse>> {
     try {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
       // recursão quando usamos o cliente público. O backend já valida permissões antes.
-      const { data, count } = await executeQuery(
-        supabaseAdmin
-          .from('project_cards')
-          .select(`
-            *,
-            card_feature:card_features!project_cards_card_feature_id_fkey (
-              id,
-              title,
-              tech,
-              language,
-              description
-            )
-          `)
-          .eq('project_id', projectId)
-          .order('order', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: true })
-      )
+      let query = supabaseAdmin
+        .from('project_cards')
+        .select(`
+          *,
+          card_feature:card_features!project_cards_card_feature_id_fkey (
+            id,
+            title,
+            tech,
+            language,
+            description
+          )
+        `, { count: 'exact' })
+        .eq('project_id', projectId)
+        .order('order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
+      
+      // Aplicar paginação se fornecida
+      if (typeof limit === 'number' && limit > 0) {
+        const offsetValue = typeof offset === 'number' && offset >= 0 ? offset : 0
+        query = query.range(offsetValue, offsetValue + limit - 1)
+      }
+      
+      const { data, count } = await executeQuery(query)
 
       if (!data) {
         return {

@@ -176,8 +176,11 @@ class ProjectService {
   // CARDS
   // ================================================
 
-  async getCards(projectId: string): Promise<ApiResponse<ProjectCard[]> | undefined> {
-    return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`)
+  async getCards(projectId: string, limit?: number, offset?: number): Promise<ApiResponse<ProjectCard[]> | undefined> {
+    const params: Record<string, any> = {}
+    if (limit !== undefined) params.limit = limit
+    if (offset !== undefined) params.offset = offset
+    return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, Object.keys(params).length > 0 ? params : undefined)
   }
 
   async addCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<ProjectCard> | undefined> {

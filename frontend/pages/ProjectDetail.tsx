@@ -49,7 +49,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [loading, setLoading] = useState(true)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [loadingCards, setLoadingCards] = useState(false)
+  const [loadingMoreCards, setLoadingMoreCards] = useState(false)
+  const [hasMoreCards, setHasMoreCards] = useState(false)
+  const [totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
+  
+  const CARDS_PER_PAGE = 10
   
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
@@ -234,26 +239,48 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }
 
-  const loadCards = async (incremental: boolean = false) => {
+  const loadCards = async (incremental: boolean = false, loadMore: boolean = false) => {
     if (!projectId) return
     
     try {
-      if (!incremental) {
+      if (loadMore) {
+        setLoadingMoreCards(true)
+      } else if (!incremental) {
         setLoadingCards(true)
       }
-      const response = await projectService.getCards(projectId)
+      
+      // Durante importação incremental, carregar todos os cards para detectar novos
+      // No carregamento inicial e "carregar mais", usar paginação
+      let response
+      if (incremental) {
+        // Carregar todos os cards sem paginação para detectar novos durante importação
+        response = await projectService.getCards(projectId)
+      } else {
+        // Calcular offset baseado no número de cards já carregados
+        const offset = loadMore ? cards.length : 0
+        const limit = CARDS_PER_PAGE
+        response = await projectService.getCards(projectId, limit, offset)
+      }
       if (response?.success && response?.data) {
-        const allCards = response.data
+        const newCards = response.data
+        const totalCount = response.count || 0
+        
+        // Atualizar contador total e verificar se há mais cards (apenas se não for incremental)
+        if (!incremental) {
+          setTotalCardsCount(totalCount)
+          setHasMoreCards(cards.length + newCards.length < totalCount)
+        }
+        
         // Merge incremental: adiciona apenas novos cards
-        if (incremental) {
+        if (incremental || loadMore) {
           setCards(prevCards => {
             const existingIds = new Set(prevCards.map((c: any) => c.cardFeatureId))
-            const newCards = allCards.filter((c: any) => !existingIds.has(c.cardFeatureId))
-            return [...prevCards, ...newCards]
+            const uniqueNewCards = newCards.filter((c: any) => !existingIds.has(c.cardFeatureId))
+            return [...prevCards, ...uniqueNewCards]
           })
           
           // Buscar apenas os novos card features
-          const newProjectCards = allCards.filter((c: any) => 
+          const newProjectCards = newCards.filter((c: any) => 
             !cardFeatures.some(f => f.id === c.cardFeatureId)
           )
           
@@ -282,10 +309,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           }
         } else {
           // Carregamento inicial: substitui tudo
-          setCards(allCards)
+          setCards(newCards)
           
-          // Buscar dados completos dos card features
-          const cardFeaturePromises = allCards.map(async (projectCard: any) => {
+          // Buscar dados completos dos card features apenas dos cards carregados
+          const cardFeaturePromises = newCards.map(async (projectCard: any) => {
             try {
               const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
               if (cardResponse?.success && cardResponse?.data) {
@@ -303,14 +330,22 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         }
       }
     } catch (error: any) {
-      if (!incremental) {
+      if (!incremental && !loadMore) {
         toast.error(error.message || 'Erro ao carregar cards')
+      } else if (loadMore) {
+        toast.error('Erro ao carregar mais cards')
       }
     } finally {
-      if (!incremental) {
+      if (loadMore) {
+        setLoadingMoreCards(false)
+      } else if (!incremental) {
         setLoadingCards(false)
       }
     }
+  }
+  
+  const loadMoreCards = async () => {
+    await loadCards(false, true)
   }
 
   const loadAvailableCards = async () => {
@@ -831,6 +866,30 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   </div>
                 )
               })}
+              
+              {/* Botão "Carregar mais cards" */}
+              {hasMoreCards && (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={loadMoreCards}
+                    disabled={loadingMoreCards}
+                    className="min-w-[200px]"
+                  >
+                    {loadingMoreCards ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Carregando...
+                      </>
+                    ) : (
+                      <>
+                        Carregar mais cards
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>

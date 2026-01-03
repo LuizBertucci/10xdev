@@ -148,9 +148,6 @@ export class ProjectController {
             {
               useAi: useAi === true,
               onProgress: async (p) => {
-                // #region agent log
-                fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'P1',location:'ProjectController.ts:onProgress',message:'Progress update',data:{step:p.step,progress:p.progress,msg:p.message?.slice(0,80)},timestamp:Date.now()})}).catch(()=>{})
-                // #endregion
                 await updateJob({
                   step: p.step as ImportJobStep,
                   progress: p.progress ?? 0,
@@ -197,22 +194,6 @@ export class ProjectController {
             }
           )
 
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              sessionId:'debug-session',
-              runId:'pre-fix',
-              hypothesisId:'K1',
-              location:'ProjectController.ts:importFromGithub:afterProcessRepo',
-              message:'Cards returned from processRepoToCards',
-              data:{cardsCount: cards.length, aiUsed, aiCardsCreated, filesProcessed},
-              timestamp:Date.now()
-            })
-          }).catch(()=>{})
-          // #endregion
-
           // All cards should have been created via onCardReady callback
           // This is just a safety check
           if (totalCardsCreated === 0 && cards.length === 0) {
@@ -238,21 +219,6 @@ export class ProjectController {
             aiCardsCreated
           })
         } catch (e: any) {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              sessionId:'debug-session',
-              runId:'pre-fix',
-              hypothesisId:'J',
-              location:'ProjectController.ts:importFromGithub:catch',
-              message:'Import job failed',
-              data:{error: String(e?.message || e)},
-              timestamp:Date.now()
-            })
-          }).catch(()=>{})
-          // #endregion
           await ImportJobModel.update(job.id, {
             status: 'error',
             step: 'error',
@@ -858,7 +824,30 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.getCards(id)
+      // Extrair parâmetros de paginação
+      const limitParam = req.query.limit
+      const offsetParam = req.query.offset
+      const limit = limitParam ? Number(limitParam) : undefined
+      const offset = offsetParam ? Number(offsetParam) : undefined
+
+      // Validar parâmetros de paginação
+      if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
+        res.status(400).json({
+          success: false,
+          error: 'Parâmetro "limit" deve ser um número inteiro maior que zero'
+        })
+        return
+      }
+
+      if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) {
+        res.status(400).json({
+          success: false,
+          error: 'Parâmetro "offset" deve ser um número inteiro maior ou igual a zero'
+        })
+        return
+      }
+
+      const result = await ProjectModel.getCards(id, limit, offset)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
