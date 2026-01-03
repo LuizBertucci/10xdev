@@ -68,14 +68,10 @@ export class CardFeatureModel {
         `and(visibility.eq.unlisted,created_by.eq.${userId})`
       ]
       
-      // Se houver cards compartilhados, adicionar condição para eles
-      // PostgREST requer sintaxe específica para .in() dentro de .or()
+      // Se houver cards compartilhados, adicionar condição para eles usando .in()
       if (sharedCardIds.length > 0) {
-        // Para cada ID compartilhado, criar uma condição id.eq.{id}
-        // Mas isso pode gerar muitas condições. Melhor usar uma abordagem diferente.
-        // Vamos adicionar os IDs compartilhados como condições individuais
-        const sharedConditions = sharedCardIds.map(id => `id.eq.${id}`)
-        conditions.push(...sharedConditions)
+        // Usar uma única condição .in() com todos os IDs separados por vírgula
+        conditions.push(`id.in.(${sharedCardIds.join(',')})`)
       }
       
       query = query.or(conditions.join(','))
