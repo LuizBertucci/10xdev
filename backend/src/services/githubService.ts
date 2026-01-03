@@ -457,6 +457,7 @@ export class GithubService {
     options?: {
       useAi?: boolean
       onProgress?: (update: { step: string; progress?: number; message?: string }) => void
+      onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
     }
   ): Promise<{ cards: CreateCardFeatureRequest[]; filesProcessed: number; aiUsed: boolean; aiCardsCreated: number }> {
     // #region agent log
@@ -626,7 +627,7 @@ export class GithubService {
               screens.push({ name: s.name, description: '', route: s.files[0] || '', blocks })
             }
             if (screens.length === 0) continue
-            cards.push({
+            const newCard: CreateCardFeatureRequest = {
               title: aiCard.title,
               description: aiCard.description || '',
               tech: aiCard.tech || tech,
@@ -635,8 +636,19 @@ export class GithubService {
               card_type: CardType.CODIGOS,
               visibility: Visibility.UNLISTED,
               screens
-            })
+            }
+            cards.push(newCard)
             aiCardsCreated++
+            
+            // Create card immediately if callback provided
+            if (options?.onCardReady) {
+              try {
+                await options.onCardReady(newCard)
+              } catch (err) {
+                console.error(`Erro ao criar card "${newCard.title}" imediatamente:`, err)
+                // Continue processing other cards even if one fails
+              }
+            }
           }
 
           if (ai.cards.length > 0) continue
@@ -716,7 +728,7 @@ export class GithubService {
 
       if (!screens.length) continue
 
-      const heuristicCard = {
+      const heuristicCard: CreateCardFeatureRequest = {
         title: this.generateFeatureTitle(featureName, featureFiles),
         tech,
         language: mainLanguage,
@@ -730,6 +742,16 @@ export class GithubService {
       fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'L4',location:'githubService.ts:processRepoToCards:heuristicCard',message:'Heuristic card created',data:{featureName,title:heuristicCard.title,screensCount:screens.length},timestamp:Date.now()})}).catch(()=>{})
       // #endregion
       cards.push(heuristicCard)
+      
+      // Create heuristic card immediately if callback provided
+      if (options?.onCardReady) {
+        try {
+          await options.onCardReady(heuristicCard)
+        } catch (err) {
+          console.error(`Erro ao criar card heurístico "${heuristicCard.title}" imediatamente:`, err)
+          // Continue processing other cards even if one fails
+        }
+      }
     }
 
     cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))

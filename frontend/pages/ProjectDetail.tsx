@@ -114,6 +114,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   }, [grokEnabled])
 
   // Listen for import job updates
+  const lastCardsCreatedRef = useRef<number>(0)
+  
   useEffect(() => {
     if (!supabase || !projectId) return
     let mounted = true
@@ -129,7 +131,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         .maybeSingle()
 
       if (mounted && data) {
-        setImportJob(data)
+        const jobData = data as any
+        setImportJob(jobData)
+        lastCardsCreatedRef.current = jobData.cards_created || 0
       }
     }
 
@@ -147,9 +151,16 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         const row = payload.new
         if (row) {
           setImportJob(row)
-          // If done, reload cards and clear after delay
+          
+          // Reload cards when a new card is created (incremental mode)
+          const newCardsCreated = row.cards_created || 0
+          if (newCardsCreated > lastCardsCreatedRef.current) {
+            lastCardsCreatedRef.current = newCardsCreated
+            loadCards(true) // Incremental: não mostra "Carregando..." e adiciona apenas novos
+          }
+          
+          // If done, just clear the banner after delay (no reload needed - cards already loaded incrementally)
           if (row.status === 'done') {
-            loadCards()
             setTimeout(() => { if (mounted) setImportJob(null) }, 8000)
           } else if (row.status === 'error') {
             setTimeout(() => { if (mounted) setImportJob(null) }, 10000)
@@ -188,21 +199,17 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return false
     
     try {
-      showStatus("info", "Carregando projeto...")
       setLoading(true)
       const response = await projectService.getById(projectId)
       if (response?.success && response?.data) {
         setProject(response.data)
-        showStatus("success", "Projeto carregado")
         return true
       } else {
-        showStatus("error", response?.error || "Erro ao carregar projeto")
         toast.error(response?.error || 'Erro ao carregar projeto')
         handleBack()
         return false
       }
     } catch (error: any) {
-      showStatus("error", error.message || "Erro ao carregar projeto")
       toast.error(error.message || 'Erro ao carregar projeto')
       handleBack()
       return false
@@ -215,54 +222,94 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     if (!projectId) return
     
     try {
-      showStatus("info", "Carregando membros...")
       setLoadingMembers(true)
       const response = await projectService.getMembers(projectId)
       if (response?.success && response?.data) {
         setMembers(response.data)
-        showStatus("success", "Membros atualizados")
       }
     } catch (error: any) {
-      showStatus("error", error.message || "Erro ao carregar membros")
       toast.error(error.message || 'Erro ao carregar membros')
     } finally {
       setLoadingMembers(false)
     }
   }
 
-  const loadCards = async () => {
+  const loadCards = async (incremental: boolean = false) => {
     if (!projectId) return
     
     try {
-      showStatus("info", "Carregando cards...")
-      setLoadingCards(true)
+      if (!incremental) {
+        setLoadingCards(true)
+      }
       const response = await projectService.getCards(projectId)
       if (response?.success && response?.data) {
-        setCards(response.data)
-        
-        // Buscar dados completos dos card features
-        const cardFeaturePromises = response.data.map(async (projectCard: any) => {
-          try {
-            const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
-            if (cardResponse?.success && cardResponse?.data) {
-              return cardResponse.data
-            }
-            return null
-          } catch (error) {
-            console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
-            return null
+        const allCards = response.data
+        // Merge incremental: adiciona apenas novos cards
+        if (incremental) {
+          setCards(prevCards => {
+            const existingIds = new Set(prevCards.map((c: any) => c.cardFeatureId))
+            const newCards = allCards.filter((c: any) => !existingIds.has(c.cardFeatureId))
+            return [...prevCards, ...newCards]
+          })
+          
+          // Buscar apenas os novos card features
+          const newProjectCards = allCards.filter((c: any) => 
+            !cardFeatures.some(f => f.id === c.cardFeatureId)
+          )
+          
+          if (newProjectCards.length > 0) {
+            const cardFeaturePromises = newProjectCards.map(async (projectCard: any) => {
+              try {
+                const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
+                if (cardResponse?.success && cardResponse?.data) {
+                  return cardResponse.data
+                }
+                return null
+              } catch (error) {
+                console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
+                return null
+              }
+            })
+            
+            const newFeatures = await Promise.all(cardFeaturePromises)
+            setCardFeatures(prev => {
+              const existingIds = new Set(prev.map(f => f.id))
+              const uniqueNewFeatures = newFeatures.filter((f): f is CardFeature => 
+                f !== null && !existingIds.has(f.id)
+              )
+              return [...prev, ...uniqueNewFeatures]
+            })
           }
-        })
-        
-        const features = await Promise.all(cardFeaturePromises)
-        setCardFeatures(features.filter((f): f is CardFeature => f !== null))
-        showStatus("success", "Cards atualizados")
+        } else {
+          // Carregamento inicial: substitui tudo
+          setCards(allCards)
+          
+          // Buscar dados completos dos card features
+          const cardFeaturePromises = allCards.map(async (projectCard: any) => {
+            try {
+              const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
+              if (cardResponse?.success && cardResponse?.data) {
+                return cardResponse.data
+              }
+              return null
+            } catch (error) {
+              console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
+              return null
+            }
+          })
+          
+          const features = await Promise.all(cardFeaturePromises)
+          setCardFeatures(features.filter((f): f is CardFeature => f !== null))
+        }
       }
     } catch (error: any) {
-      showStatus("error", error.message || "Erro ao carregar cards")
-      toast.error(error.message || 'Erro ao carregar cards')
+      if (!incremental) {
+        toast.error(error.message || 'Erro ao carregar cards')
+      }
     } finally {
-      setLoadingCards(false)
+      if (!incremental) {
+        setLoadingCards(false)
+      }
     }
   }
 
@@ -466,7 +513,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     )
   }
 
-  const filteredCards = cardFeatures
+  // Deduplicate cardFeatures by id to avoid duplicate keys
+  const uniqueCardFeatures = Array.from(
+    new Map(cardFeatures.map(f => [f.id, f])).values()
+  )
+
+  const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
@@ -535,78 +587,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         </Alert>
       )}
 
-      {/* Import Progress Banner */}
-      {importJob && (
-        <div className={`rounded-lg border p-4 ${
-          importJob.status === 'error' 
-            ? 'bg-red-50 border-red-200' 
-            : importJob.status === 'done'
-              ? 'bg-green-50 border-green-200'
-              : 'bg-blue-50 border-blue-200'
-        }`}>
-          <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-full ${
-              importJob.status === 'error'
-                ? 'bg-red-100'
-                : importJob.status === 'done'
-                  ? 'bg-green-100'
-                  : 'bg-blue-100'
-            }`}>
-              {importJob.status === 'running' ? (
-                <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-              ) : importJob.status === 'done' ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              ) : (
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className={`font-semibold text-sm ${
-                  importJob.status === 'error'
-                    ? 'text-red-800'
-                    : importJob.status === 'done'
-                      ? 'text-green-800'
-                      : 'text-blue-800'
-                }`}>
-                  {importJob.status === 'running' 
-                    ? '🚀 Importação em andamento' 
-                    : importJob.status === 'done'
-                      ? '✅ Importação concluída'
-                      : '❌ Erro na importação'}
-                </h3>
-                <span className={`text-xs font-medium ${
-                  importJob.status === 'error'
-                    ? 'text-red-600'
-                    : importJob.status === 'done'
-                      ? 'text-green-600'
-                      : 'text-blue-600'
-                }`}>
-                  {importJob.progress}%
-                </span>
-              </div>
-              <p className="text-sm text-gray-700 mt-1 truncate">
-                {importJob.message || 'Processando...'}
-              </p>
-              {importJob.status === 'running' && (
-                <Progress value={importJob.progress} className="h-2 mt-2" />
-              )}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
-                <span>📁 {importJob.files_processed} arquivos</span>
-                <span>🗂️ {importJob.cards_created} cards</span>
-                {importJob.ai_requested && (
-                  <span className={importJob.ai_used ? 'text-green-600 font-medium' : 'text-blue-600'}>
-                    <Bot className="h-3 w-3 inline mr-1" />
-                    {importJob.ai_used 
-                      ? `IA: ${importJob.ai_cards_created} cards` 
-                      : 'IA: processando...'}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div className="relative flex items-start justify-between gap-4">
@@ -674,6 +654,81 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         )}
       </div>
 
+      {/* Import Progress Banner - Sticky between Header and Tabs */}
+      {importJob && (
+        <div className="sticky top-0 z-50 mb-4 -mx-2 sm:-mx-0 px-2 sm:px-0">
+          <div className={`rounded-lg border p-3 md:p-4 shadow-md ${
+            importJob.status === 'error' 
+              ? 'bg-red-50 border-red-200' 
+              : importJob.status === 'done'
+                ? 'bg-green-50 border-green-200'
+                : 'bg-blue-50 border-blue-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-full ${
+                importJob.status === 'error'
+                  ? 'bg-red-100'
+                  : importJob.status === 'done'
+                    ? 'bg-green-100'
+                    : 'bg-blue-100'
+              }`}>
+                {importJob.status === 'running' ? (
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                ) : importJob.status === 'done' ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className={`font-semibold text-sm ${
+                    importJob.status === 'error'
+                      ? 'text-red-800'
+                      : importJob.status === 'done'
+                        ? 'text-green-800'
+                        : 'text-blue-800'
+                  }`}>
+                    {importJob.status === 'running' 
+                      ? '🚀 Importação em andamento' 
+                      : importJob.status === 'done'
+                        ? '✅ Importação concluída'
+                        : '❌ Erro na importação'}
+                  </h3>
+                  <span className={`text-xs font-medium ${
+                    importJob.status === 'error'
+                      ? 'text-red-600'
+                      : importJob.status === 'done'
+                        ? 'text-green-600'
+                        : 'text-blue-600'
+                  }`}>
+                    {importJob.progress}%
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 mt-1 truncate">
+                  {importJob.message || 'Processando...'}
+                </p>
+                {importJob.status === 'running' && (
+                  <Progress value={importJob.progress} className="h-2 mt-2" />
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-600">
+                  <span>📁 {importJob.files_processed} arquivos</span>
+                  <span>🗂️ {importJob.cards_created} cards</span>
+                  {importJob.ai_requested && (
+                    <span className={importJob.ai_used ? 'text-green-600 font-medium' : 'text-blue-600'}>
+                      <Bot className="h-3 w-3 inline mr-1" />
+                      {importJob.ai_used 
+                        ? `IA: ${importJob.ai_cards_created} cards` 
+                        : 'IA: processando...'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs defaultValue="cards" className="space-y-4">
         <TabsList>
@@ -726,7 +781,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           {loadingCards ? (
             <p className="text-gray-500 text-center py-8">Carregando...</p>
           ) : filteredCards.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Nenhum card adicionado</p>
+            <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
           ) : (
             <div className="space-y-4">
               {filteredCards.map(({ cardFeature, projectCard }, index) => {

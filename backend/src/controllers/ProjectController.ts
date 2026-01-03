@@ -139,6 +139,9 @@ export class ProjectController {
         try {
           await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
 
+          let totalCardsCreated = 0
+          let totalFilesProcessed = 0
+
           const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
             url,
             token,
@@ -151,7 +154,44 @@ export class ProjectController {
                 await updateJob({
                   step: p.step as ImportJobStep,
                   progress: p.progress ?? 0,
-                  message: p.message ?? null
+                  message: p.message ?? null,
+                  cardsCreated: totalCardsCreated,
+                  filesProcessed: totalFilesProcessed
+                })
+              },
+              onCardReady: async (card) => {
+                // Create card immediately after AI processes it
+                const normalizedCard = {
+                  ...card,
+                  visibility: Visibility.UNLISTED,
+                  created_in_project_id: projectId
+                }
+                
+                const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
+                if (!createdRes.success || !createdRes.data || createdRes.data.length === 0) {
+                  throw new Error(createdRes.error || 'Erro ao criar card')
+                }
+                
+                const cardId = createdRes.data[0]!.id
+                const assoc = await ProjectModel.addCardsBulk(projectId, [cardId], userId)
+                if (!assoc.success) {
+                  throw new Error(assoc.error || 'Erro ao associar card ao projeto')
+                }
+                
+                totalCardsCreated++
+                // Count files from screens
+                const filesInCard = card.screens?.reduce((sum, s) => {
+                  // Each screen has blocks, each block is a file
+                  return sum + (s.blocks?.length || 0)
+                }, 0) || 0
+                totalFilesProcessed += filesInCard
+                
+                await updateJob({
+                  step: 'creating_cards',
+                  progress: 70 + Math.min(25, Math.floor((totalCardsCreated / 100) * 25)), // Estimate based on typical 50-100 cards
+                  message: `Criando cards... (${totalCardsCreated} criados)`,
+                  cardsCreated: totalCardsCreated,
+                  filesProcessed: totalFilesProcessed
                 })
               }
             }
@@ -173,22 +213,9 @@ export class ProjectController {
           }).catch(()=>{})
           // #endregion
 
-          if (!cards.length) {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({
-                sessionId:'debug-session',
-                runId:'pre-fix',
-                hypothesisId:'K2',
-                location:'ProjectController.ts:importFromGithub:noCards',
-                message:'No cards returned; aborting import',
-                data:{cardsCount: cards.length, aiUsed, aiCardsCreated},
-                timestamp:Date.now()
-              })
-            }).catch(()=>{})
-            // #endregion
+          // All cards should have been created via onCardReady callback
+          // This is just a safety check
+          if (totalCardsCreated === 0 && cards.length === 0) {
             await updateJob({
               status: 'error',
               step: 'error',
@@ -199,74 +226,17 @@ export class ProjectController {
             return
           }
 
-          // Forçar regras do produto: cards importados são unlisted por padrão
-          const cardsNormalized = cards.map((c) => ({
-            ...c,
-            visibility: Visibility.UNLISTED,
-            created_in_project_id: projectId
-          }))
-
-          await updateJob({
-            step: 'creating_cards',
-            progress: 70,
-            message: `Criando cards... (0/${cardsNormalized.length})`,
-            filesProcessed,
-            aiUsed,
-            aiCardsCreated,
-            cardsCreated: 0
-          })
-
-          const total = cardsNormalized.length
-          let created = 0
-          const batchSize = 20
-
-          for (let i = 0; i < cardsNormalized.length; i += batchSize) {
-            const slice = cardsNormalized.slice(i, i + batchSize)
-
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({
-                sessionId:'debug-session',
-                runId:'pre-fix',
-                hypothesisId:'I',
-                location:'ProjectController.ts:importFromGithub:beforeBulkCreate',
-                message:'Bulk creating cards',
-                data:{batchSize: slice.length, total},
-                timestamp:Date.now()
-              })
-            }).catch(()=>{})
-            // #endregion
-
-            const createdRes = await CardFeatureModel.bulkCreate(slice as any, userId)
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'M1',location:'ProjectController.ts:importFromGithub:afterBulkCreate',message:'bulkCreate result',data:{success:createdRes.success,createdCount:createdRes.data?.length||0,error:createdRes.error||null},timestamp:Date.now()})}).catch(()=>{})
-            // #endregion
-            if (!createdRes.success || !createdRes.data) {
-              throw new Error(createdRes.error || 'Erro ao criar cards')
-            }
-
-            const ids = createdRes.data.map((c) => c.id)
-            const assoc = await ProjectModel.addCardsBulk(projectId, ids, userId)
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'M2',location:'ProjectController.ts:importFromGithub:afterAddCardsBulk',message:'addCardsBulk result',data:{success:assoc.success,idsCount:ids.length,error:assoc.error||null},timestamp:Date.now()})}).catch(()=>{})
-            // #endregion
-            if (!assoc.success) throw new Error(assoc.error || 'Erro ao associar cards ao projeto')
-
-            created += createdRes.data.length
-            const pct = 70 + Math.min(25, Math.floor((created / total) * 25))
-            await updateJob({
-              step: 'creating_cards',
-              progress: pct,
-              message: `Criando cards... (${created}/${total})`,
-              cardsCreated: created,
-              filesProcessed
-            })
-          }
-
           await updateJob({ step: 'linking_cards', progress: 98, message: 'Finalizando...' })
-          await updateJob({ status: 'done', step: 'done', progress: 100, message: 'Importação concluída.' })
+          await updateJob({ 
+            status: 'done', 
+            step: 'done', 
+            progress: 100, 
+            message: 'Importação concluída.',
+            cardsCreated: totalCardsCreated || cards.length,
+            filesProcessed: totalFilesProcessed || filesProcessed,
+            aiUsed,
+            aiCardsCreated
+          })
         } catch (e: any) {
           // #region agent log
           fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
