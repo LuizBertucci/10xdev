@@ -40,6 +40,14 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
     platformState?.setActiveTab("codes")
   }
 
+  const handleGoToVideos = () => {
+    if (isPublic) {
+      goToLoginWithRedirect('/?tab=videos')
+      return
+    }
+    platformState?.setActiveTab("videos")
+  }
+
   useEffect(() => {
     if (isPublic) return
 
@@ -95,6 +103,14 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
     platformState?.setActiveTab("projects")
   }
 
+  const handleAccess = () => {
+    if (isPublic) {
+      goToLoginWithRedirect('/?tab=home')
+      return
+    }
+    platformState?.setActiveTab("home")
+  }
+
   return (
     <div className="space-y-10">
       {/* Hero Section */}
@@ -103,34 +119,29 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
         <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-3xl text-center space-y-5">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
+            Devs,{" "}
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              bora construir Brasil
+            </span>
+          </h1>
+
           <div className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs font-medium text-gray-700">
             <Sparkles className="h-4 w-4 text-blue-600" />
             Plataforma de produtividade para devs
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
-            Acelere seu desenvolvimento com{" "}
-            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              códigos prontos
-            </span>
-          </h1>
-
           <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-            Snippets, videoaulas e projetos organizados para você construir mais rápido — do copy/paste ao deploy.
+            A 10xDev surgiu com o intuito de equipar os programadores para alcançar o ápice da produtividade e construir o futuro do país.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <Button onClick={handleGoToCodes} className="w-full sm:w-auto">
-              Explorar Códigos
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
+          <div className="pt-4">
             <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+              onClick={handleAccess}
+              className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
             >
-              Entrar na Comunidade
-              <MessageCircle className="h-4 w-4 ml-2" />
+              Acessar
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
 
@@ -153,189 +164,183 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
         </div>
       </div>
 
+      {/* Imagina só Section */}
+      <div className="relative overflow-hidden rounded-2xl border bg-white px-6 py-12 sm:px-10 sm:py-16">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+        
+        <div className="relative mx-auto max-w-4xl text-center space-y-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+            Imagina só...
+          </h2>
+          
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <div className="inline-flex items-center gap-2 rounded-full border bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">
+              mais de 10.000 programadores usando:
+            </div>
+            
+            <ul className="space-y-3 text-base sm:text-lg text-gray-600 text-left">
+              <li className="flex items-start gap-3">
+                <span className="text-lg">🤖</span>
+                <span>as últimas IAs no modo máximo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-lg">⚡</span>
+                <span>IDEs otimizadas ao extremo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-lg">💎</span>
+                <span>códigos prontos validados e de alta qualidade</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-lg">🇧🇷</span>
+                <span>uma comunidade ativa, colaborativa e brasileira</span>
+              </li>
+            </ul>
+            
+            <p className="text-base sm:text-lg text-gray-900 font-medium pt-2">
+              E direcionando todo esse potencial para os maiores desafios do Brasil?
+            </p>
+            
+            <div className="pt-4">
+              <Button
+                onClick={handleAccess}
+                className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
+              >
+                Acessar
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Nosso diferencial Section */}
+      <div className="relative overflow-hidden rounded-2xl border bg-white px-6 py-12 sm:px-10 sm:py-16">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+        
+        <div className="relative mx-auto max-w-4xl text-center space-y-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+            Nosso diferencial
+          </h2>
+          
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-600">
+              Queremos que você lance rápido, sim, mas <strong className="font-semibold text-gray-900">sem criar débito técnico</strong>.
+            </p>
+            
+            <p className="text-base sm:text-lg text-gray-600">
+              Código gerado rápido mas que quebra em produção não adianta.
+            </p>
+            
+            <p className="text-base sm:text-lg text-gray-600">
+              Na 10xDev você ganha velocidade com qualidade: clean code, arquitetura sólida, melhores práticas validadas e conteúdo direto ao ponto.
+            </p>
+            
+            <div className="pt-4">
+              <Button
+                onClick={handleAccess}
+                className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
+              >
+                Acessar
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Quick Access Blocks */}
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-6">Acesso Rápido</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card
-            className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-            onClick={handleGoToCodes}
-          >
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                <Code2 className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2 text-white">Códigos</h3>
-              <p className="text-white/90 text-sm">Ver todos os snippets e cards</p>
-              <Button
-                variant="secondary"
-                className="w-full mt-4 bg-white text-blue-700 hover:bg-gray-100 font-medium"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleGoToCodes()
-                }}
-              >
-                Acessar Códigos
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Card Comunidade WhatsApp */}
-          <Card
-            className="bg-gradient-to-br from-green-500 to-emerald-600 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-0"
-            onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
-          >
-            <CardContent className="p-6">
-              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center mb-4">
-                <MessageCircle className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-lg mb-2 text-white">Comunidade WhatsApp</h3>
-              <p className="text-white/90 text-sm mb-4">
-                Conecte-se com desenvolvedores, compartilhe conhecimento e colabore em projetos.
-              </p>
-              <Button
-                variant="secondary"
-                className="w-full bg-white text-green-600 hover:bg-gray-100 font-medium"
-              >
-                Entrar na comunidade
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Featured Videos */}
-      {videos.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Videoaulas em Destaque</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {videos.map((video) => (
-              <Card key={video.id} className="hover:shadow-lg transition-shadow overflow-hidden">
-                <div className="relative group cursor-pointer" onClick={() => handleViewVideo(video.id)}>
-                  <img
-                    src={video.thumbnail}
-                    alt={video.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
-                    <Play className="h-12 w-12 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
+      <div className="relative overflow-hidden rounded-2xl border bg-white px-6 py-12 sm:px-10 sm:py-16">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+        
+        <div className="relative mx-auto max-w-4xl space-y-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 text-center">
+            Acesse
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0">
+              <CardContent className="p-5">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
+                  <Code2 className="h-5 w-5 text-white" />
                 </div>
-                <CardHeader>
-                  <CardTitle
-                    className="text-lg line-clamp-2 cursor-pointer hover:text-blue-600"
-                    onClick={() => handleViewVideo(video.id)}
-                  >
-                    {video.title}
-                  </CardTitle>
-                  {video.description && (
-                    <CardDescription className="line-clamp-2">
-                      {video.description}
-                    </CardDescription>
-                  )}
-                  {video.category && (
-                    <CardDescription className="text-xs mt-1">
-                      {video.category}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <Button className="w-full" onClick={() => handleViewVideo(video.id)}>
-                    <Play className="h-4 w-4 mr-2" />
-                    Assistir
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Featured Projects */}
-      <div className="rounded-2xl border bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4 sm:p-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Projetos</h2>
-          </div>
-          <Button
-            variant="outline"
-            className="shrink-0 bg-white/70"
-            onClick={handleGoToProjects}
-          >
-            Ver todos
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </div>
-
-        {projects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card
-                key={project.id}
-                className="group cursor-pointer hover:shadow-lg transition-all bg-white/80 backdrop-blur border-white/60"
-                onClick={() => handleViewProject(project.id)}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 min-w-0 flex-1">
-                      <div className="mt-0.5 h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white">
-                        <FolderKanban className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="truncate">{project.name}</CardTitle>
-                        {project.description && (
-                          <CardDescription className="mt-1 line-clamp-2">{project.description}</CardDescription>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-700 transition-colors mt-1" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
-                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
-                      <Users className="h-4 w-4 text-gray-600" />
-                      <span className="font-medium">{project.memberCount || 0}</span>
-                      <span className="text-gray-500">membros</span>
-                    </div>
-                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
-                      <FileCode className="h-4 w-4 text-gray-600" />
-                      <span className="font-medium">{project.cardCount || 0}</span>
-                      <span className="text-gray-500">cards</span>
-                    </div>
-                    <div className="inline-flex items-center gap-1 rounded-full border bg-white px-2 py-1">
-                      <Calendar className="h-4 w-4 text-gray-600" />
-                      <span className="text-gray-600">{new Date(project.createdAt).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="bg-white/80 border-dashed">
-            <CardContent className="p-6 sm:p-8">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white shrink-0">
-                    <FolderKanban className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">Crie seu primeiro projeto</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Organize cards por objetivo (ex.: “App”, “API”, “Landing”) e compartilhe com seu time.
-                    </div>
-                  </div>
-                </div>
-                <Button onClick={handleGoToProjects} className="w-full sm:w-auto">
-                  Novo Projeto
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                <h3 className="font-semibold text-base mb-1.5 text-white">Códigos</h3>
+                <p className="text-white/90 text-sm mb-3">Ver todos os snippets e cards</p>
+                <Button
+                  variant="secondary"
+                  className="w-full bg-white text-blue-700 hover:bg-gray-100 font-medium"
+                  onClick={handleGoToCodes}
+                  aria-label="Acessar página de Códigos"
+                >
+                  Acessar Códigos
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-0">
+              <CardContent className="p-5">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
+                  <Play className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-semibold text-base mb-1.5 text-white">Vídeos</h3>
+                <p className="text-white/90 text-sm mb-3">Aprenda com videoaulas e tutoriais práticos</p>
+                <Button
+                  variant="secondary"
+                  className="w-full bg-white text-purple-700 hover:bg-gray-100 font-medium"
+                  onClick={handleGoToVideos}
+                  aria-label="Acessar página de Vídeos"
+                >
+                  Acessar Vídeos
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white border-0">
+              <CardContent className="p-5">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
+                  <FolderKanban className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-semibold text-base mb-1.5 text-white">Projetos</h3>
+                <p className="text-white/90 text-sm mb-3">Organize cards por objetivo e compartilhe com seu time</p>
+                <Button
+                  variant="secondary"
+                  className="w-full bg-white text-emerald-700 hover:bg-gray-100 font-medium"
+                  onClick={handleGoToProjects}
+                  aria-label="Acessar página de Projetos"
+                >
+                  Acessar Projetos
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Card Comunidade WhatsApp */}
+            <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0">
+              <CardContent className="p-5">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
+                  <MessageCircle className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-semibold text-base mb-1.5 text-white">Comunidade WhatsApp</h3>
+                <p className="text-white/90 text-sm mb-3">
+                  Conecte-se com desenvolvedores, compartilhe conhecimento e colabore em projetos.
+                </p>
+                <Button
+                  variant="secondary"
+                  className="w-full bg-white text-green-600 hover:bg-gray-100 font-medium"
+                  onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
+                  aria-label="Abrir comunidade no WhatsApp em nova aba"
+                >
+                  Entrar na comunidade
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
+
+
     </div>
   )
 }
