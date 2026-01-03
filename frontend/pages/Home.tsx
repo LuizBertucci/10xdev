@@ -127,58 +127,14 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
             A 10xDev surgiu com o intuito de equipar os programadores para alcançarem o ápice da produtividade e, com isso, construir o futuro do nosso país.
           </p>
 
-          <div className="flex flex-col gap-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <Card
-                className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-2 border-blue-400/30"
-                onClick={handleGoToCodes}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Code2 className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-sm text-white">Códigos</h3>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-2 border-indigo-400/30"
-                onClick={handleGoToVideos}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Play className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-sm text-white">Vídeos</h3>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Card
-                className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-2 border-emerald-400/30"
-                onClick={handleGoToProjects}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <FolderKanban className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-sm text-white">Projetos</h3>
-                </CardContent>
-              </Card>
-
-              <Card
-                className="bg-gradient-to-br from-emerald-500 to-lime-600 text-white hover:shadow-xl hover:scale-[1.02] transition-all duration-200 cursor-pointer border-2 border-emerald-300/30"
-                onClick={() => window.open('https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc', '_blank')}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    <MessageCircle className="h-5 w-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-sm text-white">WhatsApp</h3>
-                </CardContent>
-              </Card>
-            </div>
+          <div className="pt-4">
+            <Button
+              onClick={() => router.push('/login')}
+              className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
+            >
+              Acessar
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
           </div>
 
           {!isPublic && (
@@ -197,6 +153,57 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Imagina só Section */}
+      <div className="relative overflow-hidden rounded-2xl border bg-white px-6 py-12 sm:px-10 sm:py-16">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+        
+        <div className="relative mx-auto max-w-4xl text-center space-y-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+            Imagina só...
+          </h2>
+          
+          <div className="space-y-4 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-700">
+              mais de 10.000 programadores usando:
+            </p>
+            
+            <ul className="space-y-3 text-base sm:text-lg text-gray-600 text-left">
+              <li className="flex items-start gap-3">
+                <span className="text-lg">🤖</span>
+                <span>as últimas IAs no modo máximo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-lg">⚡</span>
+                <span>IDEs otimizadas ao extremo</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-lg">💎</span>
+                <span>códigos prontos validados e de alta qualidade</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-lg">🇧🇷</span>
+                <span>uma comunidade ativa, colaborativa e brasileira</span>
+              </li>
+            </ul>
+            
+            <p className="text-lg sm:text-xl text-gray-900 font-medium pt-2">
+              E direcionando todo esse potencial pros maiores desafios do Brasil?
+            </p>
+            
+            <div className="pt-4">
+              <Button
+                onClick={() => router.push('/login')}
+                className="w-full bg-gray-900 text-white hover:bg-gray-800 h-12 text-base font-semibold"
+              >
+                Acessar
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
