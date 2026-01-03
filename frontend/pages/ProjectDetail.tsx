@@ -124,59 +124,78 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   useEffect(() => {
     if (!supabase || !projectId) return
     let mounted = true
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
     const fetchRunningJob = async () => {
-      const { data } = await supabase
-        .from('import_jobs')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('status', 'running')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      try {
+        const { data } = await supabase
+          .from('import_jobs')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('status', 'running')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-      if (mounted && data) {
-        const jobData = data as any
-        setImportJob(jobData)
-        lastCardsCreatedRef.current = jobData.cards_created || 0
+        if (mounted && data) {
+          const jobData = data as any
+          setImportJob(jobData)
+          lastCardsCreatedRef.current = jobData.cards_created || 0
+        }
+      } catch (error) {
+        console.error('Erro ao buscar job de importação:', error)
       }
     }
 
     fetchRunningJob()
 
-    const channel = supabase
-      .channel(`import_job_project:${projectId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'import_jobs',
-        filter: `project_id=eq.${projectId}`
-      }, (payload: any) => {
-        if (!mounted) return
-        const row = payload.new
-        if (row) {
-          setImportJob(row)
-          
-          // Reload cards when a new card is created (incremental mode)
-          const newCardsCreated = row.cards_created || 0
-          if (newCardsCreated > lastCardsCreatedRef.current) {
-            lastCardsCreatedRef.current = newCardsCreated
-            loadCards(true) // Incremental: não mostra "Carregando..." e adiciona apenas novos
+    // Tentar criar subscription Realtime para atualizações do job de importação
+    // Se falhar, a aplicação continua funcionando normalmente (apenas sem updates em tempo real)
+    try {
+      channel = supabase
+        .channel(`import_job_project:${projectId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'import_jobs',
+          filter: `project_id=eq.${projectId}`
+        }, (payload: any) => {
+          if (!mounted) return
+          const row = payload.new
+          if (row) {
+            setImportJob(row)
+            
+            // Reload cards when a new card is created (incremental mode)
+            const newCardsCreated = row.cards_created || 0
+            if (newCardsCreated > lastCardsCreatedRef.current) {
+              lastCardsCreatedRef.current = newCardsCreated
+              loadCards(true) // Incremental: não mostra "Carregando..." e adiciona apenas novos
+            }
+            
+            // If done, just clear the banner after delay (no reload needed - cards already loaded incrementally)
+            if (row.status === 'done') {
+              setTimeout(() => { if (mounted) setImportJob(null) }, 8000)
+            } else if (row.status === 'error') {
+              setTimeout(() => { if (mounted) setImportJob(null) }, 10000)
+            }
           }
-          
-          // If done, just clear the banner after delay (no reload needed - cards already loaded incrementally)
-          if (row.status === 'done') {
-            setTimeout(() => { if (mounted) setImportJob(null) }, 8000)
-          } else if (row.status === 'error') {
-            setTimeout(() => { if (mounted) setImportJob(null) }, 10000)
-          }
-        }
-      })
-      .subscribe()
+        })
+        .subscribe()
+    } catch (error) {
+      // Erro ao criar subscription - não crítico, aplicação continua funcionando
+      // O erro do WebSocket no console é esperado se o Realtime não estiver disponível
+      console.warn('Realtime: Não foi possível criar subscription de import job. A aplicação continuará funcionando normalmente.', error)
+    }
 
     return () => {
       mounted = false
-      supabase.removeChannel(channel)
+      if (channel && supabase) {
+        try {
+          supabase.removeChannel(channel)
+        } catch (error) {
+          console.error('Erro ao remover canal:', error)
+        }
+      }
     }
   }, [supabase, projectId])
 
