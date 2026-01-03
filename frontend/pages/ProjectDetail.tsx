@@ -616,41 +616,24 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           )}
         </div>
 
-        {/* Ações - Desktop: botão visível, Mobile: menu dropdown */}
+        {/* Ações - Menu dropdown */}
         {project.userRole === "owner" && (
-          <>
-            {/* Desktop */}
-            <div className="hidden sm:block">
-              <Button
-                variant="destructive"
-                size="sm"
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
                 onClick={handleDeleteProject}
+                className="text-red-600"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Deletar Projeto
-              </Button>
-            </div>
-
-            {/* Mobile - Menu Dropdown */}
-            <div className="sm:hidden absolute top-0 right-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={handleDeleteProject}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Deletar Projeto
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
