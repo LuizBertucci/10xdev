@@ -268,7 +268,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         // Atualizar contador total e verificar se há mais cards (apenas se não for incremental)
         if (!incremental) {
           setTotalCardsCount(totalCount)
-          setHasMoreCards(cards.length + newCards.length < totalCount)
+          // No carregamento inicial (não loadMore), cards.length ainda tem valor antigo (stale)
+          // então usamos 0. No loadMore, usamos cards.length que já tem os cards anteriores
+          const previousCount = loadMore ? cards.length : 0
+          setHasMoreCards(previousCount + newCards.length < totalCount)
         }
         
         // Merge incremental: adiciona apenas novos cards
