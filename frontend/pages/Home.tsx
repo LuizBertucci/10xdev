@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Code2, FileCode, MessageCircle, Play, Users, ArrowRight, Sparkles, FolderKanban, ChevronRight } from "lucide-react"
-import { videoService, type Video } from "@/services/videoService"
-import { projectService, type Project } from "@/services"
+import { Code2, MessageCircle, Play, ArrowRight, Sparkles, FolderKanban } from "lucide-react"
 
 interface PlatformState {
   setActiveTab: (tab: string) => void
@@ -24,8 +21,6 @@ interface HomeProps {
 
 export default function Home({ platformState, isPublic = false }: HomeProps) {
   const router = useRouter()
-  const [videos, setVideos] = useState<Video[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
 
   const goToLoginWithRedirect = (redirectTo: string) => {
     router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`)
@@ -48,91 +43,6 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
     platformState?.setActiveTab("videos")
   }
 
-  useEffect(() => {
-    if (isPublic) return
-
-    const loadVideos = async () => {
-      try {
-        const res = await videoService.listVideos()
-        if (res?.success && res.data) {
-          setVideos(res.data.slice(0, 3))
-        }
-      } catch (error: any) {
-        // Melhorar serialização do erro para debug
-        const errorDetails = {
-          message: error?.message || error?.error || 'Erro desconhecido',
-          statusCode: error?.statusCode,
-          details: error?.details,
-          stack: error?.stack,
-          fullError: error instanceof Error ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-          } : error
-        }
-        
-        console.error('Erro ao carregar videoaulas:', errorDetails)
-        
-        // Tratar especificamente rate limiting (429) ou timeout (408)
-        if (error?.statusCode === 429 || error?.statusCode === 408) {
-          console.warn('Rate limit ou timeout detectado. Aguardando antes de tentar novamente...')
-        }
-      }
-    }
-
-    const loadProjects = async () => {
-      try {
-        const res = await projectService.getAll({ limit: 3 })
-        if (res?.success && res.data) {
-          setProjects(res.data.slice(0, 3))
-        }
-      } catch (error: any) {
-        // Melhorar serialização do erro para debug
-        const errorDetails = {
-          message: error?.message || error?.error || 'Erro desconhecido',
-          statusCode: error?.statusCode,
-          details: error?.details,
-          stack: error?.stack,
-          // Serializar o erro completo
-          fullError: error instanceof Error ? {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-          } : error
-        }
-        
-        console.error('Erro ao carregar projetos:', errorDetails)
-        
-        // Tratar especificamente rate limiting (429) ou timeout (408)
-        if (error?.statusCode === 429 || error?.statusCode === 408) {
-          console.warn('Rate limit ou timeout detectado. Aguardando antes de tentar novamente...')
-          // Não fazer retry automático aqui para evitar loops, apenas logar
-        }
-      }
-    }
-
-    loadVideos()
-    loadProjects()
-  }, [isPublic])
-
-  const handleViewVideo = (videoId: string) => {
-    if (isPublic) {
-      goToLoginWithRedirect(`/?tab=videos&id=${videoId}`)
-      return
-    }
-    platformState?.setActiveTab("videos")
-    router.push(`?tab=videos&id=${videoId}`)
-  }
-
-  const handleViewProject = (projectId: string) => {
-    if (isPublic) {
-      goToLoginWithRedirect(`/?tab=projects&id=${projectId}`)
-      return
-    }
-    platformState?.setActiveTab("projects")
-    router.push(`?tab=projects&id=${projectId}`)
-  }
-
   const handleGoToProjects = () => {
     if (isPublic) {
       goToLoginWithRedirect('/?tab=projects')
@@ -143,10 +53,11 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
 
   const handleAccess = () => {
     if (isPublic) {
-      goToLoginWithRedirect('/?tab=home')
+      goToLoginWithRedirect('/?tab=codes')
       return
     }
-    platformState?.setActiveTab("home")
+    platformState?.setActiveTab("codes")
+    platformState?.setSelectedTech("all")
   }
 
   return (
