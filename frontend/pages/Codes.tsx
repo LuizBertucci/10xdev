@@ -378,7 +378,7 @@ export default function Codes({ platformState }: CodesProps) {
       {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
       {/* Loading State - Barra horizontal azul */}
       {cardFeatures.loading && (
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+        <div className="w-full max-w-[900px] mx-auto bg-gray-200 rounded-full h-2 mb-6">
           <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
         </div>
       )}
