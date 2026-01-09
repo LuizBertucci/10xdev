@@ -207,29 +207,6 @@ export class AiCardGroupingService {
       response_format: { type: 'json_object' }
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        sessionId:'debug-session',
-        runId:'pre-fix',
-        hypothesisId:'D',
-        location:'aiCardGroupingService.ts:refineGrouping:beforeCall',
-        message:'Calling LLM for grouping',
-        data:{
-          mode,
-          model,
-          endpoint,
-          filesTrimmed: filesTrimmed.length,
-          totalChars,
-          proposedGroups: params.proposedGroups.length
-        },
-        timestamp:Date.now()
-      })
-    }).catch(()=>{})
-    // #endregion
-
     let llmContent: string | undefined
 
     try {
@@ -247,47 +224,8 @@ export class AiCardGroupingService {
       // Normalize the parsed output using shared helper
       const normalized = this.normalizeAiOutput(parsed)
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'pre-fix',
-          hypothesisId:'F',
-          location:'aiCardGroupingService.ts:refineGrouping:afterLLM',
-          message:'LLM returned content',
-          data:{
-            contentLength: content.length,
-            sample: content.slice(0, 400),
-            normalizedCards: normalized?.cards?.length || 0
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{})
-      // #endregion
-
       return AiOutputSchema.parse(normalized)
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'pre-fix',
-          hypothesisId:'E',
-          location:'aiCardGroupingService.ts:refineGrouping:error',
-          message:'LLM call failed, falling back',
-          data:{
-            error: String(err?.message || err),
-            contentSample: llmContent ? llmContent.slice(0, 400) : null,
-            contentLength: llmContent ? llmContent.length : null
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{})
-      // #endregion
       const msg = String(err?.message || err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
         const body2 = {

@@ -460,29 +460,11 @@ export class GithubService {
       onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
     }
   ): Promise<{ cards: CreateCardFeatureRequest[]; filesProcessed: number; aiUsed: boolean; aiCardsCreated: number }> {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        sessionId:'debug-session',
-        runId:'pre-fix',
-        hypothesisId:'A',
-        location:'githubService.ts:processRepoToCards:init',
-        message:'processRepoToCards invoked',
-        data:{useAiRequested:options?.useAi === true, urlSanitized: !!url},
-        timestamp:Date.now()
-      })
-    }).catch(()=>{})
-    // #endregion
     options?.onProgress?.({ step: 'downloading_zip', progress: 10, message: 'Baixando o repositório do GitHub...' })
     const zipBuffer = await this.downloadRepoAsZip(url, token)
 
     options?.onProgress?.({ step: 'extracting_files', progress: 25, message: 'Extraindo arquivos do repositório...' })
     const files = this.extractFilesFromZip(zipBuffer)
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'L1',location:'githubService.ts:processRepoToCards:afterExtract',message:'Files extracted from zip',data:{filesCount:files.length},timestamp:Date.now()})}).catch(()=>{})
-    // #endregion
 
     if (files.length === 0) throw new Error('Nenhum arquivo de código encontrado no repositório.')
 
@@ -494,38 +476,13 @@ export class GithubService {
 
     const tech = this.detectTech(files, packageJson)
     const mainLanguage = this.detectMainLanguage(files)
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'L2',location:'githubService.ts:processRepoToCards:techDetected',message:'Tech and language detected',data:{tech,mainLanguage},timestamp:Date.now()})}).catch(()=>{})
-    // #endregion
 
     options?.onProgress?.({ step: 'analyzing_repo', progress: 45, message: `Tecnologia detectada: ${tech}. Mapeando funcionalidades...` })
     const featureGroups = this.groupFilesByFeature(files)
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'L3',location:'githubService.ts:processRepoToCards:featureGroups',message:'Feature groups created',data:{groupCount:featureGroups.size,groupNames:Array.from(featureGroups.keys())},timestamp:Date.now()})}).catch(()=>{})
-    // #endregion
     options?.onProgress?.({ step: 'generating_cards', progress: 55, message: 'Organizando funcionalidades...' })
 
     const useAiRequested = options?.useAi === true
     const useAi = useAiRequested && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        sessionId:'debug-session',
-        runId:'pre-fix',
-        hypothesisId:'B',
-        location:'githubService.ts:processRepoToCards:aiCheck',
-        message:'AI decision flags',
-        data:{
-          useAiRequested,
-          isEnabled: AiCardGroupingService.isEnabled(),
-          hasConfig: AiCardGroupingService.hasConfig()
-        },
-        timestamp:Date.now()
-      })
-    }).catch(()=>{})
-    // #endregion
 
     const cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
@@ -539,21 +496,6 @@ export class GithubService {
       featureIndex++
       const featureProgress = 55 + Math.floor((featureIndex / totalFeatures) * 15) // 55-70%
 
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'pre-fix',
-          hypothesisId:'H1',
-          location:'githubService.ts:processRepoToCards:featureLoop',
-          message:'Processing feature',
-          data:{featureName, fileCount: featureFiles.length},
-          timestamp:Date.now()
-        })
-      }).catch(()=>{})
-      // #endregion
       // --- AI path (best-effort) ---
       if (useAi) {
         options?.onProgress?.({
@@ -579,22 +521,6 @@ export class GithubService {
             files: fileMetas,
             proposedGroups
           })
-
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              sessionId:'debug-session',
-              runId:'pre-fix',
-              hypothesisId:'G',
-              location:'githubService.ts:processRepoToCards:aiResult',
-              message:'AI returned cards',
-              data:{featureName, aiCards: ai.cards.length},
-              timestamp:Date.now()
-            })
-          }).catch(()=>{})
-          // #endregion
 
           options?.onProgress?.({
             step: 'generating_cards',
@@ -653,21 +579,6 @@ export class GithubService {
 
           if (ai.cards.length > 0) continue
         } catch (featureErr: any) {
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-              sessionId:'debug-session',
-              runId:'pre-fix',
-              hypothesisId:'HERR',
-              location:'githubService.ts:processRepoToCards:featureError',
-              message:'Error processing feature',
-              data:{featureName, error:String(featureErr?.message || featureErr)},
-              timestamp:Date.now()
-            })
-          }).catch(()=>{})
-          // #endregion
           options?.onProgress?.({
             step: 'generating_cards',
             progress: featureProgress,
@@ -738,9 +649,6 @@ export class GithubService {
         visibility: Visibility.UNLISTED,
         screens
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre-fix',hypothesisId:'L4',location:'githubService.ts:processRepoToCards:heuristicCard',message:'Heuristic card created',data:{featureName,title:heuristicCard.title,screensCount:screens.length},timestamp:Date.now()})}).catch(()=>{})
-      // #endregion
       cards.push(heuristicCard)
       
       // Create heuristic card immediately if callback provided
@@ -755,23 +663,6 @@ export class GithubService {
     }
 
     cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
-    // Não lançar aqui; deixar o controller decidir. Apenas logar.
-
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        sessionId:'debug-session',
-        runId:'pre-fix',
-        hypothesisId:'H2',
-        location:'githubService.ts:processRepoToCards:result',
-        message:'Returning cards from processRepoToCards',
-        data:{cardsCount: cards.length, aiCardsCreated, filesProcessed},
-        timestamp:Date.now()
-      })
-    }).catch(()=>{})
-    // #endregion
 
     const aiSummary = aiCardsCreated > 0
       ? `🤖 IA criou ${aiCardsCreated} cards de ${cards.length} totais`
