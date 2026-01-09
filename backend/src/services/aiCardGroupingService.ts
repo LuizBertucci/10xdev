@@ -181,26 +181,49 @@ export class AiCardGroupingService {
     }
 
     const system = [
-      'Você é um arquiteto de software.',
-      'Organize arquivos de um repositório em "cards" por funcionalidade:',
-      '- 1 card = 1 feature/sistema (ex: Autenticação, Equipe, Pagamentos)',
-      '- Cada card tem várias "screens" por camada',
-      '- Cada card DEVE ter uma descrição clara e concisa explicando sua funcionalidade',
-      '- O output DEVE ser JSON válido, sem markdown.'
+      'Você é um arquiteto de software especializado em organizar código.',
+      '',
+      '## Tarefa',
+      'Organize os arquivos em "cards" por funcionalidade de negócio.',
+      '',
+      '## Regras',
+      '- 1 card = 1 feature coesa (ex: Autenticação, Usuários, Pagamentos)',
+      '- Agrupe arquivos relacionados mesmo de camadas diferentes',
+      '- Cada card tem múltiplas "screens" organizadas por camada técnica',
+      '',
+      '## Formato de Saída',
+      '- title: Nome descritivo em português (ex: "Sistema de Autenticação")',
+      '- description: O que a funcionalidade FAZ (não liste arquivos)',
+      '- screens[].name: Nome da camada (ex: "Backend - Controller")',
+      '- screens[].files: Paths EXATOS dos arquivos da lista fornecida',
+      '',
+      '## Exemplos de Bons Títulos',
+      '- "Sistema de Autenticação" (não "Auth")',
+      '- "Gerenciamento de Usuários" (não "User")',
+      '- "Processamento de Pagamentos" (não "Payment")',
+      '',
+      '## Saída',
+      'Retorne APENAS JSON válido com a chave "cards".'
     ].join('\n')
 
     const user = [
-      `Repo: ${params.repoUrl}`,
+      '## Repositório',
+      `URL: ${params.repoUrl}`,
       `Tech: ${params.detectedTech}`,
       `Linguagem: ${params.detectedLanguage}`,
       '',
-      'Arquivos:',
+      '## Arquivos para Organizar',
       JSON.stringify(filesTrimmed, null, 2),
       '',
-      'Grupos sugeridos:',
+      '## Grupos Sugeridos (referência)',
       JSON.stringify(params.proposedGroups, null, 2),
       '',
-      'Retorne JSON com chave "cards". screens[].files deve conter paths exatos.'
+      '## Instruções',
+      '1. Analise os snippets para entender funcionalidades',
+      '2. Agrupe por feature de negócio, não por camada',
+      '3. screens[].files DEVE conter apenas paths da lista acima',
+      '',
+      'Retorne o JSON:'
     ].join('\n')
 
     const body = {
