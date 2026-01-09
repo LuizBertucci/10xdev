@@ -81,7 +81,10 @@ export class AiCardGroupingService {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
       body: JSON.stringify(args.body)
     })
-    const text = await res.text().catch(() => '')
+    const text = await res.text().catch((e) => {
+      console.error('[AiCardGroupingService] Erro ao ler body da resposta:', e?.message)
+      return ''
+    })
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}: ${text || res.statusText}`)
     let json: any
     try { json = JSON.parse(text) } catch { throw new Error('LLM retornou resposta não-JSON') }
@@ -207,10 +210,19 @@ export class AiCardGroupingService {
       response_format: { type: 'json_object' }
     }
 
+    console.log('[AiCardGroupingService] Iniciando chamada LLM', {
+      endpoint,
+      model,
+      filesCount: filesTrimmed.length,
+      totalChars,
+      mode
+    })
+
     let llmContent: string | undefined
 
     try {
       const { content } = await this.callChatCompletions({ endpoint, apiKey, body })
+      console.log('[AiCardGroupingService] Resposta LLM recebida', { contentLength: content.length })
       llmContent = content
 
       // Normalizar saída do LLM para o schema esperado (fallbacks para Grok)
@@ -223,9 +235,11 @@ export class AiCardGroupingService {
 
       // Normalize the parsed output using shared helper
       const normalized = this.normalizeAiOutput(parsed)
+      console.log('[AiCardGroupingService] Cards normalizados:', normalized?.cards?.length || 0)
 
       return AiOutputSchema.parse(normalized)
     } catch (err: any) {
+      console.error('[AiCardGroupingService] Erro LLM:', err?.message)
       const msg = String(err?.message || err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
         const body2 = {

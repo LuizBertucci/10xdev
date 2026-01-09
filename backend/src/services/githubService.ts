@@ -484,6 +484,13 @@ export class GithubService {
     const useAiRequested = options?.useAi === true
     const useAi = useAiRequested && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
 
+    console.log('[GithubService] Decisão de IA:', {
+      useAiRequested,
+      isEnabled: AiCardGroupingService.isEnabled(),
+      hasConfig: AiCardGroupingService.hasConfig(),
+      willUseAi: useAi
+    })
+
     const cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
     let aiCardsCreated = 0
@@ -521,6 +528,8 @@ export class GithubService {
             files: fileMetas,
             proposedGroups
           })
+
+          console.log('[GithubService] IA retornou', ai.cards.length, 'cards para', featureName)
 
           options?.onProgress?.({
             step: 'generating_cards',
@@ -579,6 +588,7 @@ export class GithubService {
 
           if (ai.cards.length > 0) continue
         } catch (featureErr: any) {
+          console.error('[GithubService] Erro IA em feature:', featureName, '-', featureErr?.message)
           options?.onProgress?.({
             step: 'generating_cards',
             progress: featureProgress,
