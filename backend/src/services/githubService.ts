@@ -346,16 +346,38 @@ export class GithubService {
   }
 
   private static extractFeatureName(path: string): string {
-    const fileName = path.split('/').pop() || ''
+    const parts = path.split('/')
+    const fileName = parts.pop() || ''
+
+    // 1. Detectar estruturas como src/features/auth/ ou src/modules/payments/
+    const featureDirs = ['features', 'modules', 'domains', 'apps']
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (featureDirs.includes(parts[i]?.toLowerCase() || '')) {
+        const featureDir = parts[i + 1]
+        if (featureDir && !['src', 'lib', 'app'].includes(featureDir.toLowerCase())) {
+          return this.normalizeFeatureName(featureDir)
+        }
+      }
+    }
+
+    // 2. Extrair do nome do arquivo
     let baseName = fileName
       .replace(/\.(ts|tsx|js|jsx|py|java|go|rs|rb|php|vue|svelte)$/i, '')
       .replace(/\.(test|spec|stories|styles?|module)$/i, '')
+      .replace(/^index$/i, '')
 
+    // 3. Se baseName vazio, usar diretório pai
+    if (!baseName && parts.length > 0) {
+      baseName = parts[parts.length - 1] || 'misc'
+    }
+
+    // 4. Remover sufixos comuns
     const suffixes = [
       'Controller', 'Service', 'Model', 'Routes', 'Router',
       'Validator', 'Middleware', 'Hook', 'Component', 'Page',
       'Store', 'Slice', 'Api', 'Utils', 'Helper',
-      'Type', 'Interface', 'Schema', 'Dto', 'Entity'
+      'Type', 'Interface', 'Schema', 'Dto', 'Entity',
+      'Repository', 'Handler', 'Provider', 'Factory', 'Manager'
     ]
 
     for (const suffix of suffixes) {
@@ -366,12 +388,20 @@ export class GithubService {
       }
     }
 
+    // 5. Remover prefixo use de hooks
     if (baseName.toLowerCase().startsWith('use')) {
       baseName = baseName.substring(3)
     }
 
-    const normalized = baseName.toLowerCase().replace(/[^a-z0-9]/g, '')
-    return normalized || 'misc'
+    return this.normalizeFeatureName(baseName) || 'misc'
+  }
+
+  private static normalizeFeatureName(name: string): string {
+    return name
+      .replace(/([a-z])([A-Z])/g, '$1$2')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .trim()
   }
 
   private static groupFilesByFeature(files: FileEntry[]): Map<string, FeatureFile[]> {
@@ -422,21 +452,63 @@ export class GithubService {
   }
 
   private static generateFeatureTitle(featureName: string, files: FeatureFile[]): string {
-    const cap = featureName.charAt(0).toUpperCase() + featureName.slice(1)
+    // Capitalizar corretamente (camelCase -> palavras)
+    const cap = featureName
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .split(/[\s_-]+/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ')
+
     const layers = new Set(files.map(f => f.layer))
     const hasBackend = ['routes', 'controllers', 'services', 'models'].some(l => layers.has(l))
     const hasFrontend = ['hooks', 'components', 'pages', 'stores'].some(l => layers.has(l))
 
+    // Prefixos mais específicos
     if (hasBackend && hasFrontend) return `Sistema de ${cap}`
     if (hasBackend) return `API de ${cap}`
-    if (hasFrontend) return `UI de ${cap}`
+    if (hasFrontend) return `Interface de ${cap}`
     return cap
   }
 
   private static generateFeatureDescription(featureName: string, files: FeatureFile[]): string {
     const layers = [...new Set(files.map(f => f.layer))].filter(l => l !== 'other')
-    const layerNames = layers.map(l => LAYER_TO_SCREEN_NAME[l] || l).join(', ')
-    return layers.length > 0 ? `Módulo ${featureName} contendo: ${layerNames}` : `Arquivos relacionados a ${featureName}`
+    const fileCount = files.length
+    const cap = featureName.charAt(0).toUpperCase() + featureName.slice(1)
+
+    // Detectar métodos HTTP nos arquivos de rotas
+    const routeMethods: string[] = []
+    for (const file of files.filter(f => f.layer === 'routes')) {
+      const content = file.content.toLowerCase()
+      if (content.includes('.get(')) routeMethods.push('GET')
+      if (content.includes('.post(')) routeMethods.push('POST')
+      if (content.includes('.put(')) routeMethods.push('PUT')
+      if (content.includes('.delete(')) routeMethods.push('DELETE')
+      if (content.includes('.patch(')) routeMethods.push('PATCH')
+    }
+    const uniqueMethods = [...new Set(routeMethods)]
+
+    // Construir descrição
+    const parts: string[] = []
+
+    if (layers.includes('controllers') && layers.includes('services')) {
+      parts.push(`Backend completo do módulo ${cap}`)
+    } else if (layers.includes('components') && layers.includes('hooks')) {
+      parts.push(`Frontend completo do módulo ${cap}`)
+    } else if (layers.includes('controllers') || layers.includes('services') || layers.includes('routes')) {
+      parts.push(`Backend do módulo ${cap}`)
+    } else if (layers.includes('components') || layers.includes('pages')) {
+      parts.push(`Frontend do módulo ${cap}`)
+    } else {
+      parts.push(`Módulo ${cap}`)
+    }
+
+    if (uniqueMethods.length > 0) {
+      parts.push(`com endpoints ${uniqueMethods.join('/')}`)
+    }
+
+    parts.push(`(${fileCount} arquivos)`)
+
+    return parts.join(' ')
   }
 
   private static capitalizeFirst(str: string): string {
