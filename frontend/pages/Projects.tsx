@@ -58,6 +58,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteCardsWithProject, setDeleteCardsWithProject] = useState(false)
 
   // Hook para detectar jobs de importação em andamento
   const projectIds = projects.map(p => p.id)
@@ -273,6 +274,7 @@ export default function Projects({ platformState }: ProjectsProps) {
       return
     }
     setProjectToDelete(project)
+    setDeleteCardsWithProject(false) // Reset checkbox state
     setIsDeleteDialogOpen(true)
   }
 
@@ -280,15 +282,21 @@ export default function Projects({ platformState }: ProjectsProps) {
     if (!projectToDelete) return
     try {
       setDeleting(true)
-      const response = await projectService.delete(projectToDelete.id)
+      const response = await projectService.delete(projectToDelete.id, { deleteCards: deleteCardsWithProject })
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
         return
       }
       if (response.success) {
-        toast.success('Projeto deletado com sucesso!')
+        const cardsDeleted = response.data?.cardsDeleted || 0
+        if (cardsDeleted > 0) {
+          toast.success(`Projeto e ${cardsDeleted} card${cardsDeleted > 1 ? 's' : ''} deletados com sucesso!`)
+        } else {
+          toast.success('Projeto deletado com sucesso!')
+        }
         setIsDeleteDialogOpen(false)
         setProjectToDelete(null)
+        setDeleteCardsWithProject(false)
         loadProjects()
       } else {
         toast.error(response.error || 'Erro ao deletar projeto')
@@ -532,6 +540,28 @@ export default function Projects({ platformState }: ProjectsProps) {
               Tem certeza que deseja deletar o projeto <strong>&quot;{projectToDelete?.name}&quot;</strong>? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Checkbox para deletar cards */}
+          {projectToDelete && (projectToDelete.cardCount || 0) > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border-2 border-red-100 bg-red-50/50 p-4 my-2">
+              <Checkbox
+                id="delete-cards"
+                checked={deleteCardsWithProject}
+                onCheckedChange={(checked) => setDeleteCardsWithProject(checked === true)}
+                disabled={deleting}
+                className="mt-0.5"
+              />
+              <div className="space-y-1 flex-1">
+                <label htmlFor="delete-cards" className="text-sm font-medium leading-none text-red-900 cursor-pointer">
+                  Também excluir os {projectToDelete.cardCount} card{(projectToDelete.cardCount || 0) > 1 ? 's' : ''} criados neste projeto
+                </label>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  Os cards serão removidos permanentemente e não poderão ser recuperados.
+                </p>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={deleting}>Cancelar</Button>
             <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>

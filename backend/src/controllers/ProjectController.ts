@@ -514,6 +514,7 @@ export class ProjectController {
 
       const { id } = req.params
       const userId = req.user.id
+      const deleteCards = req.query.deleteCards === 'true'
 
       if (!id) {
         res.status(400).json({
@@ -523,7 +524,7 @@ export class ProjectController {
         return
       }
 
-      const result = await ProjectModel.delete(id, userId)
+      const result = await ProjectModel.delete(id, userId, deleteCards)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -533,9 +534,15 @@ export class ProjectController {
         return
       }
 
+      const cardsDeleted = result.data?.cardsDeleted || 0
+      const message = cardsDeleted > 0
+        ? `Projeto e ${cardsDeleted} card${cardsDeleted > 1 ? 's' : ''} removidos com sucesso`
+        : 'Projeto removido com sucesso'
+
       res.status(200).json({
         success: true,
-        message: 'Projeto removido com sucesso'
+        message,
+        data: { cardsDeleted }
       })
     } catch (error) {
       console.error('Erro no controller delete:', error)
