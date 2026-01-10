@@ -362,7 +362,7 @@ export class ProjectModel {
   // DELETE
   // ================================================
 
-  static async delete(id: string, userId: string): Promise<ModelResult<null>> {
+  static async delete(id: string, userId: string, deleteCards?: boolean): Promise<ModelResult<{ cardsDeleted: number }>> {
     try {
       // Verificar se é owner
       const role = await this.getUserRole(id, userId)
@@ -374,6 +374,33 @@ export class ProjectModel {
         }
       }
 
+      let cardsDeleted = 0
+
+      // Se deleteCards=true, deletar cards CRIADOS neste projeto
+      if (deleteCards) {
+        // Buscar IDs dos cards criados no projeto (created_in_project_id = id)
+        const { data: cards } = await executeQuery(
+          supabaseAdmin
+            .from('card_features')
+            .select('id')
+            .eq('created_in_project_id', id)
+        )
+
+        if (cards && cards.length > 0) {
+          const cardIds = cards.map((c: any) => c.id)
+          
+          // Deletar os cards
+          const { count } = await executeQuery(
+            supabaseAdmin
+              .from('card_features')
+              .delete({ count: 'exact' })
+              .in('id', cardIds)
+          )
+          cardsDeleted = count || 0
+        }
+      }
+
+      // Deletar o projeto
       await executeQuery(
         supabaseAdmin
           .from('projects')
@@ -383,7 +410,7 @@ export class ProjectModel {
 
       return {
         success: true,
-        data: null,
+        data: { cardsDeleted },
         statusCode: 200
       }
     } catch (error: any) {

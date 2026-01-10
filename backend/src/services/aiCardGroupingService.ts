@@ -81,7 +81,10 @@ export class AiCardGroupingService {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
       body: JSON.stringify(args.body)
     })
-    const text = await res.text().catch(() => '')
+    const text = await res.text().catch((e) => {
+      console.error('[AiCardGroupingService] Erro ao ler body da resposta:', e?.message)
+      return ''
+    })
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}: ${text || res.statusText}`)
     let json: any
     try { json = JSON.parse(text) } catch { throw new Error('LLM retornou resposta não-JSON') }
@@ -178,26 +181,49 @@ export class AiCardGroupingService {
     }
 
     const system = [
-      'Você é um arquiteto de software.',
-      'Organize arquivos de um repositório em "cards" por funcionalidade:',
-      '- 1 card = 1 feature/sistema (ex: Autenticação, Equipe, Pagamentos)',
-      '- Cada card tem várias "screens" por camada',
-      '- Cada card DEVE ter uma descrição clara e concisa explicando sua funcionalidade',
-      '- O output DEVE ser JSON válido, sem markdown.'
+      'Você é um arquiteto de software especializado em organizar código.',
+      '',
+      '## Tarefa',
+      'Organize os arquivos em "cards" por funcionalidade de negócio.',
+      '',
+      '## Regras',
+      '- 1 card = 1 feature coesa (ex: Autenticação, Usuários, Pagamentos)',
+      '- Agrupe arquivos relacionados mesmo de camadas diferentes',
+      '- Cada card tem múltiplas "screens" organizadas por camada técnica',
+      '',
+      '## Formato de Saída',
+      '- title: Nome descritivo em português (ex: "Sistema de Autenticação")',
+      '- description: O que a funcionalidade FAZ (não liste arquivos)',
+      '- screens[].name: Nome da camada (ex: "Backend - Controller")',
+      '- screens[].files: Paths EXATOS dos arquivos da lista fornecida',
+      '',
+      '## Exemplos de Bons Títulos',
+      '- "Sistema de Autenticação" (não "Auth")',
+      '- "Gerenciamento de Usuários" (não "User")',
+      '- "Processamento de Pagamentos" (não "Payment")',
+      '',
+      '## Saída',
+      'Retorne APENAS JSON válido com a chave "cards".'
     ].join('\n')
 
     const user = [
-      `Repo: ${params.repoUrl}`,
+      '## Repositório',
+      `URL: ${params.repoUrl}`,
       `Tech: ${params.detectedTech}`,
       `Linguagem: ${params.detectedLanguage}`,
       '',
-      'Arquivos:',
+      '## Arquivos para Organizar',
       JSON.stringify(filesTrimmed, null, 2),
       '',
-      'Grupos sugeridos:',
+      '## Grupos Sugeridos (referência)',
       JSON.stringify(params.proposedGroups, null, 2),
       '',
-      'Retorne JSON com chave "cards". screens[].files deve conter paths exatos.'
+      '## Instruções',
+      '1. Analise os snippets para entender funcionalidades',
+      '2. Agrupe por feature de negócio, não por camada',
+      '3. screens[].files DEVE conter apenas paths da lista acima',
+      '',
+      'Retorne o JSON:'
     ].join('\n')
 
     const body = {
@@ -207,33 +233,19 @@ export class AiCardGroupingService {
       response_format: { type: 'json_object' }
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        sessionId:'debug-session',
-        runId:'pre-fix',
-        hypothesisId:'D',
-        location:'aiCardGroupingService.ts:refineGrouping:beforeCall',
-        message:'Calling LLM for grouping',
-        data:{
-          mode,
-          model,
-          endpoint,
-          filesTrimmed: filesTrimmed.length,
-          totalChars,
-          proposedGroups: params.proposedGroups.length
-        },
-        timestamp:Date.now()
-      })
-    }).catch(()=>{})
-    // #endregion
+    console.log('[AiCardGroupingService] Iniciando chamada LLM', {
+      endpoint,
+      model,
+      filesCount: filesTrimmed.length,
+      totalChars,
+      mode
+    })
 
     let llmContent: string | undefined
 
     try {
       const { content } = await this.callChatCompletions({ endpoint, apiKey, body })
+      console.log('[AiCardGroupingService] Resposta LLM recebida', { contentLength: content.length })
       llmContent = content
 
       // Normalizar saída do LLM para o schema esperado (fallbacks para Grok)
@@ -246,48 +258,11 @@ export class AiCardGroupingService {
 
       // Normalize the parsed output using shared helper
       const normalized = this.normalizeAiOutput(parsed)
-
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'pre-fix',
-          hypothesisId:'F',
-          location:'aiCardGroupingService.ts:refineGrouping:afterLLM',
-          message:'LLM returned content',
-          data:{
-            contentLength: content.length,
-            sample: content.slice(0, 400),
-            normalizedCards: normalized?.cards?.length || 0
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{})
-      // #endregion
+      console.log('[AiCardGroupingService] Cards normalizados:', normalized?.cards?.length || 0)
 
       return AiOutputSchema.parse(normalized)
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          sessionId:'debug-session',
-          runId:'pre-fix',
-          hypothesisId:'E',
-          location:'aiCardGroupingService.ts:refineGrouping:error',
-          message:'LLM call failed, falling back',
-          data:{
-            error: String(err?.message || err),
-            contentSample: llmContent ? llmContent.slice(0, 400) : null,
-            contentLength: llmContent ? llmContent.length : null
-          },
-          timestamp:Date.now()
-        })
-      }).catch(()=>{})
-      // #endregion
+      console.error('[AiCardGroupingService] Erro LLM:', err?.message)
       const msg = String(err?.message || err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
         const body2 = {
