@@ -381,7 +381,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                       <div>
                         <Label htmlFor="github-url">URL do Repositório *</Label>
                         <div className="flex gap-2 mt-1.5">
-                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-11" />
+                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-11" autoComplete="off" />
                           <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-11 px-4">
                             {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
@@ -389,7 +389,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                       </div>
                       <div>
                         <Label htmlFor="github-token">Token de Acesso (opcional)</Label>
-                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="mt-1.5 h-11" />
+                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="mt-1.5 h-11" autoComplete="new-password" />
                         <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
                       </div>
 
