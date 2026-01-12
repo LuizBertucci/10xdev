@@ -129,11 +129,11 @@ export class ProjectController {
             ...(typeof patch.progress === 'number' ? { progress: patch.progress } : {}),
             ...(patch.message !== undefined ? { message: patch.message } : {}),
             ...(patch.error !== undefined ? { error: patch.error } : {}),
-            ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed as any } : {}),
-            ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated as any } : {}),
-            ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed as any } : {}),
-            ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated as any } : {})
-          } as any)
+            ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed } : {}),
+            ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated } : {}),
+            ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed } : {}),
+            ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated } : {})
+          })
         }
 
         try {

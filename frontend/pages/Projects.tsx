@@ -542,7 +542,7 @@ export default function Projects({ platformState }: ProjectsProps) {
           </DialogHeader>
           
           {/* Checkbox para deletar cards */}
-          {projectToDelete && (projectToDelete.cardCount || 0) > 0 && (
+          {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
             <div className="flex items-start gap-3 rounded-lg border-2 border-red-100 bg-red-50/50 p-4 my-2">
               <Checkbox
                 id="delete-cards"
@@ -553,10 +553,10 @@ export default function Projects({ platformState }: ProjectsProps) {
               />
               <div className="space-y-1 flex-1">
                 <label htmlFor="delete-cards" className="text-sm font-medium leading-none text-red-900 cursor-pointer">
-                  Também excluir os {projectToDelete.cardCount} card{(projectToDelete.cardCount || 0) > 1 ? 's' : ''} criados neste projeto
+                  Também excluir os {projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''} criados neste projeto
                 </label>
                 <p className="text-xs text-red-700 leading-relaxed">
-                  Os cards serão removidos permanentemente e não poderão ser recuperados.
+                  Os cards serão removidos permanentemente e não poderão ser recuperados. Cards apenas associados (não criados) ao projeto permanecerão intactos.
                 </p>
               </div>
             </div>

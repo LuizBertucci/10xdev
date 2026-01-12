@@ -501,7 +501,7 @@ export class CardFeatureModel {
       }
 
       // Regras: quando um usuário comum tenta tornar público, vira PENDING
-      if ('visibility' in sanitized && sanitized.visibility) {
+      if ('visibility' in sanitized && sanitized.visibility !== undefined) {
         if (sanitized.visibility === Visibility.PUBLIC) {
           if (isAdmin) {
             // Admin pode tornar público diretamente como APPROVED
@@ -511,20 +511,21 @@ export class CardFeatureModel {
             if (updateData.approval_status === ApprovalStatus.APPROVED) {
               updateData.approved_at = now
               updateData.approved_by = userId
-              updateData.approval_requested_at = null as any
+              updateData.approval_requested_at = null
             }
           } else {
+            // Usuário comum mudando para público → PENDING
             updateData.approval_status = ApprovalStatus.PENDING
             updateData.approval_requested_at = now
-            updateData.approved_at = null as any
-            updateData.approved_by = null as any
+            updateData.approved_at = null
+            updateData.approved_by = null
           }
         } else {
           // Se voltou para private/unlisted, não faz parte do diretório global
           updateData.approval_status = ApprovalStatus.NONE
-          updateData.approval_requested_at = null as any
-          updateData.approved_at = null as any
-          updateData.approved_by = null as any
+          updateData.approval_requested_at = null
+          updateData.approved_at = null
+          updateData.approved_by = null
         }
       }
 
@@ -786,8 +787,11 @@ export class CardFeatureModel {
   // BULK OPERATIONS
   // ================================================
 
-  static async bulkCreate(items: CreateCardFeatureRequest[], userId: string): Promise<ModelListResult<CardFeatureResponse>> {
+  static async bulkCreate(items: CreateCardFeatureRequest[], userId: string, userRole?: string): Promise<ModelListResult<CardFeatureResponse>> {
     try {
+      const now = new Date().toISOString()
+      const isAdmin = userRole === 'admin'
+
       const insertData: CardFeatureInsert[] = items.map(item => {
         // Processar screens para adicionar IDs e order aos blocos (mesma regra do create)
         const processedScreens = (item.screens || []).map(screen => ({
@@ -801,6 +805,26 @@ export class CardFeatureModel {
 
         // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
         const visibility = item.visibility || (item.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+
+        // Aplicar regras de aprovação (mesma lógica do create)
+        let approvalStatus = item.approval_status || ApprovalStatus.NONE
+        let approvalRequestedAt = item.approval_requested_at || null
+
+        // Se for público e não-admin, entra em PENDING automaticamente
+        if (visibility === Visibility.PUBLIC && !isAdmin) {
+          approvalStatus = ApprovalStatus.PENDING
+          approvalRequestedAt = now
+        }
+        // Se for admin criando público, já é APPROVED
+        else if (visibility === Visibility.PUBLIC && isAdmin) {
+          approvalStatus = ApprovalStatus.APPROVED
+        }
+        // Private/Unlisted sempre NONE (não precisa aprovação)
+        else {
+          approvalStatus = ApprovalStatus.NONE
+          approvalRequestedAt = null
+        }
+
         return {
           id: randomUUID(),
           title: item.title,
@@ -813,9 +837,11 @@ export class CardFeatureModel {
           created_by: userId,
           is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
           visibility: visibility, // NOVO: usar visibility
+          approval_status: approvalStatus,
+          approval_requested_at: approvalRequestedAt,
           created_in_project_id: item.created_in_project_id || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: now,
+          updated_at: now
         }
       })
 

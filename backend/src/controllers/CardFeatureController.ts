@@ -426,7 +426,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.bulkCreate(items, userId)
+      const result = await CardFeatureModel.bulkCreate(items, userId, req.user.role || 'user')
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({

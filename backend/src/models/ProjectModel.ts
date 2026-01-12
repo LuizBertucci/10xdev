@@ -227,11 +227,13 @@ export class ProjectModel {
       // Buscar informações adicionais
       const memberCount = await this.getMemberCount(id)
       const cardCount = await this.getCardCount(id)
+      const cardsCreatedCount = await this.getCardsCreatedCount(id)
       const userRole = userId ? await this.getUserRole(id, userId) : undefined
 
       const response = this.transformToResponse(data)
       response.memberCount = memberCount
       response.cardCount = cardCount
+      response.cardsCreatedCount = cardsCreatedCount
       if (userRole) {
         response.userRole = userRole
       }
@@ -375,10 +377,10 @@ export class ProjectModel {
       }
 
       let cardsDeleted = 0
+      let cardIds: string[] = []
 
-      // Se deleteCards=true, deletar cards CRIADOS neste projeto
+      // Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
       if (deleteCards) {
-        // Buscar IDs dos cards criados no projeto (created_in_project_id = id)
         const { data: cards } = await executeQuery(
           supabaseAdmin
             .from('card_features')
@@ -387,9 +389,25 @@ export class ProjectModel {
         )
 
         if (cards && cards.length > 0) {
-          const cardIds = cards.map((c: any) => c.id)
-          
-          // Deletar os cards
+          cardIds = cards.map((c: any) => c.id)
+        }
+      }
+
+      // CRÍTICO: Deletar o projeto PRIMEIRO
+      // Se isso falhar, nada foi modificado (fail-safe)
+      // As associações project_cards serão removidas por CASCADE do banco
+      await executeQuery(
+        supabaseAdmin
+          .from('projects')
+          .delete()
+          .eq('id', id)
+      )
+
+      // Após deletar o projeto com sucesso, deletar os cards se solicitado
+      // Se isso falhar, o projeto já foi deletado mas os cards permanecem
+      // (melhor que o inverso: perder cards mas manter projeto)
+      if (deleteCards && cardIds.length > 0) {
+        try {
           const { count } = await executeQuery(
             supabaseAdmin
               .from('card_features')
@@ -397,16 +415,13 @@ export class ProjectModel {
               .in('id', cardIds)
           )
           cardsDeleted = count || 0
+        } catch (cardDeleteError: any) {
+          // Log do erro mas não falha a operação toda
+          // O projeto já foi deletado com sucesso
+          console.error('Erro ao deletar cards após deletar projeto:', cardDeleteError.message)
+          // Retornar sucesso parcial
         }
       }
-
-      // Deletar o projeto
-      await executeQuery(
-        supabaseAdmin
-          .from('projects')
-          .delete()
-          .eq('id', id)
-      )
 
       return {
         success: true,
@@ -645,6 +660,20 @@ export class ProjectModel {
   // ================================================
   // CARDS MANAGEMENT
   // ================================================
+
+  static async getCardsCreatedCount(projectId: string): Promise<number> {
+    try {
+      const { count } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_in_project_id', projectId)
+      )
+      return count || 0
+    } catch {
+      return 0
+    }
+  }
 
   static async getCards(projectId: string, limit?: number, offset?: number): Promise<ModelListResult<ProjectCardResponse>> {
     try {

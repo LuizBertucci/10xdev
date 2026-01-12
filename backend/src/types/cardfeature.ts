@@ -125,6 +125,9 @@ export interface CreateCardFeatureRequest {
   is_private?: boolean         // LEGADO: mantido para compatibilidade
   visibility?: Visibility      // NOVO: controle de visibilidade (padrão: public)
   approval_status?: ApprovalStatus | string
+  approval_requested_at?: string | null
+  approved_at?: string | null
+  approved_by?: string | null
   created_in_project_id?: string  // ID do projeto onde foi criado (opcional)
 }
 

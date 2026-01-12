@@ -19,7 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
-  visibility: Visibility.UNLISTED,
+  visibility: Visibility.PUBLIC, // Padrão: Público (vai para aprovação se não-admin)
   screens: [
     {
       name: 'Main',

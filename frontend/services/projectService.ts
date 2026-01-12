@@ -20,6 +20,7 @@ interface Project {
   createdBy: string
   memberCount?: number
   cardCount?: number
+  cardsCreatedCount?: number // Número de cards criados neste projeto (para deleção)
   userRole?: ProjectMemberRole
 }
 
