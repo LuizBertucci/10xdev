@@ -1,6 +1,7 @@
 import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import {
+  ApprovalStatus,
   Visibility
 } from '@/types/cardfeature'
 import type {
@@ -25,6 +26,9 @@ export class CardFeatureModel {
 
     // Derivar visibility a partir de is_private se não existir (compatibilidade)
     const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+    const approvalStatus =
+      row.approval_status ||
+      (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
 
     return {
       id: row.id,
@@ -39,6 +43,10 @@ export class CardFeatureModel {
       author: userData?.name || null,
       isPrivate: row.is_private ?? false, // LEGADO: mantido para compatibilidade
       visibility: visibility as Visibility, // NOVO: controle de visibilidade
+      approvalStatus: approvalStatus,
+      approvalRequestedAt: row.approval_requested_at || null,
+      approvedAt: row.approved_at || null,
+      approvedBy: row.approved_by || null,
       createdInProjectId: row.created_in_project_id || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -59,25 +67,30 @@ export class CardFeatureModel {
     // IMPORTANTE: unlisted de OUTROS usuários NÃO aparece em listagens!
     // O acesso a unlisted de outros é apenas via link direto (findById)
     if (userRole === 'admin') {
-      // Admin vê todos os cards - não aplica filtro de visibilidade
+      // Admin vê todos os cards - não aplica filtro base aqui
     } else if (userId) {
-      // Construir condições OR para visibilidade
+      // Usuário autenticado:
+      // - Público: somente aprovados (e, opcionalmente, os próprios pendentes quando filtrados)
+      // - Private/unlisted: somente do criador
       const conditions: string[] = [
-        'visibility.eq.public',
+        `and(visibility.eq.public,approval_status.eq.${ApprovalStatus.APPROVED})`,
         `and(visibility.eq.private,created_by.eq.${userId})`,
-        `and(visibility.eq.unlisted,created_by.eq.${userId})`
+        `and(visibility.eq.unlisted,created_by.eq.${userId})`,
+        // Permite o usuário enxergar os próprios pendentes quando ele filtrar por pending
+        `and(visibility.eq.public,approval_status.eq.${ApprovalStatus.PENDING},created_by.eq.${userId})`
       ]
-      
+
       // Se houver cards compartilhados, adicionar condição para eles usando .in()
       if (sharedCardIds.length > 0) {
-        // Usar uma única condição .in() com todos os IDs separados por vírgula
         conditions.push(`id.in.(${sharedCardIds.join(',')})`)
       }
-      
+
       query = query.or(conditions.join(','))
     } else {
-      // Não autenticado: apenas cards públicos em listagens
-      query = query.eq('visibility', Visibility.PUBLIC)
+      // Não autenticado: somente cards públicos APROVADOS em listagens
+      query = query
+        .eq('visibility', Visibility.PUBLIC)
+        .eq('approval_status', ApprovalStatus.APPROVED)
     }
 
     // Filtro para excluir cards criados em projetos (apenas cards da aba Códigos)
@@ -86,6 +99,15 @@ export class CardFeatureModel {
     // Adicionar filtro por visibility se fornecido nos params
     if (params.visibility && params.visibility !== 'all') {
       query = query.eq('visibility', params.visibility)
+    }
+
+    // Adicionar filtro por approval_status se fornecido nos params
+    if ((params as any).approval_status && (params as any).approval_status !== 'all') {
+      query = query.eq('approval_status', (params as any).approval_status)
+      // Segurança extra: não-admin não pode listar pendentes de outros usuários
+      if (userRole !== 'admin' && (params as any).approval_status === ApprovalStatus.PENDING && userId) {
+        query = query.eq('created_by', userId)
+      }
     }
 
     // Filtros
@@ -135,8 +157,9 @@ export class CardFeatureModel {
   // CREATE
   // ================================================
 
-  static async create(data: CreateCardFeatureRequest, userId: string): Promise<ModelResult<CardFeatureResponse>> {
+  static async create(data: CreateCardFeatureRequest, userId: string, actorRole: string = 'user'): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      const isAdmin = actorRole === 'admin'
       // Processar screens para adicionar IDs e order aos blocos
       const processedScreens = data.screens.map(screen => ({
         ...screen,
@@ -147,8 +170,30 @@ export class CardFeatureModel {
         }))
       }))
 
-      // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
-      const visibility = data.visibility || (data.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+      // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private,
+      // e por padrão cria como UNLISTED (para usuários comuns).
+      const visibility =
+        data.visibility ||
+        (data.is_private ? Visibility.PRIVATE : Visibility.UNLISTED)
+
+      const now = new Date().toISOString()
+
+      // Regras de aprovação do diretório global
+      let approval_status: ApprovalStatus = ApprovalStatus.NONE
+      let approval_requested_at: string | null = null
+      let approved_at: string | null = null
+      let approved_by: string | null = null
+
+      if (visibility === Visibility.PUBLIC) {
+        if (isAdmin) {
+          approval_status = ApprovalStatus.APPROVED
+          approved_at = now
+          approved_by = userId
+        } else {
+          approval_status = ApprovalStatus.PENDING
+          approval_requested_at = now
+        }
+      }
 
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
@@ -162,9 +207,13 @@ export class CardFeatureModel {
         created_by: userId,
         is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
         visibility: visibility, // NOVO: usar visibility
+        approval_status,
+        approval_requested_at,
+        approved_at,
+        approved_by,
         created_in_project_id: data.created_in_project_id || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: now,
+        updated_at: now
       }
 
       const { data: result } = await executeQuery(
@@ -233,12 +282,25 @@ export class CardFeatureModel {
 
       // Derivar visibility a partir de is_private se não existir (compatibilidade)
       const visibility = data.visibility || (data.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+      const approvalStatus =
+        data.approval_status ||
+        (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
 
       // Verificar permissão baseado em visibility
       if (userRole === 'admin') {
         // Admin vê todos - OK
-      } else if (visibility === Visibility.PUBLIC || visibility === Visibility.UNLISTED) {
-        // Public e Unlisted: qualquer um com link pode ver - OK
+      } else if (visibility === Visibility.UNLISTED) {
+        // Unlisted: qualquer pessoa com link pode ver - OK
+      } else if (visibility === Visibility.PUBLIC) {
+        // Public: apenas APPROVED é realmente público. Pending/Rejected só para criador.
+        const isOwner = userId && data.created_by === userId
+        if (approvalStatus !== ApprovalStatus.APPROVED && !isOwner) {
+          return {
+            success: false,
+            error: 'Você não tem permissão para visualizar este card',
+            statusCode: 403
+          }
+        }
       } else if (visibility === Visibility.PRIVATE) {
         // Private: apenas criador ou compartilhados
         if (data.created_by !== userId) {
@@ -422,9 +484,48 @@ export class CardFeatureModel {
         }
       }
 
+      const now = new Date().toISOString()
+
+      // Sanitizar campos de aprovação para não-admin (somente endpoints de moderação podem mexer)
+      const sanitized: any = { ...data }
+      if (!isAdmin) {
+        delete sanitized.approval_status
+        delete sanitized.approval_requested_at
+        delete sanitized.approved_at
+        delete sanitized.approved_by
+      }
+
       const updateData: CardFeatureUpdate = {
-        ...data,
-        updated_at: new Date().toISOString()
+        ...sanitized,
+        updated_at: now
+      }
+
+      // Regras: quando um usuário comum tenta tornar público, vira PENDING
+      if ('visibility' in sanitized && sanitized.visibility) {
+        if (sanitized.visibility === Visibility.PUBLIC) {
+          if (isAdmin) {
+            // Admin pode tornar público diretamente como APPROVED
+            if (!('approval_status' in sanitized) || !sanitized.approval_status) {
+              updateData.approval_status = ApprovalStatus.APPROVED
+            }
+            if (updateData.approval_status === ApprovalStatus.APPROVED) {
+              updateData.approved_at = now
+              updateData.approved_by = userId
+              updateData.approval_requested_at = null as any
+            }
+          } else {
+            updateData.approval_status = ApprovalStatus.PENDING
+            updateData.approval_requested_at = now
+            updateData.approved_at = null as any
+            updateData.approved_by = null as any
+          }
+        } else {
+          // Se voltou para private/unlisted, não faz parte do diretório global
+          updateData.approval_status = ApprovalStatus.NONE
+          updateData.approval_requested_at = null as any
+          updateData.approved_at = null as any
+          updateData.approved_by = null as any
+        }
       }
 
       const { data: result } = await executeQuery(
@@ -512,6 +613,95 @@ export class CardFeatureModel {
   }
 
   // ================================================
+  // MODERATION (ADMIN)
+  // ================================================
+
+  static async approve(id: string, adminId: string): Promise<ModelResult<CardFeatureResponse>> {
+    try {
+      const now = new Date().toISOString()
+
+      // Validar existência
+      const existing = await this.findById(id, adminId, 'admin')
+      if (!existing.success || !existing.data) return existing as any
+
+      const { data: result } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .update({
+            visibility: Visibility.PUBLIC,
+            approval_status: ApprovalStatus.APPROVED,
+            approved_at: now,
+            approved_by: adminId,
+            updated_at: now
+          } as any)
+          .eq('id', id)
+          .select()
+          .single()
+      )
+
+      // Buscar dados do usuário criador
+      let userData = null
+      if (result.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', result.created_by)
+            .single()
+        )
+        userData = user
+      }
+
+      return { success: true, data: this.transformToResponse({ ...result, users: userData }), statusCode: 200 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro interno do servidor', statusCode: error.statusCode || 500 }
+    }
+  }
+
+  static async reject(id: string, adminId: string): Promise<ModelResult<CardFeatureResponse>> {
+    try {
+      const now = new Date().toISOString()
+
+      // Validar existência
+      const existing = await this.findById(id, adminId, 'admin')
+      if (!existing.success || !existing.data) return existing as any
+
+      const { data: result } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .update({
+            visibility: Visibility.UNLISTED,
+            approval_status: ApprovalStatus.REJECTED,
+            approval_requested_at: null,
+            approved_at: null,
+            approved_by: null,
+            updated_at: now
+          } as any)
+          .eq('id', id)
+          .select()
+          .single()
+      )
+
+      // Buscar dados do usuário criador
+      let userData = null
+      if (result.created_by) {
+        const { data: user } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, name, email')
+            .eq('id', result.created_by)
+            .single()
+        )
+        userData = user
+      }
+
+      return { success: true, data: this.transformToResponse({ ...result, users: userData }), statusCode: 200 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro interno do servidor', statusCode: error.statusCode || 500 }
+    }
+  }
+
+  // ================================================
   // STATISTICS
   // ================================================
 
@@ -528,6 +718,7 @@ export class CardFeatureModel {
           .from('card_features')
           .select('*', { count: 'exact', head: true })
           .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
       )
 
       // Group by tech (apenas públicos)
@@ -536,6 +727,7 @@ export class CardFeatureModel {
           .from('card_features')
           .select('tech')
           .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
       )
 
       // Group by language (apenas públicos)
@@ -544,6 +736,7 @@ export class CardFeatureModel {
           .from('card_features')
           .select('language')
           .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
       )
 
       // Recent count (last 7 days, apenas públicos)
@@ -555,6 +748,7 @@ export class CardFeatureModel {
           .from('card_features')
           .select('*', { count: 'exact', head: true })
           .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
           .gte('created_at', sevenDaysAgo.toISOString())
       )
 

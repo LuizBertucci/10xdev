@@ -19,7 +19,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
-  visibility: Visibility.PUBLIC,
+  visibility: Visibility.UNLISTED,
   screens: [
     {
       name: 'Main',
@@ -129,6 +129,7 @@ interface CardFeatureFormProps {
   isLoading: boolean
   onClose: () => void
   onSubmit: (data: CardFeatureFormData) => Promise<void>
+  isAdmin?: boolean
 }
 
 export default function CardFeatureForm({ 
@@ -137,7 +138,8 @@ export default function CardFeatureForm({
   initialData, 
   isLoading, 
   onClose, 
-  onSubmit 
+  onSubmit,
+  isAdmin = false
 }: CardFeatureFormProps) {
   const [formData, setFormData] = useState<CardFeatureFormData>(() => {
     if (mode === 'edit' && initialData) {
@@ -542,7 +544,7 @@ export default function CardFeatureForm({
                           <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
                         )}
                         <span className="truncate">
-                          {formData.visibility === Visibility.PUBLIC && "Público"}
+                          {formData.visibility === Visibility.PUBLIC && (isAdmin ? "Público" : "Enviar para aprovação")}
                           {formData.visibility === Visibility.UNLISTED && "Não Listado"}
                           {formData.visibility === Visibility.PRIVATE && "Privado"}
                         </span>
@@ -553,8 +555,10 @@ export default function CardFeatureForm({
                         <div className="flex items-center gap-2">
                           <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
                           <div className="min-w-0">
-                            <div className="font-semibold text-xs">Público</div>
-                            <div className="text-[10px] text-muted-foreground">Aparece nas listagens</div>
+                            <div className="font-semibold text-xs">{isAdmin ? 'Público' : 'Enviar para aprovação'}</div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {isAdmin ? 'Aparece nas listagens' : 'Vai para validação antes de aparecer em Aprovados'}
+                            </div>
                           </div>
                         </div>
                       </SelectItem>
@@ -579,6 +583,12 @@ export default function CardFeatureForm({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {formData.visibility === Visibility.PUBLIC && !isAdmin && (
+                  <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+                    Ao enviar para aprovação, seu card ficará em <span className="font-semibold">Validando</span> até um admin aprovar.
+                  </div>
+                )}
 
                 {/* Campo de Compartilhamento - Apenas para cards privados */}
                 {formData.visibility === Visibility.PRIVATE && (

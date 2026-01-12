@@ -1,17 +1,18 @@
 import { Badge } from "@/components/ui/badge"
-import { Lock, Globe, Link2 } from "lucide-react"
-import { Visibility } from "@/types"
+import { Lock, Link2, BadgeCheck, ShieldCheck } from "lucide-react"
+import { ApprovalStatus, Visibility } from "@/types"
 import { forwardRef } from "react"
 
 interface VisibilityTabProps extends React.HTMLAttributes<HTMLDivElement> {
   visibility?: Visibility
   isPrivate?: boolean
+  approvalStatus?: ApprovalStatus | string
   size?: 'default' | 'small'
   isClickable?: boolean
 }
 
 const VisibilityTab = forwardRef<HTMLDivElement, VisibilityTabProps>(
-  ({ visibility, isPrivate, size = 'default', isClickable = false, className, ...props }, ref) => {
+  ({ visibility, isPrivate, approvalStatus, size = 'default', isClickable = false, className, ...props }, ref) => {
     const isSmall = size === 'small'
     
     // Configurações de estilo baseadas no tamanho
@@ -33,10 +34,20 @@ const VisibilityTab = forwardRef<HTMLDivElement, VisibilityTabProps>(
     )
 
     if (effectiveVisibility === Visibility.PUBLIC) {
+      if (approvalStatus === ApprovalStatus.PENDING || approvalStatus === 'pending') {
+        return renderBadge(
+          <>
+            <ShieldCheck className={iconClass} />
+            Validando
+          </>,
+          "border-amber-300 bg-amber-50 text-amber-700"
+        )
+      }
+
       return renderBadge(
         <>
-          <Globe className={iconClass} />
-          Público
+          <BadgeCheck className={iconClass} />
+          Aprovado
         </>,
         "border-green-300 bg-green-50 text-green-700"
       )

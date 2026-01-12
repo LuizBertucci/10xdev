@@ -9,6 +9,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
   searchTerm?: string
   selectedTech?: string
   selectedVisibility?: string
+  selectedApprovalStatus?: string
   selectedCardType?: string
   setSearchTerm?: (term: string) => void
   setSelectedTech?: (tech: string) => void
@@ -65,6 +66,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         ...params,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
         visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
+        approval_status: externalFilters?.selectedApprovalStatus !== 'all' ? externalFilters?.selectedApprovalStatus : undefined,
         card_type: externalFilters?.selectedCardType !== 'all' ? externalFilters?.selectedCardType : undefined
       }
       
@@ -103,7 +105,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       throw error
     }
-  }, [state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedCardType])
+  }, [state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType])
 
   // Wrapper para usePagination (precisa retornar void)
   const paginationFetchFn = useCallback(async (params: FetchParams) => {
@@ -124,12 +126,13 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     }
 
     const hasVisibilityFilter = externalFilters?.selectedVisibility !== undefined && externalFilters.selectedVisibility !== 'all'
+    const hasApprovalFilter = externalFilters?.selectedApprovalStatus !== undefined && externalFilters.selectedApprovalStatus !== 'all'
     const hasCardTypeFilter = externalFilters?.selectedCardType !== undefined && externalFilters.selectedCardType !== 'all'
 
-    if (hasVisibilityFilter || hasCardTypeFilter) {
+    if (hasVisibilityFilter || hasApprovalFilter || hasCardTypeFilter) {
       pagination.goToPage(1)
     }
-  }, [externalFilters?.selectedVisibility, externalFilters?.selectedCardType, pagination.goToPage])
+  }, [externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType, pagination.goToPage])
 
   // Atualizar a ref quando pagination for criado
   useEffect(() => {
@@ -145,9 +148,10 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         search: term.trim() || undefined,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
         visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
+        approval_status: externalFilters?.selectedApprovalStatus !== 'all' ? externalFilters?.selectedApprovalStatus : undefined,
         card_type: externalFilters?.selectedCardType !== 'all' ? externalFilters?.selectedCardType : undefined
       })
-    }, [fetchCardFeaturesWithPagination, itemsPerPage, state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedCardType]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType]),
     { delay: 500 }
   )
 
@@ -390,18 +394,20 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         search: params?.search,
         tech: params?.tech,
         visibility: params?.visibility || externalFilters?.selectedVisibility,
+        approval_status: (params as any)?.approval_status || externalFilters?.selectedApprovalStatus,
         card_type: params?.card_type || externalFilters?.selectedCardType
       })
-    }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedCardType]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType]),
     searchCardFeatures: useCallback(async (searchTerm: string) => {
       await fetchCardFeaturesWithPagination({
         page: 1,
         limit: itemsPerPage,
         search: searchTerm.trim() || undefined,
         visibility: externalFilters?.selectedVisibility,
+        approval_status: externalFilters?.selectedApprovalStatus,
         card_type: externalFilters?.selectedCardType
       })
-    }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedCardType]),
+    }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType]),
 
     setSearchTerm,
     setSelectedTech,

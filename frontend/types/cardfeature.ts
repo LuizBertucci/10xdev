@@ -34,6 +34,16 @@ export enum Visibility {
 }
 
 /**
+ * Status de aprovação do diretório global
+ */
+export enum ApprovalStatus {
+  NONE = 'none',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
+}
+
+/**
  * Bloco individual de conteúdo
  */
 export interface ContentBlock {
@@ -72,6 +82,10 @@ export interface CardFeature {
   createdBy?: string | null     // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   isPrivate?: boolean    // LEGADO: mantido para compatibilidade
   visibility?: Visibility // NOVO: controle de visibilidade (public/private/unlisted)
+  approvalStatus?: ApprovalStatus | string
+  approvalRequestedAt?: string | null
+  approvedAt?: string | null
+  approvedBy?: string | null
   createdInProjectId?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
@@ -107,6 +121,7 @@ export interface CreateCardFeatureData {
   screens: CardFeatureScreen[]
   is_private?: boolean  // LEGADO: mantido para compatibilidade
   visibility?: Visibility  // NOVO: controle de visibilidade (padrão: public)
+  approvalStatus?: ApprovalStatus | string
   created_in_project_id?: string  // ID do projeto onde será criado (opcional)
 }
 

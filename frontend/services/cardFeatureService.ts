@@ -46,6 +46,18 @@ class CardFeatureService {
   }
 
   // ================================================
+  // MODERATION (admin)
+  // ================================================
+
+  async approve(id: string): Promise<ApiResponse<CardFeature> | undefined> {
+    return apiClient.post<CardFeature>(`${this.endpoint}/${id}/approve`)
+  }
+
+  async reject(id: string): Promise<ApiResponse<CardFeature> | undefined> {
+    return apiClient.post<CardFeature>(`${this.endpoint}/${id}/reject`)
+  }
+
+  // ================================================
   // DELETE
   // ================================================
 
