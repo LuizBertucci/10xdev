@@ -26,8 +26,11 @@ export class CardFeatureModel {
 
     // Derivar visibility a partir de is_private se não existir (compatibilidade)
     const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+
+    // IMPORTANTE: Usar nullish coalescing (??) ao invés de OR (||)
+    // para não sobrescrever valores válidos como 'pending' ou 'rejected'
     const approvalStatus =
-      row.approval_status ||
+      row.approval_status ??
       (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
 
     return {
@@ -501,6 +504,7 @@ export class CardFeatureModel {
       }
 
       // Regras: quando um usuário comum tenta tornar público, vira PENDING
+      // IMPORTANTE: Verificar SEMPRE se está mudando para PUBLIC, independente do status atual
       if ('visibility' in sanitized && sanitized.visibility !== undefined) {
         if (sanitized.visibility === Visibility.PUBLIC) {
           if (isAdmin) {
@@ -514,7 +518,8 @@ export class CardFeatureModel {
               updateData.approval_requested_at = null
             }
           } else {
-            // Usuário comum mudando para público → PENDING
+            // Usuário comum mudando para público → SEMPRE PENDING (mesmo que já tenha sido aprovado antes)
+            // Isso garante que ao mudar de unlisted/private para public, sempre passe por validação
             updateData.approval_status = ApprovalStatus.PENDING
             updateData.approval_requested_at = now
             updateData.approved_at = null
