@@ -289,14 +289,22 @@ export class ProjectModel {
       const projectsWithDetails = await Promise.all(
         data.map(async (row: ProjectRow) => {
           const project = this.transformToResponse(row)
-          project.memberCount = await this.getMemberCount(row.id)
-          project.cardCount = await this.getCardCount(row.id)
-          if (userId) {
-            const role = await this.getUserRole(row.id, userId)
-            if (role) {
-              project.userRole = role
-            }
+
+          // Buscar contagens em paralelo para otimizar performance
+          const [memberCount, cardCount, cardsCreatedCount, userRole] = await Promise.all([
+            this.getMemberCount(row.id),
+            this.getCardCount(row.id),
+            this.getCardsCreatedCount(row.id),
+            userId ? this.getUserRole(row.id, userId) : Promise.resolve(undefined)
+          ])
+
+          project.memberCount = memberCount
+          project.cardCount = cardCount
+          project.cardsCreatedCount = cardsCreatedCount
+          if (userRole) {
+            project.userRole = userRole
           }
+
           return project
         })
       )
