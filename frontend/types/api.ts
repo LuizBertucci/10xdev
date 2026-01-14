@@ -81,6 +81,7 @@ export interface FilterParams {
   language?: string
   search?: string
   visibility?: string
+  approval_status?: string
   card_type?: string
   content_type?: string
 }

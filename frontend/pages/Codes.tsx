@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, Loader2, Plus, FileJson, Globe, Lock, Link2, User } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, Plus, FileJson, Globe, Lock, Link2, User } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
@@ -12,9 +12,10 @@ import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
 import type { CardFeature as CardFeatureType, CreateCardFeatureData } from "@/types"
-import { Visibility } from "@/types"
+import { ApprovalStatus, Visibility } from "@/types"
 import { useAuth } from "@/hooks/useAuth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { cardFeatureService } from "@/services"
 
 interface PlatformState {
   activeTab?: string
@@ -33,6 +34,7 @@ interface CodesProps {
 export default function Codes({ platformState }: CodesProps) {
   const { user, isProfileLoaded } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const isAuthed = !!user
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -60,15 +62,28 @@ export default function Codes({ platformState }: CodesProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, setSelectedCardType] = useState<string>('all')
-  const [selectedVisibility, setSelectedVisibility] = useState<string>('public')
+  const [selectedDirectoryTab, setSelectedDirectoryTab] = useState<string>('approved')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
+
+  const selectedVisibility =
+    selectedDirectoryTab === 'approved' || selectedDirectoryTab === 'validating'
+      ? Visibility.PUBLIC
+      : (selectedDirectoryTab as Visibility)
+
+  const selectedApprovalStatus =
+    selectedDirectoryTab === 'approved'
+      ? ApprovalStatus.APPROVED
+      : selectedDirectoryTab === 'validating'
+        ? ApprovalStatus.PENDING
+        : 'all'
   
   // Hook principal para operações CRUD e dados da API com filtros do platformState
   const cardFeatures = useCardFeatures({ initialPage }, {
     searchTerm: activePlatformState.searchTerm,
     selectedTech: activePlatformState.selectedTech,
     selectedVisibility,
+    selectedApprovalStatus,
     selectedCardType,
     setSearchTerm: activePlatformState.setSearchTerm,
     setSelectedTech: activePlatformState.setSelectedTech
@@ -129,7 +144,7 @@ export default function Codes({ platformState }: CodesProps) {
         const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
         const shareEmails = shareEmailsInput?.value?.trim()
 
-        if (formData.is_private && shareEmails && result.id) {
+        if (formData.visibility === Visibility.PRIVATE && shareEmails && result.id) {
           try {
             await fetch(`/api/card-features/${result.id}/share`, {
               method: 'POST',
@@ -171,6 +186,24 @@ export default function Codes({ platformState }: CodesProps) {
     if (snippet) {
       setDeletingSnippet(snippet)
     }
+  }
+
+  const canEditSnippet = (snippet: CardFeatureType) => {
+    if (isAdmin) return true
+    if (!user?.id) return false
+    return snippet.createdBy === user.id
+  }
+
+  const handleApprove = async (snippetId: string) => {
+    if (!isAdmin) return
+    await cardFeatureService.approve(snippetId)
+    await cardFeatures.refreshData()
+  }
+
+  const handleReject = async (snippetId: string) => {
+    if (!isAdmin) return
+    await cardFeatureService.reject(snippetId)
+    await cardFeatures.refreshData()
   }
 
   // Handler para confirmar exclusão
@@ -283,7 +316,7 @@ export default function Codes({ platformState }: CodesProps) {
 
           {/* Create Button with Dropdown (admin only) */}
           <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
-            isProfileLoaded && isAdmin ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+            isProfileLoaded && isAuthed ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
           }`}>
             <Button
                 onClick={cardFeatures.startCreating}
@@ -320,30 +353,40 @@ export default function Codes({ platformState }: CodesProps) {
         </div>
 
         {/* Visibility Tabs Row - Split into Global and Personal Groups */}
-        <Tabs value={selectedVisibility} onValueChange={setSelectedVisibility} className="w-full max-w-[900px] mx-auto mt-2 mb-6">
+        <Tabs value={selectedDirectoryTab} onValueChange={setSelectedDirectoryTab} className="w-full max-w-[900px] mx-auto mt-2 mb-6">
           <div className="flex gap-3 sm:gap-6 items-end w-full">
             {/* Group 1: Global Directory */}
-            <div className="flex flex-col gap-1.5 flex-[1] min-w-0">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
               <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
                 <Globe className="h-3 w-3 mr-1 text-green-600/50" />
                 Global
               </div>
-              <TabsList className="h-10 w-full bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+              <TabsList className="h-10 w-full grid grid-cols-2 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
                 <TabsTrigger 
-                  value="public" 
+                  value="approved" 
                   className="w-full text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 transition-all" 
                   disabled={cardFeatures.loading}
                 >
                   <div className="flex items-center justify-center">
-                    <Globe className="h-4 w-4 sm:mr-2 text-green-600" />
-                    <span className="hidden sm:inline">Públicos</span>
+                    <BadgeCheck className="h-4 w-4 sm:mr-2 text-green-600" />
+                    <span className="hidden sm:inline">Aprovados</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="validating" 
+                  className="w-full text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700 transition-all" 
+                  disabled={cardFeatures.loading}
+                >
+                  <div className="flex items-center justify-center">
+                    <ShieldCheck className="h-4 w-4 sm:mr-2 text-amber-600" />
+                    <span className="hidden sm:inline">Validando</span>
                   </div>
                 </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Group 2: Personal Space */}
-            <div className="flex flex-col gap-1.5 flex-[2] min-w-0">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
               <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
                 <User className="h-3 w-3 mr-1 text-orange-600/50" />
                 Seu Espaço
@@ -409,13 +452,13 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'public'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedDirectoryTab !== 'approved'
               ? 'Nenhum snippet encontrado'
               : 'Nenhum card disponível'
             }
           </h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedVisibility !== 'public'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedDirectoryTab !== 'approved'
               ? 'Tente ajustar seus filtros de busca'
               : 'Ainda não há snippets de código disponíveis para visualização'
             }
@@ -428,21 +471,36 @@ export default function Codes({ platformState }: CodesProps) {
         <>
           {/* View Lista - Layout Vertical */}
           <div className="space-y-4 w-full max-w-[900px] mx-auto">
-            {codeSnippets.map((snippet) => (
-              <CardFeatureCompact
-                key={snippet.id}
-                snippet={snippet}
-                onEdit={(snippet) => {
-                  if (!isAdmin) return
-                  cardFeatures.startEditing(snippet)
-                }}
-                onDelete={(snippetId) => {
-                  if (!isAdmin) return
-                  handleDeleteClick(snippetId)
-                }}
-                onUpdate={cardFeatures.updateCardFeature}
-              />
-            ))}
+            {codeSnippets.map((snippet) => {
+              const canEdit = canEditSnippet(snippet)
+              return (
+                <div key={snippet.id} className="space-y-2">
+                  <CardFeatureCompact
+                    snippet={snippet}
+                    onEdit={(s) => {
+                      if (!canEdit) return
+                      cardFeatures.startEditing(s)
+                    }}
+                    onDelete={(snippetId) => {
+                      if (!canEdit) return
+                      handleDeleteClick(snippetId)
+                    }}
+                    onUpdate={cardFeatures.updateCardFeature}
+                  />
+
+                  {selectedDirectoryTab === 'validating' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleReject(snippet.id)}>
+                        Rejeitar
+                      </Button>
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(snippet.id)}>
+                        Aprovar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {/* Controles de Paginação */}
@@ -532,18 +590,19 @@ export default function Codes({ platformState }: CodesProps) {
 
       {/* ===== MODAIS - Formulários e Confirmações ===== */}
       {/* Create CardFeature Modal */}
-      {(isProfileLoaded && isAdmin) && (
+      {(isProfileLoaded && isAuthed) && (
         <CardFeatureForm
           isOpen={cardFeatures.isCreating}
           mode="create"
           isLoading={cardFeatures.creating}
           onClose={cardFeatures.cancelCreating}
           onSubmit={handleCreateSubmit}
+          isAdmin={isAdmin}
         />
       )}
 
       {/* Create CardFeature via JSON Modal */}
-      {(isProfileLoaded && isAdmin) && (
+      {(isProfileLoaded && isAuthed) && (
         <CardFeatureFormJSON
           isOpen={isCreatingJSON}
           isLoading={isCreatingJSONLoading}
@@ -553,7 +612,7 @@ export default function Codes({ platformState }: CodesProps) {
       )}
 
       {/* Edit CardFeature Modal */}
-      {(isProfileLoaded && isAdmin) && (
+      {(isProfileLoaded && isAuthed) && (
         <CardFeatureForm
           isOpen={cardFeatures.isEditing}
           mode="edit"
@@ -561,11 +620,12 @@ export default function Codes({ platformState }: CodesProps) {
           isLoading={cardFeatures.updating}
           onClose={cardFeatures.cancelEditing}
           onSubmit={handleEditSubmit}
+          isAdmin={isAdmin}
         />
       )}
 
       {/* Delete Confirmation Dialog */}
-      {(isProfileLoaded && isAdmin) && (
+      {(isProfileLoaded && isAuthed) && (
         <DeleteConfirmationDialog
           isOpen={!!deletingSnippet}
           snippet={deletingSnippet}

@@ -227,11 +227,13 @@ export class ProjectModel {
       // Buscar informações adicionais
       const memberCount = await this.getMemberCount(id)
       const cardCount = await this.getCardCount(id)
+      const cardsCreatedCount = await this.getCardsCreatedCount(id)
       const userRole = userId ? await this.getUserRole(id, userId) : undefined
 
       const response = this.transformToResponse(data)
       response.memberCount = memberCount
       response.cardCount = cardCount
+      response.cardsCreatedCount = cardsCreatedCount
       if (userRole) {
         response.userRole = userRole
       }
@@ -287,14 +289,22 @@ export class ProjectModel {
       const projectsWithDetails = await Promise.all(
         data.map(async (row: ProjectRow) => {
           const project = this.transformToResponse(row)
-          project.memberCount = await this.getMemberCount(row.id)
-          project.cardCount = await this.getCardCount(row.id)
-          if (userId) {
-            const role = await this.getUserRole(row.id, userId)
-            if (role) {
-              project.userRole = role
-            }
+
+          // Buscar contagens em paralelo para otimizar performance
+          const [memberCount, cardCount, cardsCreatedCount, userRole] = await Promise.all([
+            this.getMemberCount(row.id),
+            this.getCardCount(row.id),
+            this.getCardsCreatedCount(row.id),
+            userId ? this.getUserRole(row.id, userId) : Promise.resolve(undefined)
+          ])
+
+          project.memberCount = memberCount
+          project.cardCount = cardCount
+          project.cardsCreatedCount = cardsCreatedCount
+          if (userRole) {
+            project.userRole = userRole
           }
+
           return project
         })
       )
@@ -362,7 +372,7 @@ export class ProjectModel {
   // DELETE
   // ================================================
 
-  static async delete(id: string, userId: string): Promise<ModelResult<null>> {
+  static async delete(id: string, userId: string, deleteCards?: boolean): Promise<ModelResult<{ cardsDeleted: number, cardsExpected?: number, warning?: string }>> {
     try {
       // Verificar se é owner
       const role = await this.getUserRole(id, userId)
@@ -374,6 +384,27 @@ export class ProjectModel {
         }
       }
 
+      let cardsDeleted = 0
+      let cardIds: string[] = []
+      let warning: string | undefined
+
+      // Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
+      if (deleteCards) {
+        const { data: cards } = await executeQuery(
+          supabaseAdmin
+            .from('card_features')
+            .select('id')
+            .eq('created_in_project_id', id)
+        )
+
+        if (cards && cards.length > 0) {
+          cardIds = cards.map((c: any) => c.id)
+        }
+      }
+
+      // CRÍTICO: Deletar o projeto PRIMEIRO
+      // Se isso falhar, nada foi modificado (fail-safe)
+      // As associações project_cards serão removidas por CASCADE do banco
       await executeQuery(
         supabaseAdmin
           .from('projects')
@@ -381,9 +412,41 @@ export class ProjectModel {
           .eq('id', id)
       )
 
+      // Após deletar o projeto com sucesso, deletar os cards se solicitado
+      // Se isso falhar, o projeto já foi deletado mas os cards permanecem
+      // (melhor que o inverso: perder cards mas manter projeto)
+      if (deleteCards && cardIds.length > 0) {
+        try {
+          const { count } = await executeQuery(
+            supabaseAdmin
+              .from('card_features')
+              .delete({ count: 'exact' })
+              .in('id', cardIds)
+          )
+          cardsDeleted = count || 0
+
+          // Detectar falha parcial: se deletou menos cards do que esperado
+          if (cardsDeleted < cardIds.length) {
+            warning = `Falha parcial ao deletar cards: ${cardsDeleted}/${cardIds.length} cards deletados`
+            console.warn(`Projeto ${id} deletado, mas apenas ${cardsDeleted} de ${cardIds.length} cards foram deletados`)
+          }
+        } catch (cardDeleteError: any) {
+          // Log detalhado do erro com contexto completo
+          console.error(
+            `Erro ao deletar cards após deletar projeto ${id}: ${cardDeleteError.message}. ` +
+            `Esperava deletar ${cardIds.length} cards (IDs: ${cardIds.slice(0, 5).join(', ')}${cardIds.length > 5 ? '...' : ''})`
+          )
+          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${cardDeleteError.message}`
+        }
+      }
+
       return {
         success: true,
-        data: null,
+        data: {
+          cardsDeleted,
+          ...(deleteCards && cardIds.length > 0 && { cardsExpected: cardIds.length }),
+          ...(warning && { warning })
+        },
         statusCode: 200
       }
     } catch (error: any) {
@@ -618,6 +681,20 @@ export class ProjectModel {
   // ================================================
   // CARDS MANAGEMENT
   // ================================================
+
+  static async getCardsCreatedCount(projectId: string): Promise<number> {
+    try {
+      const { count } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id', { count: 'exact', head: true })
+          .eq('created_in_project_id', projectId)
+      )
+      return count || 0
+    } catch {
+      return 0
+    }
+  }
 
   static async getCards(projectId: string, limit?: number, offset?: number): Promise<ModelListResult<ProjectCardResponse>> {
     try {

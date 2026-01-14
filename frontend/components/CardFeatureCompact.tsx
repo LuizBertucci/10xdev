@@ -31,7 +31,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   // Estado para feedback de "copiado"
   const [copied, setCopied] = useState(false)
   
-  const canEdit = user?.role === 'admin'
+  const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
   // URL da API baseada no ambiente
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
@@ -77,7 +77,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     try {
       await onUpdate(snippet.id, { visibility: newVisibility })
       toast.success(`Visibilidade alterada para ${
-        newVisibility === Visibility.PUBLIC ? 'Público' : 
+        newVisibility === Visibility.PUBLIC ? (user?.role === 'admin' ? 'Público' : 'Validando') : 
         newVisibility === Visibility.PRIVATE ? 'Privado' : 'Não Listado'
       }`)
     } catch (err) {
@@ -91,6 +91,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         <VisibilityTab 
           visibility={snippet.visibility} 
           isPrivate={snippet.isPrivate} 
+          approvalStatus={(snippet as any).approvalStatus}
           size={size} 
           isClickable={canEdit}
         />
@@ -99,7 +100,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.PUBLIC)} className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-green-600" />
-            <span>Público</span>
+            <span>{user?.role === 'admin' ? 'Público' : 'Enviar para aprovação'}</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.UNLISTED)} className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-blue-600" />

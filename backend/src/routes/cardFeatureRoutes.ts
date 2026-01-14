@@ -24,13 +24,18 @@ router.get('/tech/:tech', optionalAuth, CardFeatureController.getByTech)
 router.get('/', optionalAuth, CardFeatureController.getAll)
 router.get('/:id', optionalAuth, CardFeatureController.getById)
 
+// MODERATION - Admin-only
+router.post('/:id/approve', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.approve)
+router.post('/:id/reject', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.reject)
+
 // BULK OPERATIONS - Requerem privilégios de administrador
 router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
 router.delete('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkDelete)
 
-// Rotas de escrita: requerem privilégios de administrador (seguindo padrão projectRoutes)
-router.post('/', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.create)
-router.put('/:id', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.update)
-router.delete('/:id', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.delete)
+// Rotas de escrita: usuário autenticado pode criar/editar/deletar seus próprios cards.
+// A moderação (aprovar/rejeitar) permanece restrita a admins via endpoints específicos.
+router.post('/', supabaseMiddleware, authenticate, CardFeatureController.create)
+router.put('/:id', supabaseMiddleware, authenticate, CardFeatureController.update)
+router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.delete)
 
 export { router as cardFeatureRoutes }

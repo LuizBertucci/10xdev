@@ -58,6 +58,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteCardsWithProject, setDeleteCardsWithProject] = useState(false)
 
   // Hook para detectar jobs de importação em andamento
   const projectIds = projects.map(p => p.id)
@@ -273,6 +274,7 @@ export default function Projects({ platformState }: ProjectsProps) {
       return
     }
     setProjectToDelete(project)
+    setDeleteCardsWithProject(false) // Reset checkbox state
     setIsDeleteDialogOpen(true)
   }
 
@@ -280,15 +282,21 @@ export default function Projects({ platformState }: ProjectsProps) {
     if (!projectToDelete) return
     try {
       setDeleting(true)
-      const response = await projectService.delete(projectToDelete.id)
+      const response = await projectService.delete(projectToDelete.id, { deleteCards: deleteCardsWithProject })
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
         return
       }
       if (response.success) {
-        toast.success('Projeto deletado com sucesso!')
+        const cardsDeleted = response.data?.cardsDeleted || 0
+        if (cardsDeleted > 0) {
+          toast.success(`Projeto e ${cardsDeleted} card${cardsDeleted > 1 ? 's' : ''} deletados com sucesso!`)
+        } else {
+          toast.success('Projeto deletado com sucesso!')
+        }
         setIsDeleteDialogOpen(false)
         setProjectToDelete(null)
+        setDeleteCardsWithProject(false)
         loadProjects()
       } else {
         toast.error(response.error || 'Erro ao deletar projeto')
@@ -373,7 +381,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                       <div>
                         <Label htmlFor="github-url">URL do Repositório *</Label>
                         <div className="flex gap-2 mt-1.5">
-                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-11" />
+                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-11" autoComplete="off" />
                           <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-11 px-4">
                             {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
@@ -381,7 +389,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                       </div>
                       <div>
                         <Label htmlFor="github-token">Token de Acesso (opcional)</Label>
-                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="mt-1.5 h-11" />
+                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="mt-1.5 h-11" autoComplete="new-password" />
                         <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
                       </div>
 
@@ -532,6 +540,28 @@ export default function Projects({ platformState }: ProjectsProps) {
               Tem certeza que deseja deletar o projeto <strong>&quot;{projectToDelete?.name}&quot;</strong>? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Checkbox para deletar cards */}
+          {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border-2 border-red-100 bg-red-50/50 p-4 my-2">
+              <Checkbox
+                id="delete-cards"
+                checked={deleteCardsWithProject}
+                onCheckedChange={(checked) => setDeleteCardsWithProject(checked === true)}
+                disabled={deleting}
+                className="mt-0.5"
+              />
+              <div className="space-y-1 flex-1">
+                <label htmlFor="delete-cards" className="text-sm font-medium leading-none text-red-900 cursor-pointer">
+                  Também excluir os {projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''} criados neste projeto
+                </label>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  Os cards serão removidos permanentemente e não poderão ser recuperados. Cards apenas associados (não criados) ao projeto permanecerão intactos.
+                </p>
+              </div>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={deleting}>Cancelar</Button>
             <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>

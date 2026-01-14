@@ -26,7 +26,7 @@ export class CardFeatureController {
       const data: CreateCardFeatureRequest = req.body
       const userId = req.user.id
 
-      const result = await CardFeatureModel.create(data, userId)
+      const result = await CardFeatureModel.create(data, userId, req.user.role || 'user')
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -70,6 +70,7 @@ export class CardFeatureController {
         card_type: req.query.card_type as string,
         search: req.query.search as string,
         visibility: req.query.visibility as string,
+        approval_status: req.query.approval_status as string,
         sortBy: req.query.sortBy as any,
         sortOrder: req.query.sortOrder as any
       }
@@ -425,7 +426,7 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.bulkCreate(items, userId)
+      const result = await CardFeatureModel.bulkCreate(items, userId, req.user.role || 'user')
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -483,6 +484,70 @@ export class CardFeatureController {
         success: false,
         error: 'Erro interno do servidor'
       })
+    }
+  }
+
+  // ================================================
+  // MODERATION (ADMIN)
+  // ================================================
+
+  static async approve(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+      if (req.user.role !== 'admin') {
+        res.status(403).json({ success: false, error: 'Acesso restrito a administradores' })
+        return
+      }
+
+      const { id } = req.params
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID é obrigatório' })
+        return
+      }
+
+      const result = await CardFeatureModel.approve(id, req.user.id)
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({ success: true, data: result.data, message: 'Card aprovado com sucesso' })
+    } catch (error) {
+      console.error('Erro no controller approve:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
+
+  static async reject(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+      if (req.user.role !== 'admin') {
+        res.status(403).json({ success: false, error: 'Acesso restrito a administradores' })
+        return
+      }
+
+      const { id } = req.params
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID é obrigatório' })
+        return
+      }
+
+      const result = await CardFeatureModel.reject(id, req.user.id)
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({ success: true, data: result.data, message: 'Card rejeitado com sucesso' })
+    } catch (error) {
+      console.error('Erro no controller reject:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
 }
