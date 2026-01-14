@@ -197,6 +197,29 @@ export default function CardFeatureForm({
     }
   }, [mode, initialData])
 
+  // Bloquear scroll da página de fundo quando modal está aberto
+  useEffect(() => {
+    if (isOpen) {
+      // Salvar posição atual do scroll
+      const scrollY = window.scrollY
+      
+      // Bloquear scroll do body
+      document.body.style.position = 'fixed'
+      document.body.style.top = `-${scrollY}px`
+      document.body.style.width = '100%'
+      document.body.style.overflow = 'hidden'
+      
+      return () => {
+        // Restaurar scroll ao fechar
+        document.body.style.position = ''
+        document.body.style.top = ''
+        document.body.style.width = ''
+        document.body.style.overflow = ''
+        window.scrollTo(0, scrollY)
+      }
+    }
+  }, [isOpen])
+
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -446,8 +469,8 @@ export default function CardFeatureForm({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[85vh] sm:h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[85vh] sm:h-[80vh] flex flex-col touch-none">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b shrink-0">
           <h3 className="text-base sm:text-xl font-semibold">
             {mode === 'create' ? 'Novo CardFeature' : 'Editar CardFeature'}
@@ -497,42 +520,42 @@ export default function CardFeatureForm({
           </div>
 
           {/* LEFT COLUMN: Configuration & Metadata */}
-          <div className={`w-full md:basis-[20%] md:grow-0 md:shrink-0 min-w-[200px] border-b md:border-b-0 md:border-r bg-gray-50/50 p-4 sm:p-6 overflow-y-auto flex flex-col gap-5 sm:gap-7 md:max-h-none ${
+          <div className={`w-full md:basis-[32%] md:grow-0 md:shrink-0 min-w-[280px] border-b md:border-b-0 md:border-r bg-gradient-to-b from-gray-50 to-white p-6 sm:p-8 overflow-y-auto overscroll-contain flex flex-col gap-8 md:max-h-none ${
             mobileViewTab === 'config' ? 'flex-1' : 'hidden md:flex'
           }`}>
 
-            <div className="space-y-4 sm:space-y-5">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                  Identificação
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
+                  📝 Identificação
                 </label>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Título do Card *
                   </label>
                   <Input
                     placeholder="Ex: Sistema de Autenticação"
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="bg-white border-gray-200 focus:border-blue-300 transition-all shadow-sm"
+                    className="h-10 bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                  Categorização
+              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
+                  🏷️ Categorização
                 </label>
-                <div className="grid grid-cols-1 gap-3">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Tipo do Card
                     </label>
                     <Select
                       value={formData.card_type}
                       onValueChange={(value) => handleInputChange('card_type', value)}
                     >
-                      <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                      <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
@@ -544,14 +567,14 @@ export default function CardFeatureForm({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Tecnologia Principal
                     </label>
                     <Select
                       value={formData.tech}
                       onValueChange={(value) => handleInputChange('tech', value)}
                     >
-                      <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                      <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
@@ -566,14 +589,14 @@ export default function CardFeatureForm({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Linguagem Padrão
                     </label>
                     <Select
                       value={formData.language}
                       onValueChange={(value) => handleInputChange('language', value)}
                     >
-                      <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                      <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
@@ -588,19 +611,19 @@ export default function CardFeatureForm({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                  Acesso
+              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
+                  🔒 Acesso
                 </label>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Visibilidade
                   </label>
                   <Select
                     value={formData.visibility}
                     onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
                   >
-                    <SelectTrigger className="bg-white border-gray-200 text-xs h-9 shadow-sm">
+                    <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {formData.visibility === Visibility.PUBLIC && (
                           <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
@@ -653,16 +676,16 @@ export default function CardFeatureForm({
                 </div>
 
                 {formData.visibility === Visibility.PUBLIC && !isAdmin && (
-                  <div className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
-                    Ao enviar para aprovação, seu card ficará em <span className="font-semibold">Validando</span> até um admin aprovar.
+                  <div className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <strong>ℹ️ Atenção:</strong> Ao enviar para aprovação, seu card ficará em <span className="font-semibold">Validando</span> até um admin aprovar.
                   </div>
                 )}
 
                 {/* Compartilhamento - Apenas para cards privados */}
                 {formData.visibility === Visibility.PRIVATE && (
-                  <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3">
-                    <label className="text-xs font-medium text-gray-700">
-                      Compartilhar com usuários
+                  <div className="mt-4 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3 pt-4 border-t border-gray-200">
+                    <label className="text-sm font-semibold text-gray-700 block">
+                      👥 Compartilhar com usuários
                     </label>
                     
                     {/* Badges dos usuários selecionados */}
@@ -720,7 +743,7 @@ export default function CardFeatureForm({
 
                     {/* Resultados da Busca */}
                     {userSearchResults.length > 0 && (
-                      <div className="max-h-[150px] overflow-y-auto space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
+                      <div className="max-h-[150px] overflow-y-auto overscroll-contain space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
                         {userSearchResults.map((user) => (
                           <div
                             key={user.id}
@@ -760,26 +783,26 @@ export default function CardFeatureForm({
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                Sobre
+            <div className="flex-1 flex flex-col bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+              <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
+                📄 Descrição
               </label>
               <div className="flex-1 flex flex-col">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Descrição do Conteúdo
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Sobre o Card
                 </label>
                 <Textarea
-                  placeholder="Descreva o que este CardFeature faz..."
+                  placeholder="Descreva o que este CardFeature faz, como usar, exemplos..."
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="flex-1 min-h-[100px] bg-white border-gray-200 focus:border-blue-300 text-xs resize-none shadow-sm"
+                  className="flex-1 min-h-[120px] bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-sm resize-none"
                 />
               </div>
             </div>
           </div>
 
           {/* RIGHT COLUMN: Files Editor */}
-          <div className={`flex-1 flex flex-col overflow-hidden bg-white min-w-0 ${
+          <div className={`flex-1 flex flex-col overflow-hidden bg-white min-w-0 overscroll-contain ${
             mobileViewTab === 'code' ? 'flex-1 flex' : 'hidden md:flex'
           }`}>
              <div className="px-4 py-3 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -850,7 +873,7 @@ export default function CardFeatureForm({
 
                 {formData.screens.map((screen, index) => (
                   <TabsContent key={index} value={index.toString()} className="flex-1 overflow-hidden m-0 p-0 data-[state=active]:flex flex-col">
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
                       {/* Campos do arquivo */}
                       <div className="flex flex-col sm:flex-row gap-3 mb-5 items-start">
                         <div className="flex-1 w-full">
