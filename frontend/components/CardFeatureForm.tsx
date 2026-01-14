@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -61,7 +61,21 @@ interface SortableTabProps {
   canRemove: boolean
 }
 
-function SortableTab({ screen, index, isActive, onRemove, onSelect, canRemove }: SortableTabProps) {
+interface SortableTabProps {
+  screen: CreateScreenData
+  index: number
+  isActive: boolean
+  onRemove: () => void
+  onSelect: () => void
+  onNameChange: (name: string) => void
+  canRemove: boolean
+}
+
+function SortableTab({ screen, index, isActive, onRemove, onSelect, onNameChange, canRemove }: SortableTabProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(screen.name)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const {
     attributes,
     listeners,
@@ -76,6 +90,42 @@ function SortableTab({ screen, index, isActive, onRemove, onSelect, canRemove }:
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 10 : 1,
+  }
+
+  // Sync editName quando screen.name mudar externamente
+  useEffect(() => {
+    if (!isEditing) {
+      setEditName(screen.name)
+    }
+  }, [screen.name, isEditing])
+
+  // Focus no input ao entrar em modo edição
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditing(true)
+  }
+
+  const handleBlur = () => {
+    setIsEditing(false)
+    if (editName.trim() !== screen.name) {
+      onNameChange(editName.trim() || `Arquivo ${index + 1}`)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleBlur()
+    } else if (e.key === 'Escape') {
+      setEditName(screen.name)
+      setIsEditing(false)
+    }
   }
 
   return (
@@ -103,19 +153,36 @@ function SortableTab({ screen, index, isActive, onRemove, onSelect, canRemove }:
         >
           <GripVertical className="h-3 w-3 text-gray-400" />
         </div>
-        <span className="truncate flex-1 text-left">
-          {screen.name || `Arquivo ${index + 1}`}
-        </span>
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[11px] font-medium p-0"
+          />
+        ) : (
+          <span 
+            className="truncate flex-1 text-left cursor-text" 
+            onDoubleClick={handleDoubleClick}
+            title="Clique duplo para editar"
+          >
+            {screen.name || `Arquivo ${index + 1}`}
+          </span>
+        )}
       </div>
       
-      {canRemove && (
+      {canRemove && !isEditing && (
         <span
           onClick={(e) => {
             e.stopPropagation()
             onRemove()
           }}
           className="h-4 w-4 shrink-0 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 rounded flex items-center justify-center transition-all ml-1"
-          style={{ opacity: isActive ? 1 : undefined }} // Sempre mostrar se ativo
+          style={{ opacity: isActive ? 1 : undefined }}
         >
           <X className="h-2.5 w-2.5" />
         </span>
@@ -484,7 +551,7 @@ export default function CardFeatureForm({
           </Button>
         </div>
         
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row md:overflow-hidden">
           {/* Seletor de Abas Mobile - Design Segmentado Moderno */}
           <div className="md:hidden px-4 py-3 border-b shrink-0 bg-white">
             <div className="flex p-1 bg-gray-100/80 rounded-xl border border-gray-200/50">
@@ -520,42 +587,48 @@ export default function CardFeatureForm({
           </div>
 
           {/* LEFT COLUMN: Configuration & Metadata */}
-          <div className={`w-full md:basis-[32%] md:grow-0 md:shrink-0 min-w-[280px] border-b md:border-b-0 md:border-r bg-gradient-to-b from-gray-50 to-white p-6 sm:p-8 overflow-y-auto overscroll-contain flex flex-col gap-8 md:max-h-none ${
+          <div className={`w-full md:basis-[24%] md:grow-0 md:shrink-0 min-w-[220px] border-b md:border-b-0 md:border-r border-gray-100 bg-white p-4 sm:p-5 overflow-y-auto overscroll-contain flex flex-col gap-5 md:max-h-none ${
             mobileViewTab === 'config' ? 'flex-1' : 'hidden md:flex'
           }`}>
 
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-                <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
-                  📝 Identificação
-                </label>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-1 rounded-full bg-blue-500"></div>
+                  <label className="text-xs font-semibold text-gray-700">
+                    Identificação
+                  </label>
+                </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
                     Título do Card *
                   </label>
                   <Input
                     placeholder="Ex: Sistema de Autenticação"
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="h-10 bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                    className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm"
                   />
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-                <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
-                  🏷️ Categorização
-                </label>
-                <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-1 rounded-full bg-purple-500"></div>
+                  <label className="text-xs font-semibold text-gray-700">
+                    Categorização
+                  </label>
+                </div>
+                <div className="space-y-2.5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
                       Tipo do Card
                     </label>
                     <Select
                       value={formData.card_type}
                       onValueChange={(value) => handleInputChange('card_type', value)}
                     >
-                      <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
+                      <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
@@ -567,14 +640,14 @@ export default function CardFeatureForm({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
                       Tecnologia Principal
                     </label>
                     <Select
                       value={formData.tech}
                       onValueChange={(value) => handleInputChange('tech', value)}
                     >
-                      <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
+                      <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
@@ -589,14 +662,14 @@ export default function CardFeatureForm({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
                       Linguagem Padrão
                     </label>
                     <Select
                       value={formData.language}
                       onValueChange={(value) => handleInputChange('language', value)}
                     >
-                      <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
+                      <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="text-xs">
@@ -611,19 +684,22 @@ export default function CardFeatureForm({
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-                <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
-                  🔒 Acesso
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-1 rounded-full bg-green-500"></div>
+                  <label className="text-xs font-semibold text-gray-700">
+                    Acesso
+                  </label>
+                </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
                     Visibilidade
                   </label>
                   <Select
                     value={formData.visibility}
                     onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
                   >
-                    <SelectTrigger className="h-10 bg-white border-gray-300 text-sm">
+                    <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {formData.visibility === Visibility.PUBLIC && (
                           <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
@@ -683,9 +759,9 @@ export default function CardFeatureForm({
 
                 {/* Compartilhamento - Apenas para cards privados */}
                 {formData.visibility === Visibility.PRIVATE && (
-                  <div className="mt-4 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3 pt-4 border-t border-gray-200">
-                    <label className="text-sm font-semibold text-gray-700 block">
-                      👥 Compartilhar com usuários
+                  <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 space-y-2.5 pt-3 border-t border-gray-100">
+                    <label className="text-xs font-medium text-gray-600 block">
+                      Compartilhar com usuários
                     </label>
                     
                     {/* Badges dos usuários selecionados */}
@@ -783,146 +859,138 @@ export default function CardFeatureForm({
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-              <label className="text-xs uppercase tracking-wider font-bold text-gray-500 mb-4 block">
-                📄 Descrição
-              </label>
+            <div className="flex-1 flex flex-col space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-1 w-1 rounded-full bg-orange-500"></div>
+                <label className="text-xs font-semibold text-gray-700">
+                  Descrição
+                </label>
+              </div>
               <div className="flex-1 flex flex-col">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
                   Sobre o Card
                 </label>
                 <Textarea
                   placeholder="Descreva o que este CardFeature faz, como usar, exemplos..."
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="flex-1 min-h-[120px] bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 text-sm resize-none"
+                  className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-xs resize-none"
                 />
               </div>
             </div>
           </div>
 
           {/* RIGHT COLUMN: Files Editor */}
-          <div className={`flex-1 flex flex-col overflow-hidden bg-white min-w-0 overscroll-contain ${
+          <div className={`flex-1 flex flex-col bg-white min-w-0 overflow-y-auto md:overflow-hidden overscroll-contain ${
             mobileViewTab === 'code' ? 'flex-1 flex' : 'hidden md:flex'
           }`}>
-             <div className="px-4 py-3 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                    <Save className="h-3.5 w-3.5" />
+               {/* Header Arquivos */}
+               <div className="px-4 py-3 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                      <Save className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900 leading-none">Arquivos</h4>
+                      <p className="text-[10px] text-gray-500 mt-0.5">Gerencie as abas</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900 leading-none">Arquivos</h4>
-                    <p className="text-[10px] text-gray-500 mt-0.5">Gerencie as abas</p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addScreen}
-                  className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-blue-600 transition-all shadow-sm shrink-0"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  Novo Arquivo
-                </Button>
-             </div>
-
-             <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))} className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-4 py-2.5 bg-gray-50/50 border-b overflow-hidden">
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addScreen}
+                    className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-blue-600 transition-all shadow-sm shrink-0"
                   >
-                    <TabsList className="form-tabs-scroll flex w-full h-8 p-0 gap-1 overflow-x-auto overflow-y-hidden justify-start bg-transparent border-none items-center">
-                      <style>{`
-                        .form-tabs-scroll::-webkit-scrollbar {
-                          height: 2px;
-                        }
-                        .form-tabs-scroll::-webkit-scrollbar-track {
-                          background: transparent;
-                        }
-                        .form-tabs-scroll::-webkit-scrollbar-thumb {
-                          background: rgba(0, 0, 0, 0.05);
-                          border-radius: 10px;
-                        }
-                        .form-tabs-scroll:hover::-webkit-scrollbar-thumb {
-                          background: rgba(0, 0, 0, 0.1);
-                        }
-                      `}</style>
-                      
-                      <SortableContext
-                        items={formData.screens.map((_, index) => `screen-${index}`)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {formData.screens.map((screen, index) => (
-                          <SortableTab
-                            key={index}
-                            screen={screen}
-                            index={index}
-                            isActive={activeTab === index}
-                            onRemove={() => removeScreen(index)}
-                            onSelect={() => setActiveTab(index)}
-                            canRemove={formData.screens.length > 1}
-                          />
-                        ))}
-                      </SortableContext>
-                    </TabsList>
-                  </DndContext>
-                </div>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Novo Arquivo
+                  </Button>
+               </div>
 
-                {formData.screens.map((screen, index) => (
-                  <TabsContent key={index} value={index.toString()} className="flex-1 overflow-hidden m-0 p-0 data-[state=active]:flex flex-col">
-                    <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
-                      {/* Campos do arquivo */}
-                      <div className="flex flex-col sm:flex-row gap-3 mb-5 items-start">
-                        <div className="flex-1 w-full">
-                          <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">
-                            Nome do Arquivo
-                          </label>
-                          <Input
-                            placeholder="Ex: Model, Controller..."
-                            value={screen.name}
-                            onChange={(e) => handleScreenChange(index, 'name', e.target.value)}
-                            className="h-8 text-xs bg-white border-gray-200 focus:border-blue-200"
-                          />
-                        </div>
-                        <div className="w-full sm:w-auto">
-                          <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1.5">
-                            Adicionar Bloco
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => addBlock(index, ContentType.CODE)}
-                              className="h-8 px-2.5 text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-100 rounded-md transition-all"
-                            >
-                              <Plus className="h-3 w-3 mr-1.5" />
-                              Código
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => addBlock(index, ContentType.TEXT)}
-                              className="h-8 px-2.5 text-[11px] bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 border border-purple-100 rounded-md transition-all"
-                            >
-                              <Plus className="h-3 w-3 mr-1.5" />
-                              Texto
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => addBlock(index, ContentType.TERMINAL)}
-                              className="h-8 px-2.5 text-[11px] bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 border border-amber-100 rounded-md transition-all"
-                            >
-                              <Plus className="h-3 w-3 mr-1.5" />
-                              Terminal
-                            </Button>
-                          </div>
+               <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))} className="md:flex-1 flex flex-col md:overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-50/50 border-b md:shrink-0">
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <TabsList className="form-tabs-scroll flex w-full h-8 p-0 gap-1 overflow-x-auto overflow-y-hidden justify-start bg-transparent border-none items-center">
+                        <style>{`
+                          .form-tabs-scroll::-webkit-scrollbar {
+                            height: 2px;
+                          }
+                          .form-tabs-scroll::-webkit-scrollbar-track {
+                            background: transparent;
+                          }
+                          .form-tabs-scroll::-webkit-scrollbar-thumb {
+                            background: rgba(0, 0, 0, 0.05);
+                            border-radius: 10px;
+                          }
+                          .form-tabs-scroll:hover::-webkit-scrollbar-thumb {
+                            background: rgba(0, 0, 0, 0.1);
+                          }
+                        `}</style>
+                        
+                        <SortableContext
+                          items={formData.screens.map((_, index) => `screen-${index}`)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {formData.screens.map((screen, index) => (
+                            <SortableTab
+                              key={index}
+                              screen={screen}
+                              index={index}
+                              isActive={activeTab === index}
+                              onRemove={() => removeScreen(index)}
+                              onSelect={() => setActiveTab(index)}
+                              onNameChange={(name) => handleScreenChange(index, 'name', name)}
+                              canRemove={formData.screens.length > 1}
+                            />
+                          ))}
+                        </SortableContext>
+                      </TabsList>
+                    </DndContext>
+                  </div>
+
+                  {formData.screens.map((screen, index) => (
+                    <TabsContent key={index} value={index.toString()} className="md:flex-1 md:overflow-hidden m-0 p-0 data-[state=active]:flex flex-col">
+                      <div className="md:flex-1 md:overflow-y-auto md:overscroll-contain p-4 sm:p-6">
+                      {/* Botões Adicionar Bloco */}
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                          Adicionar Bloco
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.CODE)}
+                            className="h-7 px-2.5 text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-100 rounded-md transition-all"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Código
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.TEXT)}
+                            className="h-7 px-2.5 text-[11px] bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 border border-purple-100 rounded-md transition-all"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Texto
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.TERMINAL)}
+                            className="h-7 px-2.5 text-[11px] bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 border border-amber-100 rounded-md transition-all"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Terminal
+                          </Button>
                         </div>
                       </div>
                       
@@ -1036,7 +1104,7 @@ export default function CardFeatureForm({
                     </div>
                   </TabsContent>
                 ))}
-             </Tabs>
+               </Tabs>
           </div>
         </div>
 
