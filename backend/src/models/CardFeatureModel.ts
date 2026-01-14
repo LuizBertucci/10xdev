@@ -808,26 +808,27 @@ export class CardFeatureModel {
           }))
         }))
 
-        // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private
-        const visibility = item.visibility || (item.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+        // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private,
+        // e por padrão cria como UNLISTED (para usuários comuns) - mesma lógica do create
+        const visibility =
+          item.visibility ||
+          (item.is_private ? Visibility.PRIVATE : Visibility.UNLISTED)
 
-        // Aplicar regras de aprovação (mesma lógica do create)
-        let approvalStatus = item.approval_status || ApprovalStatus.NONE
-        let approvalRequestedAt = item.approval_requested_at || null
+        // Regras de aprovação do diretório global (mesma lógica do create)
+        let approvalStatus: ApprovalStatus = ApprovalStatus.NONE
+        let approvalRequestedAt: string | null = null
+        let approvedAt: string | null = null
+        let approvedBy: string | null = null
 
-        // Se for público e não-admin, entra em PENDING automaticamente
-        if (visibility === Visibility.PUBLIC && !isAdmin) {
-          approvalStatus = ApprovalStatus.PENDING
-          approvalRequestedAt = now
-        }
-        // Se for admin criando público, já é APPROVED
-        else if (visibility === Visibility.PUBLIC && isAdmin) {
-          approvalStatus = ApprovalStatus.APPROVED
-        }
-        // Private/Unlisted sempre NONE (não precisa aprovação)
-        else {
-          approvalStatus = ApprovalStatus.NONE
-          approvalRequestedAt = null
+        if (visibility === Visibility.PUBLIC) {
+          if (isAdmin) {
+            approvalStatus = ApprovalStatus.APPROVED
+            approvedAt = now
+            approvedBy = userId
+          } else {
+            approvalStatus = ApprovalStatus.PENDING
+            approvalRequestedAt = now
+          }
         }
 
         return {
@@ -844,6 +845,8 @@ export class CardFeatureModel {
           visibility: visibility, // NOVO: usar visibility
           approval_status: approvalStatus,
           approval_requested_at: approvalRequestedAt,
+          approved_at: approvedAt,
+          approved_by: approvedBy,
           created_in_project_id: item.created_in_project_id || null,
           created_at: now,
           updated_at: now

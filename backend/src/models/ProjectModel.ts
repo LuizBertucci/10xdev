@@ -364,7 +364,7 @@ export class ProjectModel {
   // DELETE
   // ================================================
 
-  static async delete(id: string, userId: string, deleteCards?: boolean): Promise<ModelResult<{ cardsDeleted: number }>> {
+  static async delete(id: string, userId: string, deleteCards?: boolean): Promise<ModelResult<{ cardsDeleted: number, cardsExpected?: number, warning?: string }>> {
     try {
       // Verificar se é owner
       const role = await this.getUserRole(id, userId)
@@ -378,6 +378,7 @@ export class ProjectModel {
 
       let cardsDeleted = 0
       let cardIds: string[] = []
+      let warning: string | undefined
 
       // Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
       if (deleteCards) {
@@ -415,17 +416,29 @@ export class ProjectModel {
               .in('id', cardIds)
           )
           cardsDeleted = count || 0
+
+          // Detectar falha parcial: se deletou menos cards do que esperado
+          if (cardsDeleted < cardIds.length) {
+            warning = `Falha parcial ao deletar cards: ${cardsDeleted}/${cardIds.length} cards deletados`
+            console.warn(`Projeto ${id} deletado, mas apenas ${cardsDeleted} de ${cardIds.length} cards foram deletados`)
+          }
         } catch (cardDeleteError: any) {
-          // Log do erro mas não falha a operação toda
-          // O projeto já foi deletado com sucesso
-          console.error('Erro ao deletar cards após deletar projeto:', cardDeleteError.message)
-          // Retornar sucesso parcial
+          // Log detalhado do erro com contexto completo
+          console.error(
+            `Erro ao deletar cards após deletar projeto ${id}: ${cardDeleteError.message}. ` +
+            `Esperava deletar ${cardIds.length} cards (IDs: ${cardIds.slice(0, 5).join(', ')}${cardIds.length > 5 ? '...' : ''})`
+          )
+          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${cardDeleteError.message}`
         }
       }
 
       return {
         success: true,
-        data: { cardsDeleted },
+        data: {
+          cardsDeleted,
+          ...(deleteCards && cardIds.length > 0 && { cardsExpected: cardIds.length }),
+          ...(warning && { warning })
+        },
         statusCode: 200
       }
     } catch (error: any) {
