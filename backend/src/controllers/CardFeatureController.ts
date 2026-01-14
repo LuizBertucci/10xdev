@@ -550,4 +550,120 @@ export class CardFeatureController {
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
+
+  // ================================================
+  // SHARING (compartilhamento de cards privados)
+  // ================================================
+
+  /**
+   * Compartilha um card privado com usuários
+   * POST /api/card-features/:id/share
+   */
+  static async shareCard(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+
+      const { id } = req.params
+      const { userIds } = req.body
+
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do card é obrigatório' })
+        return
+      }
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        res.status(400).json({ success: false, error: 'userIds deve ser um array com pelo menos um ID' })
+        return
+      }
+
+      const result = await CardFeatureModel.shareWithUsers(id, userIds, req.user.id)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({ 
+        success: true, 
+        data: result.data,
+        message: `Card compartilhado com ${userIds.length} usuário(s)`
+      })
+    } catch (error) {
+      console.error('Erro no controller shareCard:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
+
+  /**
+   * Remove compartilhamento de um card com um usuário
+   * DELETE /api/card-features/:id/share/:userId
+   */
+  static async unshareCard(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+
+      const { id, userId } = req.params
+
+      if (!id || !userId) {
+        res.status(400).json({ success: false, error: 'ID do card e ID do usuário são obrigatórios' })
+        return
+      }
+
+      const result = await CardFeatureModel.unshareWithUser(id, userId, req.user.id)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({ 
+        success: true,
+        message: 'Compartilhamento removido com sucesso'
+      })
+    } catch (error) {
+      console.error('Erro no controller unshareCard:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
+
+  /**
+   * Lista usuários com quem o card está compartilhado
+   * GET /api/card-features/:id/shares
+   */
+  static async getCardShares(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+
+      const { id } = req.params
+
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID do card é obrigatório' })
+        return
+      }
+
+      const result = await CardFeatureModel.getSharedUsers(id, req.user.id)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({ 
+        success: true,
+        data: result.data
+      })
+    } catch (error) {
+      console.error('Erro no controller getCardShares:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
 }
