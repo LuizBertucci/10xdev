@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2 } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2, Search, Check, User as UserIcon } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { userService, type User } from "@/services"
+import { toast } from "sonner"
 
 const DEFAULT_FORM_DATA: CardFeatureFormData = {
   title: '',
@@ -162,6 +164,12 @@ export default function CardFeatureForm({
 
   // Estado para visualização mobile (config ou codigo)
   const [mobileViewTab, setMobileViewTab] = useState<'config' | 'code'>('config')
+
+  // User Search State para Compartilhamento
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([])
+  const [userSearchQuery, setUserSearchQuery] = useState("")
+  const [userSearchResults, setUserSearchResults] = useState<User[]>([])
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false)
 
   // Sensores para drag and drop
   const sensors = useSensors(
@@ -324,6 +332,54 @@ export default function CardFeatureForm({
     }
   }
 
+  // ================================================
+  // USER SEARCH HANDLERS (compartilhamento)
+  // ================================================
+
+  const handleSearchUsers = async () => {
+    if (!userSearchQuery || userSearchQuery.length < 2) {
+      toast.error("Digite pelo menos 2 caracteres")
+      return
+    }
+    
+    try {
+      setIsSearchingUsers(true)
+      const response = await userService.searchUsers(userSearchQuery)
+      if (response?.success && response?.data) {
+        setUserSearchResults(response.data)
+        if (response.data.length === 0) {
+          toast.info("Nenhum usuário encontrado")
+        }
+      } else {
+        setUserSearchResults([])
+        toast.error(response?.error || "Erro ao buscar usuários")
+      }
+    } catch (error) {
+      toast.error("Erro ao buscar usuários")
+    } finally {
+      setIsSearchingUsers(false)
+    }
+  }
+
+  const handleSelectUser = (user: User) => {
+    // Verificar se já está selecionado
+    if (selectedUsers.some(u => u.id === user.id)) {
+      toast.info("Usuário já adicionado")
+      return
+    }
+    
+    // Adicionar à lista
+    setSelectedUsers(prev => [...prev, user])
+    
+    // Limpar busca
+    setUserSearchQuery("")
+    setUserSearchResults([])
+  }
+
+  const handleRemoveUser = (userId: string) => {
+    setSelectedUsers(prev => prev.filter(u => u.id !== userId))
+  }
+
   // Função para reordenar abas via drag and drop
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -351,27 +407,39 @@ export default function CardFeatureForm({
   }
 
   const handleSubmit = async () => {
-    // Pegar emails do campo de compartilhamento (se existir)
-    const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
-    const shareEmails = shareEmailsInput?.value?.trim()
-
-    // Submeter o formulário principal
-    await onSubmit(formData)
-
-    // Se for card privado e tiver emails para compartilhar, chamar API
-    if (formData.visibility === Visibility.PRIVATE && shareEmails && shareEmailsInput) {
-      try {
-        // Precisamos do ID do card recém-criado (será passado pelo onSubmit)
-        // Por ora, vamos apenas limpar o campo
-        shareEmailsInput.value = ''
-        // TODO: Chamar API de compartilhamento quando tiver o card ID
-      } catch (error) {
-        console.error('Erro ao compartilhar:', error)
+    try {
+      // 1. Submeter o formulário principal e obter o card criado
+      const result = await onSubmit(formData)
+      
+      // 2. Se for card privado E tiver usuários selecionados E for modo criação, compartilhar
+      // Nota: onSubmit precisa retornar o card criado para pegarmos o ID
+      const createdCard = result as any
+      if (formData.visibility === Visibility.PRIVATE && selectedUsers.length > 0 && mode === 'create' && createdCard?.id) {
+        try {
+          const { cardFeatureService } = await import('@/services')
+          const userIds = selectedUsers.map(u => u.id)
+          const shareResponse = await cardFeatureService.shareCard(createdCard.id, userIds)
+          
+          if (shareResponse?.success) {
+            toast.success(`Card compartilhado com ${selectedUsers.length} usuário(s)`)
+          } else {
+            toast.warning('Card criado, mas erro ao compartilhar: ' + shareResponse?.error)
+          }
+        } catch (error) {
+          console.error('Erro ao compartilhar:', error)
+          toast.warning('Card criado, mas erro ao compartilhar')
+        }
       }
-    }
-
-    if (mode === 'create') {
-      setFormData({ ...DEFAULT_FORM_DATA })
+      
+      // 3. Limpar form se for criação
+      if (mode === 'create') {
+        setFormData({ ...DEFAULT_FORM_DATA })
+        setSelectedUsers([])
+        setUserSearchQuery("")
+        setUserSearchResults([])
+      }
+    } catch (error) {
+      console.error('Erro no submit:', error)
     }
   }
 
@@ -590,18 +658,103 @@ export default function CardFeatureForm({
                   </div>
                 )}
 
-                {/* Campo de Compartilhamento - Apenas para cards privados */}
+                {/* Compartilhamento - Apenas para cards privados */}
                 {formData.visibility === Visibility.PRIVATE && (
-                  <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Compartilhar com (e-mails)
+                  <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3">
+                    <label className="text-xs font-medium text-gray-700">
+                      Compartilhar com usuários
                     </label>
-                    <Input
-                      type="text"
-                      placeholder="joao@email.com, maria@..."
-                      className="bg-white border-gray-200 text-xs h-9 shadow-sm"
-                      data-share-emails="true"
-                    />
+                    
+                    {/* Badges dos usuários selecionados */}
+                    {selectedUsers.length > 0 && (
+                      <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+                        {selectedUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-gray-300 text-xs"
+                          >
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full" />
+                            ) : (
+                              <UserIcon className="h-3 w-3 text-gray-500" />
+                            )}
+                            <span className="font-medium truncate max-w-[120px]">
+                              {user.name || user.email}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveUser(user.id)}
+                              className="text-gray-400 hover:text-red-600 ml-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Busca de usuários */}
+                    <div className="flex gap-2">
+                      <Input
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        placeholder="Email ou nome do usuário..."
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                        className="flex-1 bg-white border-gray-200 text-xs h-9 shadow-sm"
+                      />
+                      <Button 
+                        type="button"
+                        onClick={handleSearchUsers} 
+                        disabled={isSearchingUsers} 
+                        size="sm"
+                        variant="outline"
+                        className="h-9 px-3"
+                      >
+                        {isSearchingUsers ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Search className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Resultados da Busca */}
+                    {userSearchResults.length > 0 && (
+                      <div className="max-h-[150px] overflow-y-auto space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
+                        {userSearchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            className={`p-2 border rounded-md cursor-pointer flex items-center gap-2 transition-colors text-xs ${
+                              selectedUsers.some(u => u.id === user.id)
+                                ? 'border-green-300 bg-green-50' 
+                                : 'hover:bg-gray-50 border-gray-200'
+                            }`}
+                            onClick={() => handleSelectUser(user)}
+                          >
+                            {user.avatarUrl ? (
+                              <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full" />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                <UserIcon className="h-3 w-3 text-gray-500" />
+                              </div>
+                            )}
+                            <div className="flex-1 overflow-hidden">
+                              <p className="font-medium truncate">{user.name || user.email}</p>
+                              {user.name && <p className="text-[10px] text-gray-500 truncate">{user.email}</p>}
+                            </div>
+                            {selectedUsers.some(u => u.id === user.id) && (
+                              <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {!isSearchingUsers && userSearchResults.length === 0 && userSearchQuery.length >= 2 && (
+                      <p className="text-xs text-gray-500 text-center py-2">
+                        Nenhum usuário encontrado
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
