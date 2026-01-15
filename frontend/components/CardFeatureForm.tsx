@@ -197,7 +197,7 @@ interface CardFeatureFormProps {
   initialData?: CardFeature
   isLoading: boolean
   onClose: () => void
-  onSubmit: (data: CardFeatureFormData) => Promise<void>
+  onSubmit: (data: CardFeatureFormData) => Promise<CardFeature | null>
   isAdmin?: boolean
 }
 
@@ -498,12 +498,10 @@ export default function CardFeatureForm({
 
   const handleSubmit = async () => {
     try {
-      // 1. Submeter o formulário principal e obter o card criado
-      const result = await onSubmit(formData)
+      // 1. Submeter o formulário principal e obter o card criado/atualizado
+      const createdCard = await onSubmit(formData)
       
       // 2. Se for card privado E tiver usuários selecionados E for modo criação, compartilhar
-      // Nota: onSubmit precisa retornar o card criado para pegarmos o ID
-      const createdCard = result as any
       if (formData.visibility === Visibility.PRIVATE && selectedUsers.length > 0 && mode === 'create' && createdCard?.id) {
         try {
           const { cardFeatureService } = await import('@/services')

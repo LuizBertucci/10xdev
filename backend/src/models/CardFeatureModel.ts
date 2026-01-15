@@ -1131,13 +1131,21 @@ export class CardFeatureModel {
         }
       }
 
-      // 3. Transformar resposta
-      const users = shares?.map((share: any) => ({
-        id: share.users.id,
-        email: share.users.email,
-        name: share.users.name,
-        avatarUrl: share.users.avatar_url
-      })) || []
+      // 3. Transformar resposta (filtra shares sem usuário válido)
+      const users: Array<{ id: string; email: string | null; name: string | null; avatarUrl: string | null }> = []
+      
+      if (shares) {
+        for (const share of shares) {
+          if (share.users && share.users.id) {
+            users.push({
+              id: share.users.id,
+              email: share.users.email ?? null,
+              name: share.users.name ?? null,
+              avatarUrl: share.users.avatar_url ?? null
+            })
+          }
+        }
+      }
 
       return {
         success: true,
