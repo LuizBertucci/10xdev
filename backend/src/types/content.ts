@@ -98,13 +98,13 @@ export interface ContentResponse {
 }
 
 export interface ContentQueryParams {
-  page?: number
-  limit?: number
-  contentType?: ContentType
-  category?: string
-  search?: string
-  sortBy?: 'title' | 'created_at' | 'updated_at'
-  sortOrder?: 'asc' | 'desc'
+  page?: number | undefined
+  limit?: number | undefined
+  contentType?: ContentType | undefined
+  category?: string | undefined
+  search?: string | undefined
+  sortBy?: 'title' | 'created_at' | 'updated_at' | undefined
+  sortOrder?: 'asc' | 'desc' | undefined
 }
 
 export interface ModelResult<T = ContentResponse> {
