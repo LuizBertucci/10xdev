@@ -4,6 +4,7 @@
 
 export { CardFeatureModel } from './CardFeatureModel'
 export { ImportJobModel } from './ImportJobModel'
+export { ContentModel } from './ContentModel'
 
 // Re-export types for convenience
 export type {

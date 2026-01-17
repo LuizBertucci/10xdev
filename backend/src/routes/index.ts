@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { cardFeatureRoutes } from './cardFeatureRoutes'
 import { authRoutes } from './authRoutes'
-import { videoRoutes } from './videoRoutes'
+import { contentRoutes } from './contentRoutes'
 import { projectRoutes } from './projectRoutes'
 import { userRoutes } from './userRoutes'
 import { adminRoutes } from './adminRoutes'
@@ -28,8 +28,8 @@ router.use('/auth', authRoutes)
 // CardFeatures routes
 router.use('/card-features', cardFeatureRoutes)
 
-// Videos routes
-router.use('/videos', videoRoutes)
+// Contents routes
+router.use('/contents', contentRoutes)
 
 // Projects routes
 router.use('/projects', projectRoutes)
@@ -68,13 +68,13 @@ router.get('/', (req, res) => {
         bulkCreate: 'POST /api/card-features/bulk',
         bulkDelete: 'DELETE /api/card-features/bulk'
       },
-      videos: {
-        list: 'GET /api/videos',
-        getById: 'GET /api/videos/:id',
-        create: 'POST /api/videos',
-        update: 'PUT /api/videos/:id',
-        delete: 'DELETE /api/videos/:id',
-        updateCardFeature: 'PATCH /api/videos/:id/card-feature'
+      contents: {
+        list: 'GET /api/contents',
+        getById: 'GET /api/contents/:id',
+        create: 'POST /api/contents (admin)',
+        update: 'PUT /api/contents/:id (admin)',
+        delete: 'DELETE /api/contents/:id (admin)',
+        updateCardFeature: 'PATCH /api/contents/:id/card-feature (admin)'
       },
       projects: {
         list: 'GET /api/projects',
