@@ -6,9 +6,6 @@ export const metadata: Metadata = {
   title: '10xDev',
   description: 'Plataforma de desenvolvimento para programadores 10x',
   generator: '10xDev',
-  icons: {
-    icon: '/icon.svg',
-  },
 }
 
 export default function RootLayout({

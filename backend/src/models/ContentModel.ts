@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { supabase } from '@/database/supabase'
+import { supabaseAdmin } from '@/database/supabase'
 import { ContentType } from '@/types/content'
 import type {
   ContentRow,
@@ -87,7 +87,7 @@ export class ContentModel {
 
   static async list(params: ContentQueryParams = {}): Promise<ModelListResult<ContentResponse>> {
     try {
-      let query = supabase
+      let query = supabaseAdmin
         .from('contents')
         .select('*', { count: 'exact' })
 
@@ -134,7 +134,7 @@ export class ContentModel {
 
   static async getById(id: string): Promise<ModelResult<ContentResponse>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('contents')
         .select('*')
         .eq('id', id)
@@ -152,7 +152,10 @@ export class ContentModel {
 
   static async create(payload: CreateContentRequest): Promise<ModelResult<ContentResponse>> {
     try {
+      console.log('[ContentModel.create] Payload recebido:', JSON.stringify(payload, null, 2))
+      
       const contentType = payload.contentType || ContentType.VIDEO
+      console.log('[ContentModel.create] ContentType:', contentType)
 
       const insertData: ContentInsert = {
         id: randomUUID(),
@@ -161,6 +164,8 @@ export class ContentModel {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
+      
+      console.log('[ContentModel.create] InsertData inicial:', JSON.stringify(insertData, null, 2))
 
       // Campos opcionais comuns
       if (payload.description !== undefined) {
@@ -198,15 +203,21 @@ export class ContentModel {
         insertData.markdown_content = payload.markdownContent
       }
 
-      const { data, error } = await supabase
+      console.log('[ContentModel.create] Inserindo no banco:', JSON.stringify(insertData, null, 2))
+      
+      const { data, error } = await supabaseAdmin
         .from('contents')
         .insert(insertData)
         .select('*')
         .single()
 
       if (error) {
+        console.log('[ContentModel.create] Erro do Supabase:', error.message)
+        console.log('[ContentModel.create] Erro detalhado:', JSON.stringify(error, null, 2))
         return { success: false, error: error.message, statusCode: 400 }
       }
+      
+      console.log('[ContentModel.create] Sucesso! Dados inseridos:', JSON.stringify(data, null, 2))
 
       return { success: true, data: this.toResponse(data as unknown as ContentRow), statusCode: 201 }
     } catch {
@@ -257,7 +268,7 @@ export class ContentModel {
         updateData.markdown_content = payload.markdownContent
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('contents')
         .update(updateData)
         .eq('id', id)
@@ -276,7 +287,7 @@ export class ContentModel {
 
   static async delete(id: string): Promise<ModelResult<null>> {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('contents')
         .delete()
         .eq('id', id)
@@ -293,7 +304,7 @@ export class ContentModel {
 
   static async updateSelectedCardFeature(id: string, cardFeatureId: string | null): Promise<ModelResult<ContentResponse>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('contents')
         .update({ 
           selected_card_feature_id: cardFeatureId,

@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { TrainingVideo } from "@/types/training"
 import { X, ExternalLink, Calendar, Tag, Pencil, Trash2 } from "lucide-react"
@@ -44,6 +44,9 @@ export default function TrainingVideoModal({
               <X className="h-4 w-4" />
             </Button>
           </div>
+          <DialogDescription className="sr-only">
+            Visualização do vídeo {video.title}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
