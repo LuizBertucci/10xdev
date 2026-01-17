@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Loader2, X } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { extractYouTubeVideoId } from "./youtube-video"
 import { ContentType } from "@/services/contentService"
 
@@ -149,17 +149,13 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>{editMode ? `Editar ${typeLabel}` : `Adicionar ${typeLabel}`}</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              disabled={isLoading}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle>{editMode ? `Editar ${typeLabel}` : `Adicionar ${typeLabel}`}</DialogTitle>
+          <DialogDescription>
+            {editMode 
+              ? `Edite as informações do ${typeLabel.toLowerCase()}.`
+              : `Preencha os campos abaixo para adicionar um novo ${typeLabel.toLowerCase()}.`
+            }
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
