@@ -153,14 +153,15 @@ export default function Contents({ platformState }: ContentsProps) {
     setSelectedType(type as ContentType)
   }
 
-  const handleAdd = async (data: { title: string; url?: string; description?: string; markdownContent?: string }) => {
+  const handleAdd = async (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string }) => {
     try {
       const res = await contentService.createContent({
         title: data.title,
         youtubeUrl: data.url,
         description: data.description,
         contentType: selectedType,
-        markdownContent: data.markdownContent
+        markdownContent: data.markdownContent,
+        fileUrl: data.fileUrl
       })
       if (res.success && res.data) {
         setContents(prev => [res.data!, ...prev])
@@ -191,7 +192,7 @@ export default function Contents({ platformState }: ContentsProps) {
     setEditContent(content)
   }
 
-  const handleUpdate = async (data: { title: string; url?: string; description?: string; markdownContent?: string }) => {
+  const handleUpdate = async (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string }) => {
     if (!editContent) return
 
     try {
@@ -199,7 +200,8 @@ export default function Contents({ platformState }: ContentsProps) {
         title: data.title,
         youtubeUrl: data.url,
         description: data.description,
-        markdownContent: data.markdownContent
+        markdownContent: data.markdownContent,
+        fileUrl: data.fileUrl
       })
       if (res.success && res.data) {
         setContents(prev => prev.map(c => c.id === editContent.id ? res.data! : c))
@@ -482,7 +484,8 @@ export default function Contents({ platformState }: ContentsProps) {
           title: editContent.title,
           url: editContent.youtubeUrl,
           description: editContent.description,
-          markdownContent: editContent.markdownContent
+          markdownContent: editContent.markdownContent,
+          fileUrl: editContent.fileUrl
         } : undefined}
       />
 
