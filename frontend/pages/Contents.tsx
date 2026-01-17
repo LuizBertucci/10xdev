@@ -285,8 +285,9 @@ export default function Contents({ platformState }: ContentsProps) {
         {/* Breadcrumb */}
         <div className="flex items-center space-x-2 text-sm">
           <button
-            onClick={() => platformState?.setActiveTab && platformState.setActiveTab("home")}
-            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            type="button"
+            onClick={() => router.push('/?tab=home')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início
           </button>

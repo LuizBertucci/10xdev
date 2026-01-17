@@ -240,11 +240,11 @@ export default function ContentDetail({ platformState }: ContentDetailProps) {
   return (
     <div className="space-y-4">
       {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
+      <div className="flex items-center space-x-2 text-sm">
         <button
           type="button"
           onClick={() => goToTab('home')}
-          className="hover:text-gray-900"
+          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
         >
           Início
         </button>
@@ -252,7 +252,7 @@ export default function ContentDetail({ platformState }: ContentDetailProps) {
         <button
           type="button"
           onClick={handleBack}
-          className="hover:text-gray-900"
+          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
         >
           {isVideo ? 'Vídeos' : 'Conteúdos'}
         </button>
