@@ -503,28 +503,17 @@ export class CardFeatureModel {
         updated_at: now
       }
 
-      // Regras: quando um usuário comum tenta tornar público, vira PENDING
+      // Regras: ao mudar para PUBLIC sempre passar por validação,
+      // exceto quando a aprovação for feita via endpoint específico.
       // IMPORTANTE: Verificar SEMPRE se está mudando para PUBLIC, independente do status atual
       if ('visibility' in sanitized && sanitized.visibility !== undefined) {
         if (sanitized.visibility === Visibility.PUBLIC) {
-          if (isAdmin) {
-            // Admin pode tornar público diretamente como APPROVED
-            if (!('approval_status' in sanitized) || !sanitized.approval_status) {
-              updateData.approval_status = ApprovalStatus.APPROVED
-            }
-            if (updateData.approval_status === ApprovalStatus.APPROVED) {
-              updateData.approved_at = now
-              updateData.approved_by = userId
-              updateData.approval_requested_at = null
-            }
-          } else {
-            // Usuário comum mudando para público → SEMPRE PENDING (mesmo que já tenha sido aprovado antes)
-            // Isso garante que ao mudar de unlisted/private para public, sempre passe por validação
-            updateData.approval_status = ApprovalStatus.PENDING
-            updateData.approval_requested_at = now
-            updateData.approved_at = null
-            updateData.approved_by = null
-          }
+          // Somente o endpoint de aprovação deve setar APPROVED.
+          // No update comum, admin e usuário sempre caem em PENDING.
+          updateData.approval_status = ApprovalStatus.PENDING
+          updateData.approval_requested_at = now
+          updateData.approved_at = null
+          updateData.approved_by = null
         } else {
           // Se voltou para private/unlisted, não faz parte do diretório global
           updateData.approval_status = ApprovalStatus.NONE
