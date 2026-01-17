@@ -8,34 +8,49 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Loader2, X } from "lucide-react"
 import { extractYouTubeVideoId } from "./youtube-video"
+import { ContentType } from "@/services/contentService"
 
-interface AddVideoSheetProps {
+interface AddContentSheetProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: { title: string; url: string; description?: string }) => Promise<void>
+  onSubmit: (data: { title: string; url?: string; description?: string; markdownContent?: string }) => Promise<void>
   editMode?: boolean
+  contentType: ContentType
   initialData?: {
     title: string
-    url: string
+    url?: string
     description?: string
+    markdownContent?: string
   }
 }
 
-export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = false, initialData }: AddVideoSheetProps) {
+const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
+  [ContentType.VIDEO]: 'Vídeo',
+  [ContentType.POST]: 'Post',
+  [ContentType.MANUAL]: 'Manual',
+  [ContentType.TUTORIAL]: 'Tutorial'
+}
+
+export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = false, contentType, initialData }: AddContentSheetProps) {
   const [url, setUrl] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
+  const [markdownContent, setMarkdownContent] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isFetchingTitle, setIsFetchingTitle] = useState(false)
   const [previewThumbnail, setPreviewThumbnail] = useState<string | null>(null)
   const [urlError, setUrlError] = useState<string | null>(null)
 
+  const isVideo = contentType === ContentType.VIDEO
+  const typeLabel = CONTENT_TYPE_LABELS[contentType]
+
   // Load initial data in edit mode
   useEffect(() => {
     if (isOpen && editMode && initialData) {
-      setUrl(initialData.url)
+      setUrl(initialData.url || "")
       setTitle(initialData.title)
       setDescription(initialData.description || "")
+      setMarkdownContent(initialData.markdownContent || "")
     }
   }, [isOpen, editMode, initialData])
 
@@ -45,17 +60,19 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
       setUrl("")
       setTitle("")
       setDescription("")
+      setMarkdownContent("")
       setPreviewThumbnail(null)
       setUrlError(null)
     }
   }, [isOpen])
 
-  // Fetch video title from YouTube API quando URL mudar
+  // Fetch video title from YouTube API quando URL mudar (apenas para vídeos)
   useEffect(() => {
+    if (!isVideo) return
+
     const fetchVideoTitle = async (videoId: string) => {
       setIsFetchingTitle(true)
       try {
-        // Tenta buscar o título via API do YouTube (se configurada)
         const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
 
         if (apiKey) {
@@ -82,7 +99,6 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
         setUrlError(null)
         setPreviewThumbnail(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`)
 
-        // Busca título automaticamente se o campo estiver vazio
         if (!title) {
           fetchVideoTitle(videoId)
         }
@@ -94,31 +110,36 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
       setPreviewThumbnail(null)
       setUrlError(null)
     }
-  }, [url])
+  }, [url, isVideo, title])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!url || !title) {
+    if (!title) {
       return
     }
 
-    const videoId = extractYouTubeVideoId(url)
-    if (!videoId) {
-      setUrlError("URL do YouTube inválida")
-      return
+    // Validação específica para vídeos
+    if (isVideo) {
+      if (!url) return
+      const videoId = extractYouTubeVideoId(url)
+      if (!videoId) {
+        setUrlError("URL do YouTube inválida")
+        return
+      }
     }
 
     setIsLoading(true)
     try {
       await onSubmit({
         title,
-        url,
-        description: description || undefined
+        url: isVideo ? url : undefined,
+        description: description || undefined,
+        markdownContent: markdownContent || undefined
       })
       onClose()
     } catch (error) {
-      console.error("Erro ao adicionar vídeo:", error)
+      console.error("Erro ao salvar conteúdo:", error)
     } finally {
       setIsLoading(false)
     }
@@ -129,7 +150,7 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>{editMode ? 'Editar Vídeo' : 'Adicionar Vídeo do YouTube'}</DialogTitle>
+            <DialogTitle>{editMode ? `Editar ${typeLabel}` : `Adicionar ${typeLabel}`}</DialogTitle>
             <Button
               variant="ghost"
               size="sm"
@@ -142,34 +163,36 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* URL do YouTube */}
-          <div>
-            <Label htmlFor="url">URL do YouTube *</Label>
-            <Input
-              id="url"
-              type="url"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={isLoading}
-              className={urlError ? "border-red-500" : ""}
-            />
-            {urlError && (
-              <p className="text-sm text-red-600 mt-1">{urlError}</p>
-            )}
+          {/* URL do YouTube (apenas para vídeos) */}
+          {isVideo && (
+            <div>
+              <Label htmlFor="url">URL do YouTube *</Label>
+              <Input
+                id="url"
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={isLoading}
+                className={urlError ? "border-red-500" : ""}
+              />
+              {urlError && (
+                <p className="text-sm text-red-600 mt-1">{urlError}</p>
+              )}
 
-            {/* Preview Thumbnail */}
-            {previewThumbnail && !urlError && (
-              <div className="mt-3 relative">
-                <img
-                  src={previewThumbnail}
-                  alt="Preview"
-                  className="w-full rounded-lg border"
-                  onError={() => setPreviewThumbnail(null)}
-                />
-              </div>
-            )}
-          </div>
+              {/* Preview Thumbnail */}
+              {previewThumbnail && !urlError && (
+                <div className="mt-3 relative">
+                  <img
+                    src={previewThumbnail}
+                    alt="Preview"
+                    className="w-full rounded-lg border"
+                    onError={() => setPreviewThumbnail(null)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Título */}
           <div>
@@ -184,7 +207,7 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
             <Input
               id="title"
               type="text"
-              placeholder="Nome do vídeo"
+              placeholder={`Nome do ${typeLabel.toLowerCase()}`}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isLoading || isFetchingTitle}
@@ -196,13 +219,29 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
             <Label htmlFor="description">Descrição (opcional)</Label>
             <Textarea
               id="description"
-              placeholder="Adicione uma descrição para o vídeo"
+              placeholder={`Adicione uma descrição para o ${typeLabel.toLowerCase()}`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={isLoading}
-              rows={4}
+              rows={3}
             />
           </div>
+
+          {/* Conteúdo Markdown (para posts, manuais, tutoriais) */}
+          {!isVideo && (
+            <div>
+              <Label htmlFor="markdownContent">Conteúdo</Label>
+              <Textarea
+                id="markdownContent"
+                placeholder={`Digite o conteúdo do ${typeLabel.toLowerCase()} (suporta Markdown)`}
+                value={markdownContent}
+                onChange={(e) => setMarkdownContent(e.target.value)}
+                disabled={isLoading}
+                rows={10}
+                className="font-mono text-sm"
+              />
+            </div>
+          )}
 
           <DialogFooter>
             <Button
@@ -215,7 +254,7 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !url || !title || !!urlError}
+              disabled={isLoading || !title || (isVideo && (!url || !!urlError))}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? (
@@ -224,7 +263,7 @@ export default function AddVideoSheet({ isOpen, onClose, onSubmit, editMode = fa
                   {editMode ? 'Salvando...' : 'Adicionando...'}
                 </>
               ) : (
-                editMode ? 'Salvar Alterações' : 'Adicionar Vídeo'
+                editMode ? 'Salvar Alterações' : `Adicionar ${typeLabel}`
               )}
             </Button>
           </DialogFooter>

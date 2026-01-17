@@ -35,12 +35,12 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
     platformState?.setActiveTab("codes")
   }
 
-  const handleGoToVideos = () => {
+  const handleGoToContents = () => {
     if (isPublic) {
-      goToLoginWithRedirect('/?tab=videos')
+      goToLoginWithRedirect('/?tab=contents')
       return
     }
-    platformState?.setActiveTab("videos")
+    platformState?.setActiveTab("contents")
   }
 
   const handleGoToProjects = () => {
@@ -101,8 +101,8 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <div className="text-gray-600">cards prontos e reutilizáveis</div>
               </div>
               <div className="rounded-xl border bg-white/60 px-4 py-3">
-                <div className="font-semibold text-gray-900">Vídeos</div>
-                <div className="text-gray-600">aprenda com contexto e prática</div>
+                <div className="font-semibold text-gray-900">Conteúdos</div>
+                <div className="text-gray-600">vídeos, posts, manuais e tutoriais</div>
               </div>
               <div className="rounded-xl border bg-white/60 px-4 py-3">
                 <div className="font-semibold text-gray-900">Projetos</div>
@@ -234,15 +234,15 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
                   <Play className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="font-semibold text-base mb-1.5 text-white">Vídeos</h3>
-                <p className="text-white/90 text-sm mb-3">Aprenda com videoaulas e tutoriais práticos</p>
+                <h3 className="font-semibold text-base mb-1.5 text-white">Conteúdos</h3>
+                <p className="text-white/90 text-sm mb-3">Vídeos, posts, manuais e tutoriais</p>
                 <Button
                   variant="secondary"
                   className="w-full bg-white text-purple-700 hover:bg-gray-100 font-medium"
-                  onClick={handleGoToVideos}
-                  aria-label="Acessar página de Vídeos"
+                  onClick={handleGoToContents}
+                  aria-label="Acessar página de Conteúdos"
                 >
-                  Acessar Vídeos
+                  Acessar Conteúdos
                 </Button>
               </CardContent>
             </Card>
