@@ -237,18 +237,20 @@ export default function Codes({ platformState }: CodesProps) {
         {/* Breadcrumb Navigation */}
         <div className="flex items-center space-x-2 text-sm">
           <button
-            onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
-            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            type="button"
+            onClick={() => router.push('/?tab=home')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início
           </button>
           <ChevronRight className="h-4 w-4 text-gray-400" />
           <button
+            type="button"
             onClick={() => {
               cardFeatures.setSelectedTech("all")
               cardFeatures.setSearchTerm("")
             }}
-            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Blocos de Códigos
           </button>
