@@ -262,11 +262,11 @@ export default function ContentDetail({ platformState }: ContentDetailProps) {
         </span>
       </div>
 
-      {/* Layout: Content + CardFeature */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left: Content */}
+      {/* Layout: Videos tem 2 colunas (conteudo + CardFeature), outros tem 1 coluna */}
+      <div className={isVideo ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "space-y-4"}>
+        {/* Coluna de Conteudo */}
         <div className="space-y-4">
-          {/* Video Player or Content Preview */}
+          {/* Video Player ou Content Preview */}
           {isVideo && content.youtubeUrl ? (
             <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
               <YouTubeVideo url={content.youtubeUrl} mode="embed" />
@@ -280,6 +280,20 @@ export default function ContentDetail({ platformState }: ContentDetailProps) {
               {content.markdownContent && (
                 <div className="prose prose-sm max-w-none">
                   <pre className="whitespace-pre-wrap text-sm text-gray-700">{content.markdownContent}</pre>
+                </div>
+              )}
+              {content.fileUrl && (
+                <div className="mt-4 pt-4 border-t">
+                  <a
+                    href={content.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Abrir PDF
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
               )}
             </div>
@@ -339,73 +353,75 @@ export default function ContentDetail({ platformState }: ContentDetailProps) {
           </div>
         </div>
 
-        {/* Right: CardFeature (1/2) */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Título e Botões */}
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold text-gray-900 truncate">Cards relacionados</h2>
-            {isAdmin && isVideo && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {selectedCardFeature && (
-                  <Button
-                    variant={isEditMode ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-9 w-9 p-0"
-                    onClick={() => setIsEditMode((v) => !v)}
-                    title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                  >
-                    <Pencil className={`h-4 w-4 ${isEditMode ? "text-blue-600" : "text-gray-600"}`} />
-                  </Button>
-                )}
-                <Button onClick={handleSearchCardFeatures} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="h-4 w-4 mr-2" /> Adicionar
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Card ou Estado vazio */}
-          {selectedCardFeature ? (
-            <div className="relative">
-              <CardFeatureCompact
-                snippet={selectedCardFeature}
-                onEdit={() => {}}
-                onDelete={() => {}}
-              />
-
-              {/* Ações por card (apenas no modo de edição e admin) */}
-              {isEditMode && isAdmin && (
-                <div className="absolute top-3 right-3 rounded-lg shadow-md border bg-white p-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveCardFeature()
-                    }}
-                    className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                    title="Remover CardFeature relacionado"
-                  >
-                    <Trash2 className="h-4 w-4" />
+        {/* Coluna CardFeature (apenas para videos) */}
+        {isVideo && (
+          <div className="lg:col-span-1 space-y-4">
+            {/* Título e Botões */}
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold text-gray-900 truncate">Cards relacionados</h2>
+              {isAdmin && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {selectedCardFeature && (
+                    <Button
+                      variant={isEditMode ? "secondary" : "ghost"}
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => setIsEditMode((v) => !v)}
+                      title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                    >
+                      <Pencil className={`h-4 w-4 ${isEditMode ? "text-blue-600" : "text-gray-600"}`} />
+                    </Button>
+                  )}
+                  <Button onClick={handleSearchCardFeatures} className="bg-blue-600 hover:bg-blue-700">
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar
                   </Button>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border p-8 text-center h-full flex flex-col items-center justify-center">
-              <Code2 className="h-12 w-12 text-gray-400 mb-3" />
-              <p className="text-gray-600 text-sm mb-4">
-                {isVideo ? (isAdmin ? "Selecione um CardFeature para este vídeo" : "Nenhum CardFeature associado") : "CardFeature disponível apenas para vídeos"}
-              </p>
-              {isAdmin && isVideo && (
-                <Button onClick={handleSearchCardFeatures} variant="outline" size="sm">
-                  <Search className="h-4 w-4 mr-2" />
-                  + Adicionar
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+
+            {/* Card ou Estado vazio */}
+            {selectedCardFeature ? (
+              <div className="relative">
+                <CardFeatureCompact
+                  snippet={selectedCardFeature}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                />
+
+                {/* Ações por card (apenas no modo de edição e admin) */}
+                {isEditMode && isAdmin && (
+                  <div className="absolute top-3 right-3 rounded-lg shadow-md border bg-white p-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemoveCardFeature()
+                      }}
+                      className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                      title="Remover CardFeature relacionado"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border p-8 text-center h-full flex flex-col items-center justify-center">
+                <Code2 className="h-12 w-12 text-gray-400 mb-3" />
+                <p className="text-gray-600 text-sm mb-4">
+                  {isAdmin ? "Selecione um CardFeature para este vídeo" : "Nenhum CardFeature associado"}
+                </p>
+                {isAdmin && (
+                  <Button onClick={handleSearchCardFeatures} variant="outline" size="sm">
+                    <Search className="h-4 w-4 mr-2" />
+                    + Adicionar
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Dialog: Search CardFeatures */}
