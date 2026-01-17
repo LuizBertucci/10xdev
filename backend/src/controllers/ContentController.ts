@@ -1,5 +1,7 @@
 import { Request, Response } from 'express'
+import { randomUUID } from 'crypto'
 import { ContentModel } from '@/models/ContentModel'
+import { supabaseAdmin } from '@/database/supabase'
 import type { CreateContentRequest, ContentQueryParams } from '@/types/content'
 
 export class ContentController {
@@ -243,6 +245,76 @@ export class ContentController {
       })
     } catch (error) {
       console.error('Erro no controller updateSelectedCardFeature:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
+  // UPLOAD - POST /api/contents/upload (admin only)
+  // ================================================
+  
+  static async upload(req: Request, res: Response): Promise<void> {
+    try {
+      const file = req.file
+
+      if (!file) {
+        res.status(400).json({
+          success: false,
+          error: 'Nenhum arquivo enviado'
+        })
+        return
+      }
+
+      // Validar tipo do arquivo (apenas PDF)
+      if (file.mimetype !== 'application/pdf') {
+        res.status(400).json({
+          success: false,
+          error: 'Apenas arquivos PDF são permitidos'
+        })
+        return
+      }
+
+      // Gerar nome único para o arquivo
+      const fileExt = 'pdf'
+      const fileName = `${randomUUID()}.${fileExt}`
+      const filePath = `uploads/${fileName}`
+
+      // Upload para Supabase Storage
+      const { data, error } = await supabaseAdmin.storage
+        .from('contents')
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        })
+
+      if (error) {
+        console.error('Erro no upload para Supabase Storage:', error)
+        res.status(500).json({
+          success: false,
+          error: 'Erro ao fazer upload do arquivo'
+        })
+        return
+      }
+
+      // Gerar URL pública
+      const { data: urlData } = supabaseAdmin.storage
+        .from('contents')
+        .getPublicUrl(filePath)
+
+      res.status(200).json({
+        success: true,
+        data: {
+          url: urlData.publicUrl,
+          fileName: file.originalname,
+          fileSize: file.size,
+          fileType: file.mimetype
+        }
+      })
+    } catch (error) {
+      console.error('Erro no controller upload:', error)
       res.status(500).json({
         success: false,
         error: 'Erro interno do servidor'
