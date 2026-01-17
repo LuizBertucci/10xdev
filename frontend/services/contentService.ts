@@ -95,11 +95,24 @@ async function updateSelectedCardFeature(id: string, cardFeatureId: string | nul
   return res
 }
 
+export interface UploadResult {
+  url: string
+  fileName: string
+  fileSize: number
+  fileType: string
+}
+
+async function uploadFile(file: File) {
+  const res = await apiClient.uploadFile<UploadResult>('/contents/upload', file, 'file')
+  return res
+}
+
 export const contentService = {
   listContents,
   getContent,
   createContent,
   updateContent,
   deleteContent,
-  updateSelectedCardFeature
+  updateSelectedCardFeature,
+  uploadFile
 }

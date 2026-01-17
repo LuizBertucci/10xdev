@@ -376,6 +376,42 @@ class ApiClient {
   async healthCheck(): Promise<ApiResponse<{ message: string; timestamp: string }> | undefined> {
     return this.get('/health')
   }
+
+  // Upload de arquivo (FormData)
+  async uploadFile<T>(endpoint: string, file: File, fieldName: string = 'file'): Promise<ApiResponse<T> | undefined> {
+    try {
+      const url = this.buildURL(endpoint)
+      console.log('UPLOAD request URL:', url)
+
+      // Criar FormData
+      const formData = new FormData()
+      formData.append(fieldName, file)
+
+      // Headers sem Content-Type (browser define automaticamente com boundary)
+      const headers = await this.getHeaders()
+      delete headers['Content-Type']
+
+      const response = await this.fetchWithTimeout(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include'
+      }, this.requestTimeoutMs * 2) // Timeout maior para upload
+
+      console.log('UPLOAD response status:', response.status)
+      return await this.handleResponse<T>(response)
+    } catch (error) {
+      console.error('UPLOAD request error:', error)
+      if (error && typeof error === 'object' && 'success' in error) {
+        throw error
+      }
+      throw {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro no upload do arquivo',
+        statusCode: 0
+      } as ApiError
+    }
+  }
 }
 
 // Instância singleton
