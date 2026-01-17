@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -121,6 +121,12 @@ export default function TrainingVideoForm({
               <X className="h-4 w-4" />
             </Button>
           </div>
+          <DialogDescription>
+            {mode === 'create' 
+              ? 'Preencha os campos abaixo para adicionar um novo vídeo.'
+              : 'Edite as informações do vídeo.'
+            }
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">

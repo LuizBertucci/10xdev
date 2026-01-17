@@ -8,17 +8,17 @@ import { Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Home from '@/pages/Home'
-import { videoService, type Video } from '@/services/videoService'
+import { contentService, ContentType, type Content } from '@/services/contentService'
 import { Play } from 'lucide-react'
 
 export default function PublicHome() {
   const router = useRouter()
-  const [videos, setVideos] = useState<Video[]>([])
+  const [videos, setVideos] = useState<Content[]>([])
 
   useEffect(() => {
     const loadVideos = async () => {
       try {
-        const res = await videoService.listVideos()
+        const res = await contentService.listContents({ type: ContentType.VIDEO, limit: 1 })
         if (res?.success && res.data) {
           setVideos(res.data.slice(0, 1))
         }
