@@ -277,9 +277,9 @@ export default function Contents({ platformState }: ContentsProps) {
   }
 
   return (
-    <div className="space-y-6 w-full overflow-x-hidden px-1">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-4 w-full max-w-[900px] mx-auto">
+      <div className="space-y-4">
         {/* Breadcrumb */}
         <div className="flex items-center space-x-2 text-sm">
           <button
@@ -338,19 +338,19 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Loading */}
       {loading && (
-        <div className="w-full max-w-[900px] mx-auto bg-gray-200 rounded-full h-2 mb-6">
+        <div className="bg-gray-200 rounded-full h-2 mb-6">
           <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
         </div>
       )}
 
       {/* Error */}
       {!loading && error && (
-        <div className="max-w-[900px] mx-auto text-red-600">{error}</div>
+        <div className="text-red-600">{error}</div>
       )}
 
       {/* Empty State */}
       {!loading && !error && contents.length === 0 && !search && (
-        <div className="max-w-[900px] mx-auto bg-white rounded-lg shadow-sm p-12 text-center">
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
           <IconComponent className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             {config.emptyTitle}
@@ -363,7 +363,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Empty Search */}
       {!loading && !error && contents.length === 0 && search && (
-        <div className="max-w-[900px] mx-auto text-center py-12">
+        <div className="text-center py-12">
           <IconComponent className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Nenhum resultado encontrado
@@ -376,7 +376,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Contents Grid */}
       {!loading && !error && contents.length > 0 && (
-        <div className="max-w-[900px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {contents.map((content) => (
             <ContentCard
               key={content.id}
@@ -391,7 +391,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Pagination */}
       {!loading && !error && totalPages > 1 && (
-        <div className="max-w-[900px] mx-auto mt-8 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <Pagination>
             <PaginationContent>
               <PaginationItem>
@@ -458,7 +458,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Pagination Info */}
       {!loading && !error && totalCount > 0 && (
-        <div className="max-w-[900px] mx-auto mt-4 text-center text-sm text-gray-600">
+        <div className="mt-4 text-center text-sm text-gray-600">
           Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} de {totalCount} {config.label.toLowerCase()}
         </div>
       )}

@@ -11,14 +11,20 @@ export class ContentController {
   static async create(req: Request, res: Response): Promise<void> {
     try {
       const data: CreateContentRequest = req.body
+      
+      console.log('[ContentController.create] Recebido:', JSON.stringify(data, null, 2))
 
       if (!data?.title) {
+        console.log('[ContentController.create] Erro: title não fornecido')
         res.status(400).json({
           success: false,
           error: 'title é obrigatório'
         })
         return
       }
+
+      console.log('[ContentController.create] Título válido:', data.title)
+      console.log('[ContentController.create] ContentType:', data.contentType)
 
       const result = await ContentModel.create(data)
 
@@ -50,14 +56,15 @@ export class ContentController {
   
   static async list(req: Request, res: Response): Promise<void> {
     try {
-      const params = {} as ContentQueryParams
-      if (req.query.page) params.page = parseInt(req.query.page as string)
-      if (req.query.limit) params.limit = parseInt(req.query.limit as string)
-      if (req.query.type) params.contentType = req.query.type as ContentQueryParams['contentType']
-      if (req.query.category) params.category = req.query.category as string
-      if (req.query.search) params.search = req.query.search as string
-      if (req.query.sortBy) params.sortBy = req.query.sortBy as ContentQueryParams['sortBy']
-      if (req.query.sortOrder) params.sortOrder = req.query.sortOrder as ContentQueryParams['sortOrder']
+      const params: ContentQueryParams = {
+        page: req.query.page ? parseInt(req.query.page as string) : undefined,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+        contentType: req.query.type as any,
+        category: req.query.category as string,
+        search: req.query.search as string,
+        sortBy: req.query.sortBy as any,
+        sortOrder: req.query.sortOrder as any
+      }
 
       const result = await ContentModel.list(params)
 
