@@ -123,10 +123,11 @@ export const uncaughtErrorHandler = (): void => {
 // Middleware para validar Content-Type em operações POST/PUT
 export const validateContentType = (req: Request, res: Response, next: NextFunction): void => {
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-    if (!req.is('application/json')) {
+    // Permitir multipart/form-data para uploads de arquivo
+    if (!req.is('application/json') && !req.is('multipart/form-data')) {
       res.status(400).json({
         success: false,
-        error: 'Content-Type deve ser application/json'
+        error: 'Content-Type deve ser application/json ou multipart/form-data'
       })
       return
     }
