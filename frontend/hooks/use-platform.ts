@@ -67,9 +67,9 @@ export function usePlatform() {
     if (normalizedTab !== 'codes') {
       params.delete('page');
     }
-    // Quando navegamos para a lista de videos ou projects via sidebar, removemos o parâmetro id
+    // Quando navegamos para a lista de contents ou projects via sidebar, removemos o parâmetro id
     // para evitar renderizar a página de detalhes em vez da lista
-    if (normalizedTab === 'videos' || normalizedTab === 'projects') {
+    if (normalizedTab === 'contents' || normalizedTab === 'projects') {
       params.delete('id');
     }
     const queryString = params.toString();

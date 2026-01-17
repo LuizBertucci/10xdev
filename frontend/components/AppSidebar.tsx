@@ -18,7 +18,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
   const navItems = [
     { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
     { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
-    { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
+    { key: "contents", title: "Conteúdos", icon: "🎓", tooltip: "Conteúdos" },
     { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
     ...(isAdmin ? [{ key: "admin", title: "Painel de Controle", icon: "🛠️", tooltip: "Painel de Controle" }] : [])
   ]

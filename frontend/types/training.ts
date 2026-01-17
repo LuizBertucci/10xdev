@@ -1,27 +1,50 @@
 // ================================================
-// TRAINING VIDEO TYPES
+// CONTENT TYPES
 // ================================================
 
-export interface TrainingVideo {
+export enum ContentType {
+  VIDEO = 'video',
+  POST = 'post',
+  MANUAL = 'manual',
+  TUTORIAL = 'tutorial'
+}
+
+export interface TrainingContent {
   id: string
   title: string
   description?: string
-  youtubeUrl: string
-  videoId: string // YouTube video ID extracted from URL
-  thumbnail: string
+  youtubeUrl?: string
+  videoId?: string // YouTube video ID extracted from URL
+  thumbnail?: string
   duration?: string
   category?: string
   tags?: string[]
+  contentType: ContentType
+  fileUrl?: string
+  fileType?: string
+  fileSize?: number
+  markdownContent?: string
   createdAt: string
   updatedAt: string
 }
 
-export interface CreateTrainingVideoData {
+// Alias para compatibilidade
+export type TrainingVideo = TrainingContent
+
+export interface CreateTrainingContentData {
   title: string
   description?: string
-  youtubeUrl: string
+  youtubeUrl?: string
   category?: string
   tags?: string[]
+  contentType?: ContentType
+  fileUrl?: string
+  fileType?: string
+  fileSize?: number
+  markdownContent?: string
 }
 
-export interface UpdateTrainingVideoData extends Partial<CreateTrainingVideoData> {}
+// Alias para compatibilidade
+export type CreateTrainingVideoData = CreateTrainingContentData
+
+export interface UpdateTrainingContentData extends Partial<CreateTrainingContentData> {}
