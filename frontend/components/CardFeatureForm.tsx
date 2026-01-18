@@ -527,7 +527,7 @@ export default function CardFeatureForm({
       const createdCard = await onSubmit(formData)
       
       // 2. Se for card privado E tiver usuários selecionados E for modo criação, compartilhar
-      if (formData.visibility === Visibility.PRIVATE && selectedUsers.length > 0 && mode === 'create' && createdCard?.id) {
+      if (formData.visibility === Visibility.UNLISTED && selectedUsers.length > 0 && mode === 'create' && createdCard?.id) {
         try {
           const { cardFeatureService } = await import('@/services')
           const userIds = selectedUsers.map(u => u.id)
