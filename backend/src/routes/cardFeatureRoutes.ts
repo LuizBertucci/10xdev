@@ -28,6 +28,11 @@ router.get('/:id', optionalAuth, CardFeatureController.getById)
 router.post('/:id/approve', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.approve)
 router.post('/:id/reject', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.reject)
 
+// SHARING - Compartilhamento de cards privados (autenticado)
+router.post('/:id/share', supabaseMiddleware, authenticate, CardFeatureController.shareCard)
+router.delete('/:id/share/:userId', supabaseMiddleware, authenticate, CardFeatureController.unshareCard)
+router.get('/:id/shares', supabaseMiddleware, authenticate, CardFeatureController.getCardShares)
+
 // BULK OPERATIONS - Requerem privilégios de administrador
 router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
 router.delete('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkDelete)
