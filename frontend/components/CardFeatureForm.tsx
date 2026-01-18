@@ -672,12 +672,9 @@ export default function CardFeatureForm({
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="h-1 w-1 rounded-full bg-purple-500"></div>
-                    <label className="text-xs font-semibold text-gray-700">
-                      Categorização
-                    </label>
-                  </div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                    Categorização
+                  </label>
                   <div className="grid gap-2.5 md:grid-cols-3">
                     <div>
                       <Select
