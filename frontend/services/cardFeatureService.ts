@@ -110,6 +110,31 @@ class CardFeatureService {
     })) ?? { success: false, error: 'Nenhuma resposta do servidor' }
   }
 
+  // ================================================
+  // SHARING (compartilhamento de cards privados)
+  // ================================================
+
+  /**
+   * Compartilha um card privado com usuários específicos
+   */
+  async shareCard(cardId: string, userIds: string[]): Promise<ApiResponse<any> | undefined> {
+    return apiClient.post<any>(`${this.endpoint}/${cardId}/share`, { userIds })
+  }
+
+  /**
+   * Remove o compartilhamento de um card com um usuário
+   */
+  async unshareCard(cardId: string, userId: string): Promise<ApiResponse<null> | undefined> {
+    return apiClient.delete<null>(`${this.endpoint}/${cardId}/share/${userId}`)
+  }
+
+  /**
+   * Lista todos os usuários com quem o card está compartilhado
+   */
+  async getCardShares(cardId: string): Promise<ApiResponse<any[]> | undefined> {
+    return apiClient.get<any[]>(`${this.endpoint}/${cardId}/shares`)
+  }
+
   /**
    * Busca CardFeatures por múltiplas tecnologias
    */
