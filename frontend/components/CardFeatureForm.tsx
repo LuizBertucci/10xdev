@@ -986,78 +986,9 @@ export default function CardFeatureForm({
                       <div className="space-y-4">
                           {screen.blocks.map((block, blockIndex) => (
                             <div key={blockIndex} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md">
-                              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b">
-                                <div className="flex items-center gap-3">
-                                  <div className={`
-                                    flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider
-                                    ${block.type === ContentType.CODE ? 'bg-blue-100 text-blue-700' : 
-                                      block.type === ContentType.TEXT ? 'bg-purple-100 text-purple-700' : 
-                                      'bg-amber-100 text-amber-700'}
-                                  `}>
-                                    {block.type === ContentType.CODE ? 'Código' : 
-                                     block.type === ContentType.TEXT ? 'Texto' : 'Terminal'}
-                                  </div>
-                                  
-                                  {block.type === ContentType.CODE && (
-                                    <Select
-                                      value={block.language || 'typescript'}
-                                      onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
-                                    >
-                                      <SelectTrigger className="w-32 h-7 text-xs bg-white border-gray-200">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="text-xs">
-                                        <SelectItem value="typescript">TypeScript</SelectItem>
-                                        <SelectItem value="javascript">JavaScript</SelectItem>
-                                        <SelectItem value="python">Python</SelectItem>
-                                        <SelectItem value="html">HTML</SelectItem>
-                                        <SelectItem value="css">CSS</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center gap-1">
-                                  {screen.blocks.length > 1 && (
-                                    <div className="flex items-center mr-2 pr-2 border-r border-gray-200">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => moveBlockUp(index, blockIndex)}
-                                        disabled={blockIndex === 0}
-                                        className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
-                                      >
-                                        <ChevronUp className="h-3.5 w-3.5" />
-                                      </Button>
-                                      
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => moveBlockDown(index, blockIndex)}
-                                        disabled={blockIndex === screen.blocks.length - 1}
-                                        className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
-                                      >
-                                        <ChevronDown className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeBlock(index, blockIndex)}
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              <div className="p-4">
-                                {block.type === ContentType.CODE && (
-                                  <div className="mb-3">
+                              {block.type === ContentType.CODE && (
+                                <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b gap-3">
+                                  <div className="flex-1 min-w-0">
                                     <Input
                                       placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
                                       value={block.route || ''}
@@ -1065,25 +996,124 @@ export default function CardFeatureForm({
                                       className="text-xs font-mono bg-blue-50/70 border-blue-200 focus:bg-white focus:border-blue-400"
                                     />
                                   </div>
-                                )}
-                                
-                                <Textarea
-                                  placeholder={
-                                    block.type === ContentType.CODE ? 'Cole seu código aqui...' :
+
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
+                                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                                        Código
+                                      </div>
+                                      <Select
+                                        value={block.language || 'typescript'}
+                                        onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
+                                      >
+                                        <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-200">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="text-xs">
+                                          <SelectItem value="typescript">TypeScript</SelectItem>
+                                          <SelectItem value="javascript">JavaScript</SelectItem>
+                                          <SelectItem value="python">Python</SelectItem>
+                                          <SelectItem value="html">HTML</SelectItem>
+                                          <SelectItem value="css">CSS</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {screen.blocks.length > 1 && (
+                                        <div className="flex items-center ml-1 pr-2 border-r border-gray-200">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => moveBlockUp(index, blockIndex)}
+                                            disabled={blockIndex === 0}
+                                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                                          >
+                                            <ChevronUp className="h-3.5 w-3.5" />
+                                          </Button>
+                                          
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => moveBlockDown(index, blockIndex)}
+                                            disabled={blockIndex === screen.blocks.length - 1}
+                                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                                          >
+                                            <ChevronDown className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeBlock(index, blockIndex)}
+                                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div className="p-4">
+                                <div className="relative">
+                                  <Textarea
+                                    placeholder={
+                                      block.type === ContentType.CODE ? 'Cole seu código aqui...' :
                                     block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
-                                    '$ comando terminal...'
-                                  }
-                                  value={block.content}
-                                  onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                                  rows={block.type === ContentType.TERMINAL ? 4 : 8}
-                                  className={`bg-white border-gray-100 focus:border-blue-200 resize-none ${
-                                    block.type === ContentType.TERMINAL
-                                      ? 'min-h-[72px] font-mono text-[13px] leading-relaxed'
-                                      : block.type === ContentType.CODE
-                                      ? 'min-h-[120px] font-mono text-[13px] leading-relaxed'
-                                      : 'min-h-[120px] text-sm'
-                                  }`}
-                                />
+                                    '$ comando...'
+                                    }
+                                    value={block.content}
+                                    onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                    rows={block.type === ContentType.CODE ? 8 : 4}
+                                    className={`bg-white border-gray-100 focus:border-blue-200 ${
+                                      block.type === ContentType.TERMINAL
+                                        ? 'min-h-[56px] font-mono text-[13px] leading-relaxed bg-gray-900 text-green-100 placeholder:text-gray-500 border-gray-800 focus:border-gray-700 resize-none'
+                                        : block.type === ContentType.CODE
+                                        ? 'min-h-[120px] font-mono text-[13px] leading-relaxed resize-none'
+                                        : 'min-h-[56px] text-sm resize-y'
+                                    } ${block.type !== ContentType.CODE ? 'pb-10' : ''}`}
+                                  />
+                                  {block.type !== ContentType.CODE && (
+                                    <div className="absolute bottom-2 right-2 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
+                                      {screen.blocks.length > 1 && (
+                                        <div className="flex items-center ml-1 pr-2 border-r border-gray-200">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => moveBlockUp(index, blockIndex)}
+                                            disabled={blockIndex === 0}
+                                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                                          >
+                                            <ChevronUp className="h-3.5 w-3.5" />
+                                          </Button>
+                                          
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => moveBlockDown(index, blockIndex)}
+                                            disabled={blockIndex === screen.blocks.length - 1}
+                                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                                          >
+                                            <ChevronDown className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeBlock(index, blockIndex)}
+                                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}
