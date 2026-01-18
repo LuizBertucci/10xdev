@@ -924,31 +924,8 @@ export default function CardFeatureForm({
           <div className={`flex-1 flex flex-col bg-white min-w-0 overflow-y-auto md:overflow-hidden overscroll-contain ${
             mobileViewTab === 'code' ? '' : 'hidden'
           } ${desktopViewTab === 'code' ? 'md:flex' : 'md:hidden'}`}>
-               {/* Header Arquivos */}
-               <div className="px-4 py-3 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:shrink-0">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-7 w-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                      <Save className="h-3.5 w-3.5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-900 leading-none">Arquivos</h4>
-                      <p className="text-[10px] text-gray-500 mt-0.5">Gerencie as abas</p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addScreen}
-                    className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-blue-600 transition-all shadow-sm shrink-0"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Novo Arquivo
-                  </Button>
-               </div>
-
                <Tabs value={activeTab.toString()} onValueChange={(value) => setActiveTab(parseInt(value))} className="md:flex-1 flex flex-col md:overflow-hidden">
-                  <div className="px-4 py-2.5 bg-gray-50/50 border-b md:shrink-0">
+                  <div className="px-4 py-2.5 bg-gray-50/50 border-b md:shrink-0 flex items-center gap-3">
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
@@ -990,50 +967,21 @@ export default function CardFeatureForm({
                         </SortableContext>
                       </TabsList>
                     </DndContext>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addScreen}
+                      className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-blue-600 transition-all shadow-sm shrink-0"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Novo Arquivo
+                    </Button>
                   </div>
 
                   {formData.screens.map((screen, index) => (
                     <TabsContent key={index} value={index.toString()} className="md:flex-1 md:overflow-hidden m-0 p-0 data-[state=active]:flex flex-col">
-                      <div className="md:flex-1 md:overflow-y-auto md:overscroll-contain p-4 sm:p-6">
-                      {/* Botões Adicionar Bloco */}
-                      <div className="flex items-center justify-between mb-4">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                          Adicionar Bloco
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => addBlock(index, ContentType.CODE)}
-                            className="h-7 px-2.5 text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-100 rounded-md transition-all"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Código
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => addBlock(index, ContentType.TEXT)}
-                            className="h-7 px-2.5 text-[11px] bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 border border-purple-100 rounded-md transition-all"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Texto
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => addBlock(index, ContentType.TERMINAL)}
-                            className="h-7 px-2.5 text-[11px] bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 border border-amber-100 rounded-md transition-all"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            Terminal
-                          </Button>
-                        </div>
-                      </div>
-                      
+                      <div className="md:flex-1 md:overflow-y-auto md:overscroll-contain px-4 pb-24 pt-2 sm:px-6 sm:pb-24 sm:pt-3">
                       {/* Blocos de Conteúdo */}
                       <div className="space-y-4">
                           {screen.blocks.map((block, blockIndex) => (
@@ -1114,7 +1062,7 @@ export default function CardFeatureForm({
                                       placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
                                       value={block.route || ''}
                                       onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
-                                      className="text-xs font-mono bg-gray-50/50 border-gray-100 focus:bg-white"
+                                      className="text-xs font-mono bg-blue-50/70 border-blue-200 focus:bg-white focus:border-blue-400"
                                     />
                                   </div>
                                 )}
@@ -1127,8 +1075,14 @@ export default function CardFeatureForm({
                                   }
                                   value={block.content}
                                   onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                                  rows={8}
-                                  className={`bg-white border-gray-100 focus:border-blue-200 min-h-[120px] resize-none ${block.type === ContentType.CODE || block.type === ContentType.TERMINAL ? 'font-mono text-[13px] leading-relaxed' : 'text-sm'}`}
+                                  rows={block.type === ContentType.TERMINAL ? 4 : 8}
+                                  className={`bg-white border-gray-100 focus:border-blue-200 resize-none ${
+                                    block.type === ContentType.TERMINAL
+                                      ? 'min-h-[72px] font-mono text-[13px] leading-relaxed'
+                                      : block.type === ContentType.CODE
+                                      ? 'min-h-[120px] font-mono text-[13px] leading-relaxed'
+                                      : 'min-h-[120px] text-sm'
+                                  }`}
                                 />
                               </div>
                             </div>
@@ -1140,6 +1094,41 @@ export default function CardFeatureForm({
                               <p className="text-sm mt-1">Use os botões acima para adicionar código, texto ou terminal.</p>
                             </div>
                           )}
+                      </div>
+                    </div>
+                    {/* Botões Adicionar Bloco */}
+                    <div className="px-4 py-2 flex justify-end bg-transparent">
+                      <div className="mr-5 flex flex-wrap gap-2 rounded-md bg-gray-100 border border-gray-400 px-3 py-2 shadow-sm my-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => addBlock(index, ContentType.CODE)}
+                          className="h-7 px-2.5 text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-200 rounded-md transition-all"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Código
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => addBlock(index, ContentType.TEXT)}
+                          className="h-7 px-2.5 text-[11px] bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800 border border-purple-200 rounded-md transition-all"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Texto
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => addBlock(index, ContentType.TERMINAL)}
+                          className="h-7 px-2.5 text-[11px] bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 border border-amber-200 rounded-md transition-all"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Terminal
+                        </Button>
                       </div>
                     </div>
                   </TabsContent>
