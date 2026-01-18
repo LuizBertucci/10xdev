@@ -232,11 +232,15 @@ export default function CardFeatureForm({
   // Estado para visualização mobile (config ou codigo)
   const [mobileViewTab, setMobileViewTab] = useState<'config' | 'code'>('config')
 
+  // Estado para visualização desktop (config ou codigo)
+  const [desktopViewTab, setDesktopViewTab] = useState<'config' | 'code'>('config')
+
   // User Search State para Compartilhamento
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
   const [userSearchQuery, setUserSearchQuery] = useState("")
   const [userSearchResults, setUserSearchResults] = useState<User[]>([])
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
+  const [hasSearchedUsers, setHasSearchedUsers] = useState(false)
 
   // Sensores para drag and drop
   const sensors = useSensors(
@@ -434,6 +438,7 @@ export default function CardFeatureForm({
     
     try {
       setIsSearchingUsers(true)
+      setHasSearchedUsers(true)
       const response = await userService.searchUsers(userSearchQuery)
       if (response?.success && response?.data) {
         setUserSearchResults(response.data)
@@ -450,6 +455,26 @@ export default function CardFeatureForm({
       setIsSearchingUsers(false)
     }
   }
+
+  useEffect(() => {
+    if (!userSearchQuery || userSearchQuery.length < 2) {
+      setHasSearchedUsers(false)
+      setUserSearchResults([])
+    }
+  }, [userSearchQuery])
+
+  useEffect(() => {
+    if (formData.visibility !== Visibility.UNLISTED) return
+    if (!userSearchQuery || userSearchQuery.length < 3) return
+
+    const timeoutId = window.setTimeout(() => {
+      handleSearchUsers()
+    }, 400)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [userSearchQuery, formData.visibility])
 
   const handleSelectUser = (user: User) => {
     // Verificar se já está selecionado
@@ -537,19 +562,61 @@ export default function CardFeatureForm({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-hidden">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-[95vw] h-[85vh] sm:h-[80vh] flex flex-col touch-none">
         <div className="flex items-center justify-between p-3 sm:p-4 border-b shrink-0">
-          <h3 className="text-base sm:text-xl font-semibold">
-            {mode === 'create' ? 'Novo CardFeature' : 'Editar CardFeature'}
-          </h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-3">
+            <h3 className="text-base sm:text-xl font-semibold md:hidden">
+              {mode === 'create' ? 'Novo CardFeature' : 'Editar CardFeature'}
+            </h3>
+            <div className="hidden md:flex">
+              <Tabs value={desktopViewTab} onValueChange={(value) => setDesktopViewTab(value as 'config' | 'code')}>
+                <TabsList className="h-8 p-1 bg-gray-100/80 rounded-lg border border-gray-200/50">
+                  <TabsTrigger value="config" className="text-xs font-semibold px-3">
+                    Configurações
+                  </TabsTrigger>
+                  <TabsTrigger value="code" className="text-xs font-semibold px-3">
+                    Código
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading}
+              className="h-8"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isLoading || !formData.title}
+              className="h-8 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {mode === 'create' ? 'Criando...' : 'Salvando...'}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  {mode === 'create' ? 'Criar CardFeature' : 'Salvar Alterações'}
+                </>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
-        <div className="flex-1 min-h-0 flex flex-col md:flex-row md:overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:overflow-hidden">
           {/* Seletor de Abas Mobile - Design Segmentado Moderno */}
           <div className="md:hidden px-4 py-3 border-b shrink-0 bg-white">
             <div className="flex p-1 bg-gray-100/80 rounded-xl border border-gray-200/50">
@@ -584,19 +651,14 @@ export default function CardFeatureForm({
             </div>
           </div>
 
+          <div className="flex-1 min-h-0 flex flex-col md:flex-row md:overflow-hidden">
           {/* LEFT COLUMN: Configuration & Metadata */}
-          <div className={`w-full md:basis-[24%] md:grow-0 md:shrink-0 min-w-[220px] border-b md:border-b-0 md:border-r border-gray-100 bg-white p-4 sm:p-5 overflow-y-auto overscroll-contain flex flex-col gap-5 md:max-h-none ${
-            mobileViewTab === 'config' ? 'flex-1' : 'hidden md:flex'
-          }`}>
+          <div className={`w-full min-w-[220px] border-b md:border-b-0 border-gray-100 bg-white p-4 sm:p-5 overflow-y-auto overscroll-contain flex flex-col gap-5 md:max-h-none ${
+            mobileViewTab === 'config' ? 'flex-1' : 'hidden'
+          } ${desktopViewTab === 'config' ? 'md:flex md:flex-1 md:basis-auto md:border-r-0' : 'md:hidden'}`}>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-1 w-1 rounded-full bg-blue-500"></div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    Identificação
-                  </label>
-                </div>
+            <div className="flex flex-col gap-3 md:flex-row md:gap-6 md:items-stretch">
+              <div className="flex flex-col gap-3 md:w-1/2">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
                     Título do Card *
@@ -608,280 +670,260 @@ export default function CardFeatureForm({
                     className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm"
                   />
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-1 w-1 rounded-full bg-purple-500"></div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    Categorização
-                  </label>
-                </div>
-                <div className="space-y-2.5">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                      Tipo do Card
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="h-1 w-1 rounded-full bg-purple-500"></div>
+                    <label className="text-xs font-semibold text-gray-700">
+                      Categorização
                     </label>
-                    <Select
-                      value={formData.card_type}
-                      onValueChange={(value) => handleInputChange('card_type', value)}
-                    >
-                      <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="text-xs">
-                        <SelectItem value="dicas">Dicas</SelectItem>
-                        <SelectItem value="codigos">Códigos</SelectItem>
-                        <SelectItem value="workflows">Workflows</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                      Tecnologia Principal
-                    </label>
-                    <Select
-                      value={formData.tech}
-                      onValueChange={(value) => handleInputChange('tech', value)}
-                    >
-                      <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="text-xs">
-                        <SelectItem value="React">React</SelectItem>
-                        <SelectItem value="Node.js">Node.js</SelectItem>
-                        <SelectItem value="Python">Python</SelectItem>
-                        <SelectItem value="JavaScript">JavaScript</SelectItem>
-                        <SelectItem value="Vue.js">Vue.js</SelectItem>
-                        <SelectItem value="Angular">Angular</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                      Linguagem Padrão
-                    </label>
-                    <Select
-                      value={formData.language}
-                      onValueChange={(value) => handleInputChange('language', value)}
-                    >
-                      <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="text-xs">
-                        <SelectItem value="typescript">TypeScript</SelectItem>
-                        <SelectItem value="javascript">JavaScript</SelectItem>
-                        <SelectItem value="python">Python</SelectItem>
-                        <SelectItem value="html">HTML</SelectItem>
-                        <SelectItem value="css">CSS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-1 w-1 rounded-full bg-green-500"></div>
-                  <label className="text-xs font-semibold text-gray-700">
-                    Acesso
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Visibilidade
-                  </label>
-                  <Select
-                    value={formData.visibility}
-                    onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
-                  >
-                    <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {formData.visibility === Visibility.PUBLIC && (
-                          <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                        )}
-                        {formData.visibility === Visibility.UNLISTED && (
-                          <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-                        )}
-                        {formData.visibility === Visibility.PRIVATE && (
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
-                        )}
-                        <span className="truncate">
-                          {formData.visibility === Visibility.PUBLIC && (isAdmin ? "Público" : "Enviar para aprovação")}
-                          {formData.visibility === Visibility.UNLISTED && "Não Listado"}
-                          {formData.visibility === Visibility.PRIVATE && "Privado"}
-                        </span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent className="text-xs">
-                      <SelectItem value={Visibility.PUBLIC}>
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
-                          <div className="min-w-0">
-                            <div className="font-semibold text-xs">{isAdmin ? 'Público' : 'Enviar para aprovação'}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {isAdmin ? 'Aparece nas listagens' : 'Vai para validação antes de aparecer em Aprovados'}
-                            </div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value={Visibility.UNLISTED}>
-                        <div className="flex items-center gap-2">
-                          <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-                          <div className="min-w-0">
-                            <div className="font-semibold text-xs">Não Listado</div>
-                            <div className="text-[10px] text-muted-foreground">Só quem tem o link pode ver</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value={Visibility.PRIVATE}>
-                        <div className="flex items-center gap-2">
-                          <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
-                          <div className="min-w-0">
-                            <div className="font-semibold text-xs">Privado</div>
-                            <div className="text-[10px] text-muted-foreground">Só você pode ver</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.visibility === Visibility.PUBLIC && !isAdmin && (
-                  <div className="mt-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <strong>ℹ️ Atenção:</strong> Ao enviar para aprovação, seu card ficará em <span className="font-semibold">Validando</span> até um admin aprovar.
-                  </div>
-                )}
-
-                {/* Compartilhamento - Apenas para cards privados */}
-                {formData.visibility === Visibility.PRIVATE && (
-                  <div className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200 space-y-2.5 pt-3 border-t border-gray-100">
-                    <label className="text-xs font-medium text-gray-600 block">
-                      Compartilhar com usuários
-                    </label>
-                    
-                    {/* Badges dos usuários selecionados */}
-                    {selectedUsers.length > 0 && (
-                      <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-md border border-gray-200">
-                        {selectedUsers.map((user) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-gray-300 text-xs"
-                          >
-                            {user.avatarUrl ? (
-                              <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full" />
-                            ) : (
-                              <UserIcon className="h-3 w-3 text-gray-500" />
-                            )}
-                            <span className="font-medium truncate max-w-[120px]">
-                              {user.name || user.email}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveUser(user.id)}
-                              className="text-gray-400 hover:text-red-600 ml-1"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Busca de usuários */}
-                    <div className="flex gap-2">
-                      <Input
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        placeholder="Email ou nome do usuário..."
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                        className="flex-1 bg-white border-gray-200 text-xs h-9 shadow-sm"
-                      />
-                      <Button 
-                        type="button"
-                        onClick={handleSearchUsers} 
-                        disabled={isSearchingUsers} 
-                        size="sm"
-                        variant="outline"
-                        className="h-9 px-3"
+                  <div className="grid gap-2.5 md:grid-cols-3">
+                    <div>
+                      <Select
+                        value={formData.card_type}
+                        onValueChange={(value) => handleInputChange('card_type', value)}
                       >
-                        {isSearchingUsers ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Search className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
+                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="text-xs">
+                          <SelectItem value="dicas">Dicas</SelectItem>
+                          <SelectItem value="codigos">Códigos</SelectItem>
+                          <SelectItem value="workflows">Workflows</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    {/* Resultados da Busca */}
-                    {userSearchResults.length > 0 && (
-                      <div className="max-h-[150px] overflow-y-auto overscroll-contain space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
-                        {userSearchResults.map((user) => (
-                          <div
-                            key={user.id}
-                            className={`p-2 border rounded-md cursor-pointer flex items-center gap-2 transition-colors text-xs ${
-                              selectedUsers.some(u => u.id === user.id)
-                                ? 'border-green-300 bg-green-50' 
-                                : 'hover:bg-gray-50 border-gray-200'
-                            }`}
-                            onClick={() => handleSelectUser(user)}
-                          >
-                            {user.avatarUrl ? (
-                              <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full" />
-                            ) : (
-                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                                <UserIcon className="h-3 w-3 text-gray-500" />
-                              </div>
-                            )}
-                            <div className="flex-1 overflow-hidden">
-                              <p className="font-medium truncate">{user.name || user.email}</p>
-                              {user.name && <p className="text-[10px] text-gray-500 truncate">{user.email}</p>}
-                            </div>
-                            {selectedUsers.some(u => u.id === user.id) && (
-                              <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {!isSearchingUsers && userSearchResults.length === 0 && userSearchQuery.length >= 2 && (
-                      <p className="text-xs text-gray-500 text-center py-2">
-                        Nenhum usuário encontrado
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+                    <div>
+                      <Select
+                        value={formData.tech}
+                        onValueChange={(value) => handleInputChange('tech', value)}
+                      >
+                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="text-xs">
+                          <SelectItem value="React">React</SelectItem>
+                          <SelectItem value="Node.js">Node.js</SelectItem>
+                          <SelectItem value="Python">Python</SelectItem>
+                          <SelectItem value="JavaScript">JavaScript</SelectItem>
+                          <SelectItem value="Vue.js">Vue.js</SelectItem>
+                          <SelectItem value="Angular">Angular</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-            <div className="flex-1 flex flex-col space-y-2">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-1 w-1 rounded-full bg-orange-500"></div>
-                <label className="text-xs font-semibold text-gray-700">
-                  Descrição
-                </label>
+                    <div>
+                      <Select
+                        value={formData.language}
+                        onValueChange={(value) => handleInputChange('language', value)}
+                      >
+                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="text-xs">
+                          <SelectItem value="typescript">TypeScript</SelectItem>
+                          <SelectItem value="javascript">JavaScript</SelectItem>
+                          <SelectItem value="python">Python</SelectItem>
+                          <SelectItem value="html">HTML</SelectItem>
+                          <SelectItem value="css">CSS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col space-y-2">
+                  <div className="flex-1 flex flex-col">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      Sobre o Card
+                    </label>
+                    <Textarea
+                      placeholder="Descreva o que este CardFeature faz, como usar, exemplos..."
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-xs resize-none"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 flex flex-col">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Sobre o Card
-                </label>
-                <Textarea
-                  placeholder="Descreva o que este CardFeature faz, como usar, exemplos..."
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-xs resize-none"
-                />
+
+              <div className="md:w-1/2 md:flex md:flex-col">
+                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white md:flex-1 md:flex md:flex-col">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      Visibilidade
+                    </label>
+                    <Select
+                      value={formData.visibility}
+                      onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
+                    >
+                      <SelectTrigger className="h-9 bg-white border-blue-300 text-xs shadow-sm">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {formData.visibility === Visibility.PUBLIC && (
+                            <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                          )}
+                          {formData.visibility === Visibility.UNLISTED && (
+                            <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                          )}
+                          {formData.visibility === Visibility.PRIVATE && (
+                            <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                          )}
+                          <span className="truncate">
+                          {formData.visibility === Visibility.PUBLIC && "Público - enviar para validação"}
+                            {formData.visibility === Visibility.UNLISTED && "Não Listado"}
+                            {formData.visibility === Visibility.PRIVATE && "Privado"}
+                          </span>
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent className="text-xs">
+                        <SelectItem value={Visibility.PUBLIC}>
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                            <div className="min-w-0">
+                            <div className="font-semibold text-xs">Público - enviar para validação</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {isAdmin ? 'Aparece nas listagens' : 'Vai para validação antes de aparecer em Aprovados'}
+                              </div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value={Visibility.UNLISTED}>
+                          <div className="flex items-center gap-2">
+                            <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                            <div className="min-w-0">
+                              <div className="font-semibold text-xs">Não Listado</div>
+                              <div className="text-[10px] text-muted-foreground">Só quem tem o link pode ver</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value={Visibility.PRIVATE}>
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                            <div className="min-w-0">
+                              <div className="font-semibold text-xs">Privado</div>
+                              <div className="text-[10px] text-muted-foreground">Só você pode ver</div>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.visibility === Visibility.PUBLIC && !isAdmin && (
+                    <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <strong>ℹ️ Atenção:</strong> Ao enviar para aprovação, seu card ficará em <span className="font-semibold">Validando</span> até um admin aprovar.
+                    </div>
+                  )}
+
+                  {formData.visibility === Visibility.UNLISTED && (
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2.5">
+                      <label className="text-xs font-medium text-gray-600 block">
+                        Compartilhar com usuários
+                      </label>
+                      
+                      {selectedUsers.length > 0 && (
+                        <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+                          {selectedUsers.map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-gray-300 text-xs"
+                            >
+                              {user.avatarUrl ? (
+                                <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full" />
+                              ) : (
+                                <UserIcon className="h-3 w-3 text-gray-500" />
+                              )}
+                              <span className="font-medium truncate max-w-[140px]">
+                                {user.name || user.email}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveUser(user.id)}
+                                className="text-gray-400 hover:text-red-600 ml-1"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      <div className="flex gap-2">
+                        <Input
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                          placeholder="Email ou nome do usuário..."
+                          onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                          className="flex-1 bg-white border-gray-200 text-xs h-9 shadow-sm"
+                        />
+                        <Button 
+                          type="button"
+                          onClick={handleSearchUsers} 
+                          disabled={isSearchingUsers} 
+                          size="sm"
+                          variant="outline"
+                          className="h-9 px-3"
+                        >
+                          {isSearchingUsers ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Search className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="min-h-[40px]">
+                        {userSearchResults.length > 0 && (
+                          <div className="max-h-[150px] overflow-y-auto overscroll-contain space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
+                            {userSearchResults.map((user) => (
+                              <div
+                                key={user.id}
+                                className={`p-2 border rounded-md cursor-pointer flex items-center gap-2 transition-colors text-xs ${
+                                  selectedUsers.some(u => u.id === user.id)
+                                    ? 'border-green-300 bg-green-50' 
+                                    : 'hover:bg-gray-50 border-gray-200'
+                                }`}
+                                onClick={() => handleSelectUser(user)}
+                              >
+                                {user.avatarUrl ? (
+                                  <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full" />
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <UserIcon className="h-3 w-3 text-gray-500" />
+                                  </div>
+                                )}
+                                <div className="flex-1 overflow-hidden">
+                                  <p className="font-medium truncate">{user.name || user.email}</p>
+                                  {user.name && <p className="text-[10px] text-gray-500 truncate">{user.email}</p>}
+                                </div>
+                                {selectedUsers.some(u => u.id === user.id) && (
+                                  <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {!isSearchingUsers && hasSearchedUsers && userSearchResults.length === 0 && userSearchQuery.length >= 2 && (
+                          <p className="text-xs text-gray-500 text-center py-2">
+                            Nenhum usuário encontrado
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
             </div>
           </div>
 
           {/* RIGHT COLUMN: Files Editor */}
           <div className={`flex-1 flex flex-col bg-white min-w-0 overflow-y-auto md:overflow-hidden overscroll-contain ${
-            mobileViewTab === 'code' ? 'flex-1 flex' : 'hidden md:flex'
-          }`}>
+            mobileViewTab === 'code' ? '' : 'hidden'
+          } ${desktopViewTab === 'code' ? 'md:flex' : 'md:hidden'}`}>
                {/* Header Arquivos */}
                <div className="px-4 py-3 border-b bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:shrink-0">
                   <div className="flex items-center gap-2.5">
@@ -1105,34 +1147,9 @@ export default function CardFeatureForm({
                </Tabs>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end space-x-2 sm:space-x-3 p-3 sm:p-4 border-t bg-gray-50 shrink-0">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isLoading || !formData.title}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {mode === 'create' ? 'Criando...' : 'Salvando...'}
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                {mode === 'create' ? 'Criar CardFeature' : 'Salvar Alterações'}
-              </>
-            )}
-          </Button>
         </div>
+
+        {/* Footer removido */}
       </div>
     </div>
   )
