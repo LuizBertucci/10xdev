@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
-const publicPaths = ['/login', '/register']
+const publicPaths = ['/login', '/register', '/auth/callback']
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
