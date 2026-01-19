@@ -4,8 +4,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Rotas públicas (acessíveis sem conta)
 const publicPaths = ['/login', '/register']
 
+function applyResponseCookies(target: NextResponse, source: NextResponse) {
+  source.cookies.getAll().forEach((cookie) => {
+    target.cookies.set(cookie)
+  })
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
+  let res = NextResponse.next()
 
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
@@ -25,8 +32,12 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value
         },
-        set() {},
-        remove() {},
+        set(name: string, value: string, options) {
+          res.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options) {
+          res.cookies.set({ name, value: '', ...options, maxAge: 0 })
+        },
       },
     }
   )
@@ -39,7 +50,9 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname + req.nextUrl.search)
-    return NextResponse.redirect(url)
+    const redirect = NextResponse.redirect(url)
+    applyResponseCookies(redirect, res)
+    return redirect
   }
 
   // Evita acesso a login/register se já autenticado
@@ -48,10 +61,12 @@ export async function middleware(req: NextRequest) {
     url.pathname = '/'
     // Usuário autenticado deve cair no app (não na landing)
     url.search = '?tab=home'
-    return NextResponse.redirect(url)
+    const redirect = NextResponse.redirect(url)
+    applyResponseCookies(redirect, res)
+    return redirect
   }
 
-  return NextResponse.next()
+  return res
 }
 
 export const config = {

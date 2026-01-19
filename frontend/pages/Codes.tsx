@@ -139,28 +139,14 @@ export default function Codes({ platformState }: CodesProps) {
       const result = await cardFeatures.createCardFeature(formData)
       if (result) {
         console.log('CardFeature criado com sucesso:', result)
-
-        // Se for card privado, processar emails de compartilhamento
-        const shareEmailsInput = document.querySelector('[data-share-emails]') as HTMLInputElement
-        const shareEmails = shareEmailsInput?.value?.trim()
-
-        if (formData.visibility === Visibility.PRIVATE && shareEmails && result.id) {
-          try {
-            await fetch(`/api/card-features/${result.id}/share`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ emails: shareEmails })
-            })
-            console.log('Card compartilhado com:', shareEmails)
-          } catch (shareError) {
-            console.error('Erro ao compartilhar:', shareError)
-          }
-        }
-
         // Modal já fechará automaticamente via hook
+        // Retorna o card criado para permitir compartilhamento no CardFeatureForm
+        return result
       }
+      return null
     } catch (error) {
       console.error('Erro no handleCreateSubmit:', error)
+      return null
     }
   }
 
@@ -173,10 +159,13 @@ export default function Codes({ platformState }: CodesProps) {
         if (result) {
           console.log('CardFeature editado com sucesso:', result)
           // Modal já fechará automaticamente via hook
+          return result
         }
       }
+      return null
     } catch (error) {
       console.error('Erro no handleEditSubmit:', error)
+      return null
     }
   }
 

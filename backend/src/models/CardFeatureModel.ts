@@ -503,28 +503,17 @@ export class CardFeatureModel {
         updated_at: now
       }
 
-      // Regras: quando um usuário comum tenta tornar público, vira PENDING
+      // Regras: ao mudar para PUBLIC sempre passar por validação,
+      // exceto quando a aprovação for feita via endpoint específico.
       // IMPORTANTE: Verificar SEMPRE se está mudando para PUBLIC, independente do status atual
       if ('visibility' in sanitized && sanitized.visibility !== undefined) {
         if (sanitized.visibility === Visibility.PUBLIC) {
-          if (isAdmin) {
-            // Admin pode tornar público diretamente como APPROVED
-            if (!('approval_status' in sanitized) || !sanitized.approval_status) {
-              updateData.approval_status = ApprovalStatus.APPROVED
-            }
-            if (updateData.approval_status === ApprovalStatus.APPROVED) {
-              updateData.approved_at = now
-              updateData.approved_by = userId
-              updateData.approval_requested_at = null
-            }
-          } else {
-            // Usuário comum mudando para público → SEMPRE PENDING (mesmo que já tenha sido aprovado antes)
-            // Isso garante que ao mudar de unlisted/private para public, sempre passe por validação
-            updateData.approval_status = ApprovalStatus.PENDING
-            updateData.approval_requested_at = now
-            updateData.approved_at = null
-            updateData.approved_by = null
-          }
+          // Somente o endpoint de aprovação deve setar APPROVED.
+          // No update comum, admin e usuário sempre caem em PENDING.
+          updateData.approval_status = ApprovalStatus.PENDING
+          updateData.approval_requested_at = now
+          updateData.approved_at = null
+          updateData.approved_by = null
         } else {
           // Se voltou para private/unlisted, não faz parte do diretório global
           updateData.approval_status = ApprovalStatus.NONE
@@ -896,6 +885,268 @@ export class CardFeatureModel {
         success: false,
         error: error.message || 'Erro interno do servidor',
         statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  // ================================================
+  // SHARING (compartilhamento de cards privados)
+  // ================================================
+
+  /**
+   * Compartilha um card privado com múltiplos usuários
+   * Inspirado em ProjectModel.addMember
+   */
+  static async shareWithUsers(
+    cardId: string, 
+    userIds: string[], 
+    ownerId: string
+  ): Promise<ModelResult<any>> {
+    try {
+      // 1. Verificar se o card existe e é privado
+      const { data: card, error: cardError } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id, visibility, created_by')
+          .eq('id', cardId)
+          .single()
+      )
+
+      if (cardError || !card) {
+        return {
+          success: false,
+          error: 'Card não encontrado',
+          statusCode: 404
+        }
+      }
+
+      // 2. Verificar permissão (apenas o criador pode compartilhar)
+      if (card.created_by !== ownerId) {
+        return {
+          success: false,
+          error: 'Apenas o criador do card pode compartilhá-lo',
+          statusCode: 403
+        }
+      }
+
+      // 3. Verificar se é privado
+      if (card.visibility !== 'private') {
+        return {
+          success: false,
+          error: 'Apenas cards privados podem ser compartilhados',
+          statusCode: 400
+        }
+      }
+
+      // 4. Verificar se os usuários existem
+      const { data: users, error: usersError } = await executeQuery(
+        supabaseAdmin
+          .from('users')
+          .select('id')
+          .in('id', userIds)
+      )
+
+      if (usersError || !users || users.length !== userIds.length) {
+        return {
+          success: false,
+          error: 'Um ou mais usuários não encontrados',
+          statusCode: 404
+        }
+      }
+
+      // 5. Inserir compartilhamentos (ignora duplicatas)
+      const shares = userIds.map(userId => ({
+        id: randomUUID(),
+        card_feature_id: cardId,
+        shared_with_user_id: userId,
+        created_at: new Date().toISOString()
+      }))
+
+      const { data: insertedShares, error: insertError } = await executeQuery(
+        supabaseAdmin
+          .from('card_shares')
+          .upsert(shares, {
+            onConflict: 'card_feature_id,shared_with_user_id',
+            ignoreDuplicates: true
+          })
+          .select('id')
+      )
+
+      if (insertError) {
+        console.error('Erro ao inserir card_shares:', insertError)
+        return {
+          success: false,
+          error: 'Erro ao compartilhar card',
+          statusCode: 500
+        }
+      }
+
+      return {
+        success: true,
+        data: { sharedWith: insertedShares?.length ?? 0 },
+        statusCode: 200
+      }
+    } catch (error: any) {
+      console.error('Erro no CardFeatureModel.shareWithUsers:', error)
+      return {
+        success: false,
+        error: 'Erro ao compartilhar card',
+        statusCode: 500
+      }
+    }
+  }
+
+  /**
+   * Remove compartilhamento de um card com um usuário
+   * Inspirado em ProjectModel.removeMember
+   */
+  static async unshareWithUser(
+    cardId: string,
+    userId: string,
+    ownerId: string
+  ): Promise<ModelResult<null>> {
+    try {
+      // 1. Verificar se o card existe e pertence ao owner
+      const { data: card, error: cardError } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id, created_by')
+          .eq('id', cardId)
+          .single()
+      )
+
+      if (cardError || !card) {
+        return {
+          success: false,
+          error: 'Card não encontrado',
+          statusCode: 404
+        }
+      }
+
+      if (card.created_by !== ownerId) {
+        return {
+          success: false,
+          error: 'Apenas o criador do card pode remover compartilhamentos',
+          statusCode: 403
+        }
+      }
+
+      // 2. Remover compartilhamento
+      const { error: deleteError } = await executeQuery(
+        supabaseAdmin
+          .from('card_shares')
+          .delete()
+          .eq('card_feature_id', cardId)
+          .eq('shared_with_user_id', userId)
+      )
+
+      if (deleteError) {
+        console.error('Erro ao deletar card_share:', deleteError)
+        return {
+          success: false,
+          error: 'Erro ao remover compartilhamento',
+          statusCode: 500
+        }
+      }
+
+      return {
+        success: true,
+        data: null,
+        statusCode: 200
+      }
+    } catch (error: any) {
+      console.error('Erro no CardFeatureModel.unshareWithUser:', error)
+      return {
+        success: false,
+        error: 'Erro ao remover compartilhamento',
+        statusCode: 500
+      }
+    }
+  }
+
+  /**
+   * Lista todos os usuários com quem o card está compartilhado
+   */
+  static async getSharedUsers(cardId: string, ownerId: string): Promise<ModelResult<any[]>> {
+    try {
+      // 1. Verificar se o card existe e pertence ao owner
+      const { data: card, error: cardError } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id, created_by')
+          .eq('id', cardId)
+          .single()
+      )
+
+      if (cardError || !card) {
+        return {
+          success: false,
+          error: 'Card não encontrado',
+          statusCode: 404
+        }
+      }
+
+      if (card.created_by !== ownerId) {
+        return {
+          success: false,
+          error: 'Apenas o criador pode ver os compartilhamentos',
+          statusCode: 403
+        }
+      }
+
+      // 2. Buscar usuários compartilhados (JOIN com users)
+      const { data: shares, error: sharesError } = await executeQuery(
+        supabaseAdmin
+          .from('card_shares')
+          .select(`
+            id,
+            created_at,
+            users:shared_with_user_id (
+              id,
+              email,
+              name,
+              avatar_url
+            )
+          `)
+          .eq('card_feature_id', cardId)
+      )
+
+      if (sharesError) {
+        console.error('Erro ao buscar card_shares:', sharesError)
+        return {
+          success: false,
+          error: 'Erro ao buscar compartilhamentos',
+          statusCode: 500
+        }
+      }
+
+      // 3. Transformar resposta (filtra shares sem usuário válido)
+      const users: Array<{ id: string; email: string | null; name: string | null; avatarUrl: string | null }> = []
+      
+      if (shares) {
+        for (const share of shares) {
+          if (share.users && share.users.id) {
+            users.push({
+              id: share.users.id,
+              email: share.users.email ?? null,
+              name: share.users.name ?? null,
+              avatarUrl: share.users.avatar_url ?? null
+            })
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: users,
+        statusCode: 200
+      }
+    } catch (error: any) {
+      console.error('Erro no CardFeatureModel.getSharedUsers:', error)
+      return {
+        success: false,
+        error: 'Erro ao buscar compartilhamentos',
+        statusCode: 500
       }
     }
   }

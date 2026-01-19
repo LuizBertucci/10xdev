@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { cardFeatureService } from '@/services'
 import { usePagination } from './usePagination'
 import { useDebounceSearch } from './useDebounceSearch'
+import { ApprovalStatus, Visibility } from '@/types'
 import type { CardFeature, CardFeatureState, CreateCardFeatureData, UpdateCardFeatureData, UseCardFeaturesReturn, UseCardFeaturesOptions, QueryParams, FetchParams } from '@/types'
 
 // Hook principal para gerenciar CardFeatures com API
@@ -250,12 +251,33 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       console.log('Resposta da API (update):', response)
       
       if (response && response.success && response.data) {
+        const getEffectiveVisibility = (item: CardFeature) =>
+          item.visibility || (item.isPrivate ? Visibility.PRIVATE : Visibility.PUBLIC)
+        const getEffectiveApproval = (item: CardFeature) =>
+          item.approvalStatus || ApprovalStatus.NONE
+        const matchesFilters = (item: CardFeature) => {
+          const visibilityFilter = externalFilters?.selectedVisibility
+          const approvalFilter = externalFilters?.selectedApprovalStatus
+
+          if (visibilityFilter && visibilityFilter !== 'all') {
+            if (getEffectiveVisibility(item) !== visibilityFilter) return false
+          }
+          if (approvalFilter && approvalFilter !== 'all') {
+            if (getEffectiveApproval(item) !== approvalFilter) return false
+          }
+          return true
+        }
+
+        const shouldKeep = matchesFilters(response.data)
+
         console.log('CardFeature atualizado com sucesso! Fechando modal...')
         setState(prev => ({
           ...prev,
-          items: (Array.isArray(prev.items) ? prev.items : []).map(item => 
-            item.id === id ? response.data! : item
-          ),
+          items: (() => {
+            const items = Array.isArray(prev.items) ? prev.items : []
+            const updated = items.map(item => (item.id === id ? response.data! : item))
+            return shouldKeep ? updated : updated.filter(item => item.id !== id)
+          })(),
           updating: false
         }))
         setModalState(prev => ({ ...prev, isEditing: false, editingItem: null }))
@@ -282,7 +304,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       return null
     }
-  }, [])
+  }, [externalFilters?.selectedApprovalStatus, externalFilters?.selectedVisibility])
 
   // DELETE - Remover CardFeature
   const deleteCardFeature = useCallback(async (id: string): Promise<boolean> => {
