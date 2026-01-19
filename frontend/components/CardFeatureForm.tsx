@@ -468,7 +468,24 @@ export default function CardFeatureForm({
     if (!userSearchQuery || userSearchQuery.length < 3) return
 
     const timeoutId = window.setTimeout(() => {
-      handleSearchUsers()
+      // Inline search logic
+      const doSearch = async () => {
+        try {
+          setIsSearchingUsers(true)
+          setHasSearchedUsers(true)
+          const response = await userService.searchUsers(userSearchQuery)
+          if (response?.success && response?.data) {
+            setUserSearchResults(response.data)
+          } else {
+            setUserSearchResults([])
+          }
+        } catch {
+          // Silent fail for debounced auto-search
+        } finally {
+          setIsSearchingUsers(false)
+        }
+      }
+      doSearch()
     }, 400)
 
     return () => {
