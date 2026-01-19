@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,8 +41,12 @@ export default function PublicHome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <Zap className="h-7 w-7 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">10xDev</span>
+              <img
+                src="/brand/10xDev-logo-fundo-preto.png"
+                alt="10xDev"
+                className="h-8 w-auto"
+              />
+              <span className="sr-only">10xDev</span>
             </div>
 
             <div className="flex items-center gap-2">

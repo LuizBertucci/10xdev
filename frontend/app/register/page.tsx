@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { getDefaultRoute } from '@/utils/routes'
-import { Zap, Code, Shield, TrendingUp, Eye, EyeOff } from 'lucide-react'
+import { Code, Shield, TrendingUp, Eye, EyeOff } from 'lucide-react'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -86,9 +86,11 @@ export default function RegisterPage() {
         <div className="max-w-md space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-full border-2 border-white flex items-center justify-center">
-              <Zap className="w-8 h-8" />
-            </div>
+            <img
+              src="/brand/10xDev-logo-fundo-preto.png"
+              alt="10xDev"
+              className="h-20 w-auto rounded-md shadow-sm"
+            />
           </div>
 
           {/* Título */}

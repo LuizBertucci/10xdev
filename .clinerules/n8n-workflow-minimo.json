@@ -1,0 +1,270 @@
+{
+  "name": "Pexels Video Loop (Minimo)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = 'run_' + new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);\nconst baseDir = $env.RUNS_DIR || '/workspace';\nreturn [{\n  json: {\n    runId,\n    theme: 'technology business',\n    runDir: `${baseDir}/${runId}`,\n    audioDir: `${baseDir}/${runId}/audio`,\n    assetsDir: `${baseDir}/${runId}/assets_video`,\n    ttsDir: `${baseDir}/${runId}/tts_data`\n  }\n}];"
+      },
+      "id": "config",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "mkdir -p \"{{$json.runDir}}\" \"{{$json.audioDir}}\" \"{{$json.assetsDir}}\" \"{{$json.ttsDir}}\""
+      },
+      "id": "createFolders",
+      "name": "Create Folders",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    script_sections: [\n      'Section 1 - replace with your script section',\n      'Section 2 - replace with your script section'\n    ],\n    video_title: 'Why Pokemon Card Prices Soared Over the Years',\n    video_description: 'Understand the real drivers behind rising Pokemon card prices.',\n    video_tags: ['pokemon cards', 'tcg market', 'vintage pokemon']\n  }\n}];"
+      },
+      "id": "loadScriptJson",
+      "name": "Load Script JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const conf = $items('Config', 0, 0)[0]?.json;\nif (!conf) throw new Error('Config não disponível.');\nconst aiData = $json;\nconst scriptSections = aiData.script_sections || [];\nconst videoTitle = aiData.video_title || 'Untitled Video';\nconst videoDescription = aiData.video_description || '';\nconst videoTags = aiData.video_tags || [];\n\nreturn scriptSections.map((text, idx) => {\n  const index = idx + 1;\n  const pad = String(index).padStart(3, '0');\n  return {\n    json: {\n      runId: conf.runId,\n      theme: conf.theme,\n      runDir: conf.runDir,\n      audioDir: conf.audioDir,\n      assetsDir: conf.assetsDir,\n      ttsDir: conf.ttsDir,\n      idx: index,\n      pad,\n      text,\n      video_title: videoTitle,\n      video_description: videoDescription,\n      video_tags: videoTags,\n      voicePath: `${conf.audioDir}/voice_${pad}.wav`,\n      clipName: `${pad}.mp4`,\n      clipPath: `${conf.assetsDir}/${pad}.mp4`\n    }\n  };\n});"
+      },
+      "id": "prepSections",
+      "name": "Prep Sections",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return { search: `${$json.theme} ${$json.text}`.slice(0, 80) };"
+      },
+      "id": "buildSearch",
+      "name": "Build Search",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1410,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.pexels.com/videos/search",
+        "method": "GET",
+        "responseFormat": "json",
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "query",
+              "value": "={{$json.search}}"
+            },
+            {
+              "name": "per_page",
+              "value": "1"
+            },
+            {
+              "name": "orientation",
+              "value": "landscape"
+            }
+          ]
+        },
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Authorization",
+              "value": "={{$env.PEXELS_API_KEY}}"
+            }
+          ]
+        }
+      },
+      "id": "pexelsSearch",
+      "name": "Pexels Search Videos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const v = $json.videos?.[0];\nif (!v) throw new Error('Nenhum vídeo do Pexels.');\nconst files = (v.video_files || []).filter(f => f.file_type === 'video/mp4');\nif (!files.length) throw new Error('Sem MP4.');\nfiles.sort((a, b) => (b.width || 0) - (a.width || 0));\nconst best = files[0];\nreturn { ...$json, mp4Url: best.link, mp4Width: best.width, mp4Height: best.height };"
+      },
+      "id": "pickMp4",
+      "name": "Pick MP4 URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.mp4Url}}",
+        "method": "GET",
+        "responseFormat": "file",
+        "dataPropertyName": "data"
+      },
+      "id": "downloadMp4",
+      "name": "Download MP4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "filePath": "={{$json.clipPath}}",
+        "dataPropertyName": "data"
+      },
+      "id": "writeFile",
+      "name": "Write MP4",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Create Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Folders": {
+      "main": [
+        [
+          {
+            "node": "Load Script JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Script JSON": {
+      "main": [
+        [
+          {
+            "node": "Prep Sections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Sections": {
+      "main": [
+        [
+          {
+            "node": "Build Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Search": {
+      "main": [
+        [
+          {
+            "node": "Pexels Search Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pexels Search Videos": {
+      "main": [
+        [
+          {
+            "node": "Pick MP4 URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick MP4 URL": {
+      "main": [
+        [
+          {
+            "node": "Download MP4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download MP4": {
+      "main": [
+        [
+          {
+            "node": "Write MP4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "template": "pexels-video-loop-minimo"
+  }
+}
+

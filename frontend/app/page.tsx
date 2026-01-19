@@ -1,6 +1,5 @@
 "use client"
 
-import { Zap } from "lucide-react"
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { usePlatform } from "@/hooks/use-platform"
@@ -55,8 +54,12 @@ export default function DevPlatform() {
                   <div className="flex items-center space-x-4">
                     <SidebarTrigger />
                     <div className="flex items-center space-x-2">
-                      <Zap className="h-8 w-8 text-blue-600" />
-                      <span className="text-2xl font-bold text-gray-900">10xDev</span>
+                      <img
+                        src="/brand/10xDev-logo-fundo-preto.png"
+                        alt="10xDev"
+                        className="h-9 w-auto"
+                      />
+                      <span className="sr-only">10xDev</span>
                     </div>
                   </div>
                 </div>
