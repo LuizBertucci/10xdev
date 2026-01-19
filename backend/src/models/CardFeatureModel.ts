@@ -962,28 +962,28 @@ export class CardFeatureModel {
         created_at: new Date().toISOString()
       }))
 
-      const { error: insertError } = await executeQuery(
+      const { data: insertedShares, error: insertError } = await executeQuery(
         supabaseAdmin
           .from('card_shares')
-          .insert(shares)
+          .upsert(shares, {
+            onConflict: 'card_feature_id,shared_with_user_id',
+            ignoreDuplicates: true
+          })
+          .select('id')
       )
 
       if (insertError) {
-        // Se erro for de duplicata, não é crítico
-        const isDuplicateError = insertError.code === '23505'
-        if (!isDuplicateError) {
-          console.error('Erro ao inserir card_shares:', insertError)
-          return {
-            success: false,
-            error: 'Erro ao compartilhar card',
-            statusCode: 500
-          }
+        console.error('Erro ao inserir card_shares:', insertError)
+        return {
+          success: false,
+          error: 'Erro ao compartilhar card',
+          statusCode: 500
         }
       }
 
       return {
         success: true,
-        data: { sharedWith: userIds.length },
+        data: { sharedWith: insertedShares?.length ?? 0 },
         statusCode: 200
       }
     } catch (error: any) {

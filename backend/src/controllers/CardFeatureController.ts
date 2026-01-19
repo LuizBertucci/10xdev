@@ -589,7 +589,7 @@ export class CardFeatureController {
       res.status(200).json({ 
         success: true, 
         data: result.data,
-        message: `Card compartilhado com ${userIds.length} usuário(s)`
+        message: `Card compartilhado com ${result.data?.sharedWith ?? userIds.length} usuário(s)`
       })
     } catch (error) {
       console.error('Erro no controller shareCard:', error)
