@@ -889,6 +889,49 @@ export class CardFeatureModel {
     }
   }
 
+  static async bulkDeleteByUser(ids: string[], userId: string): Promise<ModelResult<{ deletedCount: number }>> {
+    try {
+      // Buscar apenas os cards que pertencem ao usuário
+      const { data: ownedCards } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('id')
+          .in('id', ids)
+          .eq('created_by', userId)
+      )
+
+      const ownedIds = ownedCards?.map((c: any) => c.id) || []
+
+      if (ownedIds.length === 0) {
+        return {
+          success: true,
+          data: { deletedCount: 0 },
+          statusCode: 200
+        }
+      }
+
+      // Deletar apenas os cards próprios
+      const { count } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .delete({ count: 'exact' })
+          .in('id', ownedIds)
+      )
+
+      return {
+        success: true,
+        data: { deletedCount: count || 0 },
+        statusCode: 200
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
   // ================================================
   // SHARING (compartilhamento de cards privados)
   // ================================================
