@@ -85,6 +85,11 @@ npm run dev
 | PUT | `/api/examples/:id` | Update example |
 | DELETE | `/api/examples/:id` | Delete example |
 
+## Admin Home
+
+A tela inicial já vem como um painel “Admin”, com cards de status, acesso rápido
+ao fluxo de autenticação e um bloco destacando o endpoint de exemplo.
+
 ## Adding New Features
 
 ### New Entity
