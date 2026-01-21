@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2, AlertTriangle } from "lucide-react"
+import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2, AlertTriangle, Download } from "lucide-react"
 import { projectService, type Project, type GithubRepoInfo } from "@/services"
 import { toast } from "sonner"
 import { useProjectImportJobs } from "@/hooks/useProjectImportJobs"
@@ -329,6 +329,20 @@ export default function Projects({ platformState }: ProjectsProps) {
               Novo Projeto
             </Button>
           </DialogTrigger>
+          <Button
+            variant="outline"
+            className="ml-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+            onClick={() => {
+              const link = document.createElement('a')
+              link.href = '/templates/starter-template.zip'
+              link.download = 'starter-template.zip'
+              link.click()
+              toast.success('Download do template iniciado!')
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Baixar Template
+          </Button>
           <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>Criar Novo Projeto</DialogTitle>
