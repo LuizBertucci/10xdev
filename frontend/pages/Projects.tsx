@@ -8,6 +8,7 @@ import { Plus, Search, Trash2, Loader2, AlertTriangle, ChevronRight } from "luci
 import { projectService, templateService, type Project, type ProjectTemplate } from "@/services"
 import { toast } from "sonner"
 import { useProjectImportJobs } from "@/hooks/useProjectImportJobs"
+import { useAuth } from "@/hooks/useAuth"
 import { defaultMessage } from "@/lib/importJobUtils"
 import { createClient } from "@/lib/supabase"
 import { TemplateCard } from "@/components/TemplateCard"
@@ -34,6 +35,7 @@ interface ProjectsProps {
 
 export default function Projects({ platformState }: ProjectsProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -220,6 +222,32 @@ export default function Projects({ platformState }: ProjectsProps) {
     setIsDeleteDialogOpen(true)
   }
 
+  const handleLeaveProject = async (project: Project) => {
+    if (!user?.id) {
+      toast.error('Usuário não autenticado')
+      return
+    }
+
+    const confirmed = window.confirm(`Sair do projeto "${project.name}"?`)
+    if (!confirmed) return
+
+    try {
+      const response = await projectService.removeMember(project.id, user.id)
+      if (!response) {
+        toast.error('Nenhuma resposta do servidor ao sair do projeto.')
+        return
+      }
+      if (response.success) {
+        toast.success('Você saiu do projeto')
+        loadProjects()
+      } else {
+        toast.error(response.error || 'Erro ao sair do projeto')
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao sair do projeto')
+    }
+  }
+
   const handleConfirmDelete = async () => {
     if (!projectToDelete) return
     try {
@@ -361,6 +389,7 @@ export default function Projects({ platformState }: ProjectsProps) {
                 project={project}
                 onClick={() => handleProjectClick(project.id)}
                 onDelete={openDeleteDialog}
+                onLeave={handleLeaveProject}
                 isImporting={hasRunningImport(project.id)}
                 importProgress={importInfo?.progress}
                 importTooltip={defaultMessage(importInfo?.step ?? "")}

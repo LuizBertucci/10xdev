@@ -716,23 +716,27 @@ export class ProjectModel {
 
   static async removeMember(projectId: string, memberUserId: string, userId: string): Promise<ModelResult<null>> {
     try {
-      // Verificar permissão (owner ou admin)
-      const userRole = await this.getUserRole(projectId, userId)
-      if (!userRole || (userRole !== ProjectMemberRole.OWNER && userRole !== ProjectMemberRole.ADMIN)) {
-        return {
-          success: false,
-          error: 'Você não tem permissão para remover membros',
-          statusCode: 403
-        }
-      }
-
-      // Não permitir remover owner
+      const isSelfRemoval = memberUserId === userId
       const memberRole = await this.getUserRole(projectId, memberUserId)
+
+      // Não permitir remover/sair como owner
       if (memberRole === ProjectMemberRole.OWNER) {
         return {
           success: false,
           error: 'Não é possível remover o owner do projeto',
           statusCode: 400
+        }
+      }
+
+      if (!isSelfRemoval) {
+        // Verificar permissão (owner ou admin) para remover terceiros
+        const userRole = await this.getUserRole(projectId, userId)
+        if (!userRole || (userRole !== ProjectMemberRole.OWNER && userRole !== ProjectMemberRole.ADMIN)) {
+          return {
+            success: false,
+            error: 'Você não tem permissão para remover membros',
+            statusCode: 403
+          }
         }
       }
 
