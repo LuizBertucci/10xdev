@@ -45,6 +45,8 @@ const IMPORT_INSTRUCTIONS = [
   'Retorne APENAS JSON válido com a chave "cards".'
 ].join('\n')
 
+const IMPORT_INSTRUCTIONS_ROWS = IMPORT_INSTRUCTIONS.split('\n').length + 14
+
 interface PlatformState {
   setActiveTab?: (tab: string) => void
 }
@@ -284,8 +286,8 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                         id="import-instructions"
                         value={IMPORT_INSTRUCTIONS}
                         readOnly
-                        rows={10}
-                        className="bg-gray-50 border-gray-200 text-xs resize-none min-h-[320px] outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none"
+                        rows={IMPORT_INSTRUCTIONS_ROWS}
+                        className="bg-gray-50 border-gray-200 text-xs resize-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none"
                       />
                     </div>
 
