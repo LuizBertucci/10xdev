@@ -19,6 +19,32 @@ import { projectService, type GithubRepoInfo } from "@/services"
 import { toast } from "sonner"
 import { IMPORT_JOB_LS_KEY } from "@/lib/importJobUtils"
 
+const IMPORT_INSTRUCTIONS = [
+  'Você é um arquiteto de software especializado em organizar código.',
+  '',
+  '## Tarefa',
+  'Organize os arquivos em "cards" por funcionalidade de negócio.',
+  '',
+  '## Regras',
+  '- 1 card = 1 feature coesa (ex: Autenticação, Usuários, Pagamentos)',
+  '- Agrupe arquivos relacionados mesmo de camadas diferentes',
+  '- Cada card tem múltiplas "screens" organizadas por camada técnica',
+  '',
+  '## Formato de Saída',
+  '- title: Nome descritivo em português (ex: "Sistema de Autenticação")',
+  '- description: O que a funcionalidade FAZ (não liste arquivos)',
+  '- screens[].name: Nome da camada (ex: "Backend - Controller")',
+  '- screens[].files: Paths EXATOS dos arquivos da lista fornecida',
+  '',
+  '## Exemplos de Bons Títulos',
+  '- "Sistema de Autenticação" (não "Auth")',
+  '- "Gerenciamento de Usuários" (não "User")',
+  '- "Processamento de Pagamentos" (não "Payment")',
+  '',
+  '## Saída',
+  'Retorne APENAS JSON válido com a chave "cards".'
+].join('\n')
+
 interface PlatformState {
   setActiveTab?: (tab: string) => void
 }
@@ -202,15 +228,15 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
           Novo Projeto
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Criar Novo Projeto</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto pr-1">
-          <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:gap-6 md:items-stretch">
-              <div className="flex flex-col gap-3 md:w-1/2">
+        <div className="flex-1 min-h-0 overflow-hidden pr-1">
+          <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 h-[60vh] overflow-hidden">
+            <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-6 md:items-stretch">
+              <div className="flex h-full min-h-0 flex-col gap-3 md:w-1/2 overflow-y-auto pr-2">
                 <Tabs value={leftTab} onValueChange={(value) => setLeftTab(value as "create" | "import")}>
                   <TabsList className="grid w-full grid-cols-2 mb-4 h-9">
                     <TabsTrigger value="create" className="text-xs font-semibold">
@@ -224,11 +250,11 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                   <TabsContent value="create" className="space-y-3 mt-0 min-h-[240px]">
                     <div>
                       <Label htmlFor="name" className="block text-xs font-medium text-gray-600 mb-1.5">Nome do Projeto *</Label>
-                      <Input id="name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Ex: E-commerce Completo" className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm" />
+                      <Input id="name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Ex: E-commerce Completo" className="h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" />
                     </div>
                     <div className="flex-1 flex flex-col">
                       <Label htmlFor="description" className="block text-xs font-medium text-gray-600 mb-1.5">Descrição</Label>
-                      <Textarea id="description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} placeholder="Descreva o objetivo do projeto..." rows={4} className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-xs resize-none" />
+                      <Textarea id="description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} placeholder="Descreva o objetivo do projeto..." rows={4} className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-xs resize-none" />
                     </div>
                   </TabsContent>
 
@@ -241,7 +267,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                       <div>
                         <Label htmlFor="github-url" className="block text-xs font-medium text-gray-600 mb-1.5">URL do Repositório *</Label>
                         <div className="flex gap-2">
-                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm" autoComplete="off" />
+                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" autoComplete="off" />
                           <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-9 px-3">
                             {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
@@ -249,9 +275,19 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                       </div>
                       <div>
                         <Label htmlFor="github-token" className="block text-xs font-medium text-gray-600 mb-1.5">Token de Acesso (opcional)</Label>
-                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm" autoComplete="new-password" />
+                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" autoComplete="new-password" />
                         <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
                       </div>
+                    <div>
+                      <Label htmlFor="import-instructions" className="block text-xs font-medium text-gray-600 mb-1.5">Instruções para Importação</Label>
+                      <Textarea
+                        id="import-instructions"
+                        value={IMPORT_INSTRUCTIONS}
+                        readOnly
+                        rows={10}
+                        className="bg-gray-50 border-gray-200 text-xs resize-y min-h-[220px] outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none"
+                      />
+                    </div>
 
                       {githubRepoInfo && (
                         <div className="rounded-lg bg-green-50 p-4 border-2 border-green-200">
@@ -268,11 +304,11 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                 </Tabs>
               </div>
 
-              <div className="md:w-1/2 md:flex md:flex-col">
-                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white md:flex-1 md:flex md:flex-col">
+              <div className="md:w-1/2 md:flex md:flex-col h-full min-h-0">
+                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white h-full min-h-0 md:flex-1 md:flex md:flex-col">
                   <div>
                     <Label htmlFor="member-email" className="block text-xs font-medium text-gray-600 mb-1.5">Email do membro (opcional)</Label>
-                    <Input id="member-email" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" className="h-9 bg-white border-blue-300 text-sm shadow-sm" />
+                    <Input id="member-email" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" className="h-9 bg-white border-blue-300 text-sm shadow-sm outline-none focus:outline-none focus-visible:outline-none focus:border-blue-300 focus-visible:border-blue-300 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none" />
                     <p className="text-xs text-gray-500 mt-2">Se o email existir no sistema, o usuário será adicionado ao projeto.</p>
                   </div>
                 </div>
