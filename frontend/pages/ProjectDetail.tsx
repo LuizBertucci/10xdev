@@ -23,7 +23,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { usePlatform } from "@/hooks/use-platform"
@@ -58,8 +57,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState("")
+  const [savingName, setSavingName] = useState(false)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
 
   // User Search State
   const [userSearchQuery, setUserSearchQuery] = useState("")
@@ -117,6 +121,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       showStatus("success", "IA Grok ativada para importação de cards", { durationMs: 12000 })
     }
   }, [grokEnabled])
+
+  useEffect(() => {
+    if (project?.name && !isEditingName) {
+      setNameDraft(project.name)
+    }
+  }, [project?.name, isEditingName])
 
   // Listen for import job updates
   const lastCardsCreatedRef = useRef<number>(0)
@@ -547,6 +557,59 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     router.push(`/?${params.toString()}`)
   }
 
+  const startEditName = () => {
+    if (!canManageMembers) return
+    setNameDraft(project?.name || "")
+    setIsEditingName(true)
+    requestAnimationFrame(() => {
+      nameInputRef.current?.focus()
+      nameInputRef.current?.select()
+    })
+  }
+
+  const cancelEditName = () => {
+    setNameDraft(project?.name || "")
+    setIsEditingName(false)
+  }
+
+  const saveProjectName = async () => {
+    if (!projectId) return
+    const trimmed = nameDraft.trim()
+    if (!trimmed) {
+      toast.error("Nome do projeto é obrigatório")
+      return
+    }
+    if (trimmed === project?.name) {
+      setIsEditingName(false)
+      return
+    }
+    try {
+      setSavingName(true)
+      const response = await projectService.update(projectId, { name: trimmed })
+      if (response?.success) {
+        setProject((prev) => {
+          if (!prev) return response.data || prev
+          if (!response.data) return { ...prev, name: trimmed }
+          return {
+            ...prev,
+            ...response.data,
+            userRole: prev.userRole,
+            memberCount: prev.memberCount,
+            cardCount: prev.cardCount,
+            cardsCreatedCount: prev.cardsCreatedCount
+          }
+        })
+        setIsEditingName(false)
+      } else {
+        showStatus("error", response?.error || "Erro ao atualizar nome")
+      }
+    } catch (error: any) {
+      showStatus("error", error?.message || "Erro ao atualizar nome")
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   useEffect(() => {
     if (isAddCardDialogOpen) {
       loadAvailableCards()
@@ -646,23 +709,63 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
 
       {/* Header */}
-      <div className="relative flex items-start justify-between gap-4">
+      <div className="relative flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
-              {project.name}
-            </h1>
-            {project.userRole && (
-              <Badge
-                variant={project.userRole === "owner" ? "default" : "secondary"}
-                className="shrink-0"
-              >
-                {project.userRole === "owner"
-                  ? "Owner"
-                  : project.userRole === "admin"
-                    ? "Admin"
-                    : "Member"}
-              </Badge>
+          <div className="flex items-center gap-2 min-w-0 group">
+            {isEditingName ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <Input
+                  ref={nameInputRef}
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      saveProjectName()
+                    } else if (e.key === "Escape") {
+                      e.preventDefault()
+                      cancelEditName()
+                    }
+                  }}
+                  disabled={savingName}
+                  className="h-9 w-full max-w-[320px] sm:max-w-[360px] text-sm sm:text-base font-semibold"
+                />
+                <Button
+                  size="sm"
+                  onClick={saveProjectName}
+                  disabled={savingName}
+                  className="h-8 px-3"
+                >
+                  Salvar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={cancelEditName}
+                  disabled={savingName}
+                  className="h-8 px-3"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate leading-tight">
+                  <span className="text-gray-900 font-bold">Projeto:</span>{" "}
+                  {project.name}
+                </h1>
+                {canManageMembers && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={startEditName}
+                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Renomear projeto"
+                  >
+                    <Pencil className="h-4 w-4 text-gray-500" />
+                  </Button>
+                )}
+              </>
             )}
           </div>
 
@@ -673,25 +776,58 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           )}
         </div>
 
-        {/* Ações - Menu dropdown */}
-        {project.userRole === "owner" && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={handleDeleteProject}
-                className="text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Deletar Projeto
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {/* Busca inline no desktop */}
+        <div className="hidden lg:flex flex-1 justify-center px-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Input
+              placeholder="Buscar cards..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-9 w-full pl-9 text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Ações */}
+        <div className="flex items-center gap-2 flex-row-reverse">
+          <Button
+            size="sm"
+            onClick={() => setIsAddCardDialogOpen(true)}
+            className="h-8 px-3 whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Adicionar Card</span>
+          </Button>
+          {project.userRole && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsMembersDialogOpen(true)}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Editar membros
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsEditMode(!isEditMode)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  {isEditMode ? "Sair do modo de edição" : "Editar lista"}
+                </DropdownMenuItem>
+                {project.userRole === "owner" && (
+                  <DropdownMenuItem
+                    onClick={handleDeleteProject}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar Projeto
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
 
       {/* Import Progress Banner - Sticky between Header and Tabs */}
@@ -769,223 +905,116 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Tabs */}
-      <Tabs defaultValue="cards" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="cards">Cards</TabsTrigger>
-          <TabsTrigger value="members">Membros</TabsTrigger>
-        </TabsList>
+      {/* Cards do Projeto */}
+      <div className="space-y-3">
+        {/* Busca em linha separada (melhor no mobile) */}
+        <div className="relative mb-4 lg:hidden">
+          <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Input
+            placeholder="Buscar cards..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9"
+          />
+        </div>
 
-        {/* Tab Cards */}
-        <TabsContent value="cards">
-          {/* Header dos Cards - Seguindo padrão da tela de Códigos */}
-          <div className="space-y-3 mb-4">
-            {/* Título + Ações na mesma linha */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Cards do Projeto</h2>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={isEditMode ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setIsEditMode(!isEditMode)}
-                  title={isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                >
-                  <Pencil
-                    className={`h-4 w-4 ${isEditMode ? "text-blue-600" : "text-gray-500"}`}
+        {loadingCards ? (
+          <p className="text-gray-500 text-center py-8">Carregando...</p>
+        ) : filteredCards.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
+        ) : (
+          <div className="space-y-4">
+            {filteredCards.map(({ cardFeature, projectCard }, index) => {
+              const isFirst = index === 0
+              const isLast = index === filteredCards.length - 1
+
+              return (
+                <div key={cardFeature.id} className="relative group">
+                  <CardFeatureCompact
+                    snippet={cardFeature}
+                    onEdit={() => {}} // Não permitir editar aqui
+                    onDelete={() => {}} // Não permitir deletar aqui
                   />
-                </Button>
+
+                  {/* Painel flutuante de ações (apenas no modo de edição) */}
+                  {isEditMode && (
+                    <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleReorderCard(cardFeature.id, "up")
+                        }}
+                        disabled={isFirst}
+                        className="h-7 w-7 p-0"
+                        title="Mover para cima"
+                      >
+                        <ChevronUp
+                          className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
+                        />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleReorderCard(cardFeature.id, "down")
+                        }}
+                        disabled={isLast}
+                        className="h-7 w-7 p-0"
+                        title="Mover para baixo"
+                      >
+                        <ChevronDown
+                          className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
+                        />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (projectCard) {
+                            handleRemoveCard(projectCard.cardFeatureId)
+                          }
+                        }}
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        title="Remover do projeto"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            
+            {/* Botão "Carregar mais cards" */}
+            {hasMoreCards && (
+              <div className="flex justify-center pt-4">
                 <Button
-                  size="sm"
-                  onClick={() => setIsAddCardDialogOpen(true)}
-                  className="h-8 px-3 whitespace-nowrap"
+                  variant="outline"
+                  onClick={loadMoreCards}
+                  disabled={loadingMoreCards}
+                  className="min-w-[200px]"
                 >
-                  <Plus className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Adicionar Card</span>
+                  {loadingMoreCards ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      Carregar mais cards
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
                 </Button>
               </div>
-            </div>
-
-            {/* Busca em linha separada (melhor no mobile) */}
-            <div className="relative">
-              <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                placeholder="Buscar cards..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9"
-              />
-            </div>
+            )}
           </div>
-
-          {loadingCards ? (
-            <p className="text-gray-500 text-center py-8">Carregando...</p>
-          ) : filteredCards.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
-          ) : (
-            <div className="space-y-4">
-              {filteredCards.map(({ cardFeature, projectCard }, index) => {
-                const isFirst = index === 0
-                const isLast = index === filteredCards.length - 1
-
-                return (
-                  <div key={cardFeature.id} className="relative group">
-                    <CardFeatureCompact
-                      snippet={cardFeature}
-                      onEdit={() => {}} // Não permitir editar aqui
-                      onDelete={() => {}} // Não permitir deletar aqui
-                    />
-
-                    {/* Painel flutuante de ações (apenas no modo de edição) */}
-                    {isEditMode && (
-                      <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleReorderCard(cardFeature.id, "up")
-                          }}
-                          disabled={isFirst}
-                          className="h-7 w-7 p-0"
-                          title="Mover para cima"
-                        >
-                          <ChevronUp
-                            className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
-                          />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleReorderCard(cardFeature.id, "down")
-                          }}
-                          disabled={isLast}
-                          className="h-7 w-7 p-0"
-                          title="Mover para baixo"
-                        >
-                          <ChevronDown
-                            className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
-                          />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            if (projectCard) {
-                              handleRemoveCard(projectCard.cardFeatureId)
-                            }
-                          }}
-                          className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          title="Remover do projeto"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-              
-              {/* Botão "Carregar mais cards" */}
-              {hasMoreCards && (
-                <div className="flex justify-center pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={loadMoreCards}
-                    disabled={loadingMoreCards}
-                    className="min-w-[200px]"
-                  >
-                    {loadingMoreCards ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Carregando...
-                      </>
-                    ) : (
-                      <>
-                        Carregar mais cards
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Tab Membros */}
-        <TabsContent value="members">
-          {/* Header dos Membros - Mesmo padrão */}
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Membros do Projeto</h2>
-              {canManageMembers && (
-                <Button
-                  size="sm"
-                  onClick={() => setIsAddMemberDialogOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Adicionar</span>
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Lista de Membros - Direto sem container */}
-          {loadingMembers ? (
-            <p className="text-gray-500 text-center py-8">Carregando...</p>
-          ) : members.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Nenhum membro adicionado</p>
-          ) : (
-            <div className="space-y-3">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm"
-                >
-                  <div className="flex items-center space-x-3 min-w-0">
-                    {member.user?.avatarUrl ? (
-                      <img
-                        src={member.user.avatarUrl}
-                        alt={member.user.name || member.user.email}
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm sm:text-base truncate">
-                        {member.user?.name || member.user?.email}
-                      </p>
-                      {member.user?.name && (
-                        <p className="text-xs sm:text-sm text-gray-500 truncate">
-                          {member.user.email}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Badge
-                    variant={member.role === "owner" ? "default" : "secondary"}
-                    className="flex-shrink-0 text-xs"
-                  >
-                    {member.role === "owner"
-                      ? "Owner"
-                      : member.role === "admin"
-                        ? "Admin"
-                        : "Member"}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       {/* Dialog Adicionar Card */}
       <Dialog open={isAddCardDialogOpen} onOpenChange={setIsAddCardDialogOpen}>
@@ -1020,6 +1049,81 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </Button>
             <Button onClick={handleAddCard}>Adicionar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Membros */}
+      <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Membros do Projeto</DialogTitle>
+            <DialogDescription>
+              Visualize quem participa e adicione novos membros.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Lista de membros</h3>
+              <Button
+                size="sm"
+                onClick={() => setIsAddMemberDialogOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Adicionar</span>
+              </Button>
+            </div>
+
+            {loadingMembers ? (
+              <p className="text-gray-500 text-center py-6">Carregando...</p>
+            ) : members.length === 0 ? (
+              <p className="text-gray-500 text-center py-6">Nenhum membro adicionado</p>
+            ) : (
+              <div className="space-y-3">
+                {members.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-3 sm:p-4 bg-white border rounded-lg shadow-sm"
+                  >
+                    <div className="flex items-center space-x-3 min-w-0">
+                      {member.user?.avatarUrl ? (
+                        <img
+                          src={member.user.avatarUrl}
+                          alt={member.user.name || member.user.email}
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <Users className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm sm:text-base truncate">
+                          {member.user?.name || member.user?.email}
+                        </p>
+                        {member.user?.name && (
+                          <p className="text-xs sm:text-sm text-gray-500 truncate">
+                            {member.user.email}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge
+                      variant={member.role === "owner" ? "default" : "secondary"}
+                      className="flex-shrink-0 text-xs"
+                    >
+                      {member.role === "owner"
+                        ? "Owner"
+                        : member.role === "admin"
+                          ? "Admin"
+                          : "Member"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
