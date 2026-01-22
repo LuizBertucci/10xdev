@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import { ProjectSummary } from "@/components/ProjectSummary"
 import { usePlatform } from "@/hooks/use-platform"
 
 interface PlatformState {
@@ -380,6 +381,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     await loadCards(false, true)
   }
 
+
   const loadAvailableCards = async () => {
     try {
       const response = await cardFeatureService.getAll({ limit: 100 })
@@ -625,14 +627,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }, [isAddMemberDialogOpen])
 
-  if (loading || !project) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Carregando projeto...</p>
-      </div>
-    )
-  }
-
   // Deduplicate cardFeatures by id to avoid duplicate keys
   const uniqueCardFeatures = Array.from(
     new Map(cardFeatures.map(f => [f.id, f])).values()
@@ -650,7 +644,14 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     )
 
-  const canManageMembers = project.userRole === 'owner' || project.userRole === 'admin'
+  const canManageMembers = project?.userRole === 'owner' || project?.userRole === 'admin'
+  if (loading || !project) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Carregando projeto...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto px-2 sm:px-0">
@@ -917,6 +918,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             className="w-full pl-9"
           />
         </div>
+
+        <ProjectSummary projectId={projectId} cardFeatures={uniqueCardFeatures} />
 
         {loadingCards ? (
           <p className="text-gray-500 text-center py-8">Carregando...</p>
