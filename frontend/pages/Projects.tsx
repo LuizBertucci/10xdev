@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2, AlertTriangle } from "lucide-react"
+import { Plus, Search, Trash2, Github, Loader2, AlertTriangle } from "lucide-react"
 import { projectService, templateService, type Project, type GithubRepoInfo, type ProjectTemplate } from "@/services"
 import { toast } from "sonner"
 import { useProjectImportJobs } from "@/hooks/useProjectImportJobs"
@@ -14,6 +13,7 @@ import { IMPORT_JOB_LS_KEY, defaultMessage } from "@/lib/importJobUtils"
 import { createClient } from "@/lib/supabase"
 import { TemplateCard } from "@/components/TemplateCard"
 import { TemplateForm } from "@/components/TemplateForm"
+import { ProjectCard } from "@/components/ProjectCard"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -370,8 +370,7 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
-  const openDeleteDialog = (project: Project, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const openDeleteDialog = (project: Project) => {
     const importInfo = getImportInfo(project.id)
     if (importInfo) {
       toast.error(`Importação em andamento (${importInfo.progress}%). Aguarde a conclusão para excluir este projeto.`)
@@ -628,60 +627,20 @@ export default function Projects({ platformState }: ProjectsProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((project) => (
-            <Card
-              key={project.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleProjectClick(project.id)}
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle>{project.name}</CardTitle>
-                    {project.description && (
-                      <CardDescription className="mt-2">{project.description}</CardDescription>
-                    )}
-                  </div>
-                  {project.userRole === 'owner' && (
-                    hasRunningImport(project.id) ? (
-                      <div className="ml-2 flex items-center gap-2" title={defaultMessage(getImportInfo(project.id)?.step ?? '')}>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                        <span className="text-xs text-gray-600">{getImportInfo(project.id)?.progress}%</span>
-                      </div>
-                    ) : (
-                      <Button variant="ghost" size="sm" onClick={(e) => openDeleteDialog(project, e)} className="ml-2">
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    )
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-4 w-4" />
-                      <span>{project.memberCount || 0}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <FileCode className="h-4 w-4" />
-                      <span>{project.cardCount || 0}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{new Date(project.createdAt).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                  </div>
-                  {project.userRole && (
-                    <Badge variant={project.userRole === 'owner' ? 'default' : 'secondary'}>
-                      {project.userRole === 'owner' ? 'Owner' : 
-                       project.userRole === 'admin' ? 'Admin' : 'Member'}
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {projects.map((project) => {
+            const importInfo = getImportInfo(project.id)
+            return (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onClick={() => handleProjectClick(project.id)}
+                onDelete={openDeleteDialog}
+                isImporting={hasRunningImport(project.id)}
+                importProgress={importInfo?.progress}
+                importTooltip={defaultMessage(importInfo?.step ?? "")}
+              />
+            )
+          })}
         </div>
       )}
 
