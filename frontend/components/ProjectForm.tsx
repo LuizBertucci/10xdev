@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Github, Loader2, Plus, Search } from "lucide-react"
 import { projectService, type GithubRepoInfo } from "@/services"
@@ -34,7 +33,6 @@ interface ProjectFormProps {
 
 export function ProjectForm({ open, onOpenChange, platformState, onSaved }: ProjectFormProps) {
   const router = useRouter()
-  const [createDialogTab, setCreateDialogTab] = useState<"manual" | "github">("manual")
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectDescription, setNewProjectDescription] = useState("")
   const [creating, setCreating] = useState(false)
@@ -47,6 +45,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
   const [useAiImport, setUseAiImport] = useState(false)
   const [memberEmailToAdd, setMemberEmailToAdd] = useState("")
+  const hasGithubUrl = githubUrl.trim().length > 0
 
   const isValidGithubUrl = (url: string): boolean => {
     try {
@@ -60,7 +59,6 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   }
 
   const resetForm = () => {
-    setCreateDialogTab("manual")
     setNewProjectName("")
     setNewProjectDescription("")
     setGithubUrl("")
@@ -214,58 +212,36 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-1">
-          <Tabs value={createDialogTab} onValueChange={(value) => setCreateDialogTab(value as "manual" | "github")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6 h-12">
-              <TabsTrigger value="manual" className="text-base">
-                <Plus className="h-4 w-4 mr-2" />
-                Manual
-              </TabsTrigger>
-              <TabsTrigger value="github" className="text-base">
-                <Github className="h-4 w-4 mr-2" />
-                Importar do GitHub
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="manual" className="space-y-5 mt-0">
-              <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 space-y-4">
-                <h3 className="font-semibold text-gray-900">Informações do Projeto</h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Nome do Projeto *</Label>
-                    <Input id="name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Ex: E-commerce Completo" className="mt-1.5 h-11" />
-                  </div>
-                  <div>
-                    <Label htmlFor="description">Descrição</Label>
-                    <Textarea id="description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} placeholder="Descreva o objetivo do projeto..." rows={4} className="mt-1.5 resize-none" />
-                  </div>
-                  <div>
-                    <Label htmlFor="member-email">Email do membro (opcional)</Label>
-                    <Input id="member-email" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" className="mt-1.5 h-11" />
-                    <p className="text-xs text-gray-500 mt-2">Se o email existir no sistema, o usuário será adicionado ao projeto.</p>
-                  </div>
+          <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Informações do Projeto</h3>
+            <div className="flex flex-col gap-3 md:flex-row md:gap-6 md:items-stretch">
+              <div className="flex flex-col gap-3 md:w-1/2">
+                <div>
+                  <Label htmlFor="name" className="block text-xs font-medium text-gray-600 mb-1.5">Nome do Projeto *</Label>
+                  <Input id="name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Ex: E-commerce Completo" className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm" />
                 </div>
-              </div>
-            </TabsContent>
+                <div className="flex-1 flex flex-col">
+                  <Label htmlFor="description" className="block text-xs font-medium text-gray-600 mb-1.5">Descrição</Label>
+                  <Textarea id="description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} placeholder="Descreva o objetivo do projeto..." rows={4} className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-xs resize-none" />
+                </div>
 
-            <TabsContent value="github" className="space-y-5 mt-0">
-              <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 space-y-4">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Github className="h-4 w-4" />
-                  Repositório GitHub
-                </h3>
-                <div className="space-y-4">
+                <div className="space-y-3 border border-gray-200 rounded-lg p-3 bg-white">
+                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <Github className="h-4 w-4" />
+                    Repositório GitHub
+                  </h3>
                   <div>
-                    <Label htmlFor="github-url">URL do Repositório *</Label>
-                    <div className="flex gap-2 mt-1.5">
-                      <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-11" autoComplete="off" />
-                      <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-11 px-4">
+                    <Label htmlFor="github-url" className="block text-xs font-medium text-gray-600 mb-1.5">URL do Repositório *</Label>
+                    <div className="flex gap-2">
+                      <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm" autoComplete="off" />
+                      <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-9 px-3">
                         {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="github-token">Token de Acesso (opcional)</Label>
-                    <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="mt-1.5 h-11" autoComplete="new-password" />
+                    <Label htmlFor="github-token" className="block text-xs font-medium text-gray-600 mb-1.5">Token de Acesso (opcional)</Label>
+                    <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm" autoComplete="new-password" />
                     <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
                   </div>
 
@@ -279,47 +255,51 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                     </div>
                   )}
                 </div>
+
+                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white">
+                  <h3 className="text-sm font-semibold text-gray-900">Configurações de Importação</h3>
+                  <div className="flex items-start gap-3 rounded-lg border-2 border-indigo-100 bg-indigo-50/50 p-4">
+                    <Checkbox id="use-ai-import" checked={useAiImport} onCheckedChange={(checked) => setUseAiImport(checked === true)} disabled={importingGithub} className="mt-1" />
+                    <div className="space-y-1 flex-1">
+                      <label htmlFor="use-ai-import" className="text-sm font-semibold leading-none text-indigo-900 cursor-pointer">Usar IA para organizar os cards</label>
+                      <p className="text-xs text-indigo-700 leading-relaxed">Opcional. Se falhar, a importação usa heurísticas.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 space-y-4">
-                <h3 className="font-semibold text-gray-900">Configurações de Importação</h3>
-                <div className="flex items-start gap-3 rounded-lg border-2 border-indigo-100 bg-indigo-50/50 p-4">
-                  <Checkbox id="use-ai-import" checked={useAiImport} onCheckedChange={(checked) => setUseAiImport(checked === true)} disabled={importingGithub} className="mt-1" />
-                  <div className="space-y-1 flex-1">
-                    <label htmlFor="use-ai-import" className="text-sm font-semibold leading-none text-indigo-900 cursor-pointer">Usar IA para organizar os cards</label>
-                    <p className="text-xs text-indigo-700 leading-relaxed">Opcional. Se falhar, a importação usa heurísticas.</p>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="member-email-github">Email do membro (opcional)</Label>
-                  <Input id="member-email-github" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" disabled={importingGithub} className="mt-1.5 h-11" />
-                </div>
-                <div className="space-y-4">
+              <div className="md:w-1/2 md:flex md:flex-col">
+                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white md:flex-1 md:flex md:flex-col">
                   <div>
-                    <Label htmlFor="github-name">Nome do Projeto *</Label>
-                    <Input id="github-name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} className="mt-1.5 h-11" />
-                  </div>
-                  <div>
-                    <Label htmlFor="github-description">Descrição</Label>
-                    <Textarea id="github-description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} rows={4} className="mt-1.5 resize-none" />
+                    <Label htmlFor="member-email" className="block text-xs font-medium text-gray-600 mb-1.5">Email do membro (opcional)</Label>
+                    <Input id="member-email" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" className="h-9 bg-white border-blue-300 text-sm shadow-sm" />
+                    <p className="text-xs text-gray-500 mt-2">Se o email existir no sistema, o usuário será adicionado ao projeto.</p>
                   </div>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
 
         <DialogFooter className="flex-shrink-0 border-t pt-6 mt-2 bg-white">
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={creating || importingGithub} className="h-11 px-6">Cancelar</Button>
-          {createDialogTab === "manual" ? (
-            <Button onClick={handleCreateProject} disabled={creating || !newProjectName.trim()} className="h-11 px-6">
-              {creating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</> : <><Plus className="h-4 w-4 mr-2" />Criar Projeto</>}
-            </Button>
-          ) : (
-            <Button onClick={handleImportFromGithub} disabled={importingGithub || !githubUrl.trim() || !newProjectName.trim()} className="h-11 px-6">
-              {importingGithub ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando...</> : <><Github className="h-4 w-4 mr-2" />Importar Projeto</>}
-            </Button>
-          )}
+          <Button
+            onClick={hasGithubUrl ? handleImportFromGithub : handleCreateProject}
+            disabled={creating || importingGithub || !newProjectName.trim() || (hasGithubUrl && !isValidGithubUrl(githubUrl))}
+            className="h-11 px-6"
+          >
+            {creating || importingGithub ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                {hasGithubUrl ? "Importando..." : "Criando..."}
+              </>
+            ) : (
+              <>
+                {hasGithubUrl ? <Github className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                {hasGithubUrl ? "Importar Projeto" : "Criar Projeto"}
+              </>
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
