@@ -28,6 +28,7 @@ router.get('/:id/members', ProjectController.getMembers)
 router.post('/:id/members', ProjectController.addMember)
 router.put('/:id/members/:userId', ProjectController.updateMember)
 router.delete('/:id/members/:userId', ProjectController.removeMember)
+router.post('/:id/share', ProjectController.shareProject)
 
 // CARDS MANAGEMENT
 router.get('/:id/cards', ProjectController.getCards)

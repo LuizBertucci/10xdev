@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, Filter, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, Plus, FileJson, Globe, Lock, Link2, User } from "lucide-react"
+import { Search, Filter, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, Plus, FileJson, Globe, Lock, Link2, User, Pencil, Trash2 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
@@ -16,6 +16,7 @@ import { ApprovalStatus, Visibility } from "@/types"
 import { useAuth } from "@/hooks/useAuth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { cardFeatureService } from "@/services"
+import { toast } from "sonner"
 
 interface PlatformState {
   activeTab?: string
@@ -65,6 +66,11 @@ export default function Codes({ platformState }: CodesProps) {
   const [selectedDirectoryTab, setSelectedDirectoryTab] = useState<string>('approved')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
+  
+  // Estados para seleção múltipla e bulk delete
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false)
 
   const selectedVisibility =
     selectedDirectoryTab === 'approved' || selectedDirectoryTab === 'validating'
@@ -225,6 +231,46 @@ export default function Codes({ platformState }: CodesProps) {
     }
   }
 
+  // Handler para ativar/desativar modo seleção
+  const handleToggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode)
+    setSelectedCardIds([])
+  }
+
+  // Handler para selecionar/desselecionar card
+  const handleToggleCardSelection = (cardId: string) => {
+    setSelectedCardIds(prev => 
+      prev.includes(cardId) 
+        ? prev.filter(id => id !== cardId)
+        : [...prev, cardId]
+    )
+  }
+
+  // Handler para deletar cards selecionados
+  const handleBulkDelete = async () => {
+    if (selectedCardIds.length === 0) return
+
+    try {
+      setIsDeletingBulk(true)
+      const response = await cardFeatureService.bulkDelete(selectedCardIds)
+      
+      if (response?.success) {
+        const deletedCount = response.data?.deletedCount || 0
+        toast.success(`${deletedCount} card(s) deletado(s) com sucesso`)
+        setSelectedCardIds([])
+        setIsSelectionMode(false)
+        cardFeatures.refreshData()
+      } else {
+        toast.error(response?.error || 'Erro ao deletar cards')
+      }
+    } catch (error) {
+      console.error('Erro no bulk delete:', error)
+      toast.error('Erro ao deletar cards')
+    } finally {
+      setIsDeletingBulk(false)
+    }
+  }
+
   // ================================================
   // RENDER - Interface do usuário da página
   // ================================================
@@ -237,18 +283,20 @@ export default function Codes({ platformState }: CodesProps) {
         {/* Breadcrumb Navigation */}
         <div className="flex items-center space-x-2 text-sm">
           <button
-            onClick={() => activePlatformState.setActiveTab && activePlatformState.setActiveTab("home")}
-            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            type="button"
+            onClick={() => router.push('/?tab=home')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início
           </button>
           <ChevronRight className="h-4 w-4 text-gray-400" />
           <button
+            type="button"
             onClick={() => {
               cardFeatures.setSelectedTech("all")
               cardFeatures.setSearchTerm("")
             }}
-            className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Blocos de Códigos
           </button>
@@ -303,13 +351,27 @@ export default function Codes({ platformState }: CodesProps) {
             </div>
           </div>
 
+          {/* Pencil Button (selection mode) - Only in unlisted/private tabs */}
+          {(selectedDirectoryTab === 'unlisted' || selectedDirectoryTab === 'private') && isProfileLoaded && isAuthed && (
+            <Button
+              onClick={handleToggleSelectionMode}
+              disabled={cardFeatures.loading}
+              size="sm"
+              variant={isSelectionMode ? "secondary" : "ghost"}
+              className={`flex-shrink-0 ${isSelectionMode ? 'bg-blue-100 text-blue-700' : 'text-gray-600'}`}
+              title={isSelectionMode ? "Sair do modo seleção" : "Selecionar cards"}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+
           {/* Create Button with Dropdown (admin only) */}
           <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
             isProfileLoaded && isAuthed ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
           }`}>
             <Button
                 onClick={cardFeatures.startCreating}
-                disabled={cardFeatures.loading || cardFeatures.creating}
+                disabled={cardFeatures.loading || cardFeatures.creating || isSelectionMode}
                 size="sm"
                 className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
               >
@@ -324,7 +386,7 @@ export default function Codes({ platformState }: CodesProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    disabled={cardFeatures.loading || cardFeatures.creating}
+                    disabled={cardFeatures.loading || cardFeatures.creating || isSelectionMode}
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
                   >
@@ -475,6 +537,9 @@ export default function Codes({ platformState }: CodesProps) {
                       handleDeleteClick(snippetId)
                     }}
                     onUpdate={cardFeatures.updateCardFeature}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedCardIds.includes(snippet.id)}
+                    onToggleSelect={handleToggleCardSelection}
                   />
 
                   {selectedDirectoryTab === 'validating' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (
@@ -491,6 +556,26 @@ export default function Codes({ platformState }: CodesProps) {
               )
             })}
           </div>
+
+          {/* Botão flutuante de deletar cards selecionados */}
+          {isSelectionMode && selectedCardIds.length > 0 && (
+            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 duration-300">
+              <div className="bg-white rounded-full shadow-2xl border-2 border-red-500 px-6 py-3 flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">
+                  {selectedCardIds.length} card(s) selecionado(s)
+                </span>
+                <Button
+                  onClick={handleBulkDelete}
+                  disabled={isDeletingBulk}
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white min-h-[44px] sm:min-h-0"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {isDeletingBulk ? 'Deletando...' : 'Deletar'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Controles de Paginação */}
           {cardFeatures.totalPages > 1 && (

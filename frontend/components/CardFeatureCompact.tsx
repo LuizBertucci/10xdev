@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock } from "lucide-react"
@@ -20,9 +21,12 @@ interface CardFeatureCompactProps {
   onDelete: (snippetId: string) => void
   onUpdate?: (id: string, data: Partial<CardFeatureType>) => Promise<any>
   className?: string
+  isSelectionMode?: boolean
+  isSelected?: boolean
+  onToggleSelect?: (id: string) => void
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect }: CardFeatureCompactProps) {
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -117,7 +121,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
   return (
     <TooltipProvider>
-      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${className || ''}`}>
+      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
         <CardContent className="p-3 md:p-4">
           {/* Layout Unificado - Vertical para mobile e desktop */}
           <div
@@ -125,37 +129,51 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
             onClick={handleCardClick}
           >
             <div className="space-y-2">
-              {/* Título com Menu */}
+              {/* Título com Checkbox e Menu */}
               <div className="flex items-start justify-between gap-2">
+                {/* Checkbox de seleção (modo seleção) */}
+                {isSelectionMode && onToggleSelect && (
+                  <div className="flex-shrink-0 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelect(snippet.id)}
+                      className="h-5 w-5 min-h-[44px] sm:min-h-0 touch-manipulation"
+                    />
+                  </div>
+                )}
+                
                 <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">
                   {snippet.title}
                 </h3>
-                {/* Menu ⋮ - Na altura do título */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDelete(snippet.id)}
-                      className="text-red-600"
-                      disabled={!canEdit}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                
+                {/* Menu ⋮ - Na altura do título (oculto em modo seleção) */}
+                {!isSelectionMode && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDelete(snippet.id)}
+                        className="text-red-600"
+                        disabled={!canEdit}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
 
               {/* Descrição (opcional) */}

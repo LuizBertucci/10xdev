@@ -13,7 +13,8 @@ import {
   type UpdateProjectRequest,
   type ProjectQueryParams,
   type AddProjectMemberRequest,
-  type UpdateProjectMemberRequest
+  type UpdateProjectMemberRequest,
+  type ShareProjectRequest
 } from '@/types/project'
 
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
@@ -55,7 +56,7 @@ export class ProjectController {
         return
       }
 
-      const { url, token, name, description, useAi, addMemberEmail }: ImportFromGithubRequest = req.body
+      const { url, token, name, description, useAi }: ImportFromGithubRequest = req.body
       const userId = req.user.id
 
       if (!url) {
@@ -88,12 +89,7 @@ export class ProjectController {
 
       const projectId = projectResult.data.id
 
-      // 3) Opcional: adicionar membro por email (best-effort)
-      if (addMemberEmail?.trim()) {
-        await this.tryAddMemberByEmail(projectId, addMemberEmail.trim(), userId)
-      }
-
-      // 4) Criar job e responder imediatamente
+      // 3) Criar job e responder imediatamente
       const job = await ImportJobModel.create({
         project_id: projectId,
         created_by: userId,
@@ -110,7 +106,7 @@ export class ProjectController {
         message: 'Importação iniciada.'
       })
 
-      // 5) Background processing
+      // 4) Background processing
       setImmediate(async () => {
         const updateJob = async (patch: {
           status?: 'running' | 'done' | 'error'
@@ -241,25 +237,6 @@ export class ProjectController {
     }
   }
 
-  private static async tryAddMemberByEmail(projectId: string, email: string, requesterId: string): Promise<void> {
-    const normalized = email.toLowerCase().trim()
-    if (!normalized) return
-
-    // Buscar usuário pela tabela users (perfil) - best-effort
-    const { data } = await executeQuery(
-      supabaseAdmin
-        .from('users')
-        .select('id, email')
-        .eq('email', normalized)
-        .maybeSingle()
-    )
-
-    const userIdToAdd = (data as any)?.id as string | undefined
-    if (!userIdToAdd || userIdToAdd === requesterId) return
-
-    await ProjectModel.addMember(projectId, { userId: userIdToAdd }, requesterId)
-  }
-  
   // ================================================
   // CREATE - POST /api/projects
   // ================================================
@@ -790,6 +767,142 @@ export class ProjectController {
       })
     } catch (error) {
       console.error('Erro no controller removeMember:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
+  // MEMBERS - POST /api/projects/:id/share
+  // ================================================
+
+  static async shareProject(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      const { id } = req.params
+      const payload: ShareProjectRequest = req.body
+
+      if (!id) {
+        res.status(400).json({
+          success: false,
+          error: 'ID do projeto é obrigatório'
+        })
+        return
+      }
+
+      const rawUserIds = Array.isArray(payload.userIds) ? payload.userIds.filter(Boolean) : []
+      const rawEmails = Array.isArray(payload.emails) ? payload.emails : []
+
+      const normalizedEmails = Array.from(
+        new Set(
+          rawEmails
+            .map((email) => (typeof email === 'string' ? email.toLowerCase().trim() : ''))
+            .filter(Boolean)
+        )
+      )
+
+      if (rawUserIds.length === 0 && normalizedEmails.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Informe ao menos um userId ou email'
+        })
+        return
+      }
+
+      const failed: Array<{ userIdOrEmail: string; error: string }> = []
+      const ignored: Array<{ userIdOrEmail: string; reason: string }> = []
+
+      const resolvedEmailIds: string[] = []
+      if (normalizedEmails.length > 0) {
+        const { data: emailUsers } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id, email')
+            .in('email', normalizedEmails)
+        )
+
+        const emailMap = new Map<string, string>()
+        emailUsers?.forEach((user: any) => {
+          if (user?.email && user?.id) {
+            emailMap.set(String(user.email).toLowerCase(), String(user.id))
+          }
+        })
+
+        normalizedEmails.forEach((email) => {
+          const foundId = emailMap.get(email)
+          if (foundId) {
+            resolvedEmailIds.push(foundId)
+          } else {
+            failed.push({ userIdOrEmail: email, error: 'email_not_found' })
+          }
+        })
+      }
+
+      const normalizedUserIds = Array.from(new Set(rawUserIds.map(String))).filter(Boolean)
+      let validUserIds: string[] = []
+      if (normalizedUserIds.length > 0) {
+        const { data: userRows } = await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .select('id')
+            .in('id', normalizedUserIds)
+        )
+
+        const validIdSet = new Set((userRows || []).map((row: any) => String(row.id)))
+        validUserIds = normalizedUserIds.filter((userId) => validIdSet.has(userId))
+        normalizedUserIds.forEach((userId) => {
+          if (!validIdSet.has(userId)) {
+            failed.push({ userIdOrEmail: userId, error: 'user_not_found' })
+          }
+        })
+      }
+
+      const requesterId = req.user.id
+      const combinedIds = Array.from(new Set([...validUserIds, ...resolvedEmailIds]))
+      const filteredIds = combinedIds.filter((userId) => {
+        if (userId === requesterId) {
+          ignored.push({ userIdOrEmail: userId, reason: 'requester' })
+          return false
+        }
+        return true
+      })
+
+      const result = await ProjectModel.addMembersBulk(id, filteredIds, requesterId)
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      const insertedIds = result.data?.insertedIds || []
+      const ignoredIds = result.data?.ignoredIds || []
+
+      ignoredIds.forEach((userId) => {
+        ignored.push({ userIdOrEmail: userId, reason: 'already_member_or_owner' })
+      })
+
+      res.status(200).json({
+        success: true,
+        data: {
+          addedIds: insertedIds,
+          ignored,
+          failed
+        },
+        message: 'Compartilhamento processado'
+      })
+    } catch (error) {
+      console.error('Erro no controller shareProject:', error)
       res.status(500).json({
         success: false,
         error: 'Erro interno do servidor'

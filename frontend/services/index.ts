@@ -18,9 +18,9 @@ export type {
   CardFeatureStats
 } from './cardFeatureService'
 
-// Video Service
-export { videoService } from './videoService'
-export type { Video, CreateVideoData } from './videoService'
+// Content Service
+export { contentService, ContentType } from './contentService'
+export type { Content, CreateContentData, ContentQueryParams } from './contentService'
 
 // Project Service
 export { projectService, ProjectMemberRole } from './projectService'
@@ -32,8 +32,13 @@ export type {
   UpdateProjectData,
   AddProjectMemberData,
   UpdateProjectMemberData,
-  ProjectQueryParams
+  ProjectQueryParams,
+  GithubRepoInfo
 } from './projectService'
+
+// Template Service
+export { templateService } from './templateService'
+export type { ProjectTemplate, CreateTemplateData, UpdateTemplateData, TemplateQueryParams } from './templateService'
 
 // User Service
 export { userService } from './userService'

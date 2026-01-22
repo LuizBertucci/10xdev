@@ -33,9 +33,9 @@ router.post('/:id/share', supabaseMiddleware, authenticate, CardFeatureControlle
 router.delete('/:id/share/:userId', supabaseMiddleware, authenticate, CardFeatureController.unshareCard)
 router.get('/:id/shares', supabaseMiddleware, authenticate, CardFeatureController.getCardShares)
 
-// BULK OPERATIONS - Requerem privilégios de administrador
+// BULK OPERATIONS - Criação é admin-only; delete permite usuário autenticado
 router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
-router.delete('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkDelete)
+router.delete('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkDelete)
 
 // Rotas de escrita: usuário autenticado pode criar/editar/deletar seus próprios cards.
 // A moderação (aprovar/rejeitar) permanece restrita a admins via endpoints específicos.

@@ -66,7 +66,6 @@ interface CreateProjectData {
   name: string
   description?: string
   repositoryUrl?: string
-  addMemberEmail?: string
 }
 
 interface UpdateProjectData {
@@ -112,7 +111,6 @@ class ProjectService {
     name?: string
     description?: string
     useAi?: boolean
-    addMemberEmail?: string
   }): Promise<ApiResponse<{ project: Project; jobId: string }> | undefined> {
     return apiClient.post<{ project: Project; jobId: string }>(`${this.endpoint}/import-from-github`, data)
   }
@@ -164,6 +162,13 @@ class ProjectService {
 
   async addMember(projectId: string, data: AddProjectMemberData): Promise<ApiResponse<ProjectMember> | undefined> {
     return apiClient.post<ProjectMember>(`${this.endpoint}/${projectId}/members`, data)
+  }
+
+  async shareProject(
+    projectId: string,
+    data: { userIds?: string[]; emails?: string[] }
+  ): Promise<ApiResponse<{ addedIds: string[]; ignored: Array<{ userIdOrEmail: string; reason: string }>; failed: Array<{ userIdOrEmail: string; error: string }> }> | undefined> {
+    return apiClient.post(`${this.endpoint}/${projectId}/share`, data)
   }
 
   async updateMember(projectId: string, userId: string, data: UpdateProjectMemberData): Promise<ApiResponse<ProjectMember> | undefined> {

@@ -18,7 +18,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
   const navItems = [
     { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
     { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
-    { key: "videos", title: "Vídeos", icon: "🎓", tooltip: "Vídeos" },
+    { key: "contents", title: "Conteúdos", icon: "🎓", tooltip: "Conteúdos" },
     { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
     ...(isAdmin ? [{ key: "admin", title: "Painel de Controle", icon: "🛠️", tooltip: "Painel de Controle" }] : [])
   ]
@@ -70,8 +70,12 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-sidebar-primary-foreground">
-                <span className="text-lg">⚡</span>
+              <div className="flex aspect-square size-8 items-center justify-center">
+                <img
+                  src="/brand/10xDev-logo-fundo-preto.png"
+                  alt="10xDev"
+                  className="h-7 w-auto"
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">10xDev</span>

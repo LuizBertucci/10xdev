@@ -3,22 +3,21 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Home from '@/pages/Home'
-import { videoService, type Video } from '@/services/videoService'
+import { contentService, ContentType, type Content } from '@/services/contentService'
 import { Play } from 'lucide-react'
 
 export default function PublicHome() {
   const router = useRouter()
-  const [videos, setVideos] = useState<Video[]>([])
+  const [videos, setVideos] = useState<Content[]>([])
 
   useEffect(() => {
     const loadVideos = async () => {
       try {
-        const res = await videoService.listVideos()
+        const res = await contentService.listContents({ type: ContentType.VIDEO, limit: 1 })
         if (res?.success && res.data) {
           setVideos(res.data.slice(0, 1))
         }
@@ -42,8 +41,12 @@ export default function PublicHome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <Zap className="h-7 w-7 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">10xDev</span>
+              <img
+                src="/brand/10xDev-logo-fundo-preto.png"
+                alt="10xDev"
+                className="h-8 w-auto"
+              />
+              <span className="sr-only">10xDev</span>
             </div>
 
             <div className="flex items-center gap-2">

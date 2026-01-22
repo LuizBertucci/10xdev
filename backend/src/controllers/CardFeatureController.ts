@@ -453,6 +453,14 @@ export class CardFeatureController {
 
   static async bulkDelete(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
       const ids: string[] = req.body.ids
 
       if (!Array.isArray(ids) || ids.length === 0) {
@@ -463,7 +471,31 @@ export class CardFeatureController {
         return
       }
 
-      const result = await CardFeatureModel.bulkDelete(ids)
+      const userId = req.user.id
+      const isAdmin = req.user.role === 'admin'
+
+      // Admin pode deletar qualquer card
+      if (isAdmin) {
+        const result = await CardFeatureModel.bulkDelete(ids)
+
+        if (!result.success) {
+          res.status(result.statusCode || 400).json({
+            success: false,
+            error: result.error
+          })
+          return
+        }
+
+        res.status(200).json({
+          success: true,
+          data: result.data,
+          message: `${result.data?.deletedCount} CardFeatures removidos com sucesso`
+        })
+        return
+      }
+
+      // Usuário normal: filtrar apenas cards próprios
+      const result = await CardFeatureModel.bulkDeleteByUser(ids, userId)
 
       if (!result.success) {
         res.status(result.statusCode || 400).json({
@@ -473,11 +505,23 @@ export class CardFeatureController {
         return
       }
 
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        message: `${result.data?.deletedCount} CardFeatures removidos com sucesso`
-      })
+      // Avisar se tentou deletar cards de outros
+      const deletedCount = result.data?.deletedCount || 0
+      const rejectedCount = ids.length - deletedCount
+
+      if (rejectedCount > 0) {
+        res.status(200).json({
+          success: true,
+          data: result.data,
+          message: `${deletedCount} CardFeatures removidos com sucesso. ${rejectedCount} cards foram ignorados (não pertencem a você)`
+        })
+      } else {
+        res.status(200).json({
+          success: true,
+          data: result.data,
+          message: `${deletedCount} CardFeatures removidos com sucesso`
+        })
+      }
     } catch (error) {
       console.error('Erro no controller bulkDelete:', error)
       res.status(500).json({

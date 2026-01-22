@@ -1,6 +1,5 @@
 "use client"
 
-import { Zap } from "lucide-react"
 
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { usePlatform } from "@/hooks/use-platform"
@@ -9,8 +8,8 @@ import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
 import ProtectedRoute from "@/components/ProtectedRoute"
-import Videos from "@/pages/Videos"
-import VideoDetail from "@/pages/VideoDetail"
+import Contents from "@/pages/Contents"
+import ContentDetail from "@/pages/ContentDetail"
 import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
 import AdminPanel from "@/pages/AdminPanel"
@@ -26,7 +25,7 @@ export default function DevPlatform() {
   const platformState = usePlatform()
   const { user, isProfileLoaded } = useAuth()
   const activeTab = platformState.activeTab
-  const videoId = activeTab === "videos" ? searchParams?.get('id') || null : null
+  const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
 
   // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
@@ -55,8 +54,12 @@ export default function DevPlatform() {
                   <div className="flex items-center space-x-4">
                     <SidebarTrigger />
                     <div className="flex items-center space-x-2">
-                      <Zap className="h-8 w-8 text-blue-600" />
-                      <span className="text-2xl font-bold text-gray-900">10xDev</span>
+                      <img
+                        src="/brand/10xDev-logo-fundo-preto.png"
+                        alt="10xDev"
+                        className="h-9 w-auto"
+                      />
+                      <span className="sr-only">10xDev</span>
                     </div>
                   </div>
                 </div>
@@ -70,11 +73,11 @@ export default function DevPlatform() {
               {/* Codes Tab */}
               {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
-              {/* Videos Tab */}
-              {activeTab === "videos" && videoId ? (
-                <VideoDetail platformState={platformState} />
+              {/* Contents Tab */}
+              {activeTab === "contents" && contentId ? (
+                <ContentDetail platformState={platformState} />
               ) : (
-                activeTab === "videos" && <Videos platformState={platformState} />
+                activeTab === "contents" && <Contents platformState={platformState} />
               )}
 
               {/* Projects Tab */}

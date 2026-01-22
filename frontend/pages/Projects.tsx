@@ -1,16 +1,20 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, FileCode, Calendar, Trash2, Github, Loader2, AlertTriangle } from "lucide-react"
-import { projectService, type Project, type GithubRepoInfo } from "@/services"
+import { Plus, Search, Trash2, Loader2, AlertTriangle, ChevronRight } from "lucide-react"
+import { projectService, templateService, type Project, type ProjectTemplate } from "@/services"
 import { toast } from "sonner"
 import { useProjectImportJobs } from "@/hooks/useProjectImportJobs"
-import { IMPORT_JOB_LS_KEY, defaultMessage } from "@/lib/importJobUtils"
+import { useAuth } from "@/hooks/useAuth"
+import { defaultMessage } from "@/lib/importJobUtils"
+import { createClient } from "@/lib/supabase"
+import { TemplateCard } from "@/components/TemplateCard"
+import { TemplateForm } from "@/components/TemplateForm"
+import { ProjectCard } from "@/components/ProjectCard"
+import { ProjectForm } from "@/components/ProjectForm"
 import {
   Dialog,
   DialogContent,
@@ -18,11 +22,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 
 interface PlatformState {
@@ -35,24 +35,30 @@ interface ProjectsProps {
 
 export default function Projects({ platformState }: ProjectsProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [templates, setTemplates] = useState<ProjectTemplate[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(true)
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<ProjectTemplate | null>(null)
+  const [isTemplateAdmin, setIsTemplateAdmin] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [createDialogTab, setCreateDialogTab] = useState<"manual" | "github">("manual")
-  const [newProjectName, setNewProjectName] = useState("")
-  const [newProjectDescription, setNewProjectDescription] = useState("")
-  const [creating, setCreating] = useState(false)
   const isFirstSearchEffect = useRef(true)
-
-  // GitHub integration states
-  const [githubUrl, setGithubUrl] = useState("")
-  const [githubToken, setGithubToken] = useState("")
-  const [loadingGithub, setLoadingGithub] = useState(false)
-  const [importingGithub, setImportingGithub] = useState(false)
-  const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
-  const [useAiImport, setUseAiImport] = useState(false)
-  const [memberEmailToAdd, setMemberEmailToAdd] = useState("")
+  const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
+  const fallbackTemplate = useMemo<ProjectTemplate>(() => ({
+    id: 'starter-template',
+    name: 'Starter Template 10xDev',
+    description: 'Template base para iniciar projetos rapidamente.',
+    version: '1.0',
+    tags: ['Node.js', 'Next.js'],
+    zipPath: 'starter-template.zip',
+    zipUrl: '/templates/starter-template.zip',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }), [])
 
   // Delete dialog states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -64,36 +70,11 @@ export default function Projects({ platformState }: ProjectsProps) {
   const projectIds = projects.map(p => p.id)
   const { hasRunningImport, getImportInfo } = useProjectImportJobs(projectIds)
 
-  const isValidGithubUrl = (url: string): boolean => {
-    try {
-      const urlObj = new URL(url)
-      if (urlObj.hostname !== 'github.com') return false
-      const parts = urlObj.pathname.split('/').filter(Boolean)
-      return parts.length >= 2
-    } catch {
-      return false
-    }
-  }
-
   useEffect(() => {
     loadProjects()
+    loadTemplates()
+    checkTemplateAdmin()
   }, [])
-
-  // Auto buscar info do repo quando colar URL válida
-  useEffect(() => {
-    if (!githubUrl.trim()) {
-      setGithubRepoInfo(null)
-      return
-    }
-    if (!isValidGithubUrl(githubUrl)) return
-
-    const timeoutId = setTimeout(() => {
-      handleAnalyzeGithub(false)
-    }, 500)
-
-    return () => clearTimeout(timeoutId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [githubUrl, githubToken])
 
   const loadProjects = async () => {
     try {
@@ -125,6 +106,46 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
+  const loadTemplates = async () => {
+    try {
+      setTemplatesLoading(true)
+      const response = await templateService.listTemplates({ isActive: true, sortBy: 'created_at', sortOrder: 'desc' })
+
+      if (!response) {
+        setTemplates([])
+        return
+      }
+
+      if (response.success && response.data) {
+        setTemplates(response.data)
+      } else {
+        toast.error(response.error || 'Erro ao carregar templates')
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao carregar templates')
+    } finally {
+      setTemplatesLoading(false)
+    }
+  }
+
+  const checkTemplateAdmin = async () => {
+    try {
+      if (!supabase) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) return
+
+      const { data } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle() as { data: { role?: string } | null }
+
+      setIsTemplateAdmin(data?.role === 'admin')
+    } catch {
+      setIsTemplateAdmin(false)
+    }
+  }
+
   useEffect(() => {
     if (isFirstSearchEffect.current) {
       isFirstSearchEffect.current = false
@@ -137,123 +158,47 @@ export default function Projects({ platformState }: ProjectsProps) {
     return () => clearTimeout(timeoutId)
   }, [searchTerm])
 
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim()) {
-      toast.error('Nome do projeto é obrigatório')
+  const resetTemplateForm = () => {
+    setEditingTemplate(null)
+  }
+
+  const handleDownloadTemplate = (template: ProjectTemplate) => {
+    let downloadUrl = template.zipUrl || ''
+
+    if (!downloadUrl && template.zipPath && supabase) {
+      downloadUrl = supabase.storage.from('project-templates').getPublicUrl(template.zipPath).data.publicUrl
+    }
+
+    if (!downloadUrl) {
+      toast.error('Link do template indisponível')
       return
     }
 
-    try {
-      setCreating(true)
-      const response = await projectService.create({
-        name: newProjectName,
-        description: newProjectDescription || undefined
-      })
-
-      if (!response) {
-        toast.error('Nenhuma resposta do servidor ao criar o projeto.')
-        return
-      }
-
-      if (response.success && response.data) {
-        toast.success('Projeto criado com sucesso!')
-        setIsCreateDialogOpen(false)
-        setNewProjectName("")
-        setNewProjectDescription("")
-        loadProjects()
-      } else {
-        toast.error(response.error || 'Erro ao criar projeto')
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao criar projeto')
-    } finally {
-      setCreating(false)
-    }
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = `${template.name || 'template'}.zip`
+    link.click()
+    toast.success('Download do template iniciado!')
   }
 
-  const resetFormAndClose = () => {
-    setIsCreateDialogOpen(false)
-    setCreateDialogTab("manual")
-    setNewProjectName("")
-    setNewProjectDescription("")
-    setGithubUrl("")
-    setGithubToken("")
-    setGithubRepoInfo(null)
-    setUseAiImport(false)
-    setMemberEmailToAdd("")
-  }
-
-  const handleAnalyzeGithub = async (showToasts = true) => {
-    if (!githubUrl.trim()) {
-      if (showToasts) toast.error('URL do GitHub é obrigatória')
+  const openCreateTemplate = () => {
+    if (!isTemplateAdmin) {
+      toast.error('Apenas administradores podem criar templates')
       return
     }
-    if (!isValidGithubUrl(githubUrl)) {
-      if (showToasts) toast.error('URL inválida. Use: https://github.com/usuario/repositorio')
+    setEditingTemplate(null)
+    setIsTemplateDialogOpen(true)
+  }
+
+  const openEditTemplate = (template: ProjectTemplate) => {
+    if (!isTemplateAdmin) {
+      toast.error('Apenas administradores podem editar templates')
       return
     }
-
-    try {
-      setLoadingGithub(true)
-      const response = await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined })
-      if (response?.success && response.data) {
-        setGithubRepoInfo(response.data)
-        setNewProjectName(response.data.name)
-        setNewProjectDescription(response.data.description || "")
-        if (showToasts) toast.success(`Repositório${response.data.isPrivate ? ' privado' : ''} encontrado!`)
-      } else if (showToasts) {
-        toast.error(response?.error || 'Erro ao buscar informações do repositório')
-      }
-    } catch (error: any) {
-      if (showToasts) toast.error(error?.message || 'Erro ao buscar informações do repositório')
-    } finally {
-      setLoadingGithub(false)
-    }
+    setEditingTemplate(template)
+    setIsTemplateDialogOpen(true)
   }
 
-  const handleImportFromGithub = async () => {
-    if (!githubUrl.trim()) { toast.error('URL do GitHub é obrigatória'); return }
-    if (!newProjectName.trim()) { toast.error('Nome do projeto é obrigatório'); return }
-
-    try {
-      setImportingGithub(true)
-      const response = await projectService.importFromGithub({
-        url: githubUrl,
-        token: githubToken || undefined,
-        name: newProjectName,
-        description: newProjectDescription || undefined,
-        useAi: useAiImport,
-        addMemberEmail: memberEmailToAdd.trim() || undefined
-      })
-
-      if (response?.success && response.data) {
-        const { project, jobId } = response.data
-        toast.success('Importação iniciada! Abrindo o projeto...')
-        try {
-          localStorage.setItem(IMPORT_JOB_LS_KEY, JSON.stringify({ jobId, projectId: project.id, createdAt: new Date().toISOString() }))
-        } catch { /* ignore */ }
-
-        if (platformState?.setActiveTab) {
-          const params = new URLSearchParams()
-          params.set('tab', 'projects')
-          params.set('id', project.id)
-          params.set('jobId', jobId)
-          router.push(`/?${params.toString()}`)
-        } else {
-          router.push(`/projects/${project.id}?jobId=${encodeURIComponent(jobId)}`)
-        }
-
-        resetFormAndClose()
-        loadProjects()
-      } else {
-        toast.error(response?.error || 'Erro ao importar projeto')
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao importar projeto do GitHub')
-    } finally {
-      setImportingGithub(false)
-    }
-  }
 
   const handleProjectClick = (projectId: string) => {
     if (platformState?.setActiveTab) {
@@ -266,8 +211,7 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
-  const openDeleteDialog = (project: Project, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const openDeleteDialog = (project: Project) => {
     const importInfo = getImportInfo(project.id)
     if (importInfo) {
       toast.error(`Importação em andamento (${importInfo.progress}%). Aguarde a conclusão para excluir este projeto.`)
@@ -276,6 +220,32 @@ export default function Projects({ platformState }: ProjectsProps) {
     setProjectToDelete(project)
     setDeleteCardsWithProject(false) // Reset checkbox state
     setIsDeleteDialogOpen(true)
+  }
+
+  const handleLeaveProject = async (project: Project) => {
+    if (!user?.id) {
+      toast.error('Usuário não autenticado')
+      return
+    }
+
+    const confirmed = window.confirm(`Sair do projeto "${project.name}"?`)
+    if (!confirmed) return
+
+    try {
+      const response = await projectService.removeMember(project.id, user.id)
+      if (!response) {
+        toast.error('Nenhuma resposta do servidor ao sair do projeto.')
+        return
+      }
+      if (response.success) {
+        toast.success('Você saiu do projeto')
+        loadProjects()
+      } else {
+        toast.error(response.error || 'Erro ao sair do projeto')
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao sair do projeto')
+    }
   }
 
   const handleConfirmDelete = async () => {
@@ -308,156 +278,96 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
+  const templatesToShow = templates.length > 0 ? templates : [fallbackTemplate]
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Projetos</h1>
-          <p className="text-gray-600 mt-1">Gerencie seus projetos e equipes</p>
+    <div className="space-y-6 w-full overflow-x-hidden px-1">
+      <div className="space-y-4 w-full max-w-[900px]">
+        <div className="flex items-center space-x-2 text-sm">
+          <button
+            type="button"
+            onClick={() => router.push('/?tab=home')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+          >
+            Início
+          </button>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+          <button
+            type="button"
+            onClick={() => router.push('/?tab=projects')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+          >
+            Projetos
+          </button>
         </div>
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={(open) => {
-            setIsCreateDialogOpen(open)
-            if (!open) resetFormAndClose()
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Projeto
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Projeto</DialogTitle>
-              <DialogDescription>
-                Crie manualmente ou importe diretamente do GitHub.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex-1 overflow-y-auto pr-1">
-              <Tabs value={createDialogTab} onValueChange={(v) => setCreateDialogTab(v as "manual" | "github")} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 h-12">
-                  <TabsTrigger value="manual" className="text-base">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Manual
-                  </TabsTrigger>
-                  <TabsTrigger value="github" className="text-base">
-                    <Github className="h-4 w-4 mr-2" />
-                    Importar do GitHub
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="manual" className="space-y-5 mt-0">
-                  <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 space-y-4">
-                    <h3 className="font-semibold text-gray-900">Informações do Projeto</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="name">Nome do Projeto *</Label>
-                        <Input id="name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Ex: E-commerce Completo" className="mt-1.5 h-11" />
-                      </div>
-                      <div>
-                        <Label htmlFor="description">Descrição</Label>
-                        <Textarea id="description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} placeholder="Descreva o objetivo do projeto..." rows={4} className="mt-1.5 resize-none" />
-                      </div>
-                      <div>
-                        <Label htmlFor="member-email">Email do membro (opcional)</Label>
-                        <Input id="member-email" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" className="mt-1.5 h-11" />
-                        <p className="text-xs text-gray-500 mt-2">Se o email existir no sistema, o usuário será adicionado ao projeto.</p>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="github" className="space-y-5 mt-0">
-                  <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 space-y-4">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      <Github className="h-4 w-4" />
-                      Repositório GitHub
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="github-url">URL do Repositório *</Label>
-                        <div className="flex gap-2 mt-1.5">
-                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-11" autoComplete="off" />
-                          <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-11 px-4">
-                            {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="github-token">Token de Acesso (opcional)</Label>
-                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="mt-1.5 h-11" autoComplete="new-password" />
-                        <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
-                      </div>
-
-                      {githubRepoInfo && (
-                        <div className="rounded-lg bg-green-50 p-4 border-2 border-green-200">
-                          <p className="text-sm font-semibold text-green-900 flex items-center gap-2">
-                            Repositório encontrado!
-                            {githubRepoInfo.isPrivate && <Badge variant="secondary" className="text-xs bg-gray-800 text-white">Privado</Badge>}
-                          </p>
-                          <p className="text-xs text-green-700 mt-1">Clique em “Importar Projeto” para criar os cards automaticamente.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 space-y-4">
-                    <h3 className="font-semibold text-gray-900">Configurações de Importação</h3>
-                    <div className="flex items-start gap-3 rounded-lg border-2 border-indigo-100 bg-indigo-50/50 p-4">
-                      <Checkbox id="use-ai-import" checked={useAiImport} onCheckedChange={(checked) => setUseAiImport(checked === true)} disabled={importingGithub} className="mt-1" />
-                      <div className="space-y-1 flex-1">
-                        <label htmlFor="use-ai-import" className="text-sm font-semibold leading-none text-indigo-900 cursor-pointer">Usar IA para organizar os cards</label>
-                        <p className="text-xs text-indigo-700 leading-relaxed">Opcional. Se falhar, a importação usa heurísticas.</p>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="member-email-github">Email do membro (opcional)</Label>
-                      <Input id="member-email-github" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" disabled={importingGithub} className="mt-1.5 h-11" />
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="github-name">Nome do Projeto *</Label>
-                        <Input id="github-name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} className="mt-1.5 h-11" />
-                      </div>
-                      <div>
-                        <Label htmlFor="github-description">Descrição</Label>
-                        <Textarea id="github-description" value={newProjectDescription} onChange={(e) => setNewProjectDescription(e.target.value)} rows={4} className="mt-1.5 resize-none" />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            <DialogFooter className="flex-shrink-0 border-t pt-6 mt-2 bg-white">
-              <Button variant="outline" onClick={resetFormAndClose} disabled={creating || importingGithub} className="h-11 px-6">Cancelar</Button>
-              {createDialogTab === "manual" ? (
-                <Button onClick={handleCreateProject} disabled={creating || !newProjectName.trim()} className="h-11 px-6">
-                  {creating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando...</> : <><Plus className="h-4 w-4 mr-2" />Criar Projeto</>}
-                </Button>
-              ) : (
-                <Button onClick={handleImportFromGithub} disabled={importingGithub || !githubUrl.trim() || !newProjectName.trim()} className="h-11 px-6">
-                  {importingGithub ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando...</> : <><Github className="h-4 w-4 mr-2" />Importar Projeto</>}
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-        <Input
-          placeholder="Buscar projetos..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Templates */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Templates</h2>
+          <Button className="h-9 px-4 bg-gray-900 hover:bg-gray-800 text-white" onClick={openCreateTemplate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Template
+          </Button>
+        </div>
+
+        {templatesLoading ? (
+          <div className="text-center py-6">
+            <p className="text-gray-500">Carregando templates...</p>
+          </div>
+        ) : templatesToShow.length === 0 ? (
+          <div className="text-center py-6">
+            <p className="text-gray-500">Nenhum template disponível</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {templatesToShow.map((template) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                onDownload={handleDownloadTemplate}
+                onEdit={isTemplateAdmin ? openEditTemplate : undefined}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <TemplateForm
+        open={isTemplateDialogOpen}
+        mode={editingTemplate ? "edit" : "create"}
+        template={editingTemplate}
+        isAdmin={isTemplateAdmin}
+        onOpenChange={(open) => {
+          setIsTemplateDialogOpen(open)
+          if (!open) resetTemplateForm()
+        }}
+        onSaved={loadTemplates}
+      />
+
+      {/* Projetos */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Projetos</h2>
+          <ProjectForm
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+            platformState={platformState}
+            onSaved={loadProjects}
+          />
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder="Buscar projetos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {/* Projects List */}
@@ -471,60 +381,21 @@ export default function Projects({ platformState }: ProjectsProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((project) => (
-            <Card
-              key={project.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => handleProjectClick(project.id)}
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle>{project.name}</CardTitle>
-                    {project.description && (
-                      <CardDescription className="mt-2">{project.description}</CardDescription>
-                    )}
-                  </div>
-                  {project.userRole === 'owner' && (
-                    hasRunningImport(project.id) ? (
-                      <div className="ml-2 flex items-center gap-2" title={defaultMessage(getImportInfo(project.id)?.step ?? '')}>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                        <span className="text-xs text-gray-600">{getImportInfo(project.id)?.progress}%</span>
-                      </div>
-                    ) : (
-                      <Button variant="ghost" size="sm" onClick={(e) => openDeleteDialog(project, e)} className="ml-2">
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    )
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-4 w-4" />
-                      <span>{project.memberCount || 0}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <FileCode className="h-4 w-4" />
-                      <span>{project.cardCount || 0}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{new Date(project.createdAt).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                  </div>
-                  {project.userRole && (
-                    <Badge variant={project.userRole === 'owner' ? 'default' : 'secondary'}>
-                      {project.userRole === 'owner' ? 'Owner' : 
-                       project.userRole === 'admin' ? 'Admin' : 'Member'}
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {projects.map((project) => {
+            const importInfo = getImportInfo(project.id)
+            return (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onClick={() => handleProjectClick(project.id)}
+                onDelete={openDeleteDialog}
+                onLeave={handleLeaveProject}
+                isImporting={hasRunningImport(project.id)}
+                importProgress={importInfo?.progress}
+                importTooltip={defaultMessage(importInfo?.step ?? "")}
+              />
+            )
+          })}
         </div>
       )}
 
