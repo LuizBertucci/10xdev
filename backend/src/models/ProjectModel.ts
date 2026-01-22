@@ -583,6 +583,86 @@ export class ProjectModel {
     }
   }
 
+  static async addMembersBulk(
+    projectId: string,
+    userIds: string[],
+    requesterId: string
+  ): Promise<ModelResult<{ insertedIds: string[]; ignoredIds: string[] }>> {
+    try {
+      const role = await this.getUserRole(projectId, requesterId)
+      if (!role || (role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN)) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para adicionar membros',
+          statusCode: 403
+        }
+      }
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return {
+          success: true,
+          data: { insertedIds: [], ignoredIds: [] },
+          statusCode: 200
+        }
+      }
+
+      const uniqueIds = Array.from(new Set(userIds))
+      const { data: existingRows } = await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .select('user_id')
+          .eq('project_id', projectId)
+          .in('user_id', uniqueIds)
+      )
+
+      const existingIds = new Set<string>((existingRows || []).map((row: any) => String(row.user_id)))
+      const toInsert = uniqueIds.filter((userId) => !existingIds.has(userId))
+
+      if (toInsert.length === 0) {
+        return {
+          success: true,
+          data: { insertedIds: [], ignoredIds: Array.from(existingIds) },
+          statusCode: 200
+        }
+      }
+
+      const now = new Date().toISOString()
+      const insertData: ProjectMemberInsert[] = toInsert.map((userId) => ({
+        id: randomUUID(),
+        project_id: projectId,
+        user_id: userId,
+        role: ProjectMemberRole.MEMBER,
+        created_at: now,
+        updated_at: now
+      }))
+
+      await executeQuery(
+        supabaseAdmin
+          .from('project_members')
+          .insert(insertData)
+      )
+
+      return {
+        success: true,
+        data: { insertedIds: toInsert, ignoredIds: Array.from(existingIds) },
+        statusCode: 201
+      }
+    } catch (error: any) {
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'Um ou mais usuários já são membros deste projeto',
+          statusCode: 409
+        }
+      }
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
   static async updateMember(projectId: string, memberUserId: string, role: ProjectMemberRole, userId: string): Promise<ModelResult<ProjectMemberResponse>> {
     try {
       // Verificar permissão (owner ou admin)

@@ -83,7 +83,6 @@ export interface CreateProjectRequest {
   name: string
   description?: string
   repositoryUrl?: string
-  addMemberEmail?: string
 }
 
 export interface UpdateProjectRequest {
@@ -201,7 +200,11 @@ export interface ImportFromGithubRequest {
   name?: string
   description?: string
   useAi?: boolean
-  addMemberEmail?: string
+}
+
+export interface ShareProjectRequest {
+  userIds?: string[]
+  emails?: string[]
 }
 
 export interface ImportFromGithubResponse {

@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Github, Loader2, Plus, Search } from "lucide-react"
-import { projectService, type GithubRepoInfo } from "@/services"
+import { projectService, type GithubRepoInfo, type User } from "@/services"
+import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
 import { IMPORT_JOB_LS_KEY } from "@/lib/importJobUtils"
 
@@ -71,7 +72,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   const [loadingGithub, setLoadingGithub] = useState(false)
   const [importingGithub, setImportingGithub] = useState(false)
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
-  const [memberEmailToAdd, setMemberEmailToAdd] = useState("")
+  const [selectedMembers, setSelectedMembers] = useState<User[]>([])
   const hasGithubUrl = githubUrl.trim().length > 0
 
   const isValidGithubUrl = (url: string): boolean => {
@@ -92,7 +93,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     setGithubUrl("")
     setGithubToken("")
     setGithubRepoInfo(null)
-    setMemberEmailToAdd("")
+    setSelectedMembers([])
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -137,6 +138,16 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       }
 
       if (response.success && response.data) {
+        if (selectedMembers.length > 0) {
+          try {
+            await projectService.shareProject(response.data.id, {
+              userIds: selectedMembers.map((member) => member.id),
+              emails: selectedMembers.map((member) => member.email)
+            })
+          } catch {
+            toast.warning("Projeto criado, mas erro ao compartilhar com membros.")
+          }
+        }
         toast.success("Projeto criado com sucesso!")
         onSaved()
         handleOpenChange(false)
@@ -189,12 +200,21 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
         token: githubToken || undefined,
         name: newProjectName,
         description: newProjectDescription || undefined,
-        useAi: true,
-        addMemberEmail: memberEmailToAdd.trim() || undefined
+        useAi: true
       })
 
       if (response?.success && response.data) {
         const { project, jobId } = response.data
+        if (selectedMembers.length > 0) {
+          try {
+            await projectService.shareProject(project.id, {
+              userIds: selectedMembers.map((member) => member.id),
+              emails: selectedMembers.map((member) => member.email)
+            })
+          } catch {
+            toast.warning("Importação iniciada, mas erro ao compartilhar com membros.")
+          }
+        }
         toast.success("Importação iniciada! Abrindo o projeto...")
         try {
           localStorage.setItem(IMPORT_JOB_LS_KEY, JSON.stringify({ jobId, projectId: project.id, createdAt: new Date().toISOString() }))
@@ -309,9 +329,10 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
               <div className="md:w-1/2 md:flex md:flex-col h-full min-h-0">
                 <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white h-full min-h-0 md:flex-1 md:flex md:flex-col">
                   <div>
-                    <Label htmlFor="member-email" className="block text-xs font-medium text-gray-600 mb-1.5">Email do membro (opcional)</Label>
-                    <Input id="member-email" value={memberEmailToAdd} onChange={(e) => setMemberEmailToAdd(e.target.value)} placeholder="usuario@empresa.com" className="h-9 bg-white border-blue-300 text-sm shadow-sm outline-none focus:outline-none focus-visible:outline-none focus:border-blue-300 focus-visible:border-blue-300 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none" />
-                    <p className="text-xs text-gray-500 mt-2">Se o email existir no sistema, o usuário será adicionado ao projeto.</p>
+                    <Sharing
+                      selectedUsers={selectedMembers}
+                      onChange={setSelectedMembers}
+                    />
                   </div>
                 </div>
               </div>
