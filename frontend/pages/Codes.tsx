@@ -362,9 +362,6 @@ export default function Codes({ platformState }: CodesProps) {
               title={isSelectionMode ? "Sair do modo seleção" : "Selecionar cards"}
             >
               <Pencil className="h-4 w-4" />
-              <span className="hidden sm:inline sm:ml-1">
-                {isSelectionMode ? 'Cancelar' : 'Selecionar'}
-              </span>
             </Button>
           )}
 
