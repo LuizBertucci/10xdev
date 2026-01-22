@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { AIInstructions } from "@/components/AIInstructions"
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ const IMPORT_INSTRUCTIONS = [
 ].join('\n')
 
 const IMPORT_INSTRUCTIONS_ROWS = IMPORT_INSTRUCTIONS.split('\n').length + 14
+const IMPORT_INSTRUCTIONS_LS_KEY = "project-import-instructions"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -73,7 +75,27 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   const [importingGithub, setImportingGithub] = useState(false)
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
+  const [importInstructions, setImportInstructions] = useState(IMPORT_INSTRUCTIONS)
   const hasGithubUrl = githubUrl.trim().length > 0
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(IMPORT_INSTRUCTIONS_LS_KEY)
+      if (stored) {
+        setImportInstructions(stored)
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(IMPORT_INSTRUCTIONS_LS_KEY, importInstructions)
+    } catch {
+      // ignore storage errors
+    }
+  }, [importInstructions])
 
   const isValidGithubUrl = (url: string): boolean => {
     try {
@@ -94,6 +116,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     setGithubToken("")
     setGithubRepoInfo(null)
     setSelectedMembers([])
+    setImportInstructions(IMPORT_INSTRUCTIONS)
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -300,16 +323,14 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                         <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" autoComplete="new-password" />
                         <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
                       </div>
-                    <div>
-                      <Label htmlFor="import-instructions" className="block text-xs font-medium text-gray-600 mb-1.5">Instruções para Importação</Label>
-                      <Textarea
-                        id="import-instructions"
-                        value={IMPORT_INSTRUCTIONS}
-                        readOnly
-                        rows={IMPORT_INSTRUCTIONS_ROWS}
-                        className="bg-gray-50 border-gray-200 text-xs resize-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none"
-                      />
-                    </div>
+                      <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3">
+                        <AIInstructions
+                          value={importInstructions}
+                          onChange={setImportInstructions}
+                          rows={IMPORT_INSTRUCTIONS_ROWS}
+                          label="Instruções para a IA"
+                        />
+                      </div>
 
                       {githubRepoInfo && (
                         <div className="rounded-lg bg-green-50 p-4 border-2 border-green-200">
