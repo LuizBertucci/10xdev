@@ -5,6 +5,7 @@ import { contentRoutes } from './contentRoutes'
 import { projectRoutes } from './projectRoutes'
 import { userRoutes } from './userRoutes'
 import { adminRoutes } from './adminRoutes'
+import { templateRoutes } from './templateRoutes'
 
 const router = Router()
 
@@ -33,6 +34,9 @@ router.use('/contents', contentRoutes)
 
 // Projects routes
 router.use('/projects', projectRoutes)
+
+// Templates routes
+router.use('/templates', templateRoutes)
 
 // Users routes
 router.use('/users', userRoutes)
@@ -89,6 +93,11 @@ router.get('/', (req, res) => {
         getCards: 'GET /api/projects/:id/cards',
         addCard: 'POST /api/projects/:id/cards',
         removeCard: 'DELETE /api/projects/:id/cards/:cardFeatureId'
+      },
+      templates: {
+        list: 'GET /api/templates',
+        getById: 'GET /api/templates/:id',
+        create: 'POST /api/templates (admin)'
       },
       users: {
         search: 'GET /api/users/search?q=term'

@@ -32,8 +32,13 @@ export type {
   UpdateProjectData,
   AddProjectMemberData,
   UpdateProjectMemberData,
-  ProjectQueryParams
+  ProjectQueryParams,
+  GithubRepoInfo
 } from './projectService'
+
+// Template Service
+export { templateService } from './templateService'
+export type { ProjectTemplate, CreateTemplateData, UpdateTemplateData, TemplateQueryParams } from './templateService'
 
 // User Service
 export { userService } from './userService'

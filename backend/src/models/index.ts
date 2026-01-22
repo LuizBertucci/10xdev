@@ -5,6 +5,7 @@
 export { CardFeatureModel } from './CardFeatureModel'
 export { ImportJobModel } from './ImportJobModel'
 export { ContentModel } from './ContentModel'
+export { TemplateModel } from './TemplateModel'
 
 // Re-export types for convenience
 export type {
@@ -19,3 +20,11 @@ export type {
   CreateCardFeatureRequest,
   UpdateCardFeatureRequest
 } from '@/types/cardfeature'
+
+export type {
+  TemplateRow,
+  TemplateInsert,
+  TemplateResponse,
+  TemplateQueryParams,
+  CreateTemplateRequest
+} from '@/types/template'
