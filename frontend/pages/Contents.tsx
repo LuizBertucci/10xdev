@@ -292,7 +292,13 @@ export default function Contents({ platformState }: ContentsProps) {
             Início
           </button>
           <ChevronRight className="h-4 w-4 text-gray-400" />
-          <span className="text-gray-900 font-medium">Conteúdos</span>
+          <button
+            type="button"
+            onClick={() => router.push('/?tab=contents')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+          >
+            Conteúdos
+          </button>
         </div>
 
         {/* Title + Add Button */}

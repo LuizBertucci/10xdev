@@ -361,7 +361,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
           </div>
         </div>
 
-        <DialogFooter className="flex-shrink-0 border-t pt-6 mt-2 bg-white">
+        <DialogFooter className="flex-shrink-0 pt-3 mt-0 bg-white">
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={creating || importingGithub} className="h-11 px-6">Cancelar</Button>
           <Button
             onClick={leftTab === "import" ? handleImportFromGithub : handleCreateProject}

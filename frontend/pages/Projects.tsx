@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Trash2, Loader2, AlertTriangle } from "lucide-react"
+import { Plus, Search, Trash2, Loader2, AlertTriangle, ChevronRight } from "lucide-react"
 import { projectService, templateService, type Project, type ProjectTemplate } from "@/services"
 import { toast } from "sonner"
 import { useProjectImportJobs } from "@/hooks/useProjectImportJobs"
@@ -253,12 +253,24 @@ export default function Projects({ platformState }: ProjectsProps) {
   const templatesToShow = templates.length > 0 ? templates : [fallbackTemplate]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Projetos</h1>
-          <p className="text-gray-600 mt-1">Gerencie seus projetos e equipes</p>
+    <div className="space-y-6 w-full overflow-x-hidden px-1">
+      <div className="space-y-4 w-full max-w-[900px]">
+        <div className="flex items-center space-x-2 text-sm">
+          <button
+            type="button"
+            onClick={() => router.push('/?tab=home')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+          >
+            Início
+          </button>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+          <button
+            type="button"
+            onClick={() => router.push('/?tab=projects')}
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
+          >
+            Projetos
+          </button>
         </div>
       </div>
 
@@ -266,9 +278,9 @@ export default function Projects({ platformState }: ProjectsProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">Templates</h2>
-          <Button variant="outline" className="h-9 px-3" onClick={openCreateTemplate}>
+          <Button className="h-9 px-4 bg-gray-900 hover:bg-gray-800 text-white" onClick={openCreateTemplate}>
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar
+            Novo Template
           </Button>
         </div>
 
