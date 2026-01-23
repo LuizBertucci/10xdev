@@ -4,9 +4,7 @@
 
 export enum ContentType {
   VIDEO = 'video',
-  POST = 'post',
-  MANUAL = 'manual',
-  TUTORIAL = 'tutorial'
+  POST = 'post'
 }
 
 export interface TrainingContent {

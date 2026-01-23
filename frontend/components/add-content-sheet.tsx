@@ -27,9 +27,7 @@ interface AddContentSheetProps {
 
 const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   [ContentType.VIDEO]: 'Vídeo',
-  [ContentType.POST]: 'Post',
-  [ContentType.MANUAL]: 'Manual',
-  [ContentType.TUTORIAL]: 'Tutorial'
+  [ContentType.POST]: 'Post'
 }
 
 export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = false, contentType, initialData }: AddContentSheetProps) {
@@ -326,7 +324,7 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
             />
           </div>
 
-          {/* Conteúdo Markdown (para posts, manuais, tutoriais) */}
+          {/* Conteúdo Markdown (para posts) */}
           {!isVideo && (
             <div>
               <Label htmlFor="markdownContent">Conteúdo</Label>
@@ -342,7 +340,7 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
             </div>
           )}
 
-          {/* Upload de PDF (para posts, manuais, tutoriais) */}
+          {/* Upload de PDF (para posts) */}
           {!isVideo && (
             <div>
               <Label>Arquivo PDF (opcional)</Label>
