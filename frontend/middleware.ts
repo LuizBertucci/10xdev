@@ -23,7 +23,9 @@ export async function middleware(req: NextRequest) {
   const isRootLanding = pathname === '/' && !searchParams.get('tab')
   const isPublic = isRootLanding || publicPaths.includes(pathname)
 
-  // Cria cliente Supabase para validar sessão (igual à main)
+  // Cria cliente Supabase para validar sessão
+  // Usa getSession() em vez de getUser() para evitar refresh token automático
+  // que pode causar rate limiting quando chamado em todas as requisições
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -42,8 +44,21 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const hasSession = !!user
+  // Usa getSession() que é mais leve e não força refresh token
+  // Se houver erro (ex: rate limit), trata como sem sessão para não bloquear
+  let hasSession = false
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    // Se houver erro (ex: rate limit), não bloqueia - deixa passar e o cliente tratará
+    if (!error && session?.user) {
+      hasSession = true
+    }
+  } catch (error) {
+    // Em caso de erro (rate limit, etc), não bloqueia a requisição
+    // O cliente tratará a autenticação no lado do browser
+    console.warn('Middleware: erro ao verificar sessão (não bloqueando):', error)
+    hasSession = false
+  }
 
   // Bloqueia rotas privadas se não houver sessão válida
   if (!isPublic && !hasSession) {
