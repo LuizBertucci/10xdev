@@ -54,8 +54,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   
-  const CARDS_PER_PAGE = 10
-  
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
@@ -278,89 +276,19 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       } else if (!incremental) {
         setLoadingCards(true)
       }
-      
-      // Durante importação incremental, carregar todos os cards para detectar novos
-      // No carregamento inicial e "carregar mais", usar paginação
-      let response
-      if (incremental) {
-        // Carregar todos os cards sem paginação para detectar novos durante importação
-        response = await projectService.getCards(projectId)
-      } else {
-        // Calcular offset baseado no número de cards já carregados
-        const offset = loadMore ? cards.length : 0
-        const limit = CARDS_PER_PAGE
-        response = await projectService.getCards(projectId, limit, offset)
-      }
+      const response = await projectService.getCardsAll(projectId)
       if (response?.success && response?.data) {
         const newCards = response.data
-        const totalCount = response.count || 0
-        
-        // Atualizar contador total e verificar se há mais cards (apenas se não for incremental)
-        if (!incremental) {
-          setTotalCardsCount(totalCount)
-          // No carregamento inicial (não loadMore), cards.length ainda tem valor antigo (stale)
-          // então usamos 0. No loadMore, usamos cards.length que já tem os cards anteriores
-          const previousCount = loadMore ? cards.length : 0
-          setHasMoreCards(previousCount + newCards.length < totalCount)
-        }
-        
-        // Merge incremental: adiciona apenas novos cards
-        if (incremental || loadMore) {
-          setCards(prevCards => {
-            const existingIds = new Set(prevCards.map((c: any) => c.cardFeatureId))
-            const uniqueNewCards = newCards.filter((c: any) => !existingIds.has(c.cardFeatureId))
-            return [...prevCards, ...uniqueNewCards]
-          })
-          
-          // Buscar apenas os novos card features
-          const newProjectCards = newCards.filter((c: any) => 
-            !cardFeatures.some(f => f.id === c.cardFeatureId)
-          )
-          
-          if (newProjectCards.length > 0) {
-            const cardFeaturePromises = newProjectCards.map(async (projectCard: any) => {
-              try {
-                const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
-                if (cardResponse?.success && cardResponse?.data) {
-                  return cardResponse.data
-                }
-                return null
-              } catch (error) {
-                console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
-                return null
-              }
-            })
-            
-            const newFeatures = await Promise.all(cardFeaturePromises)
-            setCardFeatures(prev => {
-              const existingIds = new Set(prev.map(f => f.id))
-              const uniqueNewFeatures = newFeatures.filter((f): f is CardFeature => 
-                f !== null && !existingIds.has(f.id)
-              )
-              return [...prev, ...uniqueNewFeatures]
-            })
-          }
-        } else {
-          // Carregamento inicial: substitui tudo
-          setCards(newCards)
-          
-          // Buscar dados completos dos card features apenas dos cards carregados
-          const cardFeaturePromises = newCards.map(async (projectCard: any) => {
-            try {
-              const cardResponse = await cardFeatureService.getById(projectCard.cardFeatureId)
-              if (cardResponse?.success && cardResponse?.data) {
-                return cardResponse.data
-              }
-              return null
-            } catch (error) {
-              console.error(`Erro ao buscar card feature ${projectCard.cardFeatureId}:`, error)
-              return null
-            }
-          })
-          
-          const features = await Promise.all(cardFeaturePromises)
-          setCardFeatures(features.filter((f): f is CardFeature => f !== null))
-        }
+        const totalCount = response.count ?? newCards.length
+
+        setTotalCardsCount(totalCount)
+        setHasMoreCards(false)
+        setCards(newCards)
+
+        const features = newCards
+          .map((projectCard: any) => projectCard.cardFeature)
+          .filter(Boolean) as CardFeature[]
+        setCardFeatures(features)
       }
     } catch (error: any) {
       if (!incremental && !loadMore) {

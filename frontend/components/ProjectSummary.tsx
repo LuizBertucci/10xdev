@@ -3,8 +3,7 @@ import { List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { projectService } from "@/services"
-import { cardFeatureService } from "@/services"
-import type { CardFeature } from "@/services"
+import type { CardFeature } from "@/types"
 
 interface ProjectSummaryProps {
   projectId: string | null
@@ -21,40 +20,18 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
     if (!projectId) return
     try {
       setLoading(true)
-      const response = await projectService.getCards(projectId)
+      const response = await projectService.getCardsAll(projectId)
       if (!response?.success || !response.data) {
         setSummaryCardFeatures([])
         return
       }
 
-      const ordered = [...response.data].sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999))
-      const existingMap = new Map(cardFeatures.map((f) => [f.id, f]))
-      const missingIds = ordered
-        .map((card: any) => card.cardFeatureId)
-        .filter((id: string) => !existingMap.has(id))
-
-      let fetchedMap = new Map<string, CardFeature>()
-      if (missingIds.length > 0) {
-        const fetched = await Promise.all(
-          missingIds.map(async (id: string) => {
-            try {
-              const cardResponse = await cardFeatureService.getById(id)
-              return cardResponse?.success ? cardResponse.data : null
-            } catch {
-              return null
-            }
-          })
-        )
-        fetchedMap = new Map(
-          fetched.filter(Boolean).map((card) => [(card as CardFeature).id, card as CardFeature])
-        )
-      }
-
-      const merged = ordered
-        .map((card: any) => existingMap.get(card.cardFeatureId) || fetchedMap.get(card.cardFeatureId))
+      const ordered = [...response.data]
+        .sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999))
+        .map((card: any) => card.cardFeature)
         .filter(Boolean) as CardFeature[]
 
-      setSummaryCardFeatures(merged)
+      setSummaryCardFeatures(ordered)
     } finally {
       setLoading(false)
     }

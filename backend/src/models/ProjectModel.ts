@@ -3,6 +3,11 @@ import { randomUUID } from 'crypto'
 import {
   ProjectMemberRole
 } from '@/types/project'
+import {
+  ApprovalStatus,
+  Visibility
+} from '@/types/cardfeature'
+import type { CardFeatureResponse } from '@/types/cardfeature'
 import type {
   ProjectRow,
   ProjectInsert,
@@ -64,6 +69,36 @@ export class ProjectModel {
     }
     
     return response
+  }
+
+  private static transformCardFeatureToResponse(row: any): CardFeatureResponse {
+    const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+    const approvalStatus =
+      row.approval_status ??
+      (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
+
+    return {
+      id: row.id,
+      title: row.title,
+      tech: row.tech,
+      language: row.language,
+      description: row.description,
+      tags: row.tags || [],
+      content_type: row.content_type,
+      card_type: row.card_type,
+      screens: row.screens || [],
+      createdBy: row.created_by,
+      author: row.users?.name || null,
+      isPrivate: row.is_private ?? false,
+      visibility: visibility as Visibility,
+      approvalStatus: approvalStatus,
+      approvalRequestedAt: row.approval_requested_at || null,
+      approvedAt: row.approved_at || null,
+      approvedBy: row.approved_by || null,
+      createdInProjectId: row.created_in_project_id || null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }
   }
 
   private static async buildQuery(params: ProjectQueryParams = {}, userId?: string) {
@@ -828,6 +863,55 @@ export class ProjectModel {
             language: row.card_feature.language,
             description: row.card_feature.description
           }
+        }
+        return card
+      })
+
+      return {
+        success: true,
+        data: cards,
+        count: count || 0,
+        statusCode: 200
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro interno do servidor',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  static async getCardsAll(projectId: string): Promise<ModelListResult<ProjectCardResponse>> {
+    try {
+      // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
+      // A policy "Members can view project cards" verifica project_members, causando
+      // recursão quando usamos o cliente público. O backend já valida permissões antes.
+      const query = supabaseAdmin
+        .from('project_cards')
+        .select(`
+          *,
+          card_feature:card_features!project_cards_card_feature_id_fkey (*)
+        `, { count: 'exact' })
+        .eq('project_id', projectId)
+        .order('order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true })
+
+      const { data, count } = await executeQuery(query)
+
+      if (!data) {
+        return {
+          success: true,
+          data: [],
+          count: 0,
+          statusCode: 200
+        }
+      }
+
+      const cards = data.map((row: any) => {
+        const card = this.transformCardToResponse(row)
+        if (row.card_feature) {
+          card.cardFeature = this.transformCardFeatureToResponse(row.card_feature)
         }
         return card
       })

@@ -31,6 +31,7 @@ router.delete('/:id/members/:userId', ProjectController.removeMember)
 router.post('/:id/share', ProjectController.shareProject)
 
 // CARDS MANAGEMENT
+router.get('/:id/cards/all', ProjectController.getCardsAll)
 router.get('/:id/cards', ProjectController.getCards)
 router.post('/:id/cards', ProjectController.addCard)
 router.patch('/:id/cards/:cardFeatureId/reorder', ProjectController.reorderCard)
