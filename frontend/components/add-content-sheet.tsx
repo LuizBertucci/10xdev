@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Loader2, Upload, FileText, X } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { extractYouTubeVideoId } from "./youtube-video"
 import { ContentType, contentService } from "@/services/contentService"
 
 interface AddContentSheetProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string }) => Promise<void>
+  onSubmit: (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string; tags?: string[] }) => Promise<void>
   editMode?: boolean
   contentType: ContentType
   initialData?: {
@@ -22,6 +25,7 @@ interface AddContentSheetProps {
     description?: string
     markdownContent?: string
     fileUrl?: string
+    tags?: string[]
   }
 }
 
@@ -50,6 +54,10 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
 
   const isVideo = contentType === ContentType.VIDEO
   const typeLabel = CONTENT_TYPE_LABELS[contentType]
+  const [tags, setTags] = useState<string[]>([])
+  const [tagOptions, setTagOptions] = useState<string[]>([])
+  const [isTagsLoading, setIsTagsLoading] = useState(false)
+  const [isTagsOpen, setIsTagsOpen] = useState(false)
 
   // Load initial data in edit mode
   useEffect(() => {
@@ -59,6 +67,7 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
       setDescription(initialData.description || "")
       setMarkdownContent(initialData.markdownContent || "")
       setUploadedFileUrl(initialData.fileUrl || null)
+      setTags(initialData.tags || [])
     }
   }, [isOpen, editMode, initialData])
 
@@ -75,8 +84,31 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
       setUploadedFileUrl(null)
       setUploadError(null)
       setIsDragging(false)
+      setTags([])
+      setTagOptions([])
+      setIsTagsOpen(false)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || isVideo) return
+    let mounted = true
+    const loadTags = async () => {
+      setIsTagsLoading(true)
+      try {
+        const res = await contentService.listPostTags()
+        if (mounted && res?.success) {
+          setTagOptions((res.data || []).filter((t): t is string => typeof t === "string"))
+        }
+      } finally {
+        if (mounted) setIsTagsLoading(false)
+      }
+    }
+    loadTags()
+    return () => {
+      mounted = false
+    }
+  }, [isOpen, isVideo])
 
   // Formatar tamanho do arquivo
   const formatFileSize = (bytes: number) => {
@@ -235,7 +267,8 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
         url: isVideo ? url : undefined,
         description: description || undefined,
         markdownContent: markdownContent || undefined,
-        fileUrl: fileUrl || undefined
+        fileUrl: fileUrl || undefined,
+        tags: !isVideo ? tags : undefined
       })
       onClose()
     } catch (error) {
@@ -337,6 +370,69 @@ export default function AddContentSheet({ isOpen, onClose, onSubmit, editMode = 
                 rows={10}
                 className="font-mono text-sm"
               />
+            </div>
+          )}
+
+          {/* Tags (pré-definidas do Supabase) - apenas para posts */}
+          {!isVideo && (
+            <div>
+              <Label>Tags</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tags.map((t) => (
+                  <Badge key={t} variant="secondary" className="gap-1">
+                    {t}
+                    <button
+                      type="button"
+                      onClick={() => setTags((prev) => prev.filter((x) => x !== t))}
+                      className="ml-1 text-gray-600 hover:text-gray-900"
+                      aria-label={`Remover tag ${t}`}
+                      disabled={isLoading}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+
+                <Popover open={isTagsOpen} onOpenChange={setIsTagsOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" disabled={isLoading}>
+                      {isTagsLoading ? "Carregando..." : "Adicionar tag"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-[320px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar tags..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {tagOptions.map((opt) => {
+                            const selected = tags.includes(opt)
+                            return (
+                              <CommandItem
+                                key={opt}
+                                value={opt}
+                                onSelect={() => {
+                                  setTags((prev) => (prev.includes(opt) ? prev : [...prev, opt]))
+                                  setIsTagsOpen(false)
+                                }}
+                                disabled={selected}
+                              >
+                                <span className={selected ? "text-gray-400" : "text-gray-900"}>{opt}</span>
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {tags.length > 0 && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setTags([])} disabled={isLoading}>
+                    Limpar
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 

@@ -2,10 +2,14 @@
 
 import { useEffect, useState, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, Plus, FileText, Video, ChevronRight } from "lucide-react"
+import { Search, Plus, FileText, Video, ChevronRight, Filter } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +23,7 @@ import {
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from "@/components/ui/pagination"
 import AddContentSheet from "@/components/add-content-sheet"
 import ContentCard from "@/components/ContentCard"
+import PostsDenseList from "@/components/PostsDenseList"
 import { contentService, ContentType, type Content } from "@/services/contentService"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
@@ -75,6 +80,13 @@ export default function Contents({ platformState }: ContentsProps) {
   })
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Posts-only filters
+  const [postSort, setPostSort] = useState<'updated' | 'recent' | 'az'>('updated')
+  const [postCategory, setPostCategory] = useState<string>('all')
+  const [postTagOptions, setPostTagOptions] = useState<string[]>([])
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [isTagsOpen, setIsTagsOpen] = useState(false)
+
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
   const config = CONTENT_TYPE_CONFIG[selectedType]
   const IconComponent = config.icon
@@ -108,11 +120,17 @@ export default function Contents({ platformState }: ContentsProps) {
       setLoading(true)
       setError(null)
       try {
+        const isPost = selectedType === ContentType.POST
+        const sortBy = isPost ? (postSort === 'az' ? 'title' : postSort === 'recent' ? 'created_at' : 'updated_at') : undefined
+        const sortOrder = isPost ? (postSort === 'az' ? 'asc' : 'desc') : undefined
         const res = await contentService.listContents({
           type: selectedType,
           page: currentPage,
           limit: ITEMS_PER_PAGE,
-          search: search || undefined
+          search: search || undefined,
+          category: isPost && postCategory !== 'all' ? postCategory : undefined,
+          sortBy,
+          sortOrder
         })
         if (isMounted) {
           if (res.success) {
@@ -141,7 +159,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
     loadContents()
     return () => { isMounted = false }
-  }, [selectedType, currentPage, search])
+  }, [selectedType, currentPage, search, postSort, postCategory])
 
   useEffect(() => {
     // Evita resetar página no primeiro mount (quando vem ?page= na URL)
@@ -150,7 +168,25 @@ export default function Contents({ platformState }: ContentsProps) {
       return
     }
     setCurrentPage(1)
+    if (selectedType !== ContentType.POST) {
+      setPostCategory('all')
+      setSelectedTags([])
+    }
   }, [selectedType, search])
+
+  // Load post tag catalog (Posts only)
+  useEffect(() => {
+    if (selectedType !== ContentType.POST) return
+    let mounted = true
+    const load = async () => {
+      const res = await contentService.listPostTags()
+      if (mounted && res?.success) {
+        setPostTagOptions((res.data || []).filter((t): t is string => typeof t === 'string'))
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [selectedType])
 
   const handleTypeChange = (type: string) => {
     if (!ALLOWED_CONTENT_TYPES.includes(type as (typeof ALLOWED_CONTENT_TYPES)[number])) {
@@ -159,7 +195,7 @@ export default function Contents({ platformState }: ContentsProps) {
     setSelectedType(type as ContentType)
   }
 
-  const handleAdd = async (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string }) => {
+  const handleAdd = async (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string; tags?: string[] }) => {
     try {
       const res = await contentService.createContent({
         title: data.title,
@@ -167,7 +203,8 @@ export default function Contents({ platformState }: ContentsProps) {
         description: data.description,
         contentType: selectedType,
         markdownContent: data.markdownContent,
-        fileUrl: data.fileUrl
+        fileUrl: data.fileUrl,
+        tags: selectedType === ContentType.POST ? (data.tags || []) : undefined
       })
       if (res.success && res.data) {
         setContents(prev => [res.data!, ...prev])
@@ -198,7 +235,7 @@ export default function Contents({ platformState }: ContentsProps) {
     setEditContent(content)
   }
 
-  const handleUpdate = async (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string }) => {
+  const handleUpdate = async (data: { title: string; url?: string; description?: string; markdownContent?: string; fileUrl?: string; tags?: string[] }) => {
     if (!editContent) return
 
     try {
@@ -207,7 +244,8 @@ export default function Contents({ platformState }: ContentsProps) {
         youtubeUrl: data.url,
         description: data.description,
         markdownContent: data.markdownContent,
-        fileUrl: data.fileUrl
+        fileUrl: data.fileUrl,
+        tags: selectedType === ContentType.POST ? (data.tags || []) : undefined
       })
       if (res.success && res.data) {
         setContents(prev => prev.map(c => c.id === editContent.id ? res.data! : c))
@@ -284,6 +322,26 @@ export default function Contents({ platformState }: ContentsProps) {
     }
   }
 
+  const postCategories = useMemo(() => {
+    if (selectedType !== ContentType.POST) return []
+    const s = new Set<string>()
+    for (const c of contents) {
+      if (c.category) s.add(c.category)
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b))
+  }, [contents, selectedType])
+
+  const filteredContents = useMemo(() => {
+    if (selectedType !== ContentType.POST) return contents
+    if (selectedTags.length === 0) return contents
+    return contents.filter((c) => {
+      const tags = c.tags || []
+      return selectedTags.every((t) => tags.includes(t))
+    })
+  }, [contents, selectedType, selectedTags])
+
+  const hasPostFilters = selectedType === ContentType.POST && (search || postCategory !== 'all' || selectedTags.length > 0 || postSort !== 'updated')
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -350,6 +408,101 @@ export default function Contents({ platformState }: ContentsProps) {
             className="pl-10 w-full"
           />
         </div>
+
+        {/* Posts Filters */}
+        {selectedType === ContentType.POST && (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <Select value={postSort} onValueChange={(v) => setPostSort(v as any)}>
+              <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectValue placeholder="Ordenar por..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="updated">Atualizados</SelectItem>
+                <SelectItem value="recent">Recentes</SelectItem>
+                <SelectItem value="az">A–Z</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={postCategory} onValueChange={setPostCategory}>
+              <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as categorias</SelectItem>
+                {postCategories.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {selectedTags.map((t) => (
+                <Badge key={t} variant="secondary" className="gap-1">
+                  {t}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTags((prev) => prev.filter((x) => x !== t))}
+                    className="ml-1 text-gray-600 hover:text-gray-900"
+                    aria-label={`Remover tag ${t}`}
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))}
+
+              <Popover open={isTagsOpen} onOpenChange={setIsTagsOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Tags
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[320px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar tags..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        {postTagOptions.map((opt) => {
+                          const selected = selectedTags.includes(opt)
+                          return (
+                            <CommandItem
+                              key={opt}
+                              value={opt}
+                              onSelect={() => {
+                                setSelectedTags((prev) => (prev.includes(opt) ? prev : [...prev, opt]))
+                                setIsTagsOpen(false)
+                              }}
+                              disabled={selected}
+                            >
+                              <span className={selected ? "text-gray-400" : "text-gray-900"}>{opt}</span>
+                            </CommandItem>
+                          )
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {hasPostFilters && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearch("")
+                    setPostSort("updated")
+                    setPostCategory("all")
+                    setSelectedTags([])
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Loading */}
@@ -365,7 +518,19 @@ export default function Contents({ platformState }: ContentsProps) {
       )}
 
       {/* Empty State */}
-      {!loading && !error && contents.length === 0 && !search && (
+      {!loading && !error && contents.length === 0 && !search && selectedType !== ContentType.POST && (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <IconComponent className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {config.emptyTitle}
+          </h3>
+          <p className="text-gray-600 mb-6">
+            {config.emptyDesc}
+          </p>
+        </div>
+      )}
+
+      {!loading && !error && selectedType === ContentType.POST && contents.length === 0 && !hasPostFilters && (
         <div className="bg-white rounded-lg shadow-sm p-12 text-center">
           <IconComponent className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -378,7 +543,7 @@ export default function Contents({ platformState }: ContentsProps) {
       )}
 
       {/* Empty Search */}
-      {!loading && !error && contents.length === 0 && search && (
+      {!loading && !error && selectedType !== ContentType.POST && contents.length === 0 && search && (
         <div className="text-center py-12">
           <IconComponent className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -390,19 +555,48 @@ export default function Contents({ platformState }: ContentsProps) {
         </div>
       )}
 
-      {/* Contents Grid */}
-      {!loading && !error && contents.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {contents.map((content) => (
-            <ContentCard
-              key={content.id}
-              content={content}
-              onView={handleView}
-              onEdit={isAdmin ? handleEdit : undefined}
-              onDelete={isAdmin ? handleDelete : undefined}
-            />
-          ))}
+      {!loading && !error && selectedType === ContentType.POST && filteredContents.length === 0 && hasPostFilters && (
+        <div className="text-center py-12">
+          <IconComponent className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Nenhum resultado encontrado
+          </h3>
+          <p className="text-gray-600">
+            Tente ajustar seus filtros de busca
+          </p>
         </div>
+      )}
+
+      {/* Contents Grid / Posts List */}
+      {!loading && !error && filteredContents.length > 0 && (
+        selectedType === ContentType.POST ? (
+          <PostsDenseList
+            contents={filteredContents}
+            isAdmin={isAdmin}
+            onCopyLink={async (fileUrl) => {
+              try {
+                await navigator.clipboard.writeText(fileUrl)
+                toast({ title: "Link copiado!", description: "URL copiada para a área de transferência." })
+              } catch {
+                toast({ title: "Erro", description: "Não foi possível copiar o link.", variant: "destructive" })
+              }
+            }}
+            onEdit={isAdmin ? handleEdit : undefined}
+            onDelete={isAdmin ? handleDelete : undefined}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredContents.map((content) => (
+              <ContentCard
+                key={content.id}
+                content={content}
+                onView={handleView}
+                onEdit={isAdmin ? handleEdit : undefined}
+                onDelete={isAdmin ? handleDelete : undefined}
+              />
+            ))}
+          </div>
+        )
       )}
 
       {/* Pagination */}
@@ -499,7 +693,8 @@ export default function Contents({ platformState }: ContentsProps) {
           url: editContent.youtubeUrl,
           description: editContent.description,
           markdownContent: editContent.markdownContent,
-          fileUrl: editContent.fileUrl
+          fileUrl: editContent.fileUrl,
+          tags: editContent.tags || []
         } : undefined}
       />
 
