@@ -13,6 +13,7 @@ export interface ProjectRow {
   name: string
   description: string | null
   repository_url?: string | null
+  category_order?: string[] | null
   created_at: string
   updated_at: string
   created_by: string
@@ -23,6 +24,7 @@ export interface ProjectInsert {
   name: string
   description?: string | null
   repository_url?: string | null
+  category_order?: string[] | null
   created_at?: string
   updated_at?: string
   created_by: string
@@ -31,6 +33,7 @@ export interface ProjectInsert {
 export interface ProjectUpdate {
   name?: string
   description?: string | null
+  category_order?: string[] | null
   updated_at?: string
 }
 
@@ -88,6 +91,7 @@ export interface CreateProjectRequest {
 export interface UpdateProjectRequest {
   name?: string
   description?: string
+  categoryOrder?: string[]
 }
 
 export interface ProjectResponse {
@@ -95,6 +99,7 @@ export interface ProjectResponse {
   name: string
   description: string | null
   repositoryUrl?: string | null
+  categoryOrder?: string[] | null
   createdAt: string
   updatedAt: string
   createdBy: string

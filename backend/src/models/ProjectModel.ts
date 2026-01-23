@@ -17,6 +17,7 @@ import type {
   ModelResult,
   ModelListResult,
   CreateProjectRequest,
+  UpdateProjectRequest,
   ProjectMemberRow,
   ProjectMemberInsert,
   ProjectMemberUpdate,
@@ -38,6 +39,7 @@ export class ProjectModel {
       name: row.name,
       description: row.description,
       ...(typeof (row as any).repository_url !== 'undefined' ? { repositoryUrl: (row as any).repository_url } : {}),
+      ...(row.category_order !== undefined ? { categoryOrder: row.category_order } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       createdBy: row.created_by
@@ -363,7 +365,7 @@ export class ProjectModel {
   // UPDATE
   // ================================================
 
-  static async update(id: string, data: Partial<CreateProjectRequest>, userId: string): Promise<ModelResult<ProjectResponse>> {
+  static async update(id: string, data: UpdateProjectRequest, userId: string): Promise<ModelResult<ProjectResponse>> {
     try {
       // Verificar permissão (owner ou admin)
       const role = await this.getUserRole(id, userId)
@@ -376,8 +378,18 @@ export class ProjectModel {
       }
 
       const updateData: ProjectUpdate = {
-        ...data,
         updated_at: new Date().toISOString()
+      }
+
+      // Adicionar apenas campos que foram fornecidos
+      if (data.name !== undefined) {
+        updateData.name = data.name
+      }
+      if (data.description !== undefined) {
+        updateData.description = data.description
+      }
+      if (data.categoryOrder !== undefined) {
+        updateData.category_order = data.categoryOrder
       }
 
       const { data: result } = await executeQuery(

@@ -16,6 +16,7 @@ interface Project {
   name: string
   description: string | null
   repositoryUrl?: string | null
+  categoryOrder?: string[] | null
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -66,6 +67,7 @@ interface CreateProjectData {
 interface UpdateProjectData {
   name?: string
   description?: string
+  categoryOrder?: string[]
 }
 
 interface AddProjectMemberData {
