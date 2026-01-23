@@ -76,6 +76,7 @@ export interface CardFeature {
   tech: string           // Tecnologia principal (React, Node.js, Python, etc.)
   language: string       // Linguagem de programação (typescript, javascript, python)
   description: string    // Descrição do que o código faz
+  tags?: string[]        // Categorias/tags do card
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType    // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]  // Array de abas/arquivos
@@ -116,6 +117,7 @@ export interface CreateCardFeatureData {
   tech: string
   language: string
   description: string
+  tags?: string[]
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]

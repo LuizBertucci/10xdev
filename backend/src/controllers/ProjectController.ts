@@ -992,6 +992,64 @@ export class ProjectController {
   }
 
   // ================================================
+  // CARDS - GET /api/projects/:id/cards/all
+  // ================================================
+  
+  static async getCardsAll(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado'
+        })
+        return
+      }
+
+      const { id } = req.params
+
+      if (!id) {
+        res.status(400).json({
+          success: false,
+          error: 'ID do projeto é obrigatório'
+        })
+        return
+      }
+
+      // Verificar se usuário é membro do projeto
+      const project = await ProjectModel.findById(id, req.user.id)
+      if (!project.success) {
+        res.status(project.statusCode || 404).json({
+          success: false,
+          error: project.error || 'Projeto não encontrado'
+        })
+        return
+      }
+
+      const result = await ProjectModel.getCardsAll(id)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        count: result.count
+      })
+    } catch (error) {
+      console.error('Erro no controller getCardsAll:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
   // CARDS - POST /api/projects/:id/cards
   // ================================================
   

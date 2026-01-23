@@ -56,6 +56,7 @@ export interface CardFeatureRow {
   tech: string
   language: string
   description: string
+  tags?: string[]             // Categorias/tags do card
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType          // Tipo do card (dicas/codigos/workflows)
   screens: CardFeatureScreen[]
@@ -77,6 +78,7 @@ export interface CardFeatureInsert {
   tech: string
   language: string
   description: string
+  tags?: string[]             // Categorias/tags do card
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
@@ -98,6 +100,7 @@ export interface CardFeatureUpdate {
   tech?: string
   language?: string
   description?: string
+  tags?: string[]             // Categorias/tags do card
   content_type?: ContentType
   card_type?: CardType
   screens?: CardFeatureScreen[]
@@ -119,6 +122,7 @@ export interface CreateCardFeatureRequest {
   tech: string
   language: string
   description: string
+  tags?: string[]             // Categorias/tags do card
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]
@@ -139,6 +143,7 @@ export interface CardFeatureResponse {
   tech: string
   language: string
   description: string
+  tags?: string[]             // Categorias/tags do card
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]

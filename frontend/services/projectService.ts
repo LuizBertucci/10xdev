@@ -1,4 +1,5 @@
 import { apiClient, ApiResponse } from './apiClient'
+import type { CardFeature } from '@/types'
 
 // ================================================
 // TYPES
@@ -15,6 +16,7 @@ interface Project {
   name: string
   description: string | null
   repositoryUrl?: string | null
+  categoryOrder?: string[] | null
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -53,13 +55,7 @@ interface ProjectCard {
   addedBy: string
   createdAt: string
   order?: number
-  cardFeature?: {
-    id: string
-    title: string
-    tech: string
-    language: string
-    description: string
-  }
+  cardFeature?: CardFeature
 }
 
 interface CreateProjectData {
@@ -71,6 +67,7 @@ interface CreateProjectData {
 interface UpdateProjectData {
   name?: string
   description?: string
+  categoryOrder?: string[]
 }
 
 interface AddProjectMemberData {
@@ -188,6 +185,10 @@ class ProjectService {
     if (limit !== undefined) params.limit = limit
     if (offset !== undefined) params.offset = offset
     return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, Object.keys(params).length > 0 ? params : undefined)
+  }
+
+  async getCardsAll(projectId: string): Promise<ApiResponse<ProjectCard[]> | undefined> {
+    return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`)
   }
 
   async addCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<ProjectCard> | undefined> {
