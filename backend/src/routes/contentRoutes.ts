@@ -26,6 +26,7 @@ const upload = multer({
 // ROTAS PÚBLICAS (leitura)
 // ================================================
 router.get('/', ContentController.list)
+router.get('/post-tags', ContentController.listPostTags)
 router.get('/:id', ContentController.getById)
 
 // ================================================
