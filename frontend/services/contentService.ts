@@ -3,9 +3,7 @@ import { apiClient } from './apiClient'
 // Enum para tipo de conteúdo
 export enum ContentType {
   VIDEO = 'video',
-  POST = 'post',
-  MANUAL = 'manual',
-  TUTORIAL = 'tutorial'
+  POST = 'post'
 }
 
 export interface Content {

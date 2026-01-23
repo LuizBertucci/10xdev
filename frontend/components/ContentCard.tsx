@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Pencil, Trash2, Play, Calendar, Tag, FileText, BookOpen, GraduationCap } from "lucide-react"
+import { Pencil, Trash2, Play, Calendar, Tag, FileText } from "lucide-react"
 import { ContentType, type Content } from "@/services/contentService"
 
 interface ContentCardProps {
@@ -11,9 +11,7 @@ interface ContentCardProps {
 
 const CONTENT_TYPE_CONFIG = {
   [ContentType.VIDEO]: { icon: Play, color: 'text-red-600', bgColor: 'bg-red-100' },
-  [ContentType.POST]: { icon: FileText, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  [ContentType.MANUAL]: { icon: BookOpen, color: 'text-green-600', bgColor: 'bg-green-100' },
-  [ContentType.TUTORIAL]: { icon: GraduationCap, color: 'text-purple-600', bgColor: 'bg-purple-100' },
+  [ContentType.POST]: { icon: FileText, color: 'text-blue-600', bgColor: 'bg-blue-100' }
 }
 
 export default function ContentCard({

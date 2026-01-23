@@ -189,7 +189,7 @@ export class ContentModel {
         insertData.thumbnail = getYouTubeThumbnail(videoId)
       }
 
-      // Campos específicos para post/manual/tutorial
+      // Campos específicos para posts
       if (payload.fileUrl !== undefined) {
         insertData.file_url = payload.fileUrl
       }

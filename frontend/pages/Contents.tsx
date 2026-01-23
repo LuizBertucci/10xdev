@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, Plus, FileText, Video, BookOpen, GraduationCap, ChevronRight } from "lucide-react"
+import { Search, Plus, FileText, Video, ChevronRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -34,10 +34,10 @@ interface ContentsProps {
 
 const CONTENT_TYPE_CONFIG = {
   [ContentType.VIDEO]: { label: 'Vídeos', icon: Video, emptyTitle: 'Nenhum vídeo adicionado', emptyDesc: 'Comece adicionando vídeos do YouTube' },
-  [ContentType.POST]: { label: 'Posts', icon: FileText, emptyTitle: 'Nenhum post adicionado', emptyDesc: 'Comece criando posts com conteúdo rico' },
-  [ContentType.MANUAL]: { label: 'Manuais', icon: BookOpen, emptyTitle: 'Nenhum manual adicionado', emptyDesc: 'Comece criando manuais detalhados' },
-  [ContentType.TUTORIAL]: { label: 'Tutoriais', icon: GraduationCap, emptyTitle: 'Nenhum tutorial adicionado', emptyDesc: 'Comece criando tutoriais passo a passo' },
+  [ContentType.POST]: { label: 'Posts', icon: FileText, emptyTitle: 'Nenhum post adicionado', emptyDesc: 'Comece criando posts com conteúdo rico' }
 }
+
+const ALLOWED_CONTENT_TYPES = [ContentType.VIDEO, ContentType.POST] as const
 
 const ITEMS_PER_PAGE = 12
 
@@ -49,7 +49,10 @@ export default function Contents({ platformState }: ContentsProps) {
   const isAdmin = user?.role === 'admin'
 
   // URL state
-  const initialType = (searchParams?.get('type') as ContentType) || ContentType.VIDEO
+  const urlType = searchParams?.get('type') as ContentType | null
+  const initialType = urlType && ALLOWED_CONTENT_TYPES.includes(urlType as (typeof ALLOWED_CONTENT_TYPES)[number])
+    ? urlType
+    : ContentType.VIDEO
   const initialPage = useMemo(() => {
     const p = Number(searchParams?.get('page') || 1)
     return Number.isFinite(p) && p > 0 ? Math.floor(p) : 1
@@ -150,6 +153,9 @@ export default function Contents({ platformState }: ContentsProps) {
   }, [selectedType, search])
 
   const handleTypeChange = (type: string) => {
+    if (!ALLOWED_CONTENT_TYPES.includes(type as (typeof ALLOWED_CONTENT_TYPES)[number])) {
+      return
+    }
     setSelectedType(type as ContentType)
   }
 
@@ -313,8 +319,9 @@ export default function Contents({ platformState }: ContentsProps) {
 
         {/* Sub-tabs */}
         <Tabs value={selectedType} onValueChange={handleTypeChange} className="w-full">
-          <TabsList className="h-10 w-full grid grid-cols-4 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
-            {Object.entries(CONTENT_TYPE_CONFIG).map(([type, cfg]) => {
+          <TabsList className="h-10 w-full grid grid-cols-2 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+            {ALLOWED_CONTENT_TYPES.map((type) => {
+              const cfg = CONTENT_TYPE_CONFIG[type]
               const Icon = cfg.icon
               return (
                 <TabsTrigger 
