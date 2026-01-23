@@ -132,6 +132,26 @@ export class ContentModel {
     }
   }
 
+  static async listarTagsDePosts(): Promise<ModelListResult<{ label: string }>> {
+    try {
+      const { data, error, count } = await supabaseAdmin
+        .from('post_tags')
+        .select('label', { count: 'exact' })
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('label', { ascending: true })
+
+      if (error) {
+        return { success: false, error: error.message, statusCode: 400 }
+      }
+
+      return { success: true, data: (data as { label: string }[]) || [], count: count ?? 0, statusCode: 200 }
+    } catch (e) {
+      console.error('Erro no ContentModel.listarTagsDePosts:', e)
+      return { success: false, error: 'Erro interno do servidor', statusCode: 500 }
+    }
+  }
+
   static async getById(id: string): Promise<ModelResult<ContentResponse>> {
     try {
       const { data, error } = await supabaseAdmin

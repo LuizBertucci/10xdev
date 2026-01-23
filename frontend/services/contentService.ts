@@ -105,6 +105,11 @@ async function uploadFile(file: File) {
   return res
 }
 
+async function listPostTags() {
+  const res = await apiClient.get<string[]>('/contents/post-tags')
+  return res
+}
+
 export const contentService = {
   listContents,
   getContent,
@@ -112,5 +117,6 @@ export const contentService = {
   updateContent,
   deleteContent,
   updateSelectedCardFeature,
-  uploadFile
+  uploadFile,
+  listPostTags
 }

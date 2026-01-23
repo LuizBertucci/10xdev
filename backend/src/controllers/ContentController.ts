@@ -321,4 +321,32 @@ export class ContentController {
       })
     }
   }
+
+  // ================================================
+  // READ - GET /api/contents/post-tags (public)
+  // ================================================
+  static async listPostTags(_req: Request, res: Response): Promise<void> {
+    try {
+      const result = await ContentModel.listarTagsDePosts()
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: (result.data || []).map((t) => t.label)
+      })
+    } catch (error) {
+      console.error('Erro no controller listPostTags:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
 }
