@@ -278,10 +278,10 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
           <DialogTitle>Criar Novo Projeto</DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-hidden pr-1">
-          <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 h-[60vh] overflow-hidden">
-            <div className="flex h-full min-h-0 flex-col gap-3 md:flex-row md:gap-6 md:items-stretch">
-              <div className="flex h-full min-h-0 flex-col gap-3 md:w-1/2 overflow-y-auto pr-2">
+        <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden pr-1">
+          <div className="rounded-lg border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 md:h-[60vh] overflow-y-auto md:overflow-hidden">
+            <div className="flex flex-col gap-4 md:flex-row md:gap-6 md:h-full md:items-stretch">
+              <div className="flex flex-col gap-3 md:w-1/2 md:h-full md:min-h-0 md:overflow-y-auto md:pr-2">
                 <Tabs value={leftTab} onValueChange={(value) => setLeftTab(value as "create" | "import")}>
                   <TabsList className="grid w-full grid-cols-2 mb-4 h-9">
                     <TabsTrigger value="create" className="text-xs font-semibold">
@@ -347,14 +347,12 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                 </Tabs>
               </div>
 
-              <div className="md:w-1/2 md:flex md:flex-col h-full min-h-0">
-                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white h-full min-h-0 md:flex-1 md:flex md:flex-col">
-                  <div>
-                    <Sharing
-                      selectedUsers={selectedMembers}
-                      onChange={setSelectedMembers}
-                    />
-                  </div>
+              <div className="md:w-1/2 md:flex md:flex-col md:h-full md:min-h-0">
+                <div className="space-y-3 border border-blue-200 rounded-lg p-3 bg-white md:h-full md:min-h-0 md:flex-1 md:flex md:flex-col">
+                  <Sharing
+                    selectedUsers={selectedMembers}
+                    onChange={setSelectedMembers}
+                  />
                 </div>
               </div>
             </div>
