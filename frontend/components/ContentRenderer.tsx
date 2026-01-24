@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import SyntaxHighlighter from './SyntaxHighlighter'
 import { ContentType, ContentBlock } from '@/types'
 
@@ -93,6 +93,41 @@ function getYouTubeId(value?: string) {
   return match?.[1] ?? null
 }
 
+function YouTubePreview({ videoId }: { videoId: string }) {
+  const [isActive, setIsActive] = useState(false)
+
+  return (
+    <div className="relative w-full overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
+      {isActive ? (
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="YouTube video"
+          className="absolute inset-0 h-full w-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsActive(true)}
+          className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/20 transition"
+          title="Reproduzir"
+        >
+          <img
+            src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+            alt="Thumbnail do YouTube"
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+          />
+          <span className="relative z-10 inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-red-600 shadow">
+            ▶
+          </span>
+        </button>
+      )}
+    </div>
+  )
+}
+
 interface ContentRendererProps {
   blocks: ContentBlock[]
   className?: string
@@ -138,15 +173,7 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
       return (
         <YouTubeBlockContainer className={className}>
           {videoId ? (
-            <div className="relative w-full overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
-              <iframe
-                src={`https://www.youtube.com/embed/${videoId}`}
-                title="YouTube video"
-                className="absolute inset-0 h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+            <YouTubePreview videoId={videoId} />
           ) : (
             <div className="text-xs text-gray-500">
               Cole um link válido do YouTube para exibir o vídeo.

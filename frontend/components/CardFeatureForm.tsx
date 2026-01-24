@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2, Trash2, Upload, ExternalLink } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2, Trash2, Upload, ExternalLink, Play } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -291,6 +291,7 @@ export default function CardFeatureForm({
   // User Search State para Compartilhamento
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
 
+  const [activeYoutubePreview, setActiveYoutubePreview] = useState<Record<string, boolean>>({})
   const [uploadingPdf, setUploadingPdf] = useState(false)
   const [pdfTargetScreen, setPdfTargetScreen] = useState<number | null>(null)
   const [pdfTargetBlock, setPdfTargetBlock] = useState<number | null>(null)
@@ -1086,23 +1087,50 @@ export default function CardFeatureForm({
                                       <Input
                                         placeholder="Cole a URL do YouTube..."
                                         value={block.content}
-                                        onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                        onChange={(e) => {
+                                          handleBlockChange(index, blockIndex, 'content', e.target.value)
+                                          const previewKey = `${index}-${blockIndex}`
+                                          setActiveYoutubePreview((prev) => ({ ...prev, [previewKey]: false }))
+                                        }}
                                         className="h-9 bg-white border-gray-100 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                                       />
                                       {block.content && (
                                         (() => {
                                           const videoId = getYouTubeId(block.content)
+                                          const previewKey = `${index}-${blockIndex}`
+                                          const isActive = !!activeYoutubePreview[previewKey]
                                           return (
                                             <div className="mt-3 inline-flex max-w-[220px] rounded-md border border-gray-200 bg-white p-2">
                                               {videoId ? (
                                                 <div className="relative w-[200px] overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
-                                                  <iframe
-                                                    src={`https://www.youtube.com/embed/${videoId}`}
-                                                    title="Pré-visualização do YouTube"
-                                                    className="absolute inset-0 h-full w-full"
-                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                    allowFullScreen
-                                                  />
+                                                  {isActive ? (
+                                                    <iframe
+                                                      src={`https://www.youtube.com/embed/${videoId}`}
+                                                      title="Pré-visualização do YouTube"
+                                                      className="absolute inset-0 h-full w-full"
+                                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                      allowFullScreen
+                                                    />
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setActiveYoutubePreview((prev) => ({ ...prev, [previewKey]: true }))
+                                                      }
+                                                      className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/20 transition"
+                                                      title="Reproduzir"
+                                                    >
+                                                      <img
+                                                        src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                                                        alt="Thumbnail do YouTube"
+                                                        className="absolute inset-0 h-full w-full object-cover"
+                                                        loading="lazy"
+                                                      />
+                                                      <span className="relative z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-red-600 shadow">
+                                                        <Play className="h-5 w-5" />
+                                                      </span>
+                                                    </button>
+                                                  )}
                                                 </div>
                                               ) : (
                                                 <div className="text-xs text-gray-500">

@@ -394,12 +394,26 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   .codeblock-scroll::-webkit-scrollbar-thumb:hover {
                     background: rgba(0, 0, 0, 0.5);
                   }
+                  .compact-content .youtube-container {
+                    max-width: 520px;
+                    margin-left: 0;
+                    margin-right: 0;
+                    border: none;
+                    box-shadow: none;
+                    background: transparent;
+                    padding: 0;
+                  }
+                  @media (max-width: 640px) {
+                    .compact-content .youtube-container {
+                      max-width: 100%;
+                    }
+                  }
                 `}</style>
 
                 <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full"
+                    className="h-full compact-content"
                   />
                 </div>
               </div>

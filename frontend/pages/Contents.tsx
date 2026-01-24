@@ -2,13 +2,10 @@
 
 import { useEffect, useState, useMemo, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Search, Plus, FileText, ChevronRight, Filter } from "lucide-react"
+import { Search, Plus, FileText, ChevronRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,10 +63,6 @@ export default function Contents({ platformState }: ContentsProps) {
   )
 
   // Posts-only filters
-  const [postSort, setPostSort] = useState<'updated' | 'recent' | 'az'>('updated')
-  const [postCategory, setPostCategory] = useState<string>('all')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [isTagsOpen, setIsTagsOpen] = useState(false)
 
   const loading = cardFeatures.loading
   const error = cardFeatures.error
@@ -101,7 +94,7 @@ export default function Contents({ platformState }: ContentsProps) {
       return
     }
     cardFeatures.goToPage(1)
-  }, [postSort, postCategory, selectedTags, cardFeatures.goToPage])
+  }, [cardFeatures.goToPage])
 
   const handleCreatePost = async (data: any) => {
     const payload = {
@@ -155,57 +148,17 @@ export default function Contents({ platformState }: ContentsProps) {
     }
   }
 
-  const postCategories = useMemo(() => {
-    const s = new Set<string>()
-    for (const c of cardFeatures.items) {
-      if (c.category) s.add(c.category)
-    }
-    return Array.from(s).sort((a, b) => a.localeCompare(b))
-  }, [cardFeatures.items])
-
-  const postTagOptions = useMemo(() => {
-    const tags = new Set<string>()
-    for (const card of cardFeatures.items) {
-      if (card.tags?.length) {
-        card.tags.forEach(tag => tags.add(tag))
-      }
-    }
-    return Array.from(tags).sort((a, b) => a.localeCompare(b))
-  }, [cardFeatures.items])
-
   const filteredPosts = useMemo(() => {
-    let items = [...cardFeatures.items]
-    if (postCategory !== 'all') {
-      items = items.filter(item => item.category === postCategory)
-    }
-    if (selectedTags.length > 0) {
-      items = items.filter(item => {
-        const tags = item.tags || []
-        return selectedTags.every(tag => tags.includes(tag))
-      })
-    }
+    const items = [...cardFeatures.items]
+    return items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  }, [cardFeatures.items])
 
-    if (postSort === 'az') {
-      items.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
-    } else if (postSort === 'recent') {
-      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    } else {
-      items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    }
-
-    return items
-  }, [cardFeatures.items, postCategory, selectedTags, postSort])
-
-  const hasPostFilters =
-    !!cardFeatures.searchTerm ||
-    postCategory !== 'all' ||
-    selectedTags.length > 0 ||
-    postSort !== 'updated'
+  const hasPostFilters = !!cardFeatures.searchTerm
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full overflow-x-hidden px-1">
       {/* Header */}
-      <div className="space-y-4">
+      <div className="space-y-4 w-full max-w-[900px] mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center space-x-2 text-sm">
           <button
@@ -225,136 +178,49 @@ export default function Contents({ platformState }: ContentsProps) {
           </button>
         </div>
 
-        {/* Title + Add Button */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Conteúdos</h1>
+        {/* Search + Add Button (compact like Codes) */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Buscar conteúdos..."
+              value={cardFeatures.searchTerm}
+              onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
+              className="pl-10 pr-10 w-full h-10"
+            />
+          </div>
+
           {isAdmin && (
-            <Button onClick={cardFeatures.startCreating} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" /> Adicionar conteúdo
+            <Button
+              onClick={cardFeatures.startCreating}
+              className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap px-2 sm:px-4"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              <span className="sm:hidden">Criar</span>
+              <span className="hidden sm:inline">Adicionar conteúdo</span>
             </Button>
           )}
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Buscar conteúdos..."
-            value={cardFeatures.searchTerm}
-            onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
-            className="pl-10 w-full"
-          />
-        </div>
-
-        {/* Posts Filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <Select value={postSort} onValueChange={(v) => setPostSort(v as any)}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <SelectValue placeholder="Ordenar por..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="updated">Atualizados</SelectItem>
-                <SelectItem value="recent">Recentes</SelectItem>
-                <SelectItem value="az">A–Z</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={postCategory} onValueChange={setPostCategory}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as categorias</SelectItem>
-                {postCategories.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {selectedTags.map((t) => (
-                <Badge key={t} variant="secondary" className="gap-1">
-                  {t}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTags((prev) => prev.filter((x) => x !== t))}
-                    className="ml-1 text-gray-600 hover:text-gray-900"
-                    aria-label={`Remover tag ${t}`}
-                  >
-                    ×
-                  </button>
-                </Badge>
-              ))}
-
-              <Popover open={isTagsOpen} onOpenChange={setIsTagsOpen}>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" size="sm" className="gap-2">
-                    <Filter className="h-4 w-4" />
-                    Tags
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-[320px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar tags..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
-                      <CommandGroup>
-                      {postTagOptions.map((opt) => {
-                          const selected = selectedTags.includes(opt)
-                          return (
-                            <CommandItem
-                              key={opt}
-                              value={opt}
-                              onSelect={() => {
-                                setSelectedTags((prev) => (prev.includes(opt) ? prev : [...prev, opt]))
-                                setIsTagsOpen(false)
-                              }}
-                              disabled={selected}
-                            >
-                              <span className={selected ? "text-gray-400" : "text-gray-900"}>{opt}</span>
-                            </CommandItem>
-                          )
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-
-              {hasPostFilters && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    cardFeatures.setSearchTerm("")
-                    setPostSort("updated")
-                    setPostCategory("all")
-                    setSelectedTags([])
-                  }}
-                >
-                  Limpar filtros
-                </Button>
-              )}
-            </div>
-          </div>
+        {/* Filters removed */}
       </div>
 
       {/* Loading */}
       {loading && (
-        <div className="bg-gray-200 rounded-full h-2 mb-6">
+        <div className="w-full max-w-[900px] mx-auto bg-gray-200 rounded-full h-2 mb-6">
           <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
         </div>
       )}
 
       {/* Error */}
       {!loading && error && (
-        <div className="text-red-600">{error}</div>
+        <div className="w-full max-w-[900px] mx-auto text-red-600">{error}</div>
       )}
 
       {/* Empty State */}
       {!loading && !error && cardFeatures.items.length === 0 && !hasPostFilters && (
-        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center w-full max-w-[900px] mx-auto">
           <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Nenhum conteúdo adicionado
@@ -367,7 +233,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Empty Search */}
       {!loading && !error && filteredPosts.length === 0 && hasPostFilters && (
-        <div className="text-center py-12">
+        <div className="text-center py-12 w-full max-w-[900px] mx-auto">
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Nenhum resultado encontrado
@@ -395,7 +261,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Pagination */}
       {!loading && !error && cardFeatures.totalPages > 1 && (
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex justify-center w-full max-w-[900px] mx-auto">
           <Pagination>
             <PaginationContent>
               <PaginationItem>
@@ -455,7 +321,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Pagination Info */}
       {!loading && !error && cardFeatures.totalCount > 0 && (
-        <div className="mt-4 text-center text-sm text-gray-600">
+        <div className="mt-4 text-center text-sm text-gray-600 w-full max-w-[900px] mx-auto">
           Mostrando {((cardFeatures.currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(cardFeatures.currentPage * ITEMS_PER_PAGE, cardFeatures.totalCount)} de {cardFeatures.totalCount} conteúdos
         </div>
       )}
