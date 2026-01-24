@@ -1,0 +1,9 @@
+=== Ralph progress log ===
+
+Use this file to record what each iteration did, what passed/failed, and learnings.
+
+Iteration 1: Story #1 - Ralph smoke test: create RALPH_TEST.md
+✅ PASSED - File created with exact content "ralph: ok"
+- Branch: chore/ralph
+- File: RALPH_TEST.md exists at root
+- Content verified: ralph: ok

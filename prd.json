@@ -1,0 +1,14 @@
+{
+  "branch": "chore/ralph",
+  "stories": [
+    {
+      "id": "1",
+      "title": "Ralph smoke test: create RALPH_TEST.md",
+      "acceptance_criteria": [
+        "File RALPH_TEST.md exists at repo root",
+        "RALPH_TEST.md contains the exact line: ralph: ok"
+      ],
+      "passes": true
+    }
+  ]
+}
