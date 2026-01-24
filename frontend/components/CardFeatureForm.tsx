@@ -634,7 +634,7 @@ export default function CardFeatureForm({
                     Configurações
                   </TabsTrigger>
                   <TabsTrigger value="code" className="text-xs font-semibold px-3">
-                    Código
+                    Conteúdo
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -707,7 +707,7 @@ export default function CardFeatureForm({
                 `}
               >
                 <Code2 className={`h-3.5 w-3.5 ${mobileViewTab === 'code' ? 'text-blue-600' : 'text-gray-400'}`} />
-                Código
+                Conteúdo
               </button>
             </div>
           </div>
