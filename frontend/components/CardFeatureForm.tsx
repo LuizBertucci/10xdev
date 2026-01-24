@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2 } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2, Trash2, Upload, ExternalLink } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -234,6 +234,18 @@ function getYouTubeId(value?: string) {
   return match?.[1] ?? null
 }
 
+function getPdfFileName(value: string) {
+  try {
+    const url = new URL(value)
+    const rawName = url.pathname.split('/').pop() || value
+    const decoded = decodeURIComponent(rawName)
+    return decoded.replace(/^\d{13}-/, '') || decoded
+  } catch {
+    const rawName = value.split('/').pop() || value
+    return rawName.replace(/^\d{13}-/, '') || rawName
+  }
+}
+
 export default function CardFeatureForm({ 
   isOpen, 
   mode, 
@@ -281,6 +293,7 @@ export default function CardFeatureForm({
 
   const [uploadingPdf, setUploadingPdf] = useState(false)
   const [pdfTargetScreen, setPdfTargetScreen] = useState<number | null>(null)
+  const [pdfTargetBlock, setPdfTargetBlock] = useState<number | null>(null)
   const pdfInputRef = useRef<HTMLInputElement | null>(null)
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
 
@@ -407,12 +420,13 @@ export default function CardFeatureForm({
     }))
   }
 
-  const triggerPdfPicker = (screenIndex: number) => {
+  const triggerPdfPicker = (screenIndex: number, blockIndex?: number | null) => {
     if (!supabase) {
       toast.error("Supabase não disponível para upload")
       return
     }
     setPdfTargetScreen(screenIndex)
+    setPdfTargetBlock(typeof blockIndex === "number" ? blockIndex : null)
     pdfInputRef.current?.click()
   }
 
@@ -450,14 +464,23 @@ export default function CardFeatureForm({
       const publicUrl = supabase.storage.from("post-files").getPublicUrl(filePath).data.publicUrl
       const targetIndex = pdfTargetScreen ?? activeTab
 
-      setFormData(prev => ({ ...prev, file_url: publicUrl }))
-      addBlock(targetIndex, ContentType.PDF, publicUrl)
+      setFormData(prev => ({
+        ...prev,
+        file_url: publicUrl
+      }))
+
+      if (typeof pdfTargetBlock === "number") {
+        handleBlockChange(targetIndex, pdfTargetBlock, "content", publicUrl)
+      } else {
+        addBlock(targetIndex, ContentType.PDF, publicUrl)
+      }
       toast.success("PDF enviado com sucesso")
     } catch (error: any) {
       toast.error(error?.message || "Erro ao enviar PDF")
     } finally {
       setUploadingPdf(false)
       setPdfTargetScreen(null)
+      setPdfTargetBlock(null)
     }
   }
 
@@ -931,7 +954,7 @@ export default function CardFeatureForm({
                       collisionDetection={closestCenter}
                       onDragEnd={handleDragEnd}
                     >
-                      <TabsList className="form-tabs-scroll flex w-full h-8 p-0 gap-1 overflow-x-auto overflow-y-hidden justify-start bg-transparent border-none items-center">
+                      <TabsList className="form-tabs-scroll flex h-8 flex-1 p-0 gap-1 overflow-x-auto overflow-y-hidden justify-start bg-transparent border-none items-center">
                         <style>{`
                           .form-tabs-scroll::-webkit-scrollbar {
                             height: 2px;
@@ -965,18 +988,18 @@ export default function CardFeatureForm({
                             />
                           ))}
                         </SortableContext>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addScreen}
+                          className="h-7 px-2.5 text-[10px] bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:text-blue-800 transition-all shadow-sm shrink-0"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Nova aba
+                        </Button>
                       </TabsList>
                     </DndContext>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addScreen}
-                      className="h-7 px-2.5 text-[10px] bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-blue-600 transition-all shadow-sm shrink-0"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Novo Arquivo
-                    </Button>
                   </div>
 
                   {formData.screens.map((screen, index) => (
@@ -1093,23 +1116,65 @@ export default function CardFeatureForm({
                                     </div>
                                   ) : block.type === ContentType.PDF ? (
                                     <div className="pb-10">
-                                      <Input
-                                        placeholder="URL do PDF"
-                                        value={block.content}
-                                        onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                                        className="h-9 bg-white border-gray-100 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                      />
-                                      {block.content && (
-                                        <div className="mt-3 inline-flex max-w-[220px] rounded-md border border-gray-200 bg-white p-2">
-                                          <div className="relative w-[200px] overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
-                                            <iframe
-                                              src={block.content}
-                                              title="Pré-visualização do PDF"
-                                              className="absolute inset-0 h-full w-full"
-                                            />
+                                      <div className="flex items-center gap-2">
+                                        <div className="relative flex-1">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => triggerPdfPicker(index, blockIndex)}
+                                            disabled={uploadingPdf}
+                                            className="absolute left-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-60"
+                                            title={uploadingPdf ? "Enviando..." : "Selecionar PDF"}
+                                          >
+                                            <Upload className="h-4 w-4" />
+                                          </Button>
+                                          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => window.open(block.content, "_blank", "noopener,noreferrer")}
+                                              disabled={!block.content}
+                                              className="h-7 w-7 p-0 text-gray-500 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+                                              title="Abrir em outra aba"
+                                            >
+                                              <ExternalLink className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => {
+                                                handleBlockChange(index, blockIndex, 'content', '')
+                                                setFormData((prev) => ({
+                                                  ...prev,
+                                                  file_url: prev.file_url === block.content ? '' : prev.file_url
+                                                }))
+                                              }}
+                                              className="h-7 w-7 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50"
+                                              title="Excluir arquivo"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
                                           </div>
+                                          {block.content ? (
+                                            <Input
+                                              readOnly
+                                              value={getPdfFileName(block.content)}
+                                              title={block.content}
+                                              className="h-9 bg-gray-100 border-gray-200 text-gray-600 text-sm pl-10 pr-20 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                            />
+                                          ) : (
+                                            <Input
+                                              placeholder="URL do PDF"
+                                              value={block.content}
+                                              onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                              className="h-9 bg-gray-100 border-gray-200 text-gray-600 placeholder:text-gray-400 text-sm pl-10 pr-20 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                            />
+                                          )}
                                         </div>
-                                      )}
+                                      </div>
                                     </div>
                                   ) : (
                                     <Textarea
@@ -1132,41 +1197,43 @@ export default function CardFeatureForm({
                                     />
                                   )}
                                   {block.type !== ContentType.CODE && (
-                                    <div className="absolute bottom-2 right-2 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
-                                      {screen.blocks.length > 1 && (
-                                        <div className="flex items-center ml-1 pr-2 border-r border-gray-200">
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => moveBlockUp(index, blockIndex)}
-                                            disabled={blockIndex === 0}
-                                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
-                                          >
-                                            <ChevronUp className="h-3.5 w-3.5" />
-                                          </Button>
-                                          
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => moveBlockDown(index, blockIndex)}
-                                            disabled={blockIndex === screen.blocks.length - 1}
-                                            className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
-                                          >
-                                            <ChevronDown className="h-3.5 w-3.5" />
-                                          </Button>
-                                        </div>
-                                      )}
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeBlock(index, blockIndex)}
-                                        className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                                      >
-                                        <X className="h-3.5 w-3.5" />
-                                      </Button>
+                                    <div className="flex items-center justify-end">
+                                      <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
+                                        {screen.blocks.length > 1 && (
+                                          <div className="flex items-center ml-1 pr-2 border-r border-gray-200">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => moveBlockUp(index, blockIndex)}
+                                              disabled={blockIndex === 0}
+                                              className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                                            >
+                                              <ChevronUp className="h-3.5 w-3.5" />
+                                            </Button>
+                                            
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => moveBlockDown(index, blockIndex)}
+                                              disabled={blockIndex === screen.blocks.length - 1}
+                                              className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                                            >
+                                              <ChevronDown className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </div>
+                                        )}
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => removeBlock(index, blockIndex)}
+                                          className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -1196,6 +1263,32 @@ export default function CardFeatureForm({
                         onChange={handlePdfSelected}
                       />
                       <div className="mr-5 flex flex-wrap gap-2 rounded-md bg-gray-100 border border-gray-400 px-3 py-2 shadow-sm my-1">
+                        {effectiveCardType === CardType.POST && (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => addBlock(index, ContentType.YOUTUBE)}
+                              className="h-7 px-2.5 text-[11px] bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 rounded-md transition-all"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              YouTube
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => triggerPdfPicker(index)}
+                              disabled={uploadingPdf}
+                              className="h-7 px-2.5 text-[11px] bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 border border-indigo-200 rounded-md transition-all disabled:opacity-60"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              {uploadingPdf ? "Enviando..." : "PDF"}
+                            </Button>
+                            <span className="mx-1 h-5 w-px bg-gray-300 self-center" />
+                          </>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -1226,31 +1319,6 @@ export default function CardFeatureForm({
                           <Plus className="h-3 w-3 mr-1" />
                           Terminal
                         </Button>
-                        {effectiveCardType === CardType.POST && (
-                          <>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => addBlock(index, ContentType.YOUTUBE)}
-                              className="h-7 px-2.5 text-[11px] bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 rounded-md transition-all"
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              YouTube
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => triggerPdfPicker(index)}
-                              disabled={uploadingPdf}
-                              className="h-7 px-2.5 text-[11px] bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 rounded-md transition-all disabled:opacity-60"
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              {uploadingPdf ? "Enviando..." : "PDF"}
-                            </Button>
-                          </>
-                        )}
                       </div>
                     </div>
                   </TabsContent>
