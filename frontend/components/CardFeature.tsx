@@ -21,6 +21,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
+  const techValue = snippet.tech ?? "Geral"
+  const languageValue = snippet.language ?? "text"
   
   // Verificar se o usuário é o criador do card
   const isOwner = user?.id === snippet.createdBy
@@ -104,16 +106,16 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
           {/* Badges de tecnologia */}
           <div className="flex justify-end space-x-2">
             <Badge 
-              className={`text-xs rounded-md shadow-sm border pointer-events-none ${getTechConfig(snippet.tech).color}`}
+              className={`text-xs rounded-md shadow-sm border pointer-events-none ${getTechConfig(techValue).color}`}
             >
-              <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-              {snippet.tech}
+              <span className="mr-1">{getTechConfig(techValue).icon}</span>
+              {techValue}
             </Badge>
             <Badge 
-              className={`text-xs rounded-md shadow-sm border pointer-events-none ${getLanguageConfig(snippet.language).color}`}
+              className={`text-xs rounded-md shadow-sm border pointer-events-none ${getLanguageConfig(languageValue).color}`}
             >
-              <span className="mr-1 text-xs font-bold">{getLanguageConfig(snippet.language).icon}</span>
-              {snippet.language}
+              <span className="mr-1 text-xs font-bold">{getLanguageConfig(languageValue).icon}</span>
+              {languageValue}
             </Badge>
           </div>
 

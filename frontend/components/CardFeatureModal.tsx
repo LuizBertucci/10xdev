@@ -14,6 +14,7 @@ interface CardFeatureModalProps {
 
 export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onDelete }: CardFeatureModalProps) {
   if (!isOpen || !snippet) return null
+  const languageValue = snippet.language ?? "text"
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2">
@@ -124,7 +125,7 @@ export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onD
                           {block.type === ContentType.CODE ? (
                             <SyntaxHighlighter
                               code={block.content}
-                              language={block.language || snippet.language}
+                              language={block.language || languageValue}
                             />
                           ) : (
                             <pre className="whitespace-pre-wrap text-xs font-mono bg-gray-50 p-3 rounded">

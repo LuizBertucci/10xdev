@@ -19,7 +19,7 @@ export default function TrainingVideoModal({
   onEdit,
   onDelete
 }: TrainingVideoModalProps) {
-  if (!video) return null
+  if (!video || !video.videoId) return null
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
