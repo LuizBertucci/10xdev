@@ -134,9 +134,15 @@ export interface ProjectCardResponse {
   cardFeature?: {
     id: string
     title: string
-    tech: string
-    language: string
+    tech?: string
+    language?: string
     description: string
+    // Campos opcionais para posts
+    category?: string
+    fileUrl?: string
+    youtubeUrl?: string
+    videoId?: string
+    thumbnail?: string
   }
 }
 

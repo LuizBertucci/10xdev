@@ -82,8 +82,8 @@ export class ProjectModel {
     return {
       id: row.id,
       title: row.title,
-      tech: row.tech,
-      language: row.language,
+      ...(row.tech ? { tech: row.tech } : {}),
+      ...(row.language ? { language: row.language } : {}),
       description: row.description,
       tags: row.tags || [],
       content_type: row.content_type,
@@ -98,6 +98,12 @@ export class ProjectModel {
       approvedAt: row.approved_at || null,
       approvedBy: row.approved_by || null,
       createdInProjectId: row.created_in_project_id || null,
+      // Campos opcionais para posts
+      ...(row.category ? { category: row.category } : {}),
+      ...(row.file_url ? { fileUrl: row.file_url } : {}),
+      ...(row.youtube_url ? { youtubeUrl: row.youtube_url } : {}),
+      ...(row.video_id ? { videoId: row.video_id } : {}),
+      ...(row.thumbnail ? { thumbnail: row.thumbnail } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }

@@ -62,7 +62,7 @@ export default function Codes({ platformState }: CodesProps) {
   // ================================================
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
-  const [selectedCardType, setSelectedCardType] = useState<string>('all')
+  const [selectedCardType, setSelectedCardType] = useState<string>('codigos')
   const [selectedDirectoryTab, setSelectedDirectoryTab] = useState<string>('approved')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
@@ -319,36 +319,6 @@ export default function Codes({ platformState }: CodesProps) {
               onChange={(e) => cardFeatures.setSearchTerm(e.target.value)}
               className="pl-10 pr-10 w-full h-10"
             />
-            
-            {/* Card Type Filter - Posicionado ABSOLUTAMENTE dentro da busca na direita */}
-            <div className="absolute right-1 top-1/2 transform -translate-y-1/2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className={`h-8 w-8 p-0 hover:bg-gray-100 ${selectedCardType !== 'all' ? 'text-blue-600' : 'text-gray-400'}`}
-                    title="Filtrar por tipo"
-                  >
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={() => setSelectedCardType('all')} className={selectedCardType === 'all' ? 'bg-blue-50 text-blue-600' : ''}>
-                    Todos
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedCardType('dicas')} className={selectedCardType === 'dicas' ? 'bg-blue-50 text-blue-600' : ''}>
-                    Dicas
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedCardType('codigos')} className={selectedCardType === 'codigos' ? 'bg-blue-50 text-blue-600' : ''}>
-                    Códigos
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedCardType('workflows')} className={selectedCardType === 'workflows' ? 'bg-blue-50 text-blue-600' : ''}>
-                    Workflows
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
           </div>
 
           {/* Pencil Button (selection mode) - Only in unlisted/private tabs */}
@@ -503,13 +473,13 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedDirectoryTab !== 'approved'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved'
               ? 'Nenhum snippet encontrado'
               : 'Nenhum card disponível'
             }
           </h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedCardType !== 'all' || selectedDirectoryTab !== 'approved'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved'
               ? 'Tente ajustar seus filtros de busca'
               : 'Ainda não há snippets de código disponíveis para visualização'
             }

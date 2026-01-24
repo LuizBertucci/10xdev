@@ -1,40 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import Home from '@/pages/Home'
-import { contentService, ContentType, type Content } from '@/services/contentService'
-import { Play } from 'lucide-react'
 
 export default function PublicHome() {
-  const router = useRouter()
-  const [videos, setVideos] = useState<Content[]>([])
-
-  useEffect(() => {
-    const loadVideos = async () => {
-      try {
-        const res = await contentService.listContents({ type: ContentType.VIDEO, limit: 1 })
-        if (res?.success && res.data) {
-          setVideos(res.data.slice(0, 1))
-        }
-      } catch (error) {
-        // Em modo público pode falhar (ex: endpoint privado). Só não exibimos a seção.
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Erro ao carregar videoaulas (PublicHome):', error)
-        }
-      }
-    }
-    loadVideos()
-  }, [])
-
-  const goToLoginWithRedirect = (redirectTo: string) => {
-    router.push(`/login?redirect=${encodeURIComponent(redirectTo)}`)
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 overflow-x-hidden">
       <header className="bg-white/80 shadow-sm border-b backdrop-blur">

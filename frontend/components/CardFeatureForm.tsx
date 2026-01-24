@@ -43,13 +43,19 @@ type ScreenData = CreateScreenData
 
 interface CardFeatureFormData {
   title: string
-  tech: string
-  language: string
+  tech?: string
+  language?: string
   description: string
   content_type: ContentType
   card_type: CardType
   visibility: Visibility
   screens: CreateScreenData[]
+  // Campos opcionais para posts
+  category?: string
+  file_url?: string
+  youtube_url?: string
+  video_id?: string
+  thumbnail?: string
 }
 
 // Componente para aba arrastável
@@ -200,6 +206,7 @@ interface CardFeatureFormProps {
   onClose: () => void
   onSubmit: (data: CardFeatureFormData) => Promise<CardFeature | null>
   isAdmin?: boolean
+  forcedCardType?: CardType
 }
 
 export default function CardFeatureForm({ 
@@ -209,23 +216,31 @@ export default function CardFeatureForm({
   isLoading, 
   onClose, 
   onSubmit,
-  isAdmin = false
+  isAdmin = false,
+  forcedCardType
 }: CardFeatureFormProps) {
   const [formData, setFormData] = useState<CardFeatureFormData>(() => {
-    if (mode === 'edit' && initialData) {
-      return {
-        title: initialData.title,
-        tech: initialData.tech,
-        language: initialData.language,
-        description: initialData.description,
-        content_type: initialData.content_type,
-        card_type: initialData.card_type,
-        visibility: initialData.visibility ?? Visibility.PUBLIC,
-        screens: initialData.screens
-      }
-    }
-    return { ...DEFAULT_FORM_DATA }
+    const baseData = mode === 'edit' && initialData ? {
+      title: initialData.title,
+      tech: initialData.tech,
+      language: initialData.language,
+      description: initialData.description,
+      content_type: initialData.content_type,
+      card_type: initialData.card_type,
+      visibility: initialData.visibility ?? Visibility.PUBLIC,
+      screens: initialData.screens,
+      // Campos opcionais para posts
+      category: initialData.category,
+      file_url: initialData.fileUrl,
+      youtube_url: initialData.youtubeUrl,
+      video_id: initialData.videoId,
+      thumbnail: initialData.thumbnail
+    } : { ...DEFAULT_FORM_DATA }
+
+    return forcedCardType ? { ...baseData, card_type: forcedCardType } : baseData
   })
+
+  const effectiveCardType = forcedCardType ?? formData.card_type
   
   // Estado para controlar aba ativa (0+ = arquivos)
   const [activeTab, setActiveTab] = useState<number>(0)
@@ -451,8 +466,9 @@ export default function CardFeatureForm({
 
   const handleSubmit = async () => {
     try {
+      const payload = forcedCardType ? { ...formData, card_type: forcedCardType } : formData
       // 1. Submeter o formulário principal e obter o card criado/atualizado
-      const createdCard = await onSubmit(formData)
+      const createdCard = await onSubmit(payload)
       
       // 2. Se for card privado E tiver usuários selecionados E for modo criação, compartilhar
       if (formData.visibility === Visibility.UNLISTED && selectedUsers.length > 0 && mode === 'create' && createdCard?.id) {
@@ -474,7 +490,10 @@ export default function CardFeatureForm({
       
       // 3. Limpar form se for criação
       if (mode === 'create') {
-        setFormData({ ...DEFAULT_FORM_DATA })
+        setFormData({
+          ...DEFAULT_FORM_DATA,
+          card_type: forcedCardType ?? DEFAULT_FORM_DATA.card_type
+        })
         setSelectedUsers([])
       }
     } catch (error) {
@@ -603,58 +622,99 @@ export default function CardFeatureForm({
                   </label>
                   <div className="grid gap-2.5 md:grid-cols-3">
                     <div>
-                      <Select
-                        value={formData.card_type}
-                        onValueChange={(value) => handleInputChange('card_type', value)}
-                      >
-                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="text-xs">
-                          <SelectItem value="dicas">Dicas</SelectItem>
-                          <SelectItem value="codigos">Códigos</SelectItem>
-                          <SelectItem value="workflows">Workflows</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {forcedCardType ? (
+                        <div className="flex h-9 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-xs text-gray-600">
+                          {forcedCardType === CardType.POST ? 'Post' : 'Códigos'}
+                        </div>
+                      ) : (
+                        <Select
+                          value={formData.card_type}
+                          onValueChange={(value) => handleInputChange('card_type', value)}
+                        >
+                          <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="text-xs">
+                            <SelectItem value="codigos">Códigos</SelectItem>
+                            <SelectItem value="post">Post</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
-                    <div>
-                      <Select
-                        value={formData.tech}
-                        onValueChange={(value) => handleInputChange('tech', value)}
-                      >
-                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="text-xs">
-                          <SelectItem value="React">React</SelectItem>
-                          <SelectItem value="Node.js">Node.js</SelectItem>
-                          <SelectItem value="Python">Python</SelectItem>
-                          <SelectItem value="JavaScript">JavaScript</SelectItem>
-                          <SelectItem value="Vue.js">Vue.js</SelectItem>
-                          <SelectItem value="Angular">Angular</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    {effectiveCardType === CardType.CODIGOS && (
+                      <>
+                        <div>
+                          <Select
+                            value={formData.tech || 'React'}
+                            onValueChange={(value) => handleInputChange('tech', value)}
+                          >
+                            <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="text-xs">
+                              <SelectItem value="React">React</SelectItem>
+                              <SelectItem value="Node.js">Node.js</SelectItem>
+                              <SelectItem value="Python">Python</SelectItem>
+                              <SelectItem value="JavaScript">JavaScript</SelectItem>
+                              <SelectItem value="Vue.js">Vue.js</SelectItem>
+                              <SelectItem value="Angular">Angular</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                    <div>
-                      <Select
-                        value={formData.language}
-                        onValueChange={(value) => handleInputChange('language', value)}
-                      >
-                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="text-xs">
-                          <SelectItem value="typescript">TypeScript</SelectItem>
-                          <SelectItem value="javascript">JavaScript</SelectItem>
-                          <SelectItem value="python">Python</SelectItem>
-                          <SelectItem value="html">HTML</SelectItem>
-                          <SelectItem value="css">CSS</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                        <div>
+                          <Select
+                            value={formData.language || 'typescript'}
+                            onValueChange={(value) => handleInputChange('language', value)}
+                          >
+                            <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="text-xs">
+                              <SelectItem value="typescript">TypeScript</SelectItem>
+                              <SelectItem value="javascript">JavaScript</SelectItem>
+                              <SelectItem value="python">Python</SelectItem>
+                              <SelectItem value="html">HTML</SelectItem>
+                              <SelectItem value="css">CSS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+
+                    {effectiveCardType === CardType.POST && (
+                      <div className="md:col-span-2">
+                        <Input
+                          placeholder="Categoria (opcional)"
+                          value={formData.category || ''}
+                          onChange={(e) => handleInputChange('category', e.target.value)}
+                          className="h-9 bg-gray-50 border-gray-200 text-xs"
+                        />
+                      </div>
+                    )}
                   </div>
+
+                  {effectiveCardType === CardType.POST && (
+                    <div className="grid gap-2.5 md:grid-cols-2">
+                      <div>
+                        <Input
+                          placeholder="URL do YouTube (opcional)"
+                          value={formData.youtube_url || ''}
+                          onChange={(e) => handleInputChange('youtube_url', e.target.value)}
+                          className="h-9 bg-gray-50 border-gray-200 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          placeholder="URL do arquivo/PDF (opcional)"
+                          value={formData.file_url || ''}
+                          onChange={(e) => handleInputChange('file_url', e.target.value)}
+                          className="h-9 bg-gray-50 border-gray-200 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 flex flex-col space-y-2">

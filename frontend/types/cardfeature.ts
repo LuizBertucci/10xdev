@@ -19,9 +19,8 @@ export enum ContentType {
  * Tipos de card suportados
  */
 export enum CardType {
-  DICAS = 'dicas',
   CODIGOS = 'codigos',
-  WORKFLOWS = 'workflows'
+  POST = 'post'
 }
 
 /**
@@ -73,12 +72,12 @@ export interface CardFeatureScreen {
 export interface CardFeature {
   id: string
   title: string
-  tech: string           // Tecnologia principal (React, Node.js, Python, etc.)
-  language: string       // Linguagem de programação (typescript, javascript, python)
+  tech?: string           // Opcional: Tecnologia principal (React, Node.js, Python, etc.) - usado quando card_type === 'codigos'
+  language?: string       // Opcional: Linguagem de programação (typescript, javascript, python) - usado quando card_type === 'codigos'
   description: string    // Descrição do que o código faz
   tags?: string[]        // Categorias/tags do card
   content_type: ContentType    // Tipo de conteúdo dos blocos
-  card_type: CardType    // Tipo do card (dicas/codigos/workflows)
+  card_type: CardType    // Tipo do card (codigos/post)
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdBy?: string | null     // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   isPrivate?: boolean    // LEGADO: mantido para compatibilidade
@@ -88,6 +87,12 @@ export interface CardFeature {
   approvedAt?: string | null
   approvedBy?: string | null
   createdInProjectId?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
+  // Campos opcionais para posts
+  category?: string      // Categoria do post
+  fileUrl?: string       // URL do arquivo/PDF
+  youtubeUrl?: string    // URL do vídeo do YouTube
+  videoId?: string       // ID do vídeo (extraído de youtubeUrl)
+  thumbnail?: string     // URL da thumbnail
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
   author?: string        // Autor do card (opcional, mantido para compatibilidade)
@@ -114,8 +119,8 @@ export interface CardFeatureDisplay extends CardFeature {
  */
 export interface CreateCardFeatureData {
   title: string
-  tech: string
-  language: string
+  tech?: string              // Opcional: usado quando card_type === 'codigos'
+  language?: string          // Opcional: usado quando card_type === 'codigos'
   description: string
   tags?: string[]
   content_type: ContentType
@@ -125,6 +130,12 @@ export interface CreateCardFeatureData {
   visibility?: Visibility  // NOVO: controle de visibilidade (padrão: public)
   approvalStatus?: ApprovalStatus | string
   created_in_project_id?: string  // ID do projeto onde será criado (opcional)
+  // Campos opcionais para posts
+  category?: string      // Categoria do post
+  file_url?: string      // URL do arquivo/PDF
+  youtube_url?: string   // URL do vídeo do YouTube
+  video_id?: string      // ID do vídeo (extraído de youtube_url)
+  thumbnail?: string     // URL da thumbnail
 }
 
 /**

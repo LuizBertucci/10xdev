@@ -163,6 +163,15 @@ export class CardFeatureModel {
 
   static async create(data: CreateCardFeatureRequest, userId: string, actorRole: string = 'user'): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Validar card_type
+      if (data.card_type && data.card_type !== 'codigos' && data.card_type !== 'post') {
+        return {
+          success: false,
+          error: 'card_type deve ser "codigos" ou "post"',
+          statusCode: 400
+        }
+      }
+
       const isAdmin = actorRole === 'admin'
       // Processar screens para adicionar IDs e order aos blocos
       const processedScreens = data.screens.map(screen => ({
@@ -202,8 +211,8 @@ export class CardFeatureModel {
       const insertData: CardFeatureInsert = {
         id: randomUUID(),
         title: data.title || '',
-        tech: data.tech || 'React',
-        language: data.language || 'typescript',
+        ...(data.tech ? { tech: data.tech } : {}),
+        ...(data.language ? { language: data.language } : {}),
         description: data.description || '',
         tags: data.tags || [],
         content_type: data.content_type || 'code',
@@ -217,6 +226,12 @@ export class CardFeatureModel {
         approved_at,
         approved_by,
         created_in_project_id: data.created_in_project_id || null,
+        // Campos opcionais para posts
+        ...(data.category ? { category: data.category } : {}),
+        ...(data.file_url ? { file_url: data.file_url } : {}),
+        ...(data.youtube_url ? { youtube_url: data.youtube_url } : {}),
+        ...(data.video_id ? { video_id: data.video_id } : {}),
+        ...(data.thumbnail ? { thumbnail: data.thumbnail } : {}),
         created_at: now,
         updated_at: now
       }
@@ -472,6 +487,15 @@ export class CardFeatureModel {
     actorRole: string = 'user'
   ): Promise<ModelResult<CardFeatureResponse>> {
     try {
+      // Validar card_type se fornecido
+      if (data.card_type && data.card_type !== 'codigos' && data.card_type !== 'post') {
+        return {
+          success: false,
+          error: 'card_type deve ser "codigos" ou "post"',
+          statusCode: 400
+        }
+      }
+
       const isAdmin = actorRole === 'admin'
 
       // Verificar se existe e se usuário tem acesso (admin pode ver qualquer card)
@@ -825,8 +849,8 @@ export class CardFeatureModel {
         return {
           id: randomUUID(),
           title: item.title,
-          tech: item.tech,
-          language: item.language,
+          ...(item.tech ? { tech: item.tech } : {}),
+          ...(item.language ? { language: item.language } : {}),
           description: item.description,
           tags: item.tags || [],
           content_type: item.content_type,
@@ -840,6 +864,12 @@ export class CardFeatureModel {
           approved_at: approvedAt,
           approved_by: approvedBy,
           created_in_project_id: item.created_in_project_id || null,
+          // Campos opcionais para posts
+          ...(item.category ? { category: item.category } : {}),
+          ...(item.file_url ? { file_url: item.file_url } : {}),
+          ...(item.youtube_url ? { youtube_url: item.youtube_url } : {}),
+          ...(item.video_id ? { video_id: item.video_id } : {}),
+          ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
           created_at: now,
           updated_at: now
         }

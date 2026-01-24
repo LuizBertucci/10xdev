@@ -18,10 +18,6 @@ export type {
   CardFeatureStats
 } from './cardFeatureService'
 
-// Content Service
-export { contentService, ContentType } from './contentService'
-export type { Content, CreateContentData, ContentQueryParams } from './contentService'
-
 // Project Service
 export { projectService, ProjectMemberRole } from './projectService'
 export type {

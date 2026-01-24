@@ -11,9 +11,8 @@ export enum ContentType {
 
 // Enum para tipo de card
 export enum CardType {
-  DICAS = 'dicas',
   CODIGOS = 'codigos',
-  WORKFLOWS = 'workflows'
+  POST = 'post'
 }
 
 // Enum para visibilidade do card
@@ -53,12 +52,12 @@ export interface CardFeatureScreen {
 export interface CardFeatureRow {
   id: string
   title: string
-  tech: string
-  language: string
+  tech?: string              // Opcional: usado quando card_type === 'codigos'
+  language?: string          // Opcional: usado quando card_type === 'codigos'
   description: string
   tags?: string[]             // Categorias/tags do card
   content_type: ContentType    // Tipo de conteúdo dos blocos
-  card_type: CardType          // Tipo do card (dicas/codigos/workflows)
+  card_type: CardType          // Tipo do card (codigos/post)
   screens: CardFeatureScreen[]
   created_by: string | null    // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   is_private: boolean          // LEGADO: mantido para compatibilidade
@@ -68,6 +67,12 @@ export interface CardFeatureRow {
   approved_at?: string | null
   approved_by?: string | null
   created_in_project_id?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
+  // Campos opcionais para posts
+  category?: string           // Categoria do post
+  file_url?: string           // URL do arquivo/PDF
+  youtube_url?: string        // URL do vídeo do YouTube
+  video_id?: string          // ID do vídeo (extraído de youtube_url)
+  thumbnail?: string          // URL da thumbnail
   created_at: string
   updated_at: string
 }
@@ -75,8 +80,8 @@ export interface CardFeatureRow {
 export interface CardFeatureInsert {
   id?: string
   title: string
-  tech: string
-  language: string
+  tech?: string              // Opcional: usado quando card_type === 'codigos'
+  language?: string          // Opcional: usado quando card_type === 'codigos'
   description: string
   tags?: string[]             // Categorias/tags do card
   content_type: ContentType
@@ -90,6 +95,12 @@ export interface CardFeatureInsert {
   approved_at?: string | null
   approved_by?: string | null
   created_in_project_id?: string | null  // ID do projeto onde foi criado (opcional)
+  // Campos opcionais para posts
+  category?: string           // Categoria do post
+  file_url?: string           // URL do arquivo/PDF
+  youtube_url?: string        // URL do vídeo do YouTube
+  video_id?: string          // ID do vídeo (extraído de youtube_url)
+  thumbnail?: string          // URL da thumbnail
   created_at?: string
   updated_at?: string
 }
@@ -97,8 +108,8 @@ export interface CardFeatureInsert {
 export interface CardFeatureUpdate {
   id?: string
   title?: string
-  tech?: string
-  language?: string
+  tech?: string              // Opcional: usado quando card_type === 'codigos'
+  language?: string          // Opcional: usado quando card_type === 'codigos'
   description?: string
   tags?: string[]             // Categorias/tags do card
   content_type?: ContentType
@@ -110,6 +121,12 @@ export interface CardFeatureUpdate {
   approval_requested_at?: string | null
   approved_at?: string | null
   approved_by?: string | null
+  // Campos opcionais para posts
+  category?: string           // Categoria do post
+  file_url?: string           // URL do arquivo/PDF
+  youtube_url?: string        // URL do vídeo do YouTube
+  video_id?: string          // ID do vídeo (extraído de youtube_url)
+  thumbnail?: string          // URL da thumbnail
   updated_at?: string
 }
 
@@ -119,8 +136,8 @@ export interface CardFeatureUpdate {
 
 export interface CreateCardFeatureRequest {
   title: string
-  tech: string
-  language: string
+  tech?: string              // Opcional: usado quando card_type === 'codigos'
+  language?: string         // Opcional: usado quando card_type === 'codigos'
   description: string
   tags?: string[]             // Categorias/tags do card
   content_type: ContentType
@@ -133,6 +150,12 @@ export interface CreateCardFeatureRequest {
   approved_at?: string | null
   approved_by?: string | null
   created_in_project_id?: string  // ID do projeto onde foi criado (opcional)
+  // Campos opcionais para posts
+  category?: string           // Categoria do post
+  file_url?: string           // URL do arquivo/PDF
+  youtube_url?: string        // URL do vídeo do YouTube
+  video_id?: string          // ID do vídeo (extraído de youtube_url)
+  thumbnail?: string          // URL da thumbnail
 }
 
 export interface UpdateCardFeatureRequest extends Partial<CreateCardFeatureRequest> {}
@@ -140,8 +163,8 @@ export interface UpdateCardFeatureRequest extends Partial<CreateCardFeatureReque
 export interface CardFeatureResponse {
   id: string
   title: string
-  tech: string
-  language: string
+  tech?: string              // Opcional: usado quando card_type === 'codigos'
+  language?: string         // Opcional: usado quando card_type === 'codigos'
   description: string
   tags?: string[]             // Categorias/tags do card
   content_type: ContentType
@@ -156,6 +179,12 @@ export interface CardFeatureResponse {
   approvedAt?: string | null
   approvedBy?: string | null
   createdInProjectId?: string | null  // ID do projeto onde foi criado (camelCase para API)
+  // Campos opcionais para posts
+  category?: string           // Categoria do post
+  fileUrl?: string            // URL do arquivo/PDF (camelCase para API)
+  youtubeUrl?: string         // URL do vídeo do YouTube (camelCase para API)
+  videoId?: string           // ID do vídeo (camelCase para API)
+  thumbnail?: string          // URL da thumbnail
   createdAt: string
   updatedAt: string
 }
