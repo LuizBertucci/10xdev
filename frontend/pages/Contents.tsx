@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationEllipsis } from "@/components/ui/pagination"
-import CardPost from "@/components/CardPost"
+import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import { CardType } from "@/types"
@@ -380,20 +380,17 @@ export default function Contents({ platformState }: ContentsProps) {
 
       {/* Contents Grid / Posts List */}
       {!loading && !error && filteredPosts.length > 0 && (
-        <CardPost
-          cardFeatures={filteredPosts}
-          isAdmin={isAdmin}
-          onCopyLink={async (url) => {
-            try {
-              await navigator.clipboard.writeText(url)
-              toast({ title: "Link copiado!", description: "URL copiada para a área de transferência." })
-            } catch {
-              toast({ title: "Erro", description: "Não foi possível copiar o link.", variant: "destructive" })
-            }
-          }}
-          onEdit={isAdmin ? (cardFeature) => cardFeatures.startEditing(cardFeature) : undefined}
-          onDelete={isAdmin ? handleDelete : undefined}
-        />
+        <div className="space-y-4 w-full max-w-[900px] mx-auto">
+          {filteredPosts.map((post) => (
+            <CardFeatureCompact
+              key={post.id}
+              snippet={post}
+              onEdit={(snippet) => cardFeatures.startEditing(snippet)}
+              onDelete={(snippetId) => handleDelete(snippetId)}
+              onUpdate={cardFeatures.updateCardFeature}
+            />
+          ))}
+        </div>
       )}
 
       {/* Pagination */}

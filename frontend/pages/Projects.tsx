@@ -73,7 +73,6 @@ export default function Projects({ platformState }: ProjectsProps) {
   useEffect(() => {
     loadProjects()
     loadTemplates()
-    checkTemplateAdmin()
   }, [])
 
   const loadProjects = async () => {
@@ -128,16 +127,17 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
-  const checkTemplateAdmin = async () => {
+  const checkTemplateAdmin = async (userId?: string | null) => {
     try {
-      if (!supabase) return
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.email) return
+      if (!supabase || !userId) {
+        setIsTemplateAdmin(false)
+        return
+      }
 
       const { data } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle() as { data: { role?: string } | null }
 
       setIsTemplateAdmin(data?.role === 'admin')
@@ -145,6 +145,14 @@ export default function Projects({ platformState }: ProjectsProps) {
       setIsTemplateAdmin(false)
     }
   }
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIsTemplateAdmin(false)
+      return
+    }
+    checkTemplateAdmin(user.id)
+  }, [user?.id])
 
   useEffect(() => {
     if (isFirstSearchEffect.current) {

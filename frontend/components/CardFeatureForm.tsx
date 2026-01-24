@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { type User } from "@/services"
 import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase"
 
 const DEFAULT_FORM_DATA: CardFeatureFormData = {
   title: '',
@@ -209,6 +210,30 @@ interface CardFeatureFormProps {
   forcedCardType?: CardType
 }
 
+function getYouTubeId(value?: string) {
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    if (url.hostname.includes('youtu.be')) {
+      return url.pathname.replace('/', '').trim() || null
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const v = url.searchParams.get('v')
+      if (v) return v
+      if (url.pathname.startsWith('/embed/')) {
+        return url.pathname.replace('/embed/', '').trim() || null
+      }
+      if (url.pathname.startsWith('/shorts/')) {
+        return url.pathname.replace('/shorts/', '').trim() || null
+      }
+    }
+  } catch {
+    // ignore parse error, try regex
+  }
+  const match = value.match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([a-zA-Z0-9_-]{6,})/)
+  return match?.[1] ?? null
+}
+
 export default function CardFeatureForm({ 
   isOpen, 
   mode, 
@@ -254,6 +279,11 @@ export default function CardFeatureForm({
   // User Search State para Compartilhamento
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
 
+  const [uploadingPdf, setUploadingPdf] = useState(false)
+  const [pdfTargetScreen, setPdfTargetScreen] = useState<number | null>(null)
+  const pdfInputRef = useRef<HTMLInputElement | null>(null)
+  const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
+
   // Sensores para drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -265,6 +295,33 @@ export default function CardFeatureForm({
   // Atualizar formulário quando initialData mudar
   useEffect(() => {
     if (mode === 'edit' && initialData) {
+      const nextScreens = initialData.screens.map((screen) => ({
+        ...screen,
+        blocks: screen.blocks ? [...screen.blocks] : []
+      }))
+      const hasYoutubeBlock = nextScreens.some((screen) =>
+        screen.blocks?.some((block) => block.type === ContentType.YOUTUBE)
+      )
+      const hasPdfBlock = nextScreens.some((screen) =>
+        screen.blocks?.some((block) => block.type === ContentType.PDF)
+      )
+
+      if (initialData.youtubeUrl && !hasYoutubeBlock && nextScreens[0]) {
+        nextScreens[0].blocks.push({
+          type: ContentType.YOUTUBE,
+          content: initialData.youtubeUrl,
+          order: nextScreens[0].blocks.length
+        })
+      }
+
+      if (initialData.fileUrl && !hasPdfBlock && nextScreens[0]) {
+        nextScreens[0].blocks.push({
+          type: ContentType.PDF,
+          content: initialData.fileUrl,
+          order: nextScreens[0].blocks.length
+        })
+      }
+
       setFormData({
         title: initialData.title,
         tech: initialData.tech,
@@ -273,7 +330,12 @@ export default function CardFeatureForm({
         content_type: initialData.content_type,
         card_type: initialData.card_type,
         visibility: initialData.visibility ?? Visibility.PUBLIC,
-        screens: initialData.screens
+        screens: nextScreens,
+        file_url: initialData.fileUrl,
+        youtube_url: initialData.youtubeUrl,
+        video_id: initialData.videoId,
+        thumbnail: initialData.thumbnail,
+        category: initialData.category
       })
     } else if (mode === 'create') {
       setFormData({ ...DEFAULT_FORM_DATA })
@@ -318,10 +380,10 @@ export default function CardFeatureForm({
   }
 
   // Funções para gerenciar blocos
-  const addBlock = (screenIndex: number, type: ContentType = ContentType.CODE) => {
+  const addBlock = (screenIndex: number, type: ContentType = ContentType.CODE, content = '') => {
     const newBlock: CreateBlockData = {
       type,
-      content: '',
+      content,
       language: type === ContentType.CODE ? 'typescript' : undefined,
       order: formData.screens[screenIndex]?.blocks?.length || 0
     }
@@ -334,6 +396,60 @@ export default function CardFeatureForm({
           : screen
       )
     }))
+  }
+
+  const triggerPdfPicker = (screenIndex: number) => {
+    if (!supabase) {
+      toast.error("Supabase não disponível para upload")
+      return
+    }
+    setPdfTargetScreen(screenIndex)
+    pdfInputRef.current?.click()
+  }
+
+  const handlePdfSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    if (file.type !== "application/pdf") {
+      toast.error("Selecione um arquivo PDF")
+      return
+    }
+    if (!supabase) {
+      toast.error("Supabase não disponível para upload")
+      return
+    }
+
+    try {
+      setUploadingPdf(true)
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-")
+      const filePath = `posts/${Date.now()}-${safeName}`
+
+      const { error: uploadError } = await supabase
+        .storage
+        .from("post-files")
+        .upload(filePath, file, {
+          upsert: false,
+          contentType: "application/pdf"
+        })
+
+      if (uploadError) {
+        throw new Error(uploadError.message || "Erro ao enviar PDF")
+      }
+
+      const publicUrl = supabase.storage.from("post-files").getPublicUrl(filePath).data.publicUrl
+      const targetIndex = pdfTargetScreen ?? activeTab
+
+      setFormData(prev => ({ ...prev, file_url: publicUrl }))
+      addBlock(targetIndex, ContentType.PDF, publicUrl)
+      toast.success("PDF enviado com sucesso")
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao enviar PDF")
+    } finally {
+      setUploadingPdf(false)
+      setPdfTargetScreen(null)
+    }
   }
 
   const removeBlock = (screenIndex: number, blockIndex: number) => {
@@ -612,7 +728,7 @@ export default function CardFeatureForm({
                     placeholder="Ex: Sistema de Autenticação"
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="h-9 bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-sm"
+                    className="h-9 bg-gray-50 border-gray-200 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
 
@@ -631,7 +747,7 @@ export default function CardFeatureForm({
                           value={formData.card_type}
                           onValueChange={(value) => handleInputChange('card_type', value)}
                         >
-                          <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                        <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="text-xs">
@@ -649,7 +765,7 @@ export default function CardFeatureForm({
                             value={formData.tech || 'React'}
                             onValueChange={(value) => handleInputChange('tech', value)}
                           >
-                            <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                            <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="text-xs">
@@ -668,7 +784,7 @@ export default function CardFeatureForm({
                             value={formData.language || 'typescript'}
                             onValueChange={(value) => handleInputChange('language', value)}
                           >
-                            <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs">
+                            <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="text-xs">
@@ -689,32 +805,12 @@ export default function CardFeatureForm({
                           placeholder="Categoria (opcional)"
                           value={formData.category || ''}
                           onChange={(e) => handleInputChange('category', e.target.value)}
-                          className="h-9 bg-gray-50 border-gray-200 text-xs"
+                          className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                         />
                       </div>
                     )}
                   </div>
 
-                  {effectiveCardType === CardType.POST && (
-                    <div className="grid gap-2.5 md:grid-cols-2">
-                      <div>
-                        <Input
-                          placeholder="URL do YouTube (opcional)"
-                          value={formData.youtube_url || ''}
-                          onChange={(e) => handleInputChange('youtube_url', e.target.value)}
-                          className="h-9 bg-gray-50 border-gray-200 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          placeholder="URL do arquivo/PDF (opcional)"
-                          value={formData.file_url || ''}
-                          onChange={(e) => handleInputChange('file_url', e.target.value)}
-                          className="h-9 bg-gray-50 border-gray-200 text-xs"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex-1 flex flex-col space-y-2">
@@ -726,7 +822,8 @@ export default function CardFeatureForm({
                       placeholder="Descreva o que este CardFeature faz, como usar, exemplos..."
                       value={formData.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
-                      className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 focus:bg-white focus:border-blue-400 text-xs resize-none"
+                      spellCheck={false}
+                      className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 text-xs resize-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
                   </div>
                 </div>
@@ -742,7 +839,7 @@ export default function CardFeatureForm({
                       value={formData.visibility}
                       onValueChange={(value) => handleInputChange('visibility', value as Visibility)}
                     >
-                      <SelectTrigger className="h-9 bg-white border-blue-300 text-xs shadow-sm">
+                      <SelectTrigger className="h-9 bg-white border-blue-300 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           {formData.visibility === Visibility.PUBLIC && (
                             <Globe className="h-3.5 w-3.5 shrink-0 text-green-600" />
@@ -952,23 +1049,79 @@ export default function CardFeatureForm({
                               
                               <div className="p-4">
                                 <div className="relative">
-                                  <Textarea
-                                    placeholder={
-                                      block.type === ContentType.CODE ? 'Cole seu código aqui...' :
-                                    block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
-                                    '$ comando...'
-                                    }
-                                    value={block.content}
-                                    onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
-                                    rows={block.type === ContentType.CODE ? 8 : 4}
-                                    className={`bg-white border-gray-100 focus:border-blue-200 ${
-                                      block.type === ContentType.TERMINAL
-                                        ? 'min-h-[56px] font-mono text-[13px] leading-relaxed bg-gray-900 text-green-100 placeholder:text-gray-500 border-gray-800 focus:border-gray-700 resize-none'
-                                        : block.type === ContentType.CODE
-                                        ? 'min-h-[120px] font-mono text-[13px] leading-relaxed resize-none'
-                                        : 'min-h-[56px] text-sm resize-y'
-                                    } ${block.type !== ContentType.CODE ? 'pb-10' : ''}`}
-                                  />
+                                  {block.type === ContentType.YOUTUBE ? (
+                                    <div className="pb-10">
+                                      <Input
+                                        placeholder="Cole a URL do YouTube..."
+                                        value={block.content}
+                                        onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                        className="h-9 bg-white border-gray-100 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                      />
+                                      {block.content && (
+                                        (() => {
+                                          const videoId = getYouTubeId(block.content)
+                                          return (
+                                            <div className="mt-3 inline-flex max-w-[220px] rounded-md border border-gray-200 bg-white p-2">
+                                              {videoId ? (
+                                                <div className="relative w-[200px] overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
+                                                  <iframe
+                                                    src={`https://www.youtube.com/embed/${videoId}`}
+                                                    title="Pré-visualização do YouTube"
+                                                    className="absolute inset-0 h-full w-full"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <div className="text-xs text-gray-500">
+                                                  Cole um link válido do YouTube para exibir o preview.
+                                                </div>
+                                              )}
+                                            </div>
+                                          )
+                                        })()
+                                      )}
+                                    </div>
+                                  ) : block.type === ContentType.PDF ? (
+                                    <div className="pb-10">
+                                      <Input
+                                        placeholder="URL do PDF"
+                                        value={block.content}
+                                        onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                        className="h-9 bg-white border-gray-100 text-sm focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                      />
+                                      {block.content && (
+                                        <div className="mt-3 inline-flex max-w-[220px] rounded-md border border-gray-200 bg-white p-2">
+                                          <div className="relative w-[200px] overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
+                                            <iframe
+                                              src={block.content}
+                                              title="Pré-visualização do PDF"
+                                              className="absolute inset-0 h-full w-full"
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <Textarea
+                                      placeholder={
+                                        block.type === ContentType.CODE ? 'Cole seu código aqui...' :
+                                      block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
+                                      '$ comando...'
+                                      }
+                                      value={block.content}
+                                      onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
+                                      spellCheck={false}
+                                      rows={block.type === ContentType.CODE ? 8 : 4}
+                                      className={`bg-white border-gray-100 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                                        block.type === ContentType.TERMINAL
+                                          ? 'min-h-[56px] font-mono text-[13px] leading-relaxed bg-gray-900 text-green-100 placeholder:text-gray-500 border-gray-800 resize-none'
+                                          : block.type === ContentType.CODE
+                                          ? 'min-h-[120px] font-mono text-[13px] leading-relaxed resize-none'
+                                          : 'min-h-[56px] text-sm resize-y'
+                                      } ${block.type !== ContentType.CODE ? 'pb-10' : ''}`}
+                                    />
+                                  )}
                                   {block.type !== ContentType.CODE && (
                                     <div className="absolute bottom-2 right-2 flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
                                       {screen.blocks.length > 1 && (
@@ -1015,13 +1168,24 @@ export default function CardFeatureForm({
                           {screen.blocks.length === 0 && (
                             <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl bg-gray-50/50">
                               <p>Nenhum bloco de conteúdo adicionado.</p>
-                              <p className="text-sm mt-1">Use os botões acima para adicionar código, texto ou terminal.</p>
+                              <p className="text-sm mt-1">
+                                {effectiveCardType === CardType.POST
+                                  ? 'Use os botões acima para adicionar código, texto, terminal ou YouTube.'
+                                  : 'Use os botões acima para adicionar código, texto ou terminal.'}
+                              </p>
                             </div>
                           )}
                       </div>
                     </div>
-                    {/* Botões Adicionar Bloco */}
-                    <div className="px-4 py-2 flex justify-end bg-transparent">
+                    {/* Botões Adicionar Bloco + Links do Post */}
+                    <div className="px-4 py-2 flex flex-col gap-2 items-end bg-transparent">
+                      <input
+                        ref={pdfInputRef}
+                        type="file"
+                        accept="application/pdf"
+                        className="hidden"
+                        onChange={handlePdfSelected}
+                      />
                       <div className="mr-5 flex flex-wrap gap-2 rounded-md bg-gray-100 border border-gray-400 px-3 py-2 shadow-sm my-1">
                         <Button
                           type="button"
@@ -1053,6 +1217,31 @@ export default function CardFeatureForm({
                           <Plus className="h-3 w-3 mr-1" />
                           Terminal
                         </Button>
+                        {effectiveCardType === CardType.POST && (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => addBlock(index, ContentType.YOUTUBE)}
+                              className="h-7 px-2.5 text-[11px] bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 rounded-md transition-all"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              YouTube
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => triggerPdfPicker(index)}
+                              disabled={uploadingPdf}
+                              className="h-7 px-2.5 text-[11px] bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 rounded-md transition-all disabled:opacity-60"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              {uploadingPdf ? "Enviando..." : "PDF"}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </TabsContent>

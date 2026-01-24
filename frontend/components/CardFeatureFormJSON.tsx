@@ -107,7 +107,7 @@ export default function CardFeatureFormJSON({
         throw new Error("Campo 'description' é obrigatório e deve ser uma string")
       }
       if (!parsed.content_type || !Object.values(ContentType).includes(parsed.content_type)) {
-        throw new Error("Campo 'content_type' é obrigatório e deve ser 'code', 'text' ou 'terminal'")
+        throw new Error("Campo 'content_type' é obrigatório e deve ser 'code', 'text', 'terminal', 'youtube' ou 'pdf'")
       }
       if (!parsed.card_type || !Object.values(CardType).includes(parsed.card_type)) {
         throw new Error("Campo 'card_type' é obrigatório e deve ser 'dicas', 'codigos' ou 'workflows'")

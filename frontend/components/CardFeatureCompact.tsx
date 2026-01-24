@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -13,7 +13,7 @@ import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
 import type { CardFeature as CardFeatureType } from "@/types"
-import { Visibility } from "@/types"
+import { ContentType, Visibility } from "@/types"
 
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
@@ -33,7 +33,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   // Estado para controlar a aba ativa - persiste na URL
   const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
-  const [copied, setCopied] = useState(false)
+  const [cardLinkCopied, setCardLinkCopied] = useState(false)
+  const [contentLinkCopied, setContentLinkCopied] = useState(false)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
@@ -49,16 +50,45 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     setIsExpanded(!isExpanded)
   }
 
-  // Função para copiar URL
-  const handleCopyUrl = async (e: React.MouseEvent) => {
+  const youtubeBlockUrl =
+    snippet.screens
+      ?.flatMap((screen) => screen.blocks || [])
+      .find((block) => block.type === ContentType.YOUTUBE && block.content)?.content || ""
+
+  const pdfBlockUrl =
+    snippet.screens
+      ?.flatMap((screen) => screen.blocks || [])
+      .find((block) => block.type === ContentType.PDF && block.content)?.content || ""
+
+  const resolvedYoutubeUrl = snippet.youtubeUrl || youtubeBlockUrl
+  const resolvedPdfUrl = snippet.fileUrl || pdfBlockUrl
+  const hasFile = Boolean(resolvedPdfUrl)
+  const hasVideo = Boolean(resolvedYoutubeUrl)
+  const contentLink = resolvedPdfUrl || resolvedYoutubeUrl
+
+  // Função para copiar URL do card
+  const handleCopyCardUrl = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
       await navigator.clipboard.writeText(cardApiUrl)
-      setCopied(true)
+      setCardLinkCopied(true)
       toast.success("Link copiado!")
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => setCardLinkCopied(false), 2000)
     } catch (err) {
       toast.error("Erro ao copiar link")
+    }
+  }
+
+  const handleCopyContentUrl = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!contentLink) return
+    try {
+      await navigator.clipboard.writeText(contentLink)
+      setContentLinkCopied(true)
+      toast.success("Link do conteúdo copiado!")
+      setTimeout(() => setContentLinkCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link do conteúdo")
     }
   }
 
@@ -191,18 +221,32 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
                 </Badge>
                 <span className="text-gray-400 text-[8px]">●</span>
-                <Badge
-                  className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                >
-                  <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                  {snippet.tech}
-                </Badge>
-                {snippet.language.toLowerCase() !== snippet.tech.toLowerCase() && (
+                {snippet.tech && (
+                  <Badge
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
+                  >
+                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
+                    {snippet.tech}
+                  </Badge>
+                )}
+                {snippet.language && (!snippet.tech || snippet.language.toLowerCase() !== snippet.tech.toLowerCase()) && (
                   <Badge
                     className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
                   >
                     <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
                     {snippet.language}
+                  </Badge>
+                )}
+                {hasFile && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-200 bg-red-50 text-red-700">
+                    <FileText className="h-3 w-3 mr-1" />
+                    PDF
+                  </Badge>
+                )}
+                {hasVideo && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-200 bg-red-50 text-red-700">
+                    <Video className="h-3 w-3 mr-1" />
+                    Vídeo
                   </Badge>
                 )}
               </div>
@@ -217,15 +261,53 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {hasFile && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
+                        asChild
+                      >
+                        <a href={resolvedPdfUrl!} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Abrir PDF
+                        </a>
+                      </Button>
+                    )}
+                    {hasVideo && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
+                        asChild
+                      >
+                        <a href={resolvedYoutubeUrl!} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Ver Vídeo
+                        </a>
+                      </Button>
+                    )}
+                    {contentLink && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-7 px-2 text-xs ${contentLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                        onClick={handleCopyContentUrl}
+                      >
+                        {contentLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                        {contentLinkCopied ? 'Copiado!' : 'Link do arquivo'}
+                      </Button>
+                    )}
+
                     {/* Botão Link do card */}
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className={`h-7 px-2 text-xs ${copied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyUrl}
+                      className={`h-7 px-2 text-xs ${cardLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyCardUrl}
                     >
-                      {copied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {copied ? 'Copiado!' : 'Link do card'}
+                      {cardLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {cardLinkCopied ? 'Copiado!' : 'Link do card'}
                     </Button>
 
                     {/* Toggle - extrema direita */}

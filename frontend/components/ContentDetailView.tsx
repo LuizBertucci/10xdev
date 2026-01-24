@@ -6,6 +6,7 @@ import YouTubeVideo from "@/components/youtube-video"
 import ContentRenderer from "@/components/ContentRenderer"
 import { Button } from "@/components/ui/button"
 import { cardFeatureService, type CardFeature as CardFeatureType } from "@/services"
+import { ContentType } from "@/types"
 
 interface ContentDetailViewProps {
   id?: string | null
@@ -103,12 +104,20 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
       </div>
 
       <div className="space-y-4">
-        {/* Video Player se tiver youtubeUrl */}
-        {cardFeature.youtubeUrl && (
-          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-            <YouTubeVideo url={cardFeature.youtubeUrl} mode="embed" />
-          </div>
-        )}
+        {(() => {
+          const youtubeBlockUrl =
+            cardFeature.screens
+              ?.flatMap((screen) => screen.blocks || [])
+            .find((block) => block.type === ContentType.YOUTUBE && block.content)?.content || ""
+          const resolvedYoutubeUrl = cardFeature.youtubeUrl || youtubeBlockUrl
+          return (
+            resolvedYoutubeUrl && (
+              <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                <YouTubeVideo url={resolvedYoutubeUrl} mode="embed" />
+              </div>
+            )
+          )
+        })()}
 
         {/* Renderizar screens/blocos */}
         {cardFeature.screens.map((screen, screenIndex) => (

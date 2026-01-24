@@ -49,6 +49,50 @@ function TerminalBlockContainer({ children, className }: { children: React.React
   )
 }
 
+// Container para blocos YOUTUBE - área responsiva com borda
+function YouTubeBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
+  return (
+    <div className={`youtube-container mb-4 rounded-lg border border-gray-200 bg-white p-3 shadow-sm ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+// Container para blocos PDF - área responsiva com borda
+function PdfBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
+  return (
+    <div className={`pdf-container mb-4 rounded-lg border border-gray-200 bg-white p-3 shadow-sm ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+function getYouTubeId(value?: string) {
+  if (!value) return null
+
+  try {
+    const url = new URL(value)
+    if (url.hostname.includes('youtu.be')) {
+      return url.pathname.replace('/', '').trim() || null
+    }
+    if (url.hostname.includes('youtube.com')) {
+      const v = url.searchParams.get('v')
+      if (v) return v
+      if (url.pathname.startsWith('/embed/')) {
+        return url.pathname.replace('/embed/', '').trim() || null
+      }
+      if (url.pathname.startsWith('/shorts/')) {
+        return url.pathname.replace('/shorts/', '').trim() || null
+      }
+    }
+  } catch {
+    // ignore parse error, try regex
+  }
+
+  const match = value.match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([a-zA-Z0-9_-]{6,})/)
+  return match?.[1] ?? null
+}
+
 interface ContentRendererProps {
   blocks: ContentBlock[]
   className?: string
@@ -87,6 +131,48 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
             {block.content}
           </pre>
         </TerminalBlockContainer>
+      )
+
+    case ContentType.YOUTUBE: {
+      const videoId = getYouTubeId(block.content)
+      return (
+        <YouTubeBlockContainer className={className}>
+          {videoId ? (
+            <div className="relative w-full overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${videoId}`}
+                title="YouTube video"
+                className="absolute inset-0 h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500">
+              Cole um link válido do YouTube para exibir o vídeo.
+            </div>
+          )}
+        </YouTubeBlockContainer>
+      )
+    }
+
+    case ContentType.PDF:
+      return (
+        <PdfBlockContainer className={className}>
+          {block.content ? (
+            <div className="relative w-full overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
+              <iframe
+                src={block.content}
+                title="PDF preview"
+                className="absolute inset-0 h-full w-full"
+              />
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500">
+              Selecione um PDF para exibir aqui.
+            </div>
+          )}
+        </PdfBlockContainer>
       )
     
     default:
