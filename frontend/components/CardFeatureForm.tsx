@@ -292,6 +292,13 @@ export default function CardFeatureForm({
     })
   )
 
+  const createBlockId = () => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID()
+    }
+    return `block-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  }
+
   // Atualizar formulário quando initialData mudar
   useEffect(() => {
     if (mode === 'edit' && initialData) {
@@ -308,6 +315,7 @@ export default function CardFeatureForm({
 
       if (initialData.youtubeUrl && !hasYoutubeBlock && nextScreens[0]) {
         nextScreens[0].blocks.push({
+          id: createBlockId(),
           type: ContentType.YOUTUBE,
           content: initialData.youtubeUrl,
           order: nextScreens[0].blocks.length
@@ -316,6 +324,7 @@ export default function CardFeatureForm({
 
       if (initialData.fileUrl && !hasPdfBlock && nextScreens[0]) {
         nextScreens[0].blocks.push({
+          id: createBlockId(),
           type: ContentType.PDF,
           content: initialData.fileUrl,
           order: nextScreens[0].blocks.length
