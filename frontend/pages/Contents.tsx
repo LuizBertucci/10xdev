@@ -61,6 +61,7 @@ export default function Contents({ platformState }: ContentsProps) {
   }, [searchParams])
 
   const didInitRef = useRef(false)
+  const pendingContentTabRef = useRef<ContentTab | null>(null)
   const [contentTab, setContentTab] = useState<ContentTab>(initialContentTab)
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; contentId: string | null }>({
     isOpen: false,
@@ -96,7 +97,14 @@ export default function Contents({ platformState }: ContentsProps) {
   const videoTotalPages = Math.max(1, Math.ceil(videoTotalCount / ITEMS_PER_PAGE))
 
   useEffect(() => {
-    const nextTab = searchParams?.get('contentTab') === 'videos' ? 'videos' : 'posts'
+    const param = searchParams?.get('contentTab')
+    const nextTab = param === 'videos' ? 'videos' : 'posts'
+
+    if (pendingContentTabRef.current && pendingContentTabRef.current !== nextTab) {
+      return
+    }
+    pendingContentTabRef.current = null
+
     if (nextTab !== contentTab) {
       setContentTab(nextTab)
     }
@@ -193,6 +201,7 @@ export default function Contents({ platformState }: ContentsProps) {
 
   const handleContentTabChange = (tab: ContentTab) => {
     if (tab === contentTab) return
+    pendingContentTabRef.current = tab
     setContentTab(tab)
     if (tab === 'posts') {
       cardFeatures.goToPage(1)
