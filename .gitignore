@@ -21,6 +21,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# ralph (runtime logs)
+ralph-output.log
+
 # env files
 .env*
 

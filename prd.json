@@ -3,28 +3,25 @@
   "stories": [
     {
       "id": "1",
-      "title": "Delete old ClawdBot post from database",
+      "title": "Create ClawdBot Installation CARD with separated blocks",
       "acceptance_criteria": [
-        "GET /api/contents to list all posts",
-        "Find ClawdBot post with old markdown formatting",
-        "DELETE the post via /api/contents/:id",
-        "Verify post no longer exists"
+        "POST to /api/card-features with clawdbot-post.json",
+        "Card title: 'ClawdBot: O Assistente de IA que Siri Deveria Ser'",
+        "5 screens with multiple blocks each",
+        "Terminal commands in separate code blocks",
+        "Setup instructions as text blocks",
+        "Cost table as text block",
+        "Links as text blocks",
+        "Response 200/201 with card ID",
+        "Card visible in Conteúdos with proper block formatting"
       ],
-      "passes": true
-    },
-    {
-      "id": "2",
-      "title": "Create new ClawdBot post with proper formatting",
-      "acceptance_criteria": [
-        "POST to /api/contents with contentType='post'",
-        "Title: 'ClawdBot: O Assistente de IA que Siri Deveria Ser'",
-        "Tags: ['ai', 'automation', 'claude', 'self-hosted', 'setup', 'devops']",
-        "Category: 'AI/Automation'",
-        "markdownContent with proper sections and code blocks",
-        "Response 200/201 with post ID",
-        "Verify post appears in GET /api/contents"
+      "run": [
+        "./execute-cardfeature.sh clawdbot-post.json"
       ],
-      "passes": true
+      "verify": [
+        "npm run lint"
+      ],
+      "passes": false
     }
   ]
 }
