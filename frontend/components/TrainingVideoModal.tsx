@@ -104,14 +104,20 @@ export default function TrainingVideoModal({
 
             {/* Actions */}
             <div className="flex gap-3 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={() => window.open(video.youtubeUrl, '_blank')}
-                className="flex-1"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Abrir no YouTube
-              </Button>
+              {video.youtubeUrl && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (video.youtubeUrl) {
+                      window.open(video.youtubeUrl, '_blank')
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Abrir no YouTube
+                </Button>
+              )}
               {onEdit && (
                 <Button
                   variant="outline"

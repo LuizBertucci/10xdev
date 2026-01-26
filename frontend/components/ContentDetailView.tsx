@@ -20,7 +20,12 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      setLoading(false)
+      setError("Conteúdo não encontrado")
+      setCardFeature(null)
+      return
+    }
 
     const fetchContent = async () => {
       setLoading(true)
@@ -106,9 +111,9 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
       <div className="space-y-4">
         {(() => {
           const youtubeBlockUrl =
-            cardFeature.screens
-              ?.flatMap((screen) => screen.blocks || [])
-            .find((block) => block.type === ContentType.YOUTUBE && block.content)?.content || ""
+            (cardFeature.screens ?? [])
+              .flatMap((screen) => screen.blocks ?? [])
+              .find((block) => block.type === ContentType.YOUTUBE && block.content)?.content || ""
           const resolvedYoutubeUrl = cardFeature.youtubeUrl || youtubeBlockUrl
           return (
             resolvedYoutubeUrl && (
@@ -120,13 +125,13 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
         })()}
 
         {/* Renderizar screens/blocos */}
-        {cardFeature.screens.map((screen, screenIndex) => (
+        {(cardFeature.screens ?? []).map((screen, screenIndex) => (
           <div key={screenIndex} className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">{screen.name}</h2>
             {screen.description && (
               <p className="text-gray-600 text-sm mb-4">{screen.description}</p>
             )}
-            <ContentRenderer blocks={screen.blocks} />
+            <ContentRenderer blocks={screen.blocks ?? []} />
           </div>
         ))}
 

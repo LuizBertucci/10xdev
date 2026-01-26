@@ -46,6 +46,7 @@ export default function Projects({ platformState }: ProjectsProps) {
   const [isTemplateAdmin, setIsTemplateAdmin] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const isFirstSearchEffect = useRef(true)
+  const currentCheckRef = useRef(0)
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
   const fallbackTemplate = useMemo<ProjectTemplate>(() => ({
     id: 'starter-template',
@@ -127,10 +128,12 @@ export default function Projects({ platformState }: ProjectsProps) {
     }
   }
 
-  const checkTemplateAdmin = async (userId?: string | null) => {
+  const checkTemplateAdmin = async (userId?: string | null, checkId?: number) => {
     try {
       if (!supabase || !userId) {
-        setIsTemplateAdmin(false)
+        if (checkId === undefined || checkId === currentCheckRef.current) {
+          setIsTemplateAdmin(false)
+        }
         return
       }
 
@@ -140,9 +143,15 @@ export default function Projects({ platformState }: ProjectsProps) {
         .eq('id', userId)
         .maybeSingle() as { data: { role?: string } | null }
 
-      setIsTemplateAdmin(data?.role === 'admin')
+      // Only update state if this check is still the current one
+      if (checkId === undefined || checkId === currentCheckRef.current) {
+        setIsTemplateAdmin(data?.role === 'admin')
+      }
     } catch {
-      setIsTemplateAdmin(false)
+      // Only update state if this check is still the current one
+      if (checkId === undefined || checkId === currentCheckRef.current) {
+        setIsTemplateAdmin(false)
+      }
     }
   }
 
@@ -151,7 +160,10 @@ export default function Projects({ platformState }: ProjectsProps) {
       setIsTemplateAdmin(false)
       return
     }
-    checkTemplateAdmin(user.id)
+    // Increment the check ID to track this specific check
+    currentCheckRef.current += 1
+    const checkId = currentCheckRef.current
+    checkTemplateAdmin(user.id, checkId)
   }, [user?.id])
 
   useEffect(() => {

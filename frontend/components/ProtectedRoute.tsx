@@ -21,8 +21,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       // Preservar query params se existirem (ex: ?tab=home)
       const safePathname = pathname ?? '/'
       const searchQuery = searchParams?.toString() ?? ''
-      const currentPath = safePathname === '/' && searchQuery
-        ? `/?${searchQuery}`
+      const currentPath = searchQuery
+        ? `${safePathname}?${searchQuery}`
         : safePathname
       
       const redirectUrl = currentPath !== '/' 

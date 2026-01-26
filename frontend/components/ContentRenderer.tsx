@@ -93,6 +93,26 @@ function getYouTubeId(value?: string) {
   return match?.[1] ?? null
 }
 
+function isValidPdfUrl(urlString?: string): boolean {
+  if (!urlString || typeof urlString !== 'string') return false
+
+  try {
+    // Check for relative URLs (same-origin) - these are safe
+    if (urlString.startsWith('/') || !urlString.includes('://')) {
+      return true
+    }
+
+    // Parse absolute URLs and validate protocol
+    const url = new URL(urlString)
+    const protocol = url.protocol.toLowerCase()
+    // Allow only http/https protocols
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    // Invalid URL format
+    return false
+  }
+}
+
 function YouTubePreview({ videoId }: { videoId: string }) {
   const [isActive, setIsActive] = useState(false)
 
@@ -183,10 +203,11 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
       )
     }
 
-    case ContentType.PDF:
+    case ContentType.PDF: {
+      const isValidUrl = isValidPdfUrl(block.content)
       return (
         <PdfBlockContainer className={className}>
-          {block.content ? (
+          {isValidUrl && block.content ? (
             <div className="relative w-full overflow-hidden rounded-md" style={{ paddingTop: '56.25%' }}>
               <iframe
                 src={block.content}
@@ -201,6 +222,7 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
           )}
         </PdfBlockContainer>
       )
+    }
     
     default:
       return (

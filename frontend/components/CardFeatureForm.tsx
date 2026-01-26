@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2, Trash2, Upload, ExternalLink, Play } from "lucide-react"
-import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
+import type { CardFeature, CreateScreenData, CreateBlockData, ContentBlock } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -404,7 +404,8 @@ export default function CardFeatureForm({
 
   // Funções para gerenciar blocos
   const addBlock = (screenIndex: number, type: ContentType = ContentType.CODE, content = '') => {
-    const newBlock: CreateBlockData = {
+    const newBlock: ContentBlock = {
+      id: createBlockId(),
       type,
       content,
       language: type === ContentType.CODE ? 'typescript' : undefined,
@@ -497,19 +498,39 @@ export default function CardFeatureForm({
   }
 
   const handleBlockChange = (screenIndex: number, blockIndex: number, field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      screens: prev.screens.map((screen, i) => 
-        i === screenIndex 
-          ? {
-              ...screen,
-              blocks: screen.blocks.map((block, j) => 
-                j === blockIndex ? { ...block, [field]: value } : block
-              )
-            }
-          : screen
-      )
-    }))
+    setFormData(prev => {
+      const block = prev.screens[screenIndex]?.blocks[blockIndex]
+      const isContentChange = field === 'content'
+      const isYouTubeBlock = block?.type === ContentType.YOUTUBE
+      const isPdfBlock = block?.type === ContentType.PDF
+
+      // Prepare updates for top-level post fields
+      const updates: Partial<CardFeatureFormData> = {}
+      
+      if (isContentChange && isYouTubeBlock) {
+        updates.youtube_url = value
+        updates.video_id = getYouTubeId(value) || undefined
+      }
+      
+      if (isContentChange && isPdfBlock) {
+        updates.file_url = value
+      }
+
+      return {
+        ...prev,
+        ...updates,
+        screens: prev.screens.map((screen, i) => 
+          i === screenIndex 
+            ? {
+                ...screen,
+                blocks: screen.blocks.map((block, j) => 
+                  j === blockIndex ? { ...block, [field]: value } : block
+                )
+              }
+            : screen
+        )
+      }
+    })
   }
 
   const moveBlockUp = (screenIndex: number, blockIndex: number) => {

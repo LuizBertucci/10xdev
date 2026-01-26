@@ -143,7 +143,8 @@ export default function Contents({ platformState }: ContentsProps) {
       return
     }
     cardFeatures.goToPage(1)
-  }, [cardFeatures.goToPage])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadVideos = useCallback(async (page = videoPage, search = videoSearchTerm) => {
     setVideoLoading(true)
