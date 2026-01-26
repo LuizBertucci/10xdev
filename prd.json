@@ -3,45 +3,28 @@
   "stories": [
     {
       "id": "1",
-      "title": "Ralph smoke test: create RALPH_TEST.md",
+      "title": "Delete old ClawdBot post from database",
       "acceptance_criteria": [
-        "File RALPH_TEST.md exists at repo root",
-        "RALPH_TEST.md contains the exact line: ralph: ok"
+        "GET /api/contents to list all posts",
+        "Find ClawdBot post with old markdown formatting",
+        "DELETE the post via /api/contents/:id",
+        "Verify post no longer exists"
       ],
       "passes": true
     },
     {
       "id": "2",
-      "title": "Ralph lint test: verify frontend lint passes",
+      "title": "Create new ClawdBot post with proper formatting",
       "acceptance_criteria": [
-        "Frontend lint check completes successfully",
-        "No critical ESLint errors in frontend directory"
+        "POST to /api/contents with contentType='post'",
+        "Title: 'ClawdBot: O Assistente de IA que Siri Deveria Ser'",
+        "Tags: ['ai', 'automation', 'claude', 'self-hosted', 'setup', 'devops']",
+        "Category: 'AI/Automation'",
+        "markdownContent with proper sections and code blocks",
+        "Response 200/201 with post ID",
+        "Verify post appears in GET /api/contents"
       ],
-      "passes": true
-    },
-    {
-      "id": "3",
-      "title": "Create ClawdBot post card from Twitter content",
-      "acceptance_criteria": [
-        "Post card file created: clawdbot-post.json",
-        "Card has type 'post' with 5 screens (abas)",
-        "Screens: Overview, O que é, Custos, Instalação, Recursos",
-        "Each screen has multiple blocks (text/code)",
-        "Card is ready to be imported to database"
-      ],
-      "passes": true
-    },
-    {
-      "id": "4",
-      "title": "Import ClawdBot post to database via API",
-      "acceptance_criteria": [
-        "Backend API running on http://localhost:3001",
-        "POST request to /api/card-features with clawdbot-post.json",
-        "Response code 200/201 (success)",
-        "Post appears in 'Conteúdos' > 'Posts' section in frontend",
-        "Card has 5 screens accessible via tabs"
-      ],
-      "passes": true
+      "passes": false
     }
   ]
 }
