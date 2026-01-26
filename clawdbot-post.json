@@ -5,6 +5,8 @@
   "card_type": "post",
   "category": "AI/Automation",
   "visibility": "public",
+  "tech": "Node.js",
+  "language": "typescript",
   "screens": [
     {
       "name": "Overview",

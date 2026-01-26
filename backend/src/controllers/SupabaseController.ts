@@ -93,14 +93,15 @@ export class SupabaseController {
         return
       }
 
-      // Não gerar token custom - frontend deve usar access_token do Supabase
+      // Retornar access_token para permitir autenticação via API
       res.status(200).json({
         success: true,
         message: 'Login realizado com sucesso',
         data: {
           id: data.user?.id,
           email: data.user?.email,
-          name: data.user?.user_metadata?.name || data.user?.user_metadata?.full_name || null
+          name: data.user?.user_metadata?.name || data.user?.user_metadata?.full_name || null,
+          accessToken: data.session?.access_token
         }
       })
     } catch (error: any) {

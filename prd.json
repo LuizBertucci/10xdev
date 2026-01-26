@@ -30,6 +30,18 @@
         "Card is ready to be imported to database"
       ],
       "passes": true
+    },
+    {
+      "id": "4",
+      "title": "Import ClawdBot post to database via API",
+      "acceptance_criteria": [
+        "Backend API running on http://localhost:3001",
+        "POST request to /api/card-features with clawdbot-post.json",
+        "Response code 200/201 (success)",
+        "Post appears in 'Conteúdos' > 'Posts' section in frontend",
+        "Card has 5 screens accessible via tabs"
+      ],
+      "passes": true
     }
   ]
 }

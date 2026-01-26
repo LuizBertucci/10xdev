@@ -25,3 +25,15 @@ Iteration 3: Story #3 - Create ClawdBot post card from Twitter content
 - Side fix: Updated eslint-plugin-react-hooks from v5.2.0 to v7.0.1 (dependency issue)
 - Verification: npm run lint passes successfully
 - Files modified: frontend/package.json (eslint plugin version), prd.json, progress.txt
+
+Iteration 4: Story #4 - Import ClawdBot post to database via API
+✅ PASSED - ClawdBot post successfully imported to database
+- Backend server running on http://localhost:3001
+- Added accessToken to login response in SupabaseController.ts (line 104)
+- Added tech and language fields to clawdbot-post.json (required by DB schema)
+- Created test user: ralph-test@10xdev.com
+- POST request successful with HTTP 201 status code
+- Card ID created: 73ec5423-2ab8-447e-b2ea-0dfe898924ff
+- Card has 5 screens with all blocks properly structured
+- Verification: npm run lint passes for both backend and frontend
+- Files modified: backend/src/controllers/SupabaseController.ts, clawdbot-post.json, prd.json, progress.txt
