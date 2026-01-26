@@ -13,7 +13,7 @@ import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
 import type { CardFeature as CardFeatureType } from "@/types"
-import { ContentType, Visibility } from "@/types"
+import { ContentType, Visibility, CardType } from "@/types"
 
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
@@ -44,6 +44,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3001/api'
     : 'https://api.10xdev.com.br/api'
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
+  const cardLinkLabel = snippet.card_type === CardType.POST ? 'Link do post' : 'Link do card'
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -307,7 +308,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       onClick={handleCopyCardUrl}
                     >
                       {cardLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {cardLinkCopied ? 'Copiado!' : 'Link do card'}
+                      {cardLinkCopied ? 'Copiado!' : cardLinkLabel}
                     </Button>
 
                     {/* Toggle - extrema direita */}
