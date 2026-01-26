@@ -9,6 +9,27 @@
         "RALPH_TEST.md contains the exact line: ralph: ok"
       ],
       "passes": true
+    },
+    {
+      "id": "2",
+      "title": "Ralph lint test: verify frontend lint passes",
+      "acceptance_criteria": [
+        "Frontend lint check completes successfully",
+        "No critical ESLint errors in frontend directory"
+      ],
+      "passes": true
+    },
+    {
+      "id": "3",
+      "title": "Create ClawdBot post card from Twitter content",
+      "acceptance_criteria": [
+        "Post card file created: clawdbot-post.json",
+        "Card has type 'post' with 5 screens (abas)",
+        "Screens: Overview, O que é, Custos, Instalação, Recursos",
+        "Each screen has multiple blocks (text/code)",
+        "Card is ready to be imported to database"
+      ],
+      "passes": true
     }
   ]
 }

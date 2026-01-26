@@ -1,0 +1,136 @@
+{
+  "title": "ClawdBot: O Assistente de IA que Siri Deveria Ser",
+  "description": "Assistente de IA self-hosted que roda no seu servidor 24/7, integrando com Telegram. A revolução que o Vale do Silício não conseguiu fazer.",
+  "content_type": "text",
+  "card_type": "post",
+  "category": "AI/Automation",
+  "visibility": "public",
+  "screens": [
+    {
+      "name": "Overview",
+      "description": "O que é ClawdBot e por que é revolucionário",
+      "route": "docs/overview.md",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "# ClawdBot: A IA que Trabalha Enquanto Você Dorme\n\n## Por que esquecer ChatGPT?\n\nO Vale do Silício está falando sobre isso. A diferença não é apenas em poder de processamento, é em **como funciona**.\n\n### ChatGPT vs ClawdBot\n\n| Aspecto | ChatGPT | ClawdBot |\n|--------|---------|----------|\n| Onde vive | Site | Seu Telegram |\n| Memória | Perde tudo ao fechar | Lembra cada conversa |\n| Iniciativa | Espera você abrir | Te manda mensagem primeiro |\n| Capacidade | Responde perguntas | Executa tarefas no seu PC |\n\n## O Que Ele Faz (Que Siri e Alexa Não Fazem)\n\n✅ **Briefing automático às 7h**: seus emails, agenda, tarefas\n✅ **Alertas proativos**: \"aquela ação caiu 5%\"\n✅ **Automações sob demanda**: você pede, ele cria\n✅ **Memória real**: lembra o que você disse há 2 semanas\n\n> Siri tem memória de peixinho dourado. ClawdBot tem cérebro.",
+          "title": "O que é ClawdBot?",
+          "order": 0
+        },
+        {
+          "type": "text",
+          "content": "## A Realidade do Mercado\n\n**O problema**: Consultores de IA cobram R$50 mil pra configurar assistentes e automações básicos.\n\n**A verdade**: Você pode ter isso por R$150-300/mês.\n\n## Por que agora?\n\n1. **APIs de IA ficaram acessíveis** (Claude, OpenAI)\n2. **VPS ficou barato** ($5/mês)\n3. **Telegram/WhatsApp disponíveis** como interface\n4. **Não precisa mais de consultores caros**\n\nIsso é o futuro do trabalho. E já começou. A pergunta é: **você vai ficar de fora?**",
+          "title": "O Contexto Atual",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "Custos Reais",
+      "description": "Quanto custa rodar ClawdBot 24/7",
+      "route": "docs/costs.md",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "# Quanto Custa ClawdBot?\n\n## Breakdown de Custos\n\n| Componente | Custo | Notas |\n|-----------|-------|-------|\n| **Servidor VPS** | $5/mês | Hetzner CX22 (4GB RAM) |\n| **IA (Claude)** | $20-100/mês | Depende do uso |\n| **Total** | **$25-150/mês** | Uso moderado |\n\n## Alternativas\n\n### Opção 1: Seu Mac (Grátis em hardware)\n- ✅ Roda local\n- ❌ Precisa estar ligado 24/7\n- ❌ Não recebe alerts proativamente\n\n### Opção 2: Mac Mini Dedicado (~R$7000)\n- ✅ Máquina dedicada\n- ✅ Roda 24/7\n- ❌ Consumo de energia\n- ❌ Setup complexo\n\n### Opção 3: VPS na Nuvem ($5/mês) ⭐ RECOMENDADO\n- ✅ Roda 24/7 sem depender de você\n- ✅ Pode mandar mensagens proativas\n- ✅ Mais barato\n- ✅ Mais fácil de configurar\n\n## Comparison com Alternativas\n\n**Consultoria de IA**: R$50.000 (setup único)\n**ClawdBot VPS/mês**: ~R$30-300\n\n💡 **ROI em 1-2 meses se você valia mais que R$1500/hora**",
+          "title": "Tabela de Custos",
+          "order": 0
+        }
+      ]
+    },
+    {
+      "name": "Instalação (30 min)",
+      "description": "Passo a passo para rodar ClawdBot em um VPS",
+      "route": "docs/installation.md",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "# Como Instalar ClawdBot em 30 Minutos\n\n## Você vai precisar de:\n\n1. ✅ Conta na Hetzner (ou outro VPS com Ubuntu)\n2. ✅ API key da Anthropic (~$20-50/mês)\n3. ✅ Telegram (recomendado) ou WhatsApp\n\n**Tempo total**: ~30 minutos",
+          "title": "Pré-requisitos",
+          "order": 0
+        },
+        {
+          "type": "text",
+          "content": "## Passo 1: Criar Servidor na Hetzner\n\n1. Acessa **hetzner.com/cloud**\n2. Cria uma conta\n3. Novo servidor com:\n   - **OS**: Ubuntu 24.04\n   - **Plano**: CX22 ($4/mês, 4GB RAM) ou CX32 ($7/mês, 8GB RAM)\n   - **Região**: Escolha a mais perto de você\n4. Anota o IP do servidor\n\n**Custo**: $4-7/mês",
+          "title": "Passo 1: Servidor",
+          "order": 1
+        },
+        {
+          "type": "code",
+          "content": "# Passo 2: Conectar via SSH\nssh root@<seu-ip>\n\n# Criar usuário dedicado\nadduser clawdbot\nusermod -aG sudo clawdbot\nsu - clawdbot",
+          "language": "bash",
+          "title": "Passo 2: SSH Setup",
+          "route": "docs/setup-ssh.sh",
+          "order": 2
+        },
+        {
+          "type": "code",
+          "content": "# Passo 3: Instalar Node.js\ncurl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash\nsource ~/.bashrc\nnvm install 22\ncorepack enable pnpm",
+          "language": "bash",
+          "title": "Passo 3: Node.js",
+          "route": "docs/setup-nodejs.sh",
+          "order": 3
+        },
+        {
+          "type": "text",
+          "content": "## Passo 4: Instalar ClawdBot\n\n**Opção A: Simples (recomendada)**\n```bash\ncurl -fsSL https://clawd.bot/install.sh | bash\n```\n\n**Opção B: From source**\n```bash\ngit clone https://github.com/clawdbot/clawdbot.git\ncd clawdbot\npnpm install\npnpm build\npnpm ui:build\n```",
+          "title": "Passo 4: Instalar ClawdBot",
+          "order": 4
+        },
+        {
+          "type": "code",
+          "content": "# Passo 5: Rodar o wizard\nclawdbot onboard --install-daemon\n\n# O wizard vai perguntar:\n# → Gateway: seleciona \"local\"\n# → Runtime: escolhe \"Node\"\n# → Auth: Sua API key da Anthropic (Claude Opus 4.5 recomendado)\n# → Provider: Telegram (mais fácil que WhatsApp)",
+          "language": "bash",
+          "title": "Passo 5: Wizard",
+          "route": "docs/wizard.sh",
+          "order": 5
+        },
+        {
+          "type": "text",
+          "content": "## Passo 6: Setup do Telegram\n\n1. Abre o Telegram\n2. Procura por **@BotFather**\n3. Manda: `/newbot`\n4. Segue as instruções\n5. Copia o token gerado\n6. Cola no wizard do ClawdBot\n\nDepois:\n```bash\nclawdbot pairing list telegram\nclawdbot pairing approve telegram <código>\n```\n\n✅ **Pronto! Seu assistente está rodando 24/7**",
+          "title": "Passo 6: Telegram Bot",
+          "order": 6
+        }
+      ]
+    },
+    {
+      "name": "Recursos & Links",
+      "description": "Documentação e recursos úteis",
+      "route": "docs/resources.md",
+      "blocks": [
+        {
+          "type": "text",
+          "content": "# Recursos Principais\n\n## Documentação Oficial\n\n- 📖 **Docs**: https://docs.clawd.bot\n- 🚀 **GitHub**: https://github.com/clawdbot/clawdbot\n- 📚 **Tutorial Detalhado**: https://velvetshark.com/clawdbot-the-self-hosted-ai-that-siri-should-have-been\n\n## Hetzner Cloud\n\n- 🌐 **Site**: https://hetzner.com/cloud\n- 💾 **Pricing**: https://www.hetzner.com/cloud/pricing\n\n## Anthropic (Claude API)\n\n- 🤖 **API Console**: https://console.anthropic.com\n- 📖 **Docs**: https://docs.anthropic.com\n- 💳 **Pricing**: https://www.anthropic.com/pricing\n\n## Telegram Bot\n\n- 🤖 **BotFather**: @BotFather (no Telegram)\n- 📖 **Bot API Docs**: https://core.telegram.org/bots",
+          "title": "Links Oficiais",
+          "order": 0
+        },
+        {
+          "type": "text",
+          "content": "# Estado Atual do Projeto\n\n## ⚠️ Importante Saber\n\n> Ainda é um projeto pra quem gosta de fuçar. **Não é plug-and-play**.\n\nMas a direção é cristalina:\n\n✅ Assistentes que rodam **no seu servidor**\n✅ Que se **adaptam a você**\n✅ E fazem **o que você pede** — não o que um dev decidiu\n\n## O Futuro\n\nSiri e Alexa **nunca** vão chegar nisso.\n\n**Isso é o futuro do trabalho.**\n\nE já começou.\n\n---\n\n**Menção**: Esse post é um resumo do thread original de [@namcios](https://x.com/namcios) no X.",
+          "title": "Status & Futuro",
+          "order": 1
+        }
+      ]
+    },
+    {
+      "name": "Quick Reference",
+      "description": "Cheat sheet rápido",
+      "route": "docs/cheatsheet.md",
+      "blocks": [
+        {
+          "type": "code",
+          "content": "# ClawdBot Quick Reference\n\n# 1. SSH no servidor\nssh root@<seu-ip>\n\n# 2. Criar usuário\nadduser clawdbot && su - clawdbot\n\n# 3. Instalar Node\ncurl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash\nnvm install 22\n\n# 4. Instalar ClawdBot\ncurl -fsSL https://clawd.bot/install.sh | bash\n\n# 5. Rodar wizard\nclawdbot onboard --install-daemon\n\n# 6. Aprovar no Telegram\nclawdbot pairing approve telegram <código>\n\n# Done! 🚀",
+          "language": "bash",
+          "title": "Setup Resumido",
+          "order": 0
+        },
+        {
+          "type": "text",
+          "content": "## Troubleshooting Rápido\n\n**Problema**: Servidor não conecta\n```bash\n# Verifica status\nclawdbot status\n# Reinicia daemon\nclawdbot daemon restart\n```\n\n**Problema**: Telegram não conecta\n```bash\n# Lista pareamentos\nclawdbot pairing list\n# Reconnect\nclawdbot pairing reconnect telegram\n```\n\n**Problema**: CPU alta\n```bash\n# Reduz modelo\n# Edita config.yaml\n# model: claude-3-5-sonnet-20241022  # Mais leve\n```\n\n## Monitoramento\n\n```bash\n# Logs em tempo real\nclawdbot logs --follow\n\n# Status dos serviços\nclawdbot status\n\n# Uso de recursos\ntop\nfree -h\ndf -h\n```",
+          "title": "Troubleshooting",
+          "order": 1
+        }
+      ]
+    }
+  ]
+}
