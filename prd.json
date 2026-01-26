@@ -24,7 +24,7 @@
         "Response 200/201 with post ID",
         "Verify post appears in GET /api/contents"
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
