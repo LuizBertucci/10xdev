@@ -287,10 +287,19 @@
         {
           "id": "supervisor_define_checks",
           "title": "Definir checks de qualidade (duplicidade, conteudo fraco, mesma tech)",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Criado arquivo backend/src/services/cardQualitySupervisor.ts com sistema completo de checks de qualidade",
+            "Implementados 5 checks principais: duplicate titles, duplicate content, weak content, similar tech/language, too many screens",
+            "Sistema usa enum QualityIssueType com 7 tipos de problemas: DUPLICATE_TITLE, DUPLICATE_CONTENT, WEAK_CONTENT, SINGLE_FILE_CARD, MISSING_DESCRIPTION, TOO_MANY_SCREENS, SIMILAR_TECH_LANGUAGE",
+            "Cada issue tem severidade (low/medium/high), índice do card, índice do card relacionado (se aplicável), mensagem e sugestão de correção",
+            "Configurações: MIN_DESCRIPTION_LENGTH=10, MIN_FILES_PER_CARD=2, MAX_SCREENS_PER_CARD=20, SIMILARITY_THRESHOLD=0.85",
+            "Método analyzeQuality retorna QualityReport com: totalCards, issuesFound, issues[], cardsToMerge[], cardsToRemove[], cardsToImprove[]",
+            "Logs detalhados no console explicam decisões de qualidade e sugestões de merge/remoção/melhoria"
           ]
         },
         {
@@ -503,6 +512,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou), backend: npm test (25 testes passaram)",
       "observacoes": "Microtarefa import_tests_or_fixtures concluida. Tarefa git_import_grouping_agent concluida com todas as microtarefas finalizadas. Proxima tarefa: card_quality_supervisor_agent"
+    },
+    {
+      "ts": "2026-01-27 00:10",
+      "microtask_id": "supervisor_define_checks",
+      "feito": "Criado cardQualitySupervisor.ts com sistema completo de quality checks. Implementados 5 checks principais: duplicate titles, duplicate content, weak content, similar tech/language, too many screens. Sistema retorna QualityReport com issues, cardsToMerge, cardsToRemove e cardsToImprove.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Microtarefa supervisor_define_checks concluida. Supervisor define 7 tipos de problemas de qualidade com severidades e sugestões. Proxima microtarefa: supervisor_post_process para integrar supervisor no pipeline de importação"
     }
   ]
 }
