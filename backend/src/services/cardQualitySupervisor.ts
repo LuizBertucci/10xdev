@@ -93,7 +93,7 @@ export class CardQualitySupervisor {
     // Consolidar cards para remoção (duplicados completos)
     this.consolidateRemovalList(issues, cardsToRemove)
 
-    const report: QualityReport {
+    const report: QualityReport = {
       totalCards: cards.length,
       issuesFound: issues.length,
       issues,
