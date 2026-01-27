@@ -417,7 +417,13 @@ export class CardQualitySupervisor {
     cards: CreateCardFeatureRequest[],
     report: QualityReport
   ): { correctedCards: CreateCardFeatureRequest[]; mergesApplied: number; cardsRemoved: number } {
-    console.log('[CardQualitySupervisor] Aplicando correções automáticas...')
+    console.log('\n========================================')
+    console.log('[CardQualitySupervisor] APLICANDO CORREÇÕES AUTOMÁTICAS')
+    console.log('========================================')
+    console.log(`Cards originais: ${cards.length}`)
+    console.log(`Merges a aplicar: ${report.cardsToMerge.length}`)
+    console.log(`Cards a remover: ${report.cardsToRemove.length}`)
+    console.log(`Cards a melhorar (sem ação automática): ${report.cardsToImprove.length}`)
 
     let mergesApplied = 0
     let cardsRemoved = 0
@@ -432,10 +438,21 @@ export class CardQualitySupervisor {
     cardsRemoved = removeCount
     workingCards = filteredCards
 
-    console.log('[CardQualitySupervisor] Correções aplicadas:')
-    console.log(`  - Merges realizados: ${mergesApplied}`)
-    console.log(`  - Cards removidos: ${cardsRemoved}`)
-    console.log(`  - Cards finais: ${workingCards.length} (de ${cards.length} originais)`)
+    console.log('\n========================================')
+    console.log('[CardQualitySupervisor] RESUMO EXECUTIVO')
+    console.log('========================================')
+    console.log(`Cards originais: ${cards.length}`)
+    console.log(`Merges realizados: ${mergesApplied}`)
+    console.log(`Cards removidos: ${cardsRemoved}`)
+    console.log(`Cards finais: ${workingCards.length}`)
+    console.log(`Redução: ${cards.length - workingCards.length} cards (${((cards.length - workingCards.length) / cards.length * 100).toFixed(1)}%)`)
+
+    if (report.cardsToImprove.length > 0) {
+      console.log(`\nCards identificados para melhoria manual: ${report.cardsToImprove.length}`)
+      console.log('(Estas melhorias requerem intervenção manual e não foram aplicadas automaticamente)')
+    }
+
+    console.log('========================================\n')
 
     return {
       correctedCards: workingCards,
@@ -477,6 +494,8 @@ export class CardQualitySupervisor {
       const targetCard = workingCards[targetIndex]
       if (!targetCard) continue
 
+      console.log(`\n[CardQualitySupervisor] === Processando merge no target card #${targetIndex} "${targetCard.title}" ===`)
+
       // Consolidar todos os sources no target
       for (const sourceIndex of sourceIndices) {
         const sourceCard = workingCards[sourceIndex]
@@ -484,8 +503,15 @@ export class CardQualitySupervisor {
 
         console.log(`[CardQualitySupervisor] Merge: "${sourceCard.title}" (#${sourceIndex}) -> "${targetCard.title}" (#${targetIndex})`)
 
+        const initialScreenCount = targetCard.screens?.length || 0
+        const initialBlockCount = targetCard.screens?.reduce((sum, s) => sum + (s.blocks?.length || 0), 0) || 0
+
         // Mesclar screens do source no target
         const targetScreenNames = new Set(targetCard.screens?.map(s => s.name) || [])
+
+        let screensMerged = 0
+        let screensAdded = 0
+        let blocksMerged = 0
 
         for (const sourceScreen of sourceCard.screens || []) {
           // Se já existe uma screen com o mesmo nome, mesclar os blocks
@@ -495,6 +521,7 @@ export class CardQualitySupervisor {
             // Mesclar blocks evitando duplicatas (mesmo route)
             const existingScreen = targetCard.screens[existingScreenIndex]!
             const existingRoutes = new Set(existingScreen.blocks?.map(b => b.route) || [])
+            const initialBlocksInScreen = existingScreen.blocks?.length || 0
 
             for (const block of sourceScreen.blocks || []) {
               if (!existingRoutes.has(block.route)) {
@@ -503,19 +530,36 @@ export class CardQualitySupervisor {
                   ...block,
                   order: existingScreen.blocks.length
                 })
+                blocksMerged++
               }
+            }
+
+            const addedBlocks = (existingScreen.blocks?.length || 0) - initialBlocksInScreen
+            if (addedBlocks > 0) {
+              console.log(`  → Screen "${sourceScreen.name}" mesclada: ${addedBlocks} block(s) adicionado(s)`)
+              screensMerged++
             }
           } else {
             // Adicionar nova screen
             if (!targetCard.screens) targetCard.screens = []
             targetCard.screens.push(sourceScreen)
+            screensAdded++
+            blocksMerged += sourceScreen.blocks?.length || 0
+            console.log(`  → Screen "${sourceScreen.name}" adicionada: ${sourceScreen.blocks?.length || 0} block(s)`)
           }
         }
 
         // Melhorar descrição se a do source for mais detalhada
         if (sourceCard.description && sourceCard.description.length > (targetCard.description?.length || 0)) {
+          console.log(`  → Descrição do target atualizada (${targetCard.description?.length || 0} → ${sourceCard.description.length} caracteres)`)
           targetCard.description = sourceCard.description
         }
+
+        const finalScreenCount = targetCard.screens?.length || 0
+        const finalBlockCount = targetCard.screens?.reduce((sum, s) => sum + (s.blocks?.length || 0), 0) || 0
+
+        console.log(`  ✓ Merge completo: ${screensMerged} screen(s) mesclada(s), ${screensAdded} screen(s) adicionada(s), ${blocksMerged} block(s) total`)
+        console.log(`  ✓ Target final: ${finalScreenCount} screens (+${finalScreenCount - initialScreenCount}), ${finalBlockCount} blocks (+${finalBlockCount - initialBlockCount})`)
 
         // Marcar source para remoção
         toRemove.add(sourceIndex)
@@ -542,16 +586,25 @@ export class CardQualitySupervisor {
       return { filteredCards: [...cards], removeCount: 0 }
     }
 
-    console.log(`[CardQualitySupervisor] Removendo ${indicesToRemove.length} card(s) de baixa qualidade...`)
+    console.log(`\n[CardQualitySupervisor] === Removendo ${indicesToRemove.length} card(s) de baixa qualidade ===`)
 
     const toRemove = new Set(indicesToRemove)
     const result = cards.filter((card, index) => {
       if (toRemove.has(index)) {
-        console.log(`[CardQualitySupervisor] Removido: "${card.title}" (#${index})`)
+        const screenCount = card.screens?.length || 0
+        const blockCount = card.screens?.reduce((sum, s) => sum + (s.blocks?.length || 0), 0) || 0
+        const descLength = card.description?.length || 0
+
+        console.log(`[CardQualitySupervisor] ✗ Removido: "${card.title}" (#${index})`)
+        console.log(`  → Motivo: Duplicado completo (título + conteúdo)`)
+        console.log(`  → Stats: ${screenCount} screens, ${blockCount} blocks, descrição ${descLength} caracteres`)
+        console.log(`  → Conteúdo foi mesclado em outro card relacionado`)
         return false
       }
       return true
     })
+
+    console.log(`[CardQualitySupervisor] ✓ Remoção completa: ${indicesToRemove.length} card(s) eliminado(s)\n`)
 
     return { filteredCards: result, removeCount: indicesToRemove.length }
   }
@@ -579,15 +632,57 @@ export class CardQualitySupervisor {
       console.log(`  Alta: ${bySeverity.high}`)
       console.log(`  Média: ${bySeverity.medium}`)
       console.log(`  Baixa: ${bySeverity.low}`)
+
+      // Detalhar issues de alta severidade
+      const highSeverityIssues = report.issues.filter(i => i.severity === 'high')
+      if (highSeverityIssues.length > 0) {
+        console.log('\n--- Issues de Alta Severidade (Detalhes) ---')
+        highSeverityIssues.forEach((issue, idx) => {
+          console.log(`  ${idx + 1}. [${issue.type}] Card #${issue.cardIndex}`)
+          console.log(`     Mensagem: ${issue.message}`)
+          if (issue.suggestion) {
+            console.log(`     Sugestão: ${issue.suggestion}`)
+          }
+          if (issue.relatedCardIndex !== undefined) {
+            console.log(`     Relacionado: Card #${issue.relatedCardIndex}`)
+          }
+        })
+      }
     }
 
     if (report.cardsToMerge.length > 0) {
       console.log('\n--- Sugestões de Merge ---')
       report.cardsToMerge.slice(0, 5).forEach((merge, index) => {
-        console.log(`  ${index + 1}. Card #${merge.sourceIndex} -> Card #${merge.targetIndex} (${merge.reason})`)
+        console.log(`  ${index + 1}. Card #${merge.sourceIndex} -> Card #${merge.targetIndex}`)
+        console.log(`     Razão: ${merge.reason}`)
       })
       if (report.cardsToMerge.length > 5) {
         console.log(`  ... e mais ${report.cardsToMerge.length - 5} sugestões`)
+      }
+    }
+
+    if (report.cardsToRemove.length > 0) {
+      console.log('\n--- Cards para Remoção ---')
+      report.cardsToRemove.forEach((cardIndex, idx) => {
+        const relatedIssues = report.issues.filter(i => i.cardIndex === cardIndex)
+        console.log(`  ${idx + 1}. Card #${cardIndex}`)
+        if (relatedIssues.length > 0) {
+          console.log(`     Problemas detectados: ${relatedIssues.map(i => i.type).join(', ')}`)
+        }
+      })
+    }
+
+    if (report.cardsToImprove.length > 0) {
+      console.log('\n--- Cards para Melhoria ---')
+      report.cardsToImprove.slice(0, 5).forEach((improvement, idx) => {
+        console.log(`  ${idx + 1}. Card #${improvement.index}`)
+        console.log(`     Sugestões:`)
+        improvement.suggestions.forEach(suggestion => {
+          console.log(`       - ${suggestion}`)
+        })
+      })
+      if (report.cardsToImprove.length > 5) {
+        console.log(`  ... e mais ${report.cardsToImprove.length - 5} cards para melhoria`)
       }
     }
 

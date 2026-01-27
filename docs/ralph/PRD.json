@@ -273,7 +273,7 @@
     {
       "id": "card_quality_supervisor_agent",
       "title": "Adicionar agente supervisor para validar qualidade dos cards",
-      "status": "pending",
+      "status": "done",
       "scope_files": [
         "backend/src/services/githubService.ts",
         "backend/src/services/aiCardGroupingService.ts"
@@ -340,11 +340,18 @@
         {
           "id": "supervisor_log_decisions",
           "title": "Documentar decisoes nos logs",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build",
             "backend: npm test (if coverage exists for import)"
+          ],
+          "notes": [
+            "Adicionados logs detalhados no método logReport para issues de alta severidade, cards para remoção e cards para melhoria",
+            "Logs de merge aprimorados: agora documentam cada screen mesclada/adicionada, blocks transferidos, e estatísticas antes/depois",
+            "Logs de remoção aprimorados: agora explicam motivo (duplicado completo), mostram stats do card removido, e confirmam que conteúdo foi mesclado",
+            "Método applyCorrections agora possui cabeçalho e resumo executivo detalhado com percentual de redução e identificação de cards para melhoria manual",
+            "Todas as decisões do supervisor estão documentadas: detecção de issues, razões de merge, processo de mesclagem, remoções e resultado final"
           ]
         }
       ]
@@ -553,6 +560,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Microtarefa supervisor_apply_corrections concluida. Supervisor agora aplica correções automaticamente: mescla screens evitando duplicatas, consolida múltiplos sources em target, remove cards mesclados. Progress reporting (85-90%) com logs detalhados. Proxima microtarefa: supervisor_log_decisions"
+    },
+    {
+      "ts": "2026-01-27 01:00",
+      "microtask_id": "supervisor_log_decisions",
+      "feito": "Logs detalhados adicionados em todos os pontos de decisão do supervisor: logReport expandido com detalhes de issues de alta severidade, cards para remoção e melhoria; applyMerges com estatísticas de screens/blocks mesclados; removeCards com motivo e stats; applyCorrections com resumo executivo completo incluindo percentual de redução.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Microtarefa supervisor_log_decisions concluida. Todas as decisões do supervisor estão documentadas nos logs: detecção (com severidade e sugestões), merges (screens/blocks transferidos, before/after stats), remoções (motivo, stats, confirmação), e resumo executivo final. Tarefa card_quality_supervisor_agent concluida com todas as microtarefas finalizadas."
     }
   ]
 }
