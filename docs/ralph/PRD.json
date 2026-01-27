@@ -189,7 +189,7 @@
     {
       "id": "git_import_grouping_agent",
       "title": "Melhorar agrupamento da importacao git (evitar cards duplicados)",
-      "status": "pending",
+      "status": "done",
       "scope_files": [
         "backend/src/services/githubService.ts",
         "backend/src/services/aiCardGroupingService.ts"
@@ -255,11 +255,17 @@
         {
           "id": "import_tests_or_fixtures",
           "title": "Adicionar testes ou fixtures se existirem",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build",
             "backend: npm test (if coverage exists for import)"
+          ],
+          "notes": [
+            "Criado arquivo de testes backend/src/services/__tests__/githubService.grouping.test.ts com 25 testes",
+            "Testes cobrem: extractNamespace, feature consolidation, multiple screens per feature, namespace extensibility, feature name extraction, layer detection e scenarios de integracao",
+            "Criada configuracao jest.config.js para rodar testes com ts-jest",
+            "Todos os 25 testes passaram com sucesso (Test Suites: 1 passed, Tests: 25 passed)"
           ]
         }
       ]
@@ -489,6 +495,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Microtarefa import_screens_per_feature concluida. Features com multiplos arquivos agora geram multiplas telas organizadas. Logs explicam decisoes de agrupamento e divisao de screens. Proxima microtarefa: import_tests_or_fixtures"
+    },
+    {
+      "ts": "2026-01-26 23:50",
+      "microtask_id": "import_tests_or_fixtures",
+      "feito": "Criados testes para funcionalidade de agrupamento do GithubService. Arquivo githubService.grouping.test.ts com 25 testes cobrindo namespace grouping, consolidation, screens per feature, e scenarios de integracao. Configuracao Jest criada.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou), backend: npm test (25 testes passaram)",
+      "observacoes": "Microtarefa import_tests_or_fixtures concluida. Tarefa git_import_grouping_agent concluida com todas as microtarefas finalizadas. Proxima tarefa: card_quality_supervisor_agent"
     }
   ]
 }
