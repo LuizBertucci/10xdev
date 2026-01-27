@@ -136,10 +136,18 @@
         {
           "id": "darkmode_theme_provider",
           "title": "Garantir ThemeProvider envolvendo o app",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "frontend: npm run lint",
             "frontend: npm run build"
+          ],
+          "notes": [
+            "ThemeProvider ja existia em frontend/components/theme-provider.tsx",
+            "next-themes v0.4.4 ja instalado",
+            "Integrado ThemeProvider no layout.tsx envolvendo AuthProvider",
+            "Configurado com attribute='class', defaultTheme='system', enableSystem=true",
+            "Adicionado suppressHydrationWarning no html para evitar warnings de hidratacao",
+            "Build e lint passaram sem erros"
           ]
         },
         {
@@ -392,6 +400,14 @@
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Tarefa logo_remove_black concluida. Proxima microtarefa: darkmode_theme_provider da tarefa sidebar_dark_mode_toggle"
+    },
+    {
+      "ts": "2026-01-26 22:35",
+      "microtask_id": "darkmode_theme_provider",
+      "feito": "ThemeProvider integrado ao layout.tsx. Configurado next-themes com suporte a system theme, class attribute e hidratacao. Provider envolvendo AuthProvider.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Proxima microtarefa: darkmode_toggle_ui para adicionar componente de toggle na sidebar"
     }
   ]
 }
