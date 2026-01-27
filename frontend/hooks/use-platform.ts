@@ -67,9 +67,9 @@ export function usePlatform() {
     if (normalizedTab !== 'codes') {
       params.delete('page');
     }
-    // Quando navegamos para a lista de contents ou projects via sidebar, removemos o parâmetro id
-    // para evitar renderizar a página de detalhes em vez da lista
-    if (normalizedTab === 'contents' || normalizedTab === 'projects') {
+    // Apenas remove ID se estiver mudando para tab diferente do atual
+    // Isso permite navegação interna com ID (click em card), mas limpa ao mudar de tab
+    if (normalizedTab !== activeTab) {
       params.delete('id');
     }
     const queryString = params.toString();
