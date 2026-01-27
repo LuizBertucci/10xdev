@@ -110,6 +110,42 @@ const LAYER_TO_SCREEN_NAME: Record<string, string> = {
   other: 'Other'
 }
 
+// Mapeamento semântico: feature → keywords que pertencem a ela
+const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
+  'auth': ['auth', 'login', 'logout', 'register', 'signup', 'signin', 'password', 'session', 'token', 'jwt', 'oauth', 'credential'],
+  'user': ['user', 'profile', 'account', 'avatar', 'preferences', 'member'],
+  'payment': ['payment', 'billing', 'checkout', 'stripe', 'invoice', 'subscription', 'pricing'],
+  'database': ['supabase', 'database', 'db', 'prisma', 'drizzle', 'postgres', 'mysql', 'mongo', 'migration'],
+  'n8n': ['n8n', 'workflow', 'automation', 'node', 'trigger', 'webhook', 'execution'],
+  'ai': ['ai', 'openai', 'gpt', 'llm', 'embedding', 'vector', 'langchain', 'claude', 'anthropic'],
+  'notification': ['notification', 'alert', 'toast', 'email', 'sms', 'push'],
+  'card': ['card', 'cardfeature', 'feature'],
+  'project': ['project', 'projeto', 'import', 'github', 'repo'],
+  'template': ['template'],
+  'content': ['content', 'conteudo', 'post', 'article'],
+  'admin': ['admin', 'dashboard', 'backoffice'],
+  'api': ['apiclient', 'httpclient', 'axios', 'fetch'],
+  'storage': ['storage', 'upload', 'file', 's3', 'bucket', 'blob']
+}
+
+// Títulos amigáveis em português
+const FEATURE_TITLES: Record<string, string> = {
+  'auth': 'Autenticação',
+  'user': 'Usuários',
+  'payment': 'Pagamentos',
+  'database': 'Banco de Dados',
+  'n8n': 'Workflows n8n',
+  'ai': 'Inteligência Artificial',
+  'notification': 'Notificações',
+  'card': 'Cards',
+  'project': 'Projetos',
+  'template': 'Templates',
+  'content': 'Conteúdo',
+  'admin': 'Administração',
+  'api': 'Cliente de API',
+  'storage': 'Armazenamento'
+}
+
 interface ParsedRepoInfo {
   owner: string
   repo: string
@@ -393,7 +429,9 @@ export class GithubService {
       baseName = baseName.substring(3)
     }
 
-    return this.normalizeFeatureName(baseName) || 'misc'
+    // 6. Mapear para feature semântica
+    const normalized = this.normalizeFeatureName(baseName)
+    return this.mapToSemanticFeature(normalized)
   }
 
   private static normalizeFeatureName(name: string): string {
@@ -402,6 +440,21 @@ export class GithubService {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')
       .trim()
+  }
+
+  private static mapToSemanticFeature(name: string): string {
+    const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+    // Buscar em qual feature semântica esse nome se encaixa
+    for (const [feature, keywords] of Object.entries(FEATURE_SEMANTIC_MAP)) {
+      for (const keyword of keywords) {
+        if (normalized.includes(keyword)) {
+          return feature
+        }
+      }
+    }
+
+    return normalized || 'misc'
   }
 
   private static groupFilesByFeature(files: FileEntry[]): Map<string, FeatureFile[]> {
@@ -422,52 +475,48 @@ export class GithubService {
   }
 
   private static consolidateFeatures(groups: Map<string, FeatureFile[]>): Map<string, FeatureFile[]> {
-    const consolidated = new Map<string, FeatureFile[]>()
-    const MIN_FILES_FOR_FEATURE = 2
+    console.log('[GithubService] Consolidando features...')
+    console.log(`[GithubService] Grupos iniciais: ${groups.size}`)
 
-    const large = new Map<string, FeatureFile[]>()
-    const small: FeatureFile[] = []
+    // Agrupar por feature semântica
+    const semanticGroups = new Map<string, FeatureFile[]>()
 
     for (const [name, files] of groups) {
-      const layers = new Set(files.map(f => f.layer))
-      const hasMultipleLayers = layers.size >= 2
-      const hasEnoughFiles = files.length >= MIN_FILES_FOR_FEATURE
-      if (hasMultipleLayers || hasEnoughFiles) large.set(name, files)
-      else small.push(...files)
-    }
+      const semanticFeature = this.mapToSemanticFeature(name)
 
-    for (const [name, files] of large) consolidated.set(name, files)
-
-    if (small.length > 0) {
-      const byDir = new Map<string, FeatureFile[]>()
-      for (const file of small) {
-        const mainDir = file.path.split('/')[0] || 'root'
-        if (!byDir.has(mainDir)) byDir.set(mainDir, [])
-        byDir.get(mainDir)!.push(file)
+      if (semanticFeature !== name) {
+        console.log(`[GithubService] '${name}' → '${semanticFeature}'`)
       }
-      for (const [dir, files] of byDir) consolidated.set(`${dir}-utils`, files)
+
+      if (!semanticGroups.has(semanticFeature)) {
+        semanticGroups.set(semanticFeature, [])
+      }
+      semanticGroups.get(semanticFeature)!.push(...files)
     }
 
-    return consolidated
+    console.log(`[GithubService] Features finais: ${semanticGroups.size}`)
+
+    // Logar resultado
+    for (const [feature, files] of semanticGroups) {
+      const layers = [...new Set(files.map(f => f.layer))]
+      console.log(`[GithubService] Feature '${feature}': ${files.length} arquivos [${layers.join(', ')}]`)
+    }
+
+    return semanticGroups
   }
 
   private static generateFeatureTitle(featureName: string, files: FeatureFile[]): string {
-    // Capitalizar corretamente (camelCase -> palavras)
-    const cap = featureName
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .split(/[\s_-]+/)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ')
-
     const layers = new Set(files.map(f => f.layer))
     const hasBackend = ['routes', 'controllers', 'services', 'models'].some(l => layers.has(l))
     const hasFrontend = ['hooks', 'components', 'pages', 'stores'].some(l => layers.has(l))
 
-    // Prefixos mais específicos
-    if (hasBackend && hasFrontend) return `Sistema de ${cap}`
-    if (hasBackend) return `API de ${cap}`
-    if (hasFrontend) return `Interface de ${cap}`
-    return cap
+    // Usar título amigável da constante FEATURE_TITLES
+    const title = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
+
+    if (hasBackend && hasFrontend) return `Sistema de ${title}`
+    if (hasBackend) return `API de ${title}`
+    if (hasFrontend) return `Interface de ${title}`
+    return title
   }
 
   private static generateFeatureDescription(featureName: string, files: FeatureFile[]): string {
