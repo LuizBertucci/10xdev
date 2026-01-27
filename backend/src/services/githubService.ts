@@ -5,6 +5,7 @@ import type { GithubRepoInfo } from '@/types/project'
 import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
+import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
 
 // ================================================
 // CONFIGURATION
@@ -612,7 +613,7 @@ export class GithubService {
       willUseAi: useAi
     })
 
-    const cards: CreateCardFeatureRequest[] = []
+    let cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
     let aiCardsCreated = 0
 
@@ -803,6 +804,45 @@ export class GithubService {
       progress: 70,
       message: `${aiSummary} (${filesProcessed} arquivos)`
     })
+
+    // Supervisor de qualidade
+    options?.onProgress?.({
+      step: 'quality_check',
+      progress: 80,
+      message: '🔍 Supervisor de qualidade analisando cards...'
+    })
+
+    console.log('\n[GithubService] Executando supervisor de qualidade...')
+    const qualityReport = CardQualitySupervisor.analyzeQuality(cards)
+
+    if (qualityReport.issuesFound > 0) {
+      console.log(`[GithubService] Supervisor detectou ${qualityReport.issuesFound} issue(s) de qualidade`)
+
+      options?.onProgress?.({
+        step: 'quality_corrections',
+        progress: 85,
+        message: '🔧 Aplicando correções automáticas...'
+      })
+
+      const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
+      cards = corrections.correctedCards
+
+      console.log(`[GithubService] Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`)
+      console.log(`[GithubService] Cards finais após correções: ${cards.length}`)
+
+      options?.onProgress?.({
+        step: 'quality_corrections',
+        progress: 90,
+        message: `✅ Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`
+      })
+    } else {
+      console.log('[GithubService] Supervisor: qualidade OK, nenhum problema detectado')
+      options?.onProgress?.({
+        step: 'quality_check',
+        progress: 90,
+        message: '✅ Supervisor: qualidade OK'
+      })
+    }
 
     return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
   }
