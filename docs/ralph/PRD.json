@@ -26,6 +26,14 @@
     "repo_root": ".",
     "frontend_dir": "frontend",
     "backend_dir": "backend",
+    "ralph_commands": {
+      "start": "nohup ./scripts/ralph.sh > ralph.log 2>&1 &",
+      "status": "pgrep -af ralph.sh || echo \"Ralph nao esta rodando\"",
+      "stop": "pkill -f ralph.sh && echo \"Ralph parado\"",
+      "stop_by_pid": "pgrep -af ralph.sh && pkill -f ralph.sh",
+      "stop_and_tail": "pkill -f ralph.sh && tail -n 20 ralph.log",
+      "tail_log": "tail -n 200 ralph.log"
+    },
     "commands": {
       "frontend": {
         "dev": "npm run dev",
@@ -45,7 +53,8 @@
     "logo_remove_black",
     "sidebar_dark_mode_toggle",
     "git_import_grouping_agent",
-    "card_quality_supervisor_agent"
+    "card_quality_supervisor_agent",
+    "rewrite_cardfeature_clawdbot"
   ],
   "tasks": [
     {
@@ -68,10 +77,14 @@
         {
           "id": "logo_find_references",
           "title": "Encontrar todas as referencias ao logo preto",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "frontend: npm run lint",
             "frontend: npm run build"
+          ],
+          "notes": [
+            "Encontradas 5 referencias em: AppSidebar.tsx:75, PublicHome.tsx:16, login/page.tsx:86, register/page.tsx:90, app/page.tsx:58",
+            "Logo alternativo disponivel: 'Logo 10xDev Sem fundo.png' em /public/brand/"
           ]
         },
         {
@@ -245,6 +258,67 @@
         }
       ]
     }
+    ,
+    {
+      "id": "rewrite_cardfeature_clawdbot",
+      "title": "Recriar card com instrucoes melhores (Claude CLI e Ralph)",
+      "status": "pending",
+      "scope_files": [
+        "backend/src/controllers/CardFeatureController.ts",
+        "backend/src/models/CardFeatureModel.ts",
+        "backend/src/routes/cardFeatureRoutes.ts",
+        "frontend/services/cardFeatureService.ts",
+        "frontend/components/CardFeatureForm.tsx"
+      ],
+      "acceptance": [
+        "card atual (id 00fa3cca-c83a-439f-84d7-683d5d6132a2) removido",
+        "novo card criado com conteudo equivalente, mas com instrucoes melhores",
+        "incluir comandos de instalacao do Claude CLI",
+        "incluir comandos do Ralph em blocos de terminal",
+        "conteudo organizado em telas/abas"
+      ],
+      "microtasks": [
+        {
+          "id": "cardfeature_fetch_current",
+          "title": "Ler o card atual e mapear telas e blocos",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "cardfeature_plan_new_content",
+          "title": "Planejar o novo conteudo com instrucoes melhoradas",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "cardfeature_delete_and_create",
+          "title": "Apagar o card atual e criar um novo com telas/abas",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "cardfeature_verify_content",
+          "title": "Validar conteudo final e organizacao das telas",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        }
+      ],
+      "notes": [
+        "Fonte: https://api.10xdev.com.br/api/card-features/00fa3cca-c83a-439f-84d7-683d5d6132a2"
+      ]
+    }
   ],
   "agents": {
     "import_refiner": {
@@ -284,5 +358,14 @@
     "validacao": "lint/build/testes executados e resultados",
     "observacoes": "bloqueios, riscos, proximo passo"
   },
-  "updates": []
+  "updates": [
+    {
+      "ts": "2026-01-26 12:30",
+      "microtask_id": "logo_find_references",
+      "feito": "Identificadas 5 referencias ao logo preto em componentes frontend. Logo alternativo 'Logo 10xDev Sem fundo.png' localizado.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), npm run build (passou)",
+      "observacoes": "Proxima microtarefa: logo_replace_assets para substituir referencias"
+    }
+  ]
 }
