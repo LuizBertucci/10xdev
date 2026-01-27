@@ -222,10 +222,18 @@
         {
           "id": "import_grouping_rules",
           "title": "Adicionar regras para agrupar por feature/namespace",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Adicionada funcao extractNamespace (linha 403) que identifica prefixos comuns: supabase, auth, user, card, github, ai, payment, etc",
+            "Modificada extractFeatureName (linha 348) para usar extractNamespace ao normalizar nomes de features",
+            "Melhorada consolidateFeatures (linha 447) para agrupar arquivos por namespace antes de separar em large/small",
+            "Agora arquivos como supabaseClient.ts, supabaseAdmin.ts serao agrupados em uma unica feature 'supabase' com multiplas telas",
+            "Lista de namespaces configuravel e extensivel - facilita adicionar novos namespaces conforme necessario",
+            "Build e lint passaram sem erros"
           ]
         },
         {
@@ -458,6 +466,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Microtarefa import_review_grouping concluida. Proxima microtarefa: import_grouping_rules para adicionar regras de agrupamento por feature/namespace"
+    },
+    {
+      "ts": "2026-01-26 23:15",
+      "microtask_id": "import_grouping_rules",
+      "feito": "Adicionadas regras de agrupamento por namespace/prefixo. Criada funcao extractNamespace que identifica prefixos comuns (supabase, auth, user, etc). Modificadas extractFeatureName e consolidateFeatures para agrupar arquivos relacionados por namespace.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Microtarefa import_grouping_rules concluida. Arquivos com prefixos comuns serao agrupados em uma unica feature. Proxima microtarefa: import_screens_per_feature"
     }
   ]
 }

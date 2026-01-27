@@ -393,7 +393,30 @@ export class GithubService {
       baseName = baseName.substring(3)
     }
 
-    return this.normalizeFeatureName(baseName) || 'misc'
+    // 6. Extrair namespace/prefixo comum (ex: supabase, auth, user)
+    const normalized = this.normalizeFeatureName(baseName)
+    const namespace = this.extractNamespace(normalized)
+
+    return namespace || normalized || 'misc'
+  }
+
+  private static extractNamespace(normalizedName: string): string {
+    // Lista de namespaces/prefixos comuns que devem ser agrupados
+    const namespaces = [
+      'supabase', 'auth', 'user', 'card', 'github', 'ai',
+      'payment', 'billing', 'order', 'product', 'invoice',
+      'email', 'notification', 'message', 'chat',
+      'api', 'database', 'db', 'storage', 'cache',
+      'admin', 'dashboard', 'report', 'analytics'
+    ]
+
+    for (const ns of namespaces) {
+      if (normalizedName.startsWith(ns)) {
+        return ns
+      }
+    }
+
+    return normalizedName
   }
 
   private static normalizeFeatureName(name: string): string {
@@ -425,10 +448,19 @@ export class GithubService {
     const consolidated = new Map<string, FeatureFile[]>()
     const MIN_FILES_FOR_FEATURE = 2
 
+    // 1. Agrupar por namespace antes de separar em large/small
+    const namespaceGroups = new Map<string, FeatureFile[]>()
+    for (const [name, files] of groups) {
+      const namespace = this.extractNamespace(name)
+      const key = namespace || name
+      if (!namespaceGroups.has(key)) namespaceGroups.set(key, [])
+      namespaceGroups.get(key)!.push(...files)
+    }
+
     const large = new Map<string, FeatureFile[]>()
     const small: FeatureFile[] = []
 
-    for (const [name, files] of groups) {
+    for (const [name, files] of namespaceGroups) {
       const layers = new Set(files.map(f => f.layer))
       const hasMultipleLayers = layers.size >= 2
       const hasEnoughFiles = files.length >= MIN_FILES_FOR_FEATURE
