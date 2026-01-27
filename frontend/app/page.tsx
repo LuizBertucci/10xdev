@@ -27,6 +27,7 @@ export default function DevPlatform() {
   const activeTab = platformState.activeTab
   const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
+  const codeId = activeTab === "codes" ? searchParams?.get('id') || null : null
 
   // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
   useEffect(() => {
@@ -71,7 +72,11 @@ export default function DevPlatform() {
               {platformState.activeTab === "home" && <Home platformState={platformState} />}
 
               {/* Codes Tab */}
-              {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
+              {activeTab === "codes" && codeId ? (
+                <ContentDetail platformState={platformState} />
+              ) : (
+                activeTab === "codes" && <Codes platformState={platformState} />
+              )}
 
               {/* Contents Tab */}
               {activeTab === "contents" && contentId ? (

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ interface CardFeatureCompactProps {
 }
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect }: CardFeatureCompactProps) {
+  const router = useRouter()
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -44,7 +46,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3001/api'
     : 'https://api.10xdev.com.br/api'
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
-  const cardLinkLabel = snippet.card_type === CardType.POST ? 'Link do post' : 'Link do card'
+
+  // URL compartilhável da aplicação (não só API)
+  const shareableAppUrl = (() => {
+    if (typeof window === 'undefined') return ''
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://10xdev.com.br'
+    const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
+    return `${baseUrl}/?tab=${tab}&id=${snippet.id}`
+  })()
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -71,7 +82,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const handleCopyCardUrl = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      await navigator.clipboard.writeText(cardApiUrl)
+      await navigator.clipboard.writeText(shareableAppUrl)
       setCardLinkCopied(true)
       toast.success("Link copiado!")
       setTimeout(() => setCardLinkCopied(false), 2000)
@@ -93,13 +104,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
   }
 
-  // Função para lidar com cliques no card (mobile)
+  // Função para lidar com cliques no card
   const handleCardClick = (e: React.MouseEvent) => {
-    // Previne o toggle se clicou em um botão (desktop)
+    // Previne a navegação se clicou em um botão
     if ((e.target as HTMLElement).closest('button')) {
       return
     }
-    toggleExpanded()
+
+    // Navegar para view de detalhe baseado no tipo de card
+    const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
+    router.push(`/?tab=${tab}&id=${snippet.id}`)
   }
 
   // Screen ativa baseada na tab selecionada
@@ -300,15 +314,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     )}
 
-                    {/* Botão Link do card */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    {/* Botão Compartilhar */}
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className={`h-7 px-2 text-xs ${cardLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
                       onClick={handleCopyCardUrl}
                     >
                       {cardLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {cardLinkCopied ? 'Copiado!' : cardLinkLabel}
+                      {cardLinkCopied ? 'Copiado!' : 'Compartilhar'}
                     </Button>
 
                     {/* Toggle - extrema direita */}
