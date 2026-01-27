@@ -448,14 +448,22 @@ export class GithubService {
     const consolidated = new Map<string, FeatureFile[]>()
     const MIN_FILES_FOR_FEATURE = 2
 
+    console.log('[GithubService] Consolidando features...')
+    console.log(`[GithubService] Grupos iniciais: ${groups.size}`)
+
     // 1. Agrupar por namespace antes de separar em large/small
     const namespaceGroups = new Map<string, FeatureFile[]>()
     for (const [name, files] of groups) {
       const namespace = this.extractNamespace(name)
       const key = namespace || name
+      if (namespace && namespace !== name) {
+        console.log(`[GithubService] Agrupando '${name}' no namespace '${namespace}' (${files.length} arquivos)`)
+      }
       if (!namespaceGroups.has(key)) namespaceGroups.set(key, [])
       namespaceGroups.get(key)!.push(...files)
     }
+
+    console.log(`[GithubService] Após agrupamento por namespace: ${namespaceGroups.size} grupos`)
 
     const large = new Map<string, FeatureFile[]>()
     const small: FeatureFile[] = []
@@ -464,8 +472,14 @@ export class GithubService {
       const layers = new Set(files.map(f => f.layer))
       const hasMultipleLayers = layers.size >= 2
       const hasEnoughFiles = files.length >= MIN_FILES_FOR_FEATURE
-      if (hasMultipleLayers || hasEnoughFiles) large.set(name, files)
-      else small.push(...files)
+
+      if (hasMultipleLayers || hasEnoughFiles) {
+        console.log(`[GithubService] Feature '${name}' promovida a card: ${files.length} arquivos, ${layers.size} layers [${[...layers].join(', ')}]`)
+        large.set(name, files)
+      } else {
+        console.log(`[GithubService] Feature '${name}' movida para utils: apenas ${files.length} arquivo(s), ${layers.size} layer(s)`)
+        small.push(...files)
+      }
     }
 
     for (const [name, files] of large) consolidated.set(name, files)
@@ -477,9 +491,14 @@ export class GithubService {
         if (!byDir.has(mainDir)) byDir.set(mainDir, [])
         byDir.get(mainDir)!.push(file)
       }
-      for (const [dir, files] of byDir) consolidated.set(`${dir}-utils`, files)
+      console.log(`[GithubService] Arquivos pequenos agrupados em ${byDir.size} cards de utils`)
+      for (const [dir, files] of byDir) {
+        console.log(`[GithubService] Utils '${dir}': ${files.length} arquivo(s)`)
+        consolidated.set(`${dir}-utils`, files)
+      }
     }
 
+    console.log(`[GithubService] Consolidação final: ${consolidated.size} features`)
     return consolidated
   }
 
@@ -724,31 +743,94 @@ export class GithubService {
         if (!layerFiles?.length) continue
 
         const screenName = LAYER_TO_SCREEN_NAME[layer] || this.capitalizeFirst(layer)
-        const blocks: ContentBlock[] = []
 
-        for (const file of layerFiles) {
-          const ext = this.getFileExtension(file.path)
-          const language = this.getLanguageFromExtension(ext)
-          const fileName = file.path.split('/').pop() || file.path
-          blocks.push({
-            id: randomUUID(),
-            type: ContentType.CODE,
-            content: file.content,
-            language,
-            title: fileName,
-            route: file.path,
-            order: blocks.length
+        // Se há muitos arquivos no mesmo layer, dividir em múltiplas screens
+        const MAX_FILES_PER_SCREEN = 5
+        if (layerFiles.length > MAX_FILES_PER_SCREEN) {
+          console.log(`[GithubService] Feature '${featureName}' layer '${layer}': ${layerFiles.length} arquivos > ${MAX_FILES_PER_SCREEN}, dividindo em múltiplas screens`)
+
+          // Agrupar por subdiretório dentro do layer
+          const filesBySubDir = new Map<string, FeatureFile[]>()
+          for (const file of layerFiles) {
+            const parts = file.path.split('/')
+            // Encontrar o índice do layer no path
+            let layerIndex = -1
+            for (let i = 0; i < parts.length; i++) {
+              const part = parts[i]
+              if (part && LAYER_PATTERNS[layer]?.test(`/${part}/`)) {
+                layerIndex = i
+                break
+              }
+            }
+
+            // Usar o subdiretório após o layer, ou "main" se não houver
+            let subDir = 'main'
+            if (layerIndex >= 0 && layerIndex + 1 < parts.length) {
+              const nextPart = parts[layerIndex + 1]
+              if (nextPart) subDir = nextPart
+            }
+
+            if (!filesBySubDir.has(subDir)) filesBySubDir.set(subDir, [])
+            filesBySubDir.get(subDir)!.push(file)
+          }
+
+          console.log(`[GithubService] Layer '${layer}' dividido em ${filesBySubDir.size} screens por subdiretório`)
+
+          // Criar uma screen por subdiretório
+          for (const [subDir, subDirFiles] of filesBySubDir) {
+            const blocks: ContentBlock[] = []
+            for (const file of subDirFiles) {
+              const ext = this.getFileExtension(file.path)
+              const language = this.getLanguageFromExtension(ext)
+              const fileName = file.path.split('/').pop() || file.path
+              blocks.push({
+                id: randomUUID(),
+                type: ContentType.CODE,
+                content: file.content,
+                language,
+                title: fileName,
+                route: file.path,
+                order: blocks.length
+              })
+              filesProcessed++
+            }
+
+            const subDirLabel = subDir === 'main' ? '' : ` - ${this.capitalizeFirst(subDir)}`
+            const fileNames = subDirFiles.map(f => f.path.split('/').pop()).join(', ')
+            screens.push({
+              name: `${screenName}${subDirLabel}`,
+              description: subDirFiles.length === 1 ? `Arquivo ${fileNames}` : `Arquivos: ${fileNames}`,
+              route: subDirFiles[0]?.path || '',
+              blocks
+            })
+          }
+        } else {
+          // Screen única quando há poucos arquivos
+          const blocks: ContentBlock[] = []
+          for (const file of layerFiles) {
+            const ext = this.getFileExtension(file.path)
+            const language = this.getLanguageFromExtension(ext)
+            const fileName = file.path.split('/').pop() || file.path
+            blocks.push({
+              id: randomUUID(),
+              type: ContentType.CODE,
+              content: file.content,
+              language,
+              title: fileName,
+              route: file.path,
+              order: blocks.length
+            })
+            filesProcessed++
+          }
+
+          const fileNames = layerFiles.map(f => f.path.split('/').pop()).join(', ')
+          screens.push({
+            name: screenName,
+            description: layerFiles.length === 1 ? `Arquivo ${fileNames}` : `Arquivos: ${fileNames}`,
+            route: layerFiles[0]?.path || '',
+            blocks
           })
-          filesProcessed++
         }
-
-        const fileNames = layerFiles.map(f => f.path.split('/').pop()).join(', ')
-        screens.push({
-          name: screenName,
-          description: layerFiles.length === 1 ? `Arquivo ${fileNames}` : `Arquivos: ${fileNames}`,
-          route: layerFiles[0]?.path || '',
-          blocks
-        })
       }
 
       if (!screens.length) continue

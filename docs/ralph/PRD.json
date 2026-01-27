@@ -239,10 +239,17 @@
         {
           "id": "import_screens_per_feature",
           "title": "Garantir varias telas para a mesma feature",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Sistema ja criava multiplas screens por layer (routes, controllers, services, etc)",
+            "Implementado: quando um layer tem >5 arquivos, divide em sub-screens organizadas por subdiretorio",
+            "Exemplo: se 'components' tem 10 arquivos em subdiretorios auth/ e user/, cria 'Frontend - Component - Auth' e 'Frontend - Component - User'",
+            "Adicionados logs para documentar decisoes: quando layer e dividido, quantas screens sao criadas, quais arquivos vao para cada screen",
+            "Build e lint passaram sem erros"
           ]
         },
         {
@@ -474,6 +481,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Microtarefa import_grouping_rules concluida. Arquivos com prefixos comuns serao agrupados em uma unica feature. Proxima microtarefa: import_screens_per_feature"
+    },
+    {
+      "ts": "2026-01-26 23:35",
+      "microtask_id": "import_screens_per_feature",
+      "feito": "Implementada divisao automatica de layers com >5 arquivos em multiplas screens organizadas por subdiretorio. Adicionados logs detalhados para documentar decisoes de agrupamento em consolidateFeatures e geracao de screens.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Microtarefa import_screens_per_feature concluida. Features com multiplos arquivos agora geram multiplas telas organizadas. Logs explicam decisoes de agrupamento e divisao de screens. Proxima microtarefa: import_tests_or_fixtures"
     }
   ]
 }
