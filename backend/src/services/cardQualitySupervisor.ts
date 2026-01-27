@@ -410,6 +410,153 @@ export class CardQualitySupervisor {
   }
 
   /**
+   * Aplica correções automáticas baseadas no relatório de qualidade
+   * Retorna a lista de cards corrigida
+   */
+  static applyCorrections(
+    cards: CreateCardFeatureRequest[],
+    report: QualityReport
+  ): { correctedCards: CreateCardFeatureRequest[]; mergesApplied: number; cardsRemoved: number } {
+    console.log('[CardQualitySupervisor] Aplicando correções automáticas...')
+
+    let mergesApplied = 0
+    let cardsRemoved = 0
+
+    // 1. Aplicar merges
+    const { mergedCards, mergeCount } = this.applyMerges(cards, report.cardsToMerge)
+    mergesApplied = mergeCount
+    let workingCards = mergedCards
+
+    // 2. Remover cards de baixa qualidade (duplicados completos)
+    const { filteredCards, removeCount } = this.removeCards(workingCards, report.cardsToRemove)
+    cardsRemoved = removeCount
+    workingCards = filteredCards
+
+    console.log('[CardQualitySupervisor] Correções aplicadas:')
+    console.log(`  - Merges realizados: ${mergesApplied}`)
+    console.log(`  - Cards removidos: ${cardsRemoved}`)
+    console.log(`  - Cards finais: ${workingCards.length} (de ${cards.length} originais)`)
+
+    return {
+      correctedCards: workingCards,
+      mergesApplied,
+      cardsRemoved
+    }
+  }
+
+  /**
+   * Aplica merges de cards duplicados ou relacionados
+   */
+  private static applyMerges(
+    cards: CreateCardFeatureRequest[],
+    merges: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+  ): { mergedCards: CreateCardFeatureRequest[]; mergeCount: number } {
+    if (merges.length === 0) {
+      return { mergedCards: [...cards], mergeCount: 0 }
+    }
+
+    console.log(`[CardQualitySupervisor] Aplicando ${merges.length} merge(s)...`)
+
+    // Criar cópia dos cards
+    const workingCards = [...cards]
+    const toRemove = new Set<number>()
+
+    // Agrupar merges por target (pode haver múltiplos sources para o mesmo target)
+    const mergesByTarget = new Map<number, number[]>()
+    for (const merge of merges) {
+      if (!mergesByTarget.has(merge.targetIndex)) {
+        mergesByTarget.set(merge.targetIndex, [])
+      }
+      mergesByTarget.get(merge.targetIndex)!.push(merge.sourceIndex)
+    }
+
+    let mergeCount = 0
+
+    // Processar cada grupo de merge
+    for (const [targetIndex, sourceIndices] of mergesByTarget) {
+      const targetCard = workingCards[targetIndex]
+      if (!targetCard) continue
+
+      // Consolidar todos os sources no target
+      for (const sourceIndex of sourceIndices) {
+        const sourceCard = workingCards[sourceIndex]
+        if (!sourceCard || toRemove.has(sourceIndex)) continue
+
+        console.log(`[CardQualitySupervisor] Merge: "${sourceCard.title}" (#${sourceIndex}) -> "${targetCard.title}" (#${targetIndex})`)
+
+        // Mesclar screens do source no target
+        const targetScreenNames = new Set(targetCard.screens?.map(s => s.name) || [])
+
+        for (const sourceScreen of sourceCard.screens || []) {
+          // Se já existe uma screen com o mesmo nome, mesclar os blocks
+          const existingScreenIndex = targetCard.screens?.findIndex(s => s.name === sourceScreen.name)
+
+          if (existingScreenIndex !== undefined && existingScreenIndex >= 0 && targetCard.screens) {
+            // Mesclar blocks evitando duplicatas (mesmo route)
+            const existingScreen = targetCard.screens[existingScreenIndex]!
+            const existingRoutes = new Set(existingScreen.blocks?.map(b => b.route) || [])
+
+            for (const block of sourceScreen.blocks || []) {
+              if (!existingRoutes.has(block.route)) {
+                existingScreen.blocks = existingScreen.blocks || []
+                existingScreen.blocks.push({
+                  ...block,
+                  order: existingScreen.blocks.length
+                })
+              }
+            }
+          } else {
+            // Adicionar nova screen
+            if (!targetCard.screens) targetCard.screens = []
+            targetCard.screens.push(sourceScreen)
+          }
+        }
+
+        // Melhorar descrição se a do source for mais detalhada
+        if (sourceCard.description && sourceCard.description.length > (targetCard.description?.length || 0)) {
+          targetCard.description = sourceCard.description
+        }
+
+        // Marcar source para remoção
+        toRemove.add(sourceIndex)
+        mergeCount++
+      }
+    }
+
+    // Remover cards que foram mesclados (em ordem reversa para não afetar índices)
+    const result = workingCards.filter((_, index) => !toRemove.has(index))
+
+    console.log(`[CardQualitySupervisor] ${mergeCount} merge(s) aplicado(s), ${toRemove.size} card(s) removido(s)`)
+
+    return { mergedCards: result, mergeCount }
+  }
+
+  /**
+   * Remove cards de baixa qualidade
+   */
+  private static removeCards(
+    cards: CreateCardFeatureRequest[],
+    indicesToRemove: number[]
+  ): { filteredCards: CreateCardFeatureRequest[]; removeCount: number } {
+    if (indicesToRemove.length === 0) {
+      return { filteredCards: [...cards], removeCount: 0 }
+    }
+
+    console.log(`[CardQualitySupervisor] Removendo ${indicesToRemove.length} card(s) de baixa qualidade...`)
+
+    const toRemove = new Set(indicesToRemove)
+    const result = cards.filter((card, index) => {
+      if (toRemove.has(index)) {
+        console.log(`[CardQualitySupervisor] Removido: "${card.title}" (#${index})`)
+        return false
+      }
+      return true
+    })
+
+    return { filteredCards: result, removeCount: indicesToRemove.length }
+  }
+
+  /**
    * Registra relatório no console
    */
   private static logReport(report: QualityReport): void {

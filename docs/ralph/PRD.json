@@ -322,10 +322,19 @@
         {
           "id": "supervisor_apply_corrections",
           "title": "Aplicar merges ou reexecutar agrupamento quando necessario",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Implementado método applyCorrections no CardQualitySupervisor (linha 416-444)",
+            "Método applyMerges (linha 450-532) mescla cards duplicados ou relacionados consolidando screens e blocks",
+            "Método removeCards (linha 537-557) remove cards de baixa qualidade baseado em índices",
+            "Integração automática no githubService.ts (linha 908-925): supervisor aplica correções automaticamente após análise",
+            "Sistema mescla screens com mesmo nome evitando duplicatas de routes, consolida múltiplos sources em um target, e remove cards mesclados",
+            "Progress reporting adicionado: step 'quality_corrections' (85-90%) com mensagens informando merges e remoções aplicados",
+            "Logs detalhados documentam cada merge e remoção executados pelo supervisor"
           ]
         },
         {
@@ -536,6 +545,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Microtarefa supervisor_post_process concluida. Supervisor integrado com progress reporting (80-85%) e logs estruturados. Sistema analisa duplicados, conteudo fraco, similaridade e complexidade. Proxima microtarefa: supervisor_apply_corrections"
+    },
+    {
+      "ts": "2026-01-27 00:45",
+      "microtask_id": "supervisor_apply_corrections",
+      "feito": "Implementados métodos applyCorrections, applyMerges e removeCards no CardQualitySupervisor. Integração automática no pipeline do githubService para aplicar correções após análise de qualidade. Sistema mescla cards duplicados/relacionados consolidando screens e blocks, e remove cards de baixa qualidade.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Microtarefa supervisor_apply_corrections concluida. Supervisor agora aplica correções automaticamente: mescla screens evitando duplicatas, consolida múltiplos sources em target, remove cards mesclados. Progress reporting (85-90%) com logs detalhados. Proxima microtarefa: supervisor_log_decisions"
     }
   ]
 }

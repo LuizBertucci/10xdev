@@ -615,7 +615,7 @@ export class GithubService {
       willUseAi: useAi
     })
 
-    const cards: CreateCardFeatureRequest[] = []
+    let cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
     let aiCardsCreated = 0
 
@@ -905,16 +905,29 @@ export class GithubService {
         console.log(`[GithubService] ${qualityReport.cardsToImprove.length} card(s) podem ser melhorados`)
       }
 
+      // Aplicar correções automáticas
       options?.onProgress?.({
-        step: 'quality_check',
+        step: 'quality_corrections',
         progress: 85,
-        message: `⚠️ Supervisor encontrou ${qualityReport.issuesFound} issue(s) - veja os logs para detalhes`
+        message: '🔧 Aplicando correções automáticas...'
+      })
+
+      const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
+      cards = corrections.correctedCards
+
+      console.log(`[GithubService] Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`)
+      console.log(`[GithubService] Cards finais após correções: ${cards.length}`)
+
+      options?.onProgress?.({
+        step: 'quality_corrections',
+        progress: 90,
+        message: `✅ Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`
       })
     } else {
       console.log('[GithubService] Supervisor: qualidade OK, nenhum problema detectado')
       options?.onProgress?.({
         step: 'quality_check',
-        progress: 85,
+        progress: 90,
         message: '✅ Supervisor: qualidade OK'
       })
     }
