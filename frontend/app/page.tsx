@@ -55,7 +55,7 @@ export default function DevPlatform() {
                     <SidebarTrigger />
                     <div className="flex items-center space-x-2">
                       <img
-                        src="/brand/10xDev-logo-fundo-preto.png"
+                        src="/brand/Logo 10xDev Sem fundo.png"
                         alt="10xDev"
                         className="h-9 w-auto"
                       />

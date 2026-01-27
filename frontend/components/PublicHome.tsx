@@ -13,7 +13,7 @@ export default function PublicHome() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <img
-                src="/brand/10xDev-logo-fundo-preto.png"
+                src="/brand/Logo 10xDev Sem fundo.png"
                 alt="10xDev"
                 className="h-8 w-auto"
               />

@@ -6,6 +6,7 @@ Regras:
 - Prefira mudancas seguras e incrementais.
 - Nao atualize dependencias a menos que a microtarefa exija.
 - Rode lint/testes/build relevantes para a microtarefa.
+- Sempre execute comandos npm a partir do repo root usando `npm --prefix frontend|backend ...` para evitar erros de diretório.
 - Atualize o status e as notas em docs/ralph/PRD.json ao concluir.
 - Sempre registrar um update no PRD ao final de cada loop (mesmo que nao haja mudancas), com data/hora e resumo padronizado.
 - Faça commit ao finalizar cada microtarefa (a menos que pedido o contrario).
@@ -16,7 +17,7 @@ Processo:
 1) Leia docs/ralph/PRD.json.
 2) Pegue a primeira microtarefa com status "pending" (ou retome "in_progress").
 3) Execute apenas essa microtarefa.
-4) Valide com lint/testes/build conforme listado na microtarefa.
+4) Valide com lint/testes/build conforme listado na microtarefa, usando `npm --prefix frontend|backend` conforme o caso.
 5) Marque a microtarefa como "done" e registre as notas.
 6) Se todas as microtarefas de uma tarefa estiverem "done", marque a tarefa como "done".
 7) Registre um update no PRD com data/hora e resumo padronizado do loop.

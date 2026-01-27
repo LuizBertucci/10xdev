@@ -87,7 +87,7 @@ export default function RegisterPage() {
           {/* Logo */}
           <div className="flex justify-center">
             <img
-              src="/brand/10xDev-logo-fundo-preto.png"
+              src="/brand/Logo 10xDev Sem fundo.png"
               alt="10xDev"
               className="h-20 w-auto rounded-md shadow-sm"
             />
