@@ -203,10 +203,20 @@
         {
           "id": "import_review_grouping",
           "title": "Revisar heuristicas de agrupamento e prompt da IA",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Analisado githubService.ts (linhas 340-452): heuristicas de agrupamento baseadas em detectFileLayer, extractFeatureName, normalizeFeatureName",
+            "Heuristica agrupa por featureName (extraido de estruturas features/modules/domains ou nome do arquivo)",
+            "Consolidacao agrupa features com 2+ layers ou 2+ arquivos; resto vai para utils",
+            "Analisado aiCardGroupingService.ts (linhas 183-227): prompt da IA em refineGrouping",
+            "Prompt instrui: 1 card = 1 feature coesa, agrupa arquivos relacionados mesmo de camadas diferentes, cada card tem multiplas screens organizadas por camada tecnica",
+            "Exemplos de bons titulos incluidos no prompt: 'Sistema de Autenticacao', 'Gerenciamento de Usuarios', 'Processamento de Pagamentos'",
+            "normalizeAiOutput (linhas 101-154) trata fallbacks para mapear name->title e garantir schema valido",
+            "Limitacoes identificadas: heuristica pode fragmentar features relacionadas por namespace/prefixo (ex: supabase*); prompt nao menciona explicitamente agrupar por namespace"
           ]
         },
         {
@@ -440,6 +450,14 @@
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Tarefa sidebar_dark_mode_toggle concluida. Todas as microtarefas finalizadas. Toggle funcional com persistencia. Proxima tarefa: git_import_grouping_agent"
+    },
+    {
+      "ts": "2026-01-26 23:05",
+      "microtask_id": "import_review_grouping",
+      "feito": "Revisadas heuristicas de agrupamento (githubService.ts:340-452) e prompt da IA (aiCardGroupingService.ts:183-227). Identificadas limitacoes: heuristica pode fragmentar features relacionadas por namespace; prompt nao menciona explicitamente agrupamento por namespace.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Microtarefa import_review_grouping concluida. Proxima microtarefa: import_grouping_rules para adicionar regras de agrupamento por feature/namespace"
     }
   ]
 }
