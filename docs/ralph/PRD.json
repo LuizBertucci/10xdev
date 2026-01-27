@@ -395,10 +395,22 @@
         {
           "id": "cardfeature_plan_new_content",
           "title": "Planejar o novo conteudo com instrucoes melhoradas",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Criado planejamento completo em /tmp/new_card_content_plan.md com 7 telas estruturadas",
+            "Tela 1: Claude CLI - Visao Geral (conceito, recursos principais)",
+            "Tela 2: Claude CLI - Instalacao e Setup (instalacao npm, configuracao, primeiro uso)",
+            "Tela 3: Claude CLI - Comandos Essenciais (basicos, avancados, configuracoes)",
+            "Tela 4: Ralph - Conceito e Filosofia (o que e, vantagens do approach)",
+            "Tela 5: Ralph - Comandos e Controle (comandos controle, script ralph.sh, integracao npm)",
+            "Tela 6: Ralph - Estrutura do PRD.json (estrutura basica, tarefas, updates)",
+            "Tela 7: Ralph - Workflow Completo (fluxo execucao, exemplo pratico, boas praticas)",
+            "Total de ~21 blocos de conteudo com mix de text (explicacoes) e code (exemplos praticos)",
+            "Linguagens: Bash, JSON, Markdown"
           ]
         },
         {
@@ -583,6 +595,14 @@
       "status": "ok",
       "validacao": "Card buscado com sucesso via curl, dados parseados e estrutura mapeada",
       "observacoes": "Microtarefa cardfeature_fetch_current concluida. Card atual nao atende ao objetivo (ClawdBot vs Claude CLI/Ralph). Proxima microtarefa: cardfeature_plan_new_content para planejar conteudo sobre Claude CLI e Ralph"
+    },
+    {
+      "ts": "2026-01-26 23:07",
+      "microtask_id": "cardfeature_plan_new_content",
+      "feito": "Criado planejamento detalhado do novo card 'Claude CLI + Ralph: Desenvolvimento Assistido por IA' com 7 telas estruturadas e ~21 blocos de conteudo. Planejamento completo salvo em /tmp/new_card_content_plan.md",
+      "status": "ok",
+      "validacao": "Planejamento criado com estrutura completa: telas, blocos, tipos de conteudo (text/code), linguagens (bash/json)",
+      "observacoes": "Microtarefa cardfeature_plan_new_content concluida. Estrutura planejada: 3 telas sobre Claude CLI (visao geral, instalacao, comandos) + 4 telas sobre Ralph (conceito, comandos, PRD.json, workflow). Proxima microtarefa: cardfeature_delete_and_create para apagar card antigo e criar novo"
     }
   ]
 }
