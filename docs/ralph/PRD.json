@@ -379,10 +379,17 @@
         {
           "id": "cardfeature_fetch_current",
           "title": "Ler o card atual e mapear telas e blocos",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Card atual buscado via API: 00fa3cca-c83a-439f-84d7-683d5d6132a2",
+            "Mapeadas 5 telas (screens): Overview, Custos Reais, Instalação (30 min), Recursos & Links, Quick Reference",
+            "Card atual focado em ClawdBot (assistente IA self-hosted com Telegram)",
+            "PROBLEMA: Card atual nao atende ao objetivo - precisa ser sobre Claude CLI e Ralph",
+            "Criado mapeamento completo em /tmp/card_mapping.md com estrutura proposta para novo card focado em Claude CLI + Ralph"
           ]
         },
         {
@@ -568,6 +575,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Microtarefa supervisor_log_decisions concluida. Todas as decisões do supervisor estão documentadas nos logs: detecção (com severidade e sugestões), merges (screens/blocks transferidos, before/after stats), remoções (motivo, stats, confirmação), e resumo executivo final. Tarefa card_quality_supervisor_agent concluida com todas as microtarefas finalizadas."
+    },
+    {
+      "ts": "2026-01-27 01:15",
+      "microtask_id": "cardfeature_fetch_current",
+      "feito": "Card atual (00fa3cca-c83a-439f-84d7-683d5d6132a2) buscado via API e mapeado. 5 telas identificadas (Overview, Custos, Instalação, Recursos, Quick Reference). Card atual focado em ClawdBot, mas objetivo da tarefa é criar card sobre Claude CLI e Ralph. Criado mapeamento completo com estrutura proposta para novo card.",
+      "status": "ok",
+      "validacao": "Card buscado com sucesso via curl, dados parseados e estrutura mapeada",
+      "observacoes": "Microtarefa cardfeature_fetch_current concluida. Card atual nao atende ao objetivo (ClawdBot vs Claude CLI/Ralph). Proxima microtarefa: cardfeature_plan_new_content para planejar conteudo sobre Claude CLI e Ralph"
     }
   ]
 }
