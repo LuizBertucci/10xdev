@@ -90,10 +90,15 @@
         {
           "id": "logo_replace_assets",
           "title": "Substituir/remover uso do logo preto e atualizar assets",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "frontend: npm run lint",
             "frontend: npm run build"
+          ],
+          "notes": [
+            "Todos os arquivos ja estavam usando o logo correto 'Logo 10xDev Sem fundo.png'",
+            "Verificados: AppSidebar.tsx:75, PublicHome.tsx:16, login/page.tsx:86, register/page.tsx:90, app/page.tsx:58",
+            "Nenhuma referencia ao logo preto encontrada via grep"
           ]
         },
         {
@@ -366,6 +371,14 @@
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), npm run build (passou)",
       "observacoes": "Proxima microtarefa: logo_replace_assets para substituir referencias"
+    },
+    {
+      "ts": "2026-01-26 13:15",
+      "microtask_id": "logo_replace_assets",
+      "feito": "Verificados todos os arquivos. Nenhuma alteracao necessaria - todos ja usam o logo correto 'Logo 10xDev Sem fundo.png'. Nenhuma referencia ao logo preto encontrada.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Proxima microtarefa: logo_verify_contrast para validar layout em light/dark mode"
     }
   ]
 }
