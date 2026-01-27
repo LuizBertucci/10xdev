@@ -5,6 +5,7 @@ import type { GithubRepoInfo } from '@/types/project'
 import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
+import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
 
 // ================================================
 // CONFIGURATION
@@ -867,6 +868,61 @@ export class GithubService {
       step: 'generating_cards',
       progress: 70,
       message: `${aiSummary} (${filesProcessed} arquivos)`
+    })
+
+    // ================================================
+    // QUALITY SUPERVISION
+    // ================================================
+
+    options?.onProgress?.({
+      step: 'quality_check',
+      progress: 80,
+      message: '🔍 Supervisor de qualidade analisando cards...'
+    })
+
+    console.log('\n[GithubService] Executando supervisor de qualidade...')
+    const qualityReport = CardQualitySupervisor.analyzeQuality(cards)
+
+    // Log resumo das análises
+    if (qualityReport.issuesFound > 0) {
+      console.log(`[GithubService] Supervisor detectou ${qualityReport.issuesFound} issue(s) de qualidade`)
+
+      if (qualityReport.cardsToMerge.length > 0) {
+        console.log(`[GithubService] Sugeridos ${qualityReport.cardsToMerge.length} merge(s):`)
+        qualityReport.cardsToMerge.slice(0, 3).forEach((merge, idx) => {
+          console.log(`  ${idx + 1}. Card #${merge.sourceIndex} -> #${merge.targetIndex}: ${merge.reason}`)
+        })
+        if (qualityReport.cardsToMerge.length > 3) {
+          console.log(`  ... e mais ${qualityReport.cardsToMerge.length - 3} sugestão(ões)`)
+        }
+      }
+
+      if (qualityReport.cardsToRemove.length > 0) {
+        console.log(`[GithubService] Sugeridos ${qualityReport.cardsToRemove.length} card(s) para remoção:`, qualityReport.cardsToRemove)
+      }
+
+      if (qualityReport.cardsToImprove.length > 0) {
+        console.log(`[GithubService] ${qualityReport.cardsToImprove.length} card(s) podem ser melhorados`)
+      }
+
+      options?.onProgress?.({
+        step: 'quality_check',
+        progress: 85,
+        message: `⚠️ Supervisor encontrou ${qualityReport.issuesFound} issue(s) - veja os logs para detalhes`
+      })
+    } else {
+      console.log('[GithubService] Supervisor: qualidade OK, nenhum problema detectado')
+      options?.onProgress?.({
+        step: 'quality_check',
+        progress: 85,
+        message: '✅ Supervisor: qualidade OK'
+      })
+    }
+
+    options?.onProgress?.({
+      step: 'complete',
+      progress: 100,
+      message: `✅ Importação concluída: ${cards.length} cards, ${filesProcessed} arquivos`
     })
 
     return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
