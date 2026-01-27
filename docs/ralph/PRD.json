@@ -153,10 +153,18 @@
         {
           "id": "darkmode_toggle_ui",
           "title": "Adicionar componente de toggle na sidebar",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "frontend: npm run lint",
             "frontend: npm run build"
+          ],
+          "notes": [
+            "Adicionado toggle de dark mode no SidebarFooter (AppSidebar.tsx:139-153)",
+            "Importados icones Moon e Sun do lucide-react",
+            "Hook useTheme do next-themes integrado",
+            "Toggle alterna entre dark/light mode com feedback visual (icone e texto)",
+            "Posicionado apos o botao de logout no footer da sidebar",
+            "Build e lint passaram sem erros"
           ]
         },
         {
@@ -408,6 +416,14 @@
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Proxima microtarefa: darkmode_toggle_ui para adicionar componente de toggle na sidebar"
+    },
+    {
+      "ts": "2026-01-26 22:42",
+      "microtask_id": "darkmode_toggle_ui",
+      "feito": "Adicionado componente de toggle dark/light mode na sidebar. Integrado useTheme hook, icones Moon/Sun e funcao toggleTheme. Toggle posicionado no footer apos botao de logout.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Proxima microtarefa: darkmode_wire_state para validar persistencia do tema e finalizacao da tarefa sidebar_dark_mode_toggle"
     }
   ]
 }

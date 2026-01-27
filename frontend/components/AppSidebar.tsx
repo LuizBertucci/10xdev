@@ -4,7 +4,8 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupConte
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
-import { Crown, LogOut } from "lucide-react"
+import { Crown, LogOut, Moon, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
 
 interface AppSidebarProps {
   platformState: any
@@ -13,6 +14,7 @@ interface AppSidebarProps {
 export default function AppSidebar({ platformState }: AppSidebarProps) {
   const { user, logout } = useAuth()
   const { setOpenMobile, isMobile } = useSidebar()
+  const { theme, setTheme } = useTheme()
   const isAdmin = user?.role === 'admin'
 
   const navItems = [
@@ -61,6 +63,10 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
     return 'DV'
   }
 
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -72,7 +78,7 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
             >
               <div className="flex aspect-square size-8 items-center justify-center">
                 <img
-                  src="/brand/10xDev-logo-fundo-preto.png"
+                  src="/brand/Logo 10xDev Sem fundo.png"
                   alt="10xDev"
                   className="h-7 w-auto"
                 />
@@ -128,6 +134,21 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
             <SidebarMenuButton onClick={handleLogout}>
               <LogOut className="size-5 text-red-500" />
               <span>Sair</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={toggleTheme}>
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="size-5" />
+                  <span>Modo claro</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="size-5" />
+                  <span>Modo escuro</span>
+                </>
+              )}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
