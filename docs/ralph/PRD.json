@@ -1,0 +1,288 @@
+{
+  "title": "backlog ralph 10xdev",
+  "version": "1.0",
+  "sources": [
+    {
+      "type": "youtube",
+      "url": "https://www.youtube.com/watch?v=_IK18goX4X8",
+      "notes": "Agente em loop, tarefas pequenas, feedback forte, commit por tarefa."
+    },
+    {
+      "type": "article",
+      "url": "https://ghuntley.com/ralph/",
+      "notes": "Ralph e um loop deterministico; ajuste com instrucoes explicitas."
+    }
+  ],
+  "principles": [
+    "uma microtarefa por loop",
+    "diffs pequenos apenas",
+    "escopo bem definido",
+    "usar feedback (lint, build, testes)",
+    "commit quando a microtarefa terminar",
+    "evitar atualizar dependencias sem necessidade",
+    "registrar decisoes neste PRD"
+  ],
+  "environment": {
+    "repo_root": ".",
+    "frontend_dir": "frontend",
+    "backend_dir": "backend",
+    "commands": {
+      "frontend": {
+        "dev": "npm run dev",
+        "lint": "npm run lint",
+        "build": "npm run build"
+      },
+      "backend": {
+        "dev": "npm run dev",
+        "lint": "npm run lint",
+        "build": "npm run build",
+        "test": "npm test"
+      }
+    },
+    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco."
+  },
+  "task_sequence": [
+    "logo_remove_black",
+    "sidebar_dark_mode_toggle",
+    "git_import_grouping_agent",
+    "card_quality_supervisor_agent"
+  ],
+  "tasks": [
+    {
+      "id": "logo_remove_black",
+      "title": "Remover o logo preto da 10xdev",
+      "status": "pending",
+      "scope_files": [
+        "frontend/components/AppSidebar.tsx",
+        "frontend/app/page.tsx",
+        "frontend/components/PublicHome.tsx",
+        "frontend/app/login/page.tsx",
+        "frontend/app/register/page.tsx"
+      ],
+      "acceptance": [
+        "nenhum uso de 10xDev-logo-fundo-preto.png",
+        "logo legivel em light e dark",
+        "sem regressao de layout"
+      ],
+      "microtasks": [
+        {
+          "id": "logo_find_references",
+          "title": "Encontrar todas as referencias ao logo preto",
+          "status": "pending",
+          "tests": [
+            "frontend: npm run lint",
+            "frontend: npm run build"
+          ]
+        },
+        {
+          "id": "logo_replace_assets",
+          "title": "Substituir/remover uso do logo preto e atualizar assets",
+          "status": "pending",
+          "tests": [
+            "frontend: npm run lint",
+            "frontend: npm run build"
+          ]
+        },
+        {
+          "id": "logo_verify_contrast",
+          "title": "Validar layout e contraste em light/dark",
+          "status": "pending",
+          "tests": [
+            "frontend: npm run lint",
+            "frontend: npm run build"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sidebar_dark_mode_toggle",
+      "title": "Adicionar opcao de dark mode na sidebar",
+      "status": "pending",
+      "scope_files": [
+        "frontend/components/AppSidebar.tsx",
+        "frontend/components/theme-provider.tsx",
+        "frontend/app/layout.tsx"
+      ],
+      "acceptance": [
+        "toggle visivel na sidebar",
+        "troca atualiza tema via next-themes",
+        "preferencia persiste",
+        "sem regressao de UI"
+      ],
+      "microtasks": [
+        {
+          "id": "darkmode_theme_provider",
+          "title": "Garantir ThemeProvider envolvendo o app",
+          "status": "pending",
+          "tests": [
+            "frontend: npm run lint",
+            "frontend: npm run build"
+          ]
+        },
+        {
+          "id": "darkmode_toggle_ui",
+          "title": "Adicionar componente de toggle na sidebar",
+          "status": "pending",
+          "tests": [
+            "frontend: npm run lint",
+            "frontend: npm run build"
+          ]
+        },
+        {
+          "id": "darkmode_wire_state",
+          "title": "Conectar toggle ao estado do tema e validar persistencia",
+          "status": "pending",
+          "tests": [
+            "frontend: npm run lint",
+            "frontend: npm run build"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "git_import_grouping_agent",
+      "title": "Melhorar agrupamento da importacao git (evitar cards duplicados)",
+      "status": "pending",
+      "scope_files": [
+        "backend/src/services/githubService.ts",
+        "backend/src/services/aiCardGroupingService.ts"
+      ],
+      "acceptance": [
+        "arquivos relacionados (ex.: supabase) agrupados em um card com varias telas",
+        "sem duplicacao excessiva de cards para a mesma feature",
+        "logs explicam decisoes de agrupamento"
+      ],
+      "microtasks": [
+        {
+          "id": "import_review_grouping",
+          "title": "Revisar heuristicas de agrupamento e prompt da IA",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "import_grouping_rules",
+          "title": "Adicionar regras para agrupar por feature/namespace",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "import_screens_per_feature",
+          "title": "Garantir varias telas para a mesma feature",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "import_tests_or_fixtures",
+          "title": "Adicionar testes ou fixtures se existirem",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build",
+            "backend: npm test (if coverage exists for import)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "card_quality_supervisor_agent",
+      "title": "Adicionar agente supervisor para validar qualidade dos cards",
+      "status": "pending",
+      "scope_files": [
+        "backend/src/services/githubService.ts",
+        "backend/src/services/aiCardGroupingService.ts"
+      ],
+      "acceptance": [
+        "pos-processamento detecta e mescla duplicados",
+        "cards de baixa qualidade sao sinalizados ou reagrupados",
+        "logs da importacao mostram acoes do supervisor"
+      ],
+      "microtasks": [
+        {
+          "id": "supervisor_define_checks",
+          "title": "Definir checks de qualidade (duplicidade, conteudo fraco, mesma tech)",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "supervisor_post_process",
+          "title": "Implementar etapa do supervisor apos o agrupamento",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "supervisor_apply_corrections",
+          "title": "Aplicar merges ou reexecutar agrupamento quando necessario",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build"
+          ]
+        },
+        {
+          "id": "supervisor_log_decisions",
+          "title": "Documentar decisoes nos logs",
+          "status": "pending",
+          "tests": [
+            "backend: npm run lint",
+            "backend: npm run build",
+            "backend: npm test (if coverage exists for import)"
+          ]
+        }
+      ]
+    }
+  ],
+  "agents": {
+    "import_refiner": {
+      "goal": "Melhorar agrupamento para evitar cards duplicados",
+      "inputs": [
+        "grouped file metadata",
+        "optional file content or summaries"
+      ],
+      "outputs": [
+        "cards com telas agrupadas por feature"
+      ],
+      "constraints": [
+        "preferir um card com varias telas por feature",
+        "evitar dividir apenas por caminho de arquivo"
+      ]
+    },
+    "card_quality_supervisor": {
+      "goal": "Detectar duplicados e melhorar a qualidade dos cards",
+      "inputs": [
+        "cards produced by import_refiner"
+      ],
+      "outputs": [
+        "cards mesclados ou ajustados",
+        "avisos de qualidade (se houver)"
+      ],
+      "constraints": [
+        "nao fazer merges destrutivos sem evidencia",
+        "registrar todas as correcoes"
+      ]
+    }
+  },
+  "update_format": {
+    "ts": "YYYY-MM-DD HH:MM",
+    "microtask_id": "string",
+    "feito": "resumo curto do que foi feito",
+    "status": "ok | falhou | parcial",
+    "validacao": "lint/build/testes executados e resultados",
+    "observacoes": "bloqueios, riscos, proximo passo"
+  },
+  "updates": []
+}
