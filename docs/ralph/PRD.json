@@ -120,7 +120,7 @@
     {
       "id": "sidebar_dark_mode_toggle",
       "title": "Adicionar opcao de dark mode na sidebar",
-      "status": "pending",
+      "status": "done",
       "scope_files": [
         "frontend/components/AppSidebar.tsx",
         "frontend/components/theme-provider.tsx",
@@ -170,10 +170,18 @@
         {
           "id": "darkmode_wire_state",
           "title": "Conectar toggle ao estado do tema e validar persistencia",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "frontend: npm run lint",
             "frontend: npm run build"
+          ],
+          "notes": [
+            "Validada integracao completa do toggle com next-themes",
+            "ThemeProvider configurado com attribute='class', defaultTheme='system', enableSystem=true",
+            "Toggle implementado com useTheme hook, alternando entre dark/light mode",
+            "Persistencia automatica via next-themes (localStorage)",
+            "Dark mode CSS variables ja configuradas em globals.css (linhas 51-84)",
+            "Build e lint passaram sem erros"
           ]
         }
       ]
@@ -424,6 +432,14 @@
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Proxima microtarefa: darkmode_wire_state para validar persistencia do tema e finalizacao da tarefa sidebar_dark_mode_toggle"
+    },
+    {
+      "ts": "2026-01-26 22:50",
+      "microtask_id": "darkmode_wire_state",
+      "feito": "Validada integracao completa do toggle com next-themes. Confirmada persistencia automatica via localStorage. Dark mode CSS variables ja configuradas. Tarefa sidebar_dark_mode_toggle concluida com sucesso.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Tarefa sidebar_dark_mode_toggle concluida. Todas as microtarefas finalizadas. Toggle funcional com persistencia. Proxima tarefa: git_import_grouping_agent"
     }
   ]
 }
