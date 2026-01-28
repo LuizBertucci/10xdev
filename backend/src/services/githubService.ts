@@ -849,6 +849,7 @@ export class GithubService {
               language: aiCard.language || mainLanguage,
               content_type: ContentType.CODE,
               card_type: CardType.CODIGOS,
+              category: FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName),
               visibility: Visibility.UNLISTED,
               screens
             }
@@ -936,6 +937,7 @@ export class GithubService {
         description: this.generateFeatureDescription(featureName, featureFiles),
         content_type: ContentType.CODE,
         card_type: CardType.CODIGOS,
+        category: FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName),
         visibility: Visibility.UNLISTED,
         screens
       }
