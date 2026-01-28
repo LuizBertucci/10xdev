@@ -401,6 +401,58 @@ export class GithubService {
   }
 
   private static extractFeatureName(path: string): string {
+    const normalized = path.toLowerCase()
+
+    // PRIORIDADE 0: Detecção por PATH específico
+    // Componentes UI
+    if (normalized.includes('/components/ui/') || normalized.includes('\\components\\ui\\')) {
+      return 'ui'
+    }
+
+    // Skills n8n
+    if (normalized.includes('/skills/') || normalized.includes('\\skills\\')) {
+      return 'skill'
+    }
+
+    // Documentação
+    if (normalized.includes('/docs/') || normalized.includes('\\docs\\')) {
+      return 'docs'
+    }
+    if (normalized.match(/readme\.md|contributing\.md|changelog\.md|license\.md/i)) {
+      return 'docs'
+    }
+
+    // Utilitários
+    if (normalized.includes('/utils/') || normalized.includes('\\utils\\')) {
+      return 'utils'
+    }
+    if (normalized.includes('/helpers/') || normalized.includes('\\helpers\\')) {
+      return 'utils'
+    }
+
+    // Hooks customizados
+    if (normalized.includes('/hooks/') || normalized.includes('\\hooks\\')) {
+      return 'hook'
+    }
+
+    // Testes
+    if (normalized.includes('/test') || normalized.includes('\\test')) {
+      return 'test'
+    }
+    if (normalized.match(/\.test\.|\.spec\.|__tests__|\.e2e\./)) {
+      return 'test'
+    }
+
+    // Configuração
+    if (normalized.match(/\.config\.|tsconfig|webpack|vite\.config|babel\.config|eslint/)) {
+      return 'config'
+    }
+
+    // Estilos
+    if (normalized.match(/\.css$|\.scss$|\.sass$|\.less$|tailwind/)) {
+      return 'style'
+    }
+
     const parts = path.split('/')
     const fileName = parts.pop() || ''
 
