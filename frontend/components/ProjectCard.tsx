@@ -1,8 +1,10 @@
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, FileCode, Loader2, MoreVertical, Trash2, Users } from "lucide-react"
+import { Calendar, FileCode, Loader2, MoreVertical, Trash2, Users, Link2, Check } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { toast } from "sonner"
 import type { Project } from "@/services"
 
 interface ProjectCardProps {
@@ -32,6 +34,30 @@ export function ProjectCard({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("")
+
+  const [projectLinkCopied, setProjectLinkCopied] = useState(false)
+
+  // URL compartilhável do projeto
+  const shareableProjectUrl = (() => {
+    if (typeof window === 'undefined') return ''
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://10xdev.com.br'
+    return `${baseUrl}/?tab=projects&id=${project.id}`
+  })()
+
+  // Função para copiar URL do projeto
+  const handleCopyProjectUrl = async (event: React.MouseEvent) => {
+    event.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(shareableProjectUrl)
+      setProjectLinkCopied(true)
+      toast.success("Link do projeto copiado!")
+      setTimeout(() => setProjectLinkCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link do projeto")
+    }
+  }
 
   const handleDeleteClick = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation()
@@ -77,6 +103,23 @@ export function ProjectCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={handleCopyProjectUrl}
+                  className="text-gray-700 focus:text-blue-600"
+                >
+                  {projectLinkCopied ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4 text-green-600" />
+                      <span className="text-green-600">Link copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="mr-2 h-4 w-4" />
+                      Compartilhar
+                    </>
+                  )}
+                </DropdownMenuItem>
+
                 {isOwner && onDelete ? (
                   <DropdownMenuItem
                     onClick={(event) => {
