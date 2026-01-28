@@ -144,6 +144,56 @@ export class CardQualitySupervisor {
         regex: /^Hook .+$/i,
         category: 'hook',
         targetTitle: 'Hooks Customizados'
+      },
+      {
+        regex: /^Hook use[A-Z].+$/i,
+        category: 'hook',
+        targetTitle: 'Hooks Customizados'
+      },
+      {
+        regex: /^(Cliente|API|Serviço).+ (de|da) .+$/i,
+        category: 'api',
+        targetTitle: 'Cliente de API'
+      },
+      {
+        regex: /^Utilitário.+ (de|da|do) .+$/i,
+        category: 'utils',
+        targetTitle: 'Utilitários'
+      },
+      {
+        regex: /^Configuração.+ (de|da|do) .+$/i,
+        category: 'config',
+        targetTitle: 'Configurações'
+      },
+      {
+        regex: /^(Teste|Test).+ (de|da|do) .+$/i,
+        category: 'test',
+        targetTitle: 'Testes'
+      },
+      {
+        regex: /^(Style|Estilo).+ (de|da|do) .+$/i,
+        category: 'style',
+        targetTitle: 'Estilos'
+      },
+      {
+        regex: /^Template.+ (de|da|do) .+$/i,
+        category: 'template',
+        targetTitle: 'Templates'
+      },
+      {
+        regex: /^Middleware.+ (de|da|do) .+$/i,
+        category: 'middleware',
+        targetTitle: 'Middlewares'
+      },
+      {
+        regex: /^(Modelo|Model).+ (de|da|do) .+$/i,
+        category: 'model',
+        targetTitle: 'Modelos de Dados'
+      },
+      {
+        regex: /^(Serviço de Integração|Integração).+ (com|ao|à) .+$/i,
+        category: 'integration',
+        targetTitle: 'Integrações'
       }
     ]
 
