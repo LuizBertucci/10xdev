@@ -500,9 +500,8 @@ export class GithubService {
       baseName = baseName.substring(3)
     }
 
-    // 6. Mapear para feature semântica
-    const normalized = this.normalizeFeatureName(baseName)
-    return this.mapToSemanticFeature(normalized)
+    // 6. Normalizar e retornar (consolidateFeatures vai mapear semanticamente)
+    return this.normalizeFeatureName(baseName)
   }
 
   private static normalizeFeatureName(name: string): string {
