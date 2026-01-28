@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -63,6 +63,30 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [nameDraft, setNameDraft] = useState("")
   const [savingName, setSavingName] = useState(false)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
+
+  // Share project state
+  const [projectLinkCopied, setProjectLinkCopied] = useState(false)
+
+  // URL compartilhável do projeto
+  const shareableProjectUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !project) return ''
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://10xdev.com.br'
+    return `${baseUrl}/?tab=projects&id=${project.id}`
+  }, [project])
+
+  // Função para copiar URL do projeto
+  const handleCopyProjectUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareableProjectUrl)
+      setProjectLinkCopied(true)
+      toast.success("Link do projeto copiado!")
+      setTimeout(() => setProjectLinkCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link do projeto")
+    }
+  }
 
   // User Search State
   const [userSearchQuery, setUserSearchQuery] = useState("")
@@ -726,6 +750,25 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           >
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Adicionar Card</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-8 px-3 ${projectLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+            onClick={handleCopyProjectUrl}
+          >
+            {projectLinkCopied ? (
+              <>
+                <Check className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Link copiado!</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Compartilhar</span>
+              </>
+            )}
           </Button>
           {project.userRole && (
             <DropdownMenu>
