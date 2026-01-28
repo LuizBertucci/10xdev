@@ -78,6 +78,9 @@ export class CardQualitySupervisor {
     const cardsToRemove: number[] = []
     const cardsToImprove: Array<{ index: number; suggestions: string[] }> = []
 
+    // Check PRIORITÁRIO: consolidar subcategorias fragmentadas
+    this.checkSubcategoryFragmentation(cards, issues, cardsToMerge)
+
     // Check crítico: detectar mesma feature dividida em cards separados
     this.checkSameFeatureSplit(cards, issues, cardsToMerge)
 
@@ -107,6 +110,84 @@ export class CardQualitySupervisor {
   }
 
   /**
+   * Detecta cards que são SUBCATEGORIAS e devem ser consolidados
+   * Ex: "Componente de Botão UI", "Componente Colapsível UI" → "Componentes UI"
+   */
+  private static checkSubcategoryFragmentation(
+    cards: CreateCardFeatureRequest[],
+    issues: QualityIssue[],
+    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+  ): void {
+    // Padrões para detectar fragmentação
+    const patterns = [
+      {
+        regex: /^Componente (de |d[oa] )?.+UI$/i,
+        category: 'ui',
+        targetTitle: 'Componentes UI'
+      },
+      {
+        regex: /^Skill .+$/i,
+        category: 'skill',
+        targetTitle: 'Skills n8n'
+      },
+      {
+        regex: /^(Documentação|Guia|Tutorial|README).+$/i,
+        category: 'docs',
+        targetTitle: 'Documentação'
+      },
+      {
+        regex: /^(Util|Helper|Lib).+$/i,
+        category: 'utils',
+        targetTitle: 'Utilitários'
+      },
+      {
+        regex: /^Hook .+$/i,
+        category: 'hook',
+        targetTitle: 'Hooks Customizados'
+      }
+    ]
+
+    for (const pattern of patterns) {
+      const matches: number[] = []
+
+      // Encontrar todos os cards que batem com o padrão
+      for (let i = 0; i < cards.length; i++) {
+        if (pattern.regex.test(cards[i]!.title)) {
+          matches.push(i)
+        }
+      }
+
+      // Se tem 2+ cards do mesmo padrão, consolidar todos
+      if (matches.length > 1) {
+        console.log(`[Supervisor] Subcategoria ${pattern.category}: ${matches.length} cards fragmentados`)
+
+        const targetIndex = matches[0]!
+
+        // Atualizar título do card target
+        cards[targetIndex]!.title = pattern.targetTitle
+
+        // Marcar os outros para merge
+        for (let i = 1; i < matches.length; i++) {
+          issues.push({
+            type: QualityIssueType.SAME_FEATURE_SPLIT,
+            severity: 'high',
+            cardIndex: matches[i]!,
+            relatedCardIndex: targetIndex,
+            message: `Card "${cards[matches[i]!]!.title}" é subcategoria de "${pattern.targetTitle}"`,
+            suggestion: `Consolidar em card único "${pattern.targetTitle}"`
+          })
+
+          cardsToMerge.push({
+            sourceIndex: matches[i]!,
+            targetIndex,
+            reason: `Subcategoria de ${pattern.targetTitle}`
+          })
+        }
+      }
+    }
+  }
+
+  /**
    * Check crítico: detectar cards da MESMA feature que foram separados
    * Ex: "API de Auth" + "Interface de Auth" devem virar "Sistema de Auth"
    */
@@ -117,8 +198,9 @@ export class CardQualitySupervisor {
   ): void {
     for (let i = 0; i < cards.length; i++) {
       for (let j = i + 1; j < cards.length; j++) {
-        const featureI = this.extractFeatureFromTitle(cards[i]!.title)
-        const featureJ = this.extractFeatureFromTitle(cards[j]!.title)
+        // Usa nova função que analisa título E conteúdo
+        const featureI = this.extractFeatureFromTitleAndContent(cards[i]!)
+        const featureJ = this.extractFeatureFromTitleAndContent(cards[j]!)
 
         if (featureI && featureI === featureJ) {
           console.log(`[Supervisor] Mesma feature detectada: "${cards[i]!.title}" + "${cards[j]!.title}"`)
@@ -162,6 +244,58 @@ export class CardQualitySupervisor {
         }
       }
     }
+    return null
+  }
+
+  /**
+   * Extrai feature do título E do conteúdo do card (screens)
+   * Versão mais robusta que não depende apenas de pattern matching
+   */
+  private static extractFeatureFromTitleAndContent(card: CreateCardFeatureRequest): string | null {
+    const title = card.title.toLowerCase()
+
+    // 1. Padrão tradicional (mantém retrocompatibilidade)
+    const match = card.title.match(/(?:Sistema|API|Interface)\s+de\s+(.+)/i)
+    if (match) {
+      const featureName = match[1]!.toLowerCase()
+      for (const [feature, keywords] of Object.entries(FEATURE_SEMANTIC_MAP)) {
+        for (const keyword of keywords) {
+          if (featureName.includes(keyword)) return feature
+        }
+      }
+    }
+
+    // 2. Detecção por keywords no título
+    for (const [feature, keywords] of Object.entries(FEATURE_SEMANTIC_MAP)) {
+      for (const keyword of keywords) {
+        if (title.includes(keyword)) return feature
+      }
+    }
+
+    // 3. Análise dos nomes das screens (layers)
+    const screenNames = card.screens?.map(s => s.name.toLowerCase()) || []
+
+    // Se muitas screens têm "Backend -" no nome, analisa camada
+    const layers = screenNames.map(name => {
+      const layerMatch = name.match(/(?:Backend|Frontend)\s+-\s+(\w+)/)
+      return layerMatch ? layerMatch[1]! : null
+    }).filter(Boolean)
+
+    // Se tem Controller/Service de auth → feature "auth"
+    if (layers.includes('Controller') || layers.includes('Service')) {
+      if (title.includes('auth') || screenNames.some(n => n.includes('auth'))) {
+        return 'auth'
+      }
+    }
+
+    // Se tem Component de UI → feature "ui"
+    if (layers.includes('Component')) {
+      const uiKeywords = ['button', 'badge', 'dialog', 'input', 'select', 'component']
+      if (uiKeywords.some(kw => title.includes(kw))) {
+        return 'ui'
+      }
+    }
+
     return null
   }
 
