@@ -549,31 +549,119 @@ export class GithubService {
     console.log('[GithubService] Consolidando features...')
     console.log(`[GithubService] Grupos iniciais: ${groups.size}`)
 
-    // Agrupar por feature semântica
-    const semanticGroups = new Map<string, FeatureFile[]>()
+    // ==================================================
+    // PASSO 1: Mapear para features semânticas
+    // ==================================================
+    const semanticMap = new Map<string, string[]>() // semantic → [original names]
 
     for (const [name, files] of groups) {
-      const semanticFeature = this.mapToSemanticFeature(name)
+      const semantic = this.mapToSemanticFeature(name)
 
-      if (semanticFeature !== name) {
-        console.log(`[GithubService] '${name}' → '${semanticFeature}'`)
+      if (!semanticMap.has(semantic)) {
+        semanticMap.set(semantic, [])
       }
+      semanticMap.get(semantic)!.push(name)
 
-      if (!semanticGroups.has(semanticFeature)) {
-        semanticGroups.set(semanticFeature, [])
+      if (semantic !== name) {
+        console.log(`[GithubService] '${name}' → '${semantic}'`)
       }
-      semanticGroups.get(semanticFeature)!.push(...files)
     }
 
-    console.log(`[GithubService] Features finais: ${semanticGroups.size}`)
+    // ==================================================
+    // PASSO 2: Consolidar TODAS features fragmentadas por semantic
+    // ==================================================
+    const consolidated = new Map<string, FeatureFile[]>()
+
+    for (const [semantic, originalNames] of semanticMap) {
+      const allFiles: FeatureFile[] = []
+
+      for (const origName of originalNames) {
+        const files = groups.get(origName)!
+        allFiles.push(...files)
+      }
+
+      consolidated.set(semantic, allFiles)
+
+      if (originalNames.length > 1) {
+        console.log(`[GithubService] Consolidado '${semantic}': ${originalNames.length} grupos → ${allFiles.length} arquivos`)
+      }
+    }
+
+    // ==================================================
+    // PASSO 3: Dividir features MUITO GRANDES inteligentemente
+    // ==================================================
+    const result = new Map<string, FeatureFile[]>()
+
+    for (const [semantic, files] of consolidated) {
+      // Se feature tem >40 arquivos, dividir por camadas backend/frontend
+      if (files.length > 40) {
+        const split = this.smartSplitLargeFeature(semantic, files)
+        for (const [subName, subFiles] of split) {
+          result.set(subName, subFiles)
+        }
+      } else {
+        result.set(semantic, files)
+      }
+    }
+
+    console.log(`[GithubService] Features finais: ${result.size}`)
 
     // Logar resultado
-    for (const [feature, files] of semanticGroups) {
+    for (const [feature, files] of result) {
       const layers = [...new Set(files.map(f => f.layer))]
       console.log(`[GithubService] Feature '${feature}': ${files.length} arquivos [${layers.join(', ')}]`)
     }
 
-    return semanticGroups
+    return result
+  }
+
+  /**
+   * Divide features muito grandes em sub-features coerentes
+   */
+  private static smartSplitLargeFeature(
+    semantic: string,
+    files: FeatureFile[]
+  ): Map<string, FeatureFile[]> {
+    const result = new Map<string, FeatureFile[]>()
+
+    // Agrupar por layer
+    const byLayer = new Map<string, FeatureFile[]>()
+    for (const file of files) {
+      if (!byLayer.has(file.layer)) byLayer.set(file.layer, [])
+      byLayer.get(file.layer)!.push(file)
+    }
+
+    const backendLayers = ['routes', 'controllers', 'services', 'models', 'middleware']
+    const frontendLayers = ['hooks', 'components', 'pages', 'stores']
+
+    const backendFiles: FeatureFile[] = []
+    const frontendFiles: FeatureFile[] = []
+    const otherFiles: FeatureFile[] = []
+
+    for (const [layer, layerFiles] of byLayer) {
+      if (backendLayers.includes(layer)) {
+        backendFiles.push(...layerFiles)
+      } else if (frontendLayers.includes(layer)) {
+        frontendFiles.push(...layerFiles)
+      } else {
+        otherFiles.push(...layerFiles)
+      }
+    }
+
+    // Dividir apenas se AMBOS backend e frontend são grandes
+    if (backendFiles.length > 15 && frontendFiles.length > 15) {
+      result.set(`${semantic}-backend`, backendFiles)
+      result.set(`${semantic}-frontend`, frontendFiles)
+      if (otherFiles.length > 0) {
+        result.set(`${semantic}-shared`, otherFiles)
+      }
+      console.log(`[GithubService] Split '${semantic}': backend (${backendFiles.length}), frontend (${frontendFiles.length})`)
+    } else {
+      // Não dividir - manter junto
+      result.set(semantic, files)
+    }
+
+    return result
   }
 
   private static generateFeatureTitle(featureName: string, files: FeatureFile[]): string {
