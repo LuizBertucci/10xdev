@@ -727,6 +727,54 @@ export class GithubService {
   }
 
   // ================================================
+  // AUTO-TAGGING
+  // ================================================
+
+  /**
+   * Mapeamento de categorias para tags automáticas
+   */
+  private static readonly CATEGORY_TO_TAGS: Record<string, string[]> = {
+    'Componentes UI': ['ui', 'componentes', 'interface', 'frontend'],
+    'Hooks Customizados': ['hooks', 'react', 'frontend', 'custom'],
+    'Documentação': ['docs', 'documentação', 'guias', 'readme'],
+    'Skills n8n': ['n8n', 'workflow', 'automation', 'skills'],
+    'Utilitários': ['utils', 'helpers', 'utilities', 'ferramentas'],
+    'Configurações': ['config', 'setup', 'settings', 'configuração'],
+    'Testes': ['test', 'testing', 'qa', 'quality'],
+    'Build & Tooling': ['build', 'webpack', 'bundler', 'tooling'],
+    'Estilos': ['css', 'styles', 'theme', 'design'],
+    'Templates': ['template', 'starter', 'boilerplate'],
+    'Middlewares': ['middleware', 'backend', 'server'],
+    'Modelos de Dados': ['model', 'database', 'schema', 'data'],
+    'Integrações': ['integration', 'api', 'third-party'],
+    'Cliente de API': ['api', 'client', 'http', 'rest']
+  }
+
+  /**
+   * Gera tags automáticas baseadas na categoria e tech
+   */
+  private static generateAutoTags(category: string, featureName: string, tech: string): string[] {
+    const tags: string[] = []
+
+    // 1. Tags da categoria
+    const categoryTags = this.CATEGORY_TO_TAGS[category] || []
+    tags.push(...categoryTags)
+
+    // 2. Tag da feature name (limpa)
+    if (featureName && featureName !== 'misc') {
+      tags.push(featureName.toLowerCase())
+    }
+
+    // 3. Tag da tech
+    if (tech && tech !== 'Geral') {
+      tags.push(tech.toLowerCase().replace(/\./g, ''))
+    }
+
+    // 4. Remover duplicatas e limpar
+    return [...new Set(tags)].filter(t => t.length > 2)
+  }
+
+  // ================================================
   // MAIN PROCESSING
   // ================================================
 
@@ -841,6 +889,7 @@ export class GithubService {
               screens.push({ name: s.name, description: '', route: s.files[0] || '', blocks })
             }
             if (screens.length === 0) continue
+            const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
             const newCard: CreateCardFeatureRequest = {
               title: aiCard.title,
               description: aiCard.description || this.generateFeatureDescription(featureName, featureFiles),
@@ -848,7 +897,8 @@ export class GithubService {
               language: aiCard.language || mainLanguage,
               content_type: ContentType.CODE,
               card_type: CardType.CODIGOS,
-              category: FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName),
+              category,
+              tags: this.generateAutoTags(category, featureName, tech),
               visibility: Visibility.UNLISTED,
               screens
             }
@@ -929,6 +979,7 @@ export class GithubService {
 
       if (!screens.length) continue
 
+      const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
       const heuristicCard: CreateCardFeatureRequest = {
         title: this.generateFeatureTitle(featureName, featureFiles),
         tech,
@@ -936,7 +987,8 @@ export class GithubService {
         description: this.generateFeatureDescription(featureName, featureFiles),
         content_type: ContentType.CODE,
         card_type: CardType.CODIGOS,
-        category: FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName),
+        category,
+        tags: this.generateAutoTags(category, featureName, tech),
         visibility: Visibility.UNLISTED,
         screens
       }
