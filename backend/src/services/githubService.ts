@@ -126,7 +126,16 @@ const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
   'content': ['content', 'conteudo', 'post', 'article'],
   'admin': ['admin', 'dashboard', 'backoffice'],
   'api': ['apiclient', 'httpclient', 'axios', 'fetch'],
-  'storage': ['storage', 'upload', 'file', 's3', 'bucket', 'blob']
+  'storage': ['storage', 'upload', 'file', 's3', 'bucket', 'blob'],
+  'ui': ['button', 'input', 'select', 'dialog', 'modal', 'dropdown', 'tooltip', 'badge', 'avatar', 'table', 'form', 'checkbox', 'radio', 'switch', 'slider', 'collapsible', 'accordion', 'tabs', 'sheet', 'popover', 'scroll', 'separator', 'label', 'textarea', 'calendar', 'command', 'context', 'hover', 'menubar', 'navigation', 'progress', 'skeleton', 'sonner', 'toast', 'alert', 'drawer', 'aspectratio', 'breadcrumb', 'carousel', 'chart', 'combobox', 'datepicker', 'resizable', 'toggle', 'togglegroup'],
+  'docs': ['readme', 'documentation', 'docs', 'guide', 'tutorial', 'changelog', 'contributing', 'license', 'roadmap', 'architecture', 'design'],
+  'skill': ['skill', 'skills'],
+  'utils': ['util', 'utils', 'helper', 'helpers', 'lib', 'libs', 'common', 'shared', 'constants', 'types'],
+  'config': ['config', 'configuration', 'settings', 'env', 'environment', 'setup', 'initialize'],
+  'test': ['test', 'tests', 'spec', 'testing', '__tests__', 'e2e', 'integration', 'unit', 'mock', 'fixture'],
+  'build': ['build', 'webpack', 'vite', 'rollup', 'esbuild', 'tsconfig', 'babel', 'eslint', 'prettier', 'lint', 'format'],
+  'style': ['css', 'scss', 'sass', 'less', 'style', 'styles', 'tailwind', 'theme', 'colors'],
+  'hook': ['hook', 'hooks']
 }
 
 // Títulos amigáveis em português
@@ -144,7 +153,16 @@ const FEATURE_TITLES: Record<string, string> = {
   'content': 'Conteúdo',
   'admin': 'Administração',
   'api': 'Cliente de API',
-  'storage': 'Armazenamento'
+  'storage': 'Armazenamento',
+  'ui': 'Componentes UI',
+  'docs': 'Documentação',
+  'skill': 'Skills n8n',
+  'utils': 'Utilitários',
+  'config': 'Configuração',
+  'test': 'Testes',
+  'build': 'Build & Tooling',
+  'style': 'Estilos',
+  'hook': 'Hooks Customizados'
 }
 
 interface ParsedRepoInfo {
