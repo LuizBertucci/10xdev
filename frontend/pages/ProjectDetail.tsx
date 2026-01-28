@@ -566,10 +566,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .filter(({ cardFeature }) => 
-      !searchTerm || 
-      (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    .filter(({ cardFeature }) =>
+      !searchTerm ||
+      (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     )
 
   const canManageMembers = project?.userRole === 'owner' || project?.userRole === 'admin'
