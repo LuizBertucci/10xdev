@@ -425,6 +425,10 @@ export class GithubService {
     if (pathNormalized.match(/readme\.md|contributing\.md|changelog\.md|license\.md/i)) {
       return 'docs'
     }
+    // Qualquer arquivo .md é documentação
+    if (pathNormalized.endsWith('.md')) {
+      return 'docs'
+    }
 
     // Utilitários
     if (pathNormalized.includes('/utils/') || pathNormalized.includes('\\utils\\')) {
@@ -449,6 +453,14 @@ export class GithubService {
 
     // Configuração
     if (pathNormalized.match(/\.config\.|tsconfig|webpack|vite\.config|babel\.config|eslint/)) {
+      return 'config'
+    }
+    // Arquivos de configuração comuns
+    if (pathNormalized.match(/package\.json|\.env|dockerfile|docker-compose|\.dockerignore|\.gitignore|\.prettierrc|\.editorconfig/)) {
+      return 'config'
+    }
+    // Arquivos .json genéricos (exceto package.json já coberto acima)
+    if (pathNormalized.endsWith('.json') && !pathNormalized.includes('/node_modules/')) {
       return 'config'
     }
 
