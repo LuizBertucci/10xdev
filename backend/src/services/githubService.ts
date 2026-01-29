@@ -116,7 +116,17 @@ const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
   'auth': ['auth', 'login', 'logout', 'register', 'signup', 'signin', 'password', 'session', 'token', 'jwt', 'oauth', 'credential', 'authentication'],
   'user': ['user', 'profile', 'account', 'avatar', 'preferences', 'member'],
   'payment': ['payment', 'billing', 'checkout', 'stripe', 'invoice', 'subscription', 'pricing'],
-  'database': ['supabase', 'database', 'db', 'prisma', 'drizzle', 'postgres', 'mysql', 'mongo', 'migration'],
+  'database': [
+    'supabase', 'database', 'db', 'prisma', 'drizzle', 'postgres', 'mysql', 'mongo', 'migration',
+    // Python/Django
+    'serializers', 'orm', 'querysets',
+    // Go
+    'repository', 'entity', 'gorm',
+    // Java/Spring
+    'jpa', 'hibernate',
+    // Rails
+    'activerecord'
+  ],
   'n8n': ['n8n', 'workflow', 'automation', 'node', 'trigger', 'webhook', 'execution'],
   'ai': ['ai', 'openai', 'gpt', 'llm', 'embedding', 'vector', 'langchain', 'claude', 'anthropic'],
   'notification': ['notification', 'alert', 'toast', 'email', 'sms', 'push', 'mail', 'mailer', 'nodemailer'],
@@ -127,7 +137,18 @@ const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
   'admin': ['admin', 'dashboard', 'backoffice'],
   'api': ['apiclient', 'httpclient', 'axios', 'fetch'],
   'storage': ['storage', 'upload', 'file', 's3', 'bucket', 'blob'],
-  'middleware': ['middleware', 'cors', 'error', 'ratelimit', 'ratelimiter', 'limiter'],
+  'middleware': [
+    // Node.js/Express
+    'middleware', 'cors', 'error', 'ratelimit', 'ratelimiter', 'limiter',
+    // Django/Flask
+    'decorators', 'beforerequest', 'afterrequest',
+    // Go
+    'interceptor',
+    // Java/Spring
+    'filter', 'aspect',
+    // Rails
+    'concern', 'rack'
+  ],
   'routing': ['route', 'router', 'routing', 'protected', 'protectedroute', 'guard'],
   'ui': ['button', 'input', 'select', 'dialog', 'modal', 'dropdown', 'tooltip', 'badge', 'avatar', 'table', 'form', 'checkbox', 'radio', 'switch', 'slider', 'collapsible', 'accordion', 'tabs', 'sheet', 'popover', 'scroll', 'separator', 'label', 'textarea', 'calendar', 'command', 'context', 'hover', 'menubar', 'navigation', 'progress', 'skeleton', 'sonner', 'toast', 'alert', 'drawer', 'aspectratio', 'breadcrumb', 'carousel', 'chart', 'combobox', 'datepicker', 'resizable', 'toggle', 'togglegroup', 'layout', 'loading', 'app', 'sidebar', 'appsidebar'],
   'docs': ['readme', 'documentation', 'docs', 'guide', 'tutorial', 'changelog', 'contributing', 'license', 'roadmap', 'architecture', 'design'],
@@ -137,7 +158,47 @@ const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
   'test': ['test', 'tests', 'spec', 'testing', '__tests__', 'e2e', 'integration', 'unit', 'mock', 'fixture'],
   'build': ['build', 'webpack', 'vite', 'rollup', 'esbuild', 'tsconfig', 'babel', 'eslint', 'prettier', 'lint', 'format'],
   'style': ['css', 'scss', 'sass', 'less', 'style', 'styles', 'tailwind', 'theme', 'colors'],
-  'hook': ['hook', 'hooks']
+  'hook': ['hook', 'hooks'],
+  'controller': [
+    // Node.js/Express
+    'controller', 'endpoint',
+    // Python
+    'viewsets', 'apiview',
+    // Java/Spring
+    'restcontroller', 'requestmapping',
+    // Rails
+    'action'
+  ],
+  'service': [
+    // Node.js
+    'service', 'business', 'logic',
+    // Python
+    'usecase', 'interactor',
+    // Java/Spring
+    'serviceimpl', 'component'
+  ],
+  'validation': [
+    // Node.js
+    'validator', 'validation', 'schema', 'zod', 'yup',
+    // Python
+    'validators', 'forms', 'pydantic',
+    // Go
+    'validate',
+    // Java/Spring
+    'constraint',
+    // PHP/Laravel
+    'request', 'formrequest'
+  ],
+  'jobs': [
+    // Node.js
+    'worker', 'job', 'queue', 'bull', 'agenda',
+    // Python
+    'celery', 'tasks',
+    // Java
+    'scheduled', 'async', 'executor',
+    // Rails
+    'sidekiq', 'activejob', 'delayed'
+  ]
 }
 
 // Títulos amigáveis em português
@@ -166,7 +227,11 @@ const FEATURE_TITLES: Record<string, string> = {
   'test': 'Testes',
   'build': 'Build & Tooling',
   'style': 'Estilos',
-  'hook': 'Hooks Customizados'
+  'hook': 'Hooks Customizados',
+  'controller': 'Controllers',
+  'service': 'Serviços de Negócio',
+  'validation': 'Validações',
+  'jobs': 'Jobs e Tasks Assíncronas'
 }
 
 interface ParsedRepoInfo {
@@ -406,6 +471,36 @@ export class GithubService {
 
   private static extractFeatureName(path: string): string {
     const pathNormalized = path.toLowerCase()
+    const fileName = path.split('/').pop() || ''
+
+    // PRIORIDADE -1: Arquivos específicos de linguagens
+    // Python (Django/Flask)
+    if (fileName === 'models.py') return 'database'
+    if (fileName === 'views.py') return 'controller'
+    if (fileName === 'serializers.py') return 'database'
+    if (fileName === 'forms.py') return 'validation'
+    if (fileName === 'tasks.py' || fileName === 'celery.py') return 'jobs'
+    if (fileName === 'admin.py') return 'admin'
+    if (fileName === 'urls.py') return 'routing'
+
+    // Go
+    if (fileName.endsWith('_handler.go')) return 'controller'
+    if (fileName.endsWith('_service.go')) return 'service'
+    if (fileName.endsWith('_repository.go')) return 'database'
+    if (fileName.endsWith('_middleware.go')) return 'middleware'
+
+    // Java (Spring Boot)
+    if (fileName.endsWith('Controller.java')) return 'controller'
+    if (fileName.endsWith('Service.java')) return 'service'
+    if (fileName.endsWith('Repository.java')) return 'database'
+    if (fileName.endsWith('Entity.java')) return 'database'
+    if (fileName.endsWith('DTO.java')) return 'api'
+
+    // Ruby (Rails)
+    if (fileName.endsWith('_controller.rb')) return 'controller'
+    if (fileName.endsWith('_service.rb')) return 'service'
+    if (fileName.endsWith('_job.rb')) return 'jobs'
+    if (fileName.endsWith('_mailer.rb')) return 'notification'
 
     // PRIORIDADE 0: Detecção por PATH específico
     // Componentes UI
@@ -455,8 +550,8 @@ export class GithubService {
     if (pathNormalized.match(/\.config\.|tsconfig|webpack|vite\.config|babel\.config|eslint/)) {
       return 'config'
     }
-    // Arquivos de configuração comuns
-    if (pathNormalized.match(/package\.json|\.env|dockerfile|docker-compose|\.dockerignore|\.gitignore|\.prettierrc|\.editorconfig/)) {
+    // Arquivos de configuração comuns (multi-linguagem)
+    if (pathNormalized.match(/package\.json|requirements\.txt|go\.mod|go\.sum|pom\.xml|build\.gradle|composer\.json|gemfile|pyproject\.toml|setup\.py|application\.properties|\.env|dockerfile|docker-compose|\.dockerignore|\.gitignore|\.prettierrc|\.editorconfig/)) {
       return 'config'
     }
     // Arquivos .json genéricos (exceto package.json já coberto acima)
@@ -470,7 +565,7 @@ export class GithubService {
     }
 
     const parts = path.split('/')
-    const fileName = parts.pop() || ''
+    const fileNameFromParts = parts.pop() || ''
 
     // 1. Detectar estruturas como src/features/auth/ ou src/modules/payments/
     const featureDirs = ['features', 'modules', 'domains', 'apps']
@@ -484,7 +579,7 @@ export class GithubService {
     }
 
     // 2. Extrair do nome do arquivo
-    let baseName = fileName
+    let baseName = fileNameFromParts
       .replace(/\.(ts|tsx|js|jsx|py|java|go|rs|rb|php|vue|svelte)$/i, '')
       .replace(/\.(test|spec|stories|styles?|module)$/i, '')
       .replace(/^index$/i, '')
@@ -608,15 +703,8 @@ export class GithubService {
     const result = new Map<string, FeatureFile[]>()
 
     for (const [semantic, files] of consolidated) {
-      // Se feature tem >40 arquivos, dividir por camadas backend/frontend
-      if (files.length > 40) {
-        const split = this.smartSplitLargeFeature(semantic, files)
-        for (const [subName, subFiles] of split) {
-          result.set(subName, subFiles)
-        }
-      } else {
-        result.set(semantic, files)
-      }
+      // Sempre consolidar - deixar IA decidir se precisa dividir (>50 arquivos)
+      result.set(semantic, files)
     }
 
     console.log(`[GithubService] Features finais: ${result.size}`)
