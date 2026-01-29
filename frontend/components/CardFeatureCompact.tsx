@@ -35,7 +35,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   // Estado para controlar a aba ativa - persiste na URL
   const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
-  const [cardLinkCopied, setCardLinkCopied] = useState(false)
+  const [apiLinkCopied, setApiLinkCopied] = useState(false)
+  const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
@@ -46,16 +47,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3001/api'
     : 'https://api.10xdev.com.br/api'
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
-
-  // URL compartilhável da aplicação (não só API)
-  const shareableAppUrl = (() => {
-    if (typeof window === 'undefined') return ''
-    const baseUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3000'
-      : 'https://10xdev.com.br'
-    const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
-    return `${baseUrl}/?tab=${tab}&id=${snippet.id}`
-  })()
+  
+  // URL de compartilhamento (link amigável)
+  const appBaseUrl = isLocalhost
+    ? 'http://localhost:3000'
+    : 'https://10xdev.com.br'
+  const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -78,14 +75,27 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const hasVideo = Boolean(resolvedYoutubeUrl)
   const contentLink = resolvedPdfUrl || resolvedYoutubeUrl
 
-  // Função para copiar URL do card
-  const handleCopyCardUrl = async (e: React.MouseEvent) => {
+  // Função para copiar URL da API
+  const handleCopyApiUrl = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      await navigator.clipboard.writeText(shareableAppUrl)
-      setCardLinkCopied(true)
+      await navigator.clipboard.writeText(cardApiUrl)
+      setApiLinkCopied(true)
+      toast.success("Link da API copiado!")
+      setTimeout(() => setApiLinkCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link")
+    }
+  }
+
+  // Função para copiar URL de compartilhamento
+  const handleCopyShareUrl = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(cardShareUrl)
+      setShareLinkCopied(true)
       toast.success("Link copiado!")
-      setTimeout(() => setCardLinkCopied(false), 2000)
+      setTimeout(() => setShareLinkCopied(false), 2000)
     } catch (err) {
       toast.error("Erro ao copiar link")
     }
@@ -166,8 +176,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
   return (
     <TooltipProvider>
-      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
-        <CardContent className="p-3 md:p-4">
+      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full min-w-0 overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
+        <CardContent className="p-3 md:p-4 min-w-0">
           {/* Layout Unificado - Vertical para mobile e desktop */}
           <div
             className="cursor-pointer active:bg-gray-50 rounded-lg transition-colors"
@@ -314,15 +324,26 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     )}
 
-                    {/* Botão Compartilhar */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-7 px-2 text-xs ${cardLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyCardUrl}
+                    {/* Botão Link do card (compartilhamento) */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`h-7 px-2 text-xs ${shareLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyShareUrl}
                     >
-                      {cardLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {cardLinkCopied ? 'Copiado!' : 'Compartilhar'}
+                      {shareLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {shareLinkCopied ? 'Copiado!' : 'Link do card'}
+                    </Button>
+
+                    {/* Botão Link da API */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`h-7 px-2 text-xs ${apiLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyApiUrl}
+                    >
+                      {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {apiLinkCopied ? 'Copiado!' : 'Link da API'}
                     </Button>
 
                     {/* Toggle - extrema direita */}
@@ -356,7 +377,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           
           {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden">
+            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden min-w-0">
               {/* Sistema de Tabs */}
               <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden">
                 <style>{`
@@ -425,10 +446,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   }
                 `}</style>
 
-                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
+                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full compact-content"
+                    className="h-full compact-content w-full"
                   />
                 </div>
               </div>

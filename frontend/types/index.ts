@@ -78,3 +78,13 @@ export {
   SupportedLanguage,
   CrudStatus
 } from './cardfeature'
+
+// Content/Tutorial types
+export type {
+  Content,
+  CreateContentData,
+  UpdateContentData,
+  ContentQueryParams
+} from './content'
+
+export { TutorialContentType } from './content'
