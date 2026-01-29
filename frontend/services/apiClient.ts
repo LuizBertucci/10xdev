@@ -21,6 +21,13 @@ export interface ApiError {
   details?: any
 }
 
+const TOKEN_REFRESH_SAFETY_WINDOW_MS = 30_000
+const SESSION_CHECK_COOLDOWN_MS = 5_000 // Aumentado para 5s para evitar bursts
+let cachedAccessToken: string | null = null
+let cachedAccessTokenExpiresAtMs = 0
+let lastSessionCheckAtMs = 0
+let sessionCheckInProgress: Promise<void> | null = null // Mutex para evitar race condition
+
 class ApiClient {
   private baseURL: string
   private defaultHeaders: Record<string, string>
@@ -171,18 +178,65 @@ class ApiClient {
     }
 
     if (typeof window !== 'undefined') {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H8',location:'apiClient.ts:174',message:'getHeaders before getSession',data:{hasWindow:true},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-      const { createClient } = await import('@/lib/supabase')
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`
+      const nowMs = Date.now()
+      
+      // 1. Se token cacheado ainda é válido, usa direto
+      if (cachedAccessToken && cachedAccessTokenExpiresAtMs - nowMs > TOKEN_REFRESH_SAFETY_WINDOW_MS) {
+        headers['Authorization'] = `Bearer ${cachedAccessToken}`
+        return headers
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H8',location:'apiClient.ts:180',message:'getHeaders after getSession',data:{hasToken:Boolean(session?.access_token)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+
+      // 2. Se está em cooldown, usa token cacheado (mesmo perto de expirar) ou retorna sem
+      if (nowMs - lastSessionCheckAtMs < SESSION_CHECK_COOLDOWN_MS) {
+        if (cachedAccessToken) {
+          headers['Authorization'] = `Bearer ${cachedAccessToken}`
+        }
+        return headers
+      }
+
+      // 3. Se já tem uma verificação em andamento, aguarda ela (evita race condition)
+      if (sessionCheckInProgress) {
+        await sessionCheckInProgress
+        if (cachedAccessToken) {
+          headers['Authorization'] = `Bearer ${cachedAccessToken}`
+        }
+        return headers
+      }
+
+      // 4. Inicia nova verificação de sessão com mutex
+      lastSessionCheckAtMs = nowMs
+      sessionCheckInProgress = (async () => {
+        try {
+          const { createClient } = await import('@/lib/supabase')
+          const supabase = createClient()
+          const { data: { session }, error } = await supabase.auth.getSession()
+          
+          // Se houve erro (rate limit, etc), mantém token atual se existir
+          if (error) {
+            console.warn('[apiClient] getSession error:', error.message)
+            return
+          }
+          
+          if (session?.access_token) {
+            cachedAccessToken = session.access_token
+            cachedAccessTokenExpiresAtMs = (session.expires_at ?? 0) * 1000
+          } else {
+            cachedAccessToken = null
+            cachedAccessTokenExpiresAtMs = 0
+          }
+        } catch (err) {
+          console.warn('[apiClient] getSession exception:', err)
+          // Mantém token atual em caso de erro
+        } finally {
+          sessionCheckInProgress = null
+        }
+      })()
+
+      await sessionCheckInProgress
+      
+      if (cachedAccessToken) {
+        headers['Authorization'] = `Bearer ${cachedAccessToken}`
+      }
     }
 
     return headers
