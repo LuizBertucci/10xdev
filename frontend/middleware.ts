@@ -64,6 +64,10 @@ export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
   let res = NextResponse.next()
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H1',location:'middleware.ts:15',message:'middleware entry',data:{pathname,hasTab:Boolean(searchParams.get('tab'))},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
 
@@ -72,6 +76,10 @@ export async function middleware(req: NextRequest) {
   // - `/?tab=...` é privado (app)
   const isRootLanding = pathname === '/' && !searchParams.get('tab')
   const isPublic = isRootLanding || publicPaths.includes(pathname)
+
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H2',location:'middleware.ts:26',message:'public route computed',data:{isRootLanding,isPublic},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   // Cria cliente Supabase para validar sessão
   // Usa getSession() em vez de getUser() para evitar refresh token automático
@@ -129,6 +137,9 @@ export async function middleware(req: NextRequest) {
     url.searchParams.set('redirect', pathname + req.nextUrl.search)
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H5',location:'middleware.ts:70',message:'redirect to login',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return redirect
   }
 
@@ -140,6 +151,9 @@ export async function middleware(req: NextRequest) {
     url.search = '?tab=home'
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H5',location:'middleware.ts:81',message:'redirect to app',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return redirect
   }
 

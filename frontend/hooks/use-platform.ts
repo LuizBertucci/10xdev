@@ -47,7 +47,7 @@ export function usePlatform() {
     return snippets.filter(snippet => {
       const matchesSearch = snippet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             snippet.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTech = selectedTech === 'all' || snippet.tech.toLowerCase() === selectedTech.toLowerCase();
+      const matchesTech = selectedTech === 'all' || (snippet.tech ?? '').toLowerCase() === selectedTech.toLowerCase();
       return matchesSearch && matchesTech;
     });
   }, [searchTerm, selectedTech]);
@@ -79,7 +79,7 @@ export function usePlatform() {
 
   // Listen to URL changes and update tab accordingly
   useEffect(() => {
-    const tabFromUrl = normalizeTab(searchParams.get('tab'));
+    const tabFromUrl = normalizeTab(searchParams?.get('tab') || null);
 
     // Evita um race condition: durante a navegação, o state pode mudar antes da URL.
     // Enquanto a URL não refletir a tab solicitada, não sobrescrevemos o state.
