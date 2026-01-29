@@ -33,7 +33,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   // Estado para controlar a aba ativa - persiste na URL
   const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
-  const [cardLinkCopied, setCardLinkCopied] = useState(false)
+  const [apiLinkCopied, setApiLinkCopied] = useState(false)
+  const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
@@ -44,6 +45,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3001/api'
     : 'https://api.10xdev.com.br/api'
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
+  
+  // URL de compartilhamento (link amigável)
+  const appBaseUrl = isLocalhost
+    ? 'http://localhost:3000'
+    : 'https://10xdev.com.br'
+  const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -66,14 +73,27 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const hasVideo = Boolean(resolvedYoutubeUrl)
   const contentLink = resolvedPdfUrl || resolvedYoutubeUrl
 
-  // Função para copiar URL do card
-  const handleCopyCardUrl = async (e: React.MouseEvent) => {
+  // Função para copiar URL da API
+  const handleCopyApiUrl = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
       await navigator.clipboard.writeText(cardApiUrl)
-      setCardLinkCopied(true)
+      setApiLinkCopied(true)
+      toast.success("Link da API copiado!")
+      setTimeout(() => setApiLinkCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link")
+    }
+  }
+
+  // Função para copiar URL de compartilhamento
+  const handleCopyShareUrl = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(cardShareUrl)
+      setShareLinkCopied(true)
       toast.success("Link copiado!")
-      setTimeout(() => setCardLinkCopied(false), 2000)
+      setTimeout(() => setShareLinkCopied(false), 2000)
     } catch (err) {
       toast.error("Erro ao copiar link")
     }
@@ -299,15 +319,26 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     )}
 
-                    {/* Botão Link do card */}
+                    {/* Botão Link do card (compartilhamento) */}
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className={`h-7 px-2 text-xs ${cardLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyCardUrl}
+                      className={`h-7 px-2 text-xs ${shareLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyShareUrl}
                     >
-                      {cardLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {cardLinkCopied ? 'Copiado!' : 'Link do card'}
+                      {shareLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {shareLinkCopied ? 'Copiado!' : 'Link do card'}
+                    </Button>
+
+                    {/* Botão Link da API */}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`h-7 px-2 text-xs ${apiLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                      onClick={handleCopyApiUrl}
+                    >
+                      {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {apiLinkCopied ? 'Copiado!' : 'Link da API'}
                     </Button>
 
                     {/* Toggle - extrema direita */}
