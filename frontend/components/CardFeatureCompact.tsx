@@ -222,8 +222,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
               </div>
 
               {/* Descrição (opcional) */}
-              {snippet.description && (
-                <p className="text-sm text-gray-600 line-clamp-2">{snippet.description}</p>
+              {(snippet.screens?.[0]?.description || snippet.description) && (
+                <p className="text-sm text-gray-600 line-clamp-2">{snippet.screens?.[0]?.description || snippet.description}</p>
               )}
 
               {/* Badges */}
