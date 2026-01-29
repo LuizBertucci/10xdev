@@ -74,6 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Marca loading durante a checagem inicial de sessão
       if (mounted) setIsLoading(true)
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H6',location:'useAuth.tsx:77',message:'initSession before getSession',data:{mounted},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (!mounted) return
@@ -85,6 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (session?.user) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H6',location:'useAuth.tsx:88',message:'initSession has session',data:{hasUser:true},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           setIsProfileLoaded(false)
           // Define dados básicos do auth imediatamente
           const basicUserData: User = {
@@ -106,6 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (mounted) setIsProfileLoaded(true)
             })
         } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H6',location:'useAuth.tsx:109',message:'initSession no session',data:{hasUser:false},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           setUser(null)
           setIsProfileLoaded(true)
         }
@@ -127,6 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return
 
       try {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H7',location:'useAuth.tsx:126',message:'onAuthStateChange',data:{event,hasUser:Boolean(session?.user)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (session?.user) {
           setIsProfileLoaded(false)
           // Define dados básicos rapidamente

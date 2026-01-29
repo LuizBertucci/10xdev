@@ -171,12 +171,18 @@ class ApiClient {
     }
 
     if (typeof window !== 'undefined') {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H8',location:'apiClient.ts:174',message:'getHeaders before getSession',data:{hasWindow:true},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       const { createClient } = await import('@/lib/supabase')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H8',location:'apiClient.ts:180',message:'getHeaders after getSession',data:{hasToken:Boolean(session?.access_token)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     }
 
     return headers
