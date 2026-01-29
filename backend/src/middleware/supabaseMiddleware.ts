@@ -48,6 +48,13 @@ export const supabaseMiddleware = async (
     const t0 = Date.now()
     const authHeader = req.headers.authorization
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H9',location:'supabaseMiddleware.ts:49',message:'auth middleware entry',data:{path:req.path,method:req.method,hasAuthHeader:Boolean(authHeader)},timestamp:Date.now()})}).catch(()=>{});
+    if (process.env.DEBUG_SUPABASE_AUTH === 'true') {
+      console.log('[supabaseMiddleware] entry', { rid: String(rid ?? ''), path: req.path, method: req.method, hasAuthHeader: Boolean(authHeader) })
+    }
+    // #endregion
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       res.status(401).json({ error: 'Token de acesso requerido' })
       return
@@ -60,6 +67,13 @@ export const supabaseMiddleware = async (
     const tAuth0 = Date.now()
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
     const tAuthMs = Date.now() - tAuth0
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H9',location:'supabaseMiddleware.ts:63',message:'auth.getUser result',data:{hasUser:Boolean(user),hasError:Boolean(error),authMs:tAuthMs},timestamp:Date.now()})}).catch(()=>{});
+    if (process.env.DEBUG_SUPABASE_AUTH === 'true') {
+      console.log('[supabaseMiddleware] getUser', { rid: String(rid ?? ''), hasUser: Boolean(user), hasError: Boolean(error), authMs: tAuthMs })
+    }
+    // #endregion
 
     if (error || !user) {
       console.error('Erro ao validar token Supabase:', error?.message || 'User não encontrado')
