@@ -43,3 +43,12 @@ export type { User } from './userService'
 // Admin Service
 export { adminService } from './adminService'
 export type { AdminUserRow } from './adminService'
+
+// Content Service (Tutorials)
+export { contentService } from './contentService'
+export type {
+  Content,
+  CreateContentData,
+  UpdateContentData,
+  ContentQueryParams
+} from './contentService'

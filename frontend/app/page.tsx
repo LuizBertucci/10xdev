@@ -10,6 +10,7 @@ import Codes from "@/pages/Codes"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import Contents from "@/pages/Contents"
 import ContentDetail from "@/pages/ContentDetail"
+import TutorialDetail from "@/pages/TutorialDetail"
 import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
 import AdminPanel from "@/pages/AdminPanel"
@@ -25,6 +26,7 @@ export default function DevPlatform() {
   const platformState = usePlatform()
   const { user, isProfileLoaded } = useAuth()
   const activeTab = platformState.activeTab
+  const contentsTab = searchParams?.get('contentsTab') || 'posts'
   const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
 
@@ -74,7 +76,9 @@ export default function DevPlatform() {
               {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
 
               {/* Contents Tab */}
-              {activeTab === "contents" && contentId ? (
+              {activeTab === "contents" && contentId && contentsTab === "tutorials" ? (
+                <TutorialDetail platformState={platformState} />
+              ) : activeTab === "contents" && contentId && contentsTab !== "tutorials" ? (
                 <ContentDetail platformState={platformState} />
               ) : (
                 activeTab === "contents" && <Contents platformState={platformState} />
