@@ -1,5 +1,31 @@
 import { z } from 'zod'
 
+/**
+ * Remove formatação Markdown de texto (negrito, itálico, links, etc)
+ */
+function cleanMarkdown(text: string): string {
+  if (!text) return text
+
+  return text
+    // Remove **negrito**
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Remove *itálico*
+    .replace(/\*([^*]+)\*/g, '$1')
+    // Remove __sublinhado__
+    .replace(/__([^_]+)__/g, '$1')
+    // Remove ~~riscado~~
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove `código inline`
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove # Headers (##, ###, etc) - apenas no início da linha
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove links [texto](url)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove bullet points (-, *, +) no início da linha
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .trim()
+}
+
 type FileMeta = {
   path: string
   layer: string
@@ -21,6 +47,7 @@ const AiOutputSchema = z.object({
     language: z.string().optional(),
     screens: z.array(z.object({
       name: z.string().min(1),
+      description: z.string().optional().default(''),
       files: z.array(z.string().min(1)).min(1)
     })).min(1)
   })).min(1)
@@ -107,16 +134,17 @@ export class AiCardGroupingService {
       const normalizedCards = raw.cards
         .map((card: any, cardIdx: number) => {
           // Map name→title with fallbacks
-          const title = card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`
-          
+          const title = cleanMarkdown(card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`)
+
           // Normalize screens array
           const screensRaw = Array.isArray(card?.screens) ? card.screens : []
           const screens = screensRaw
             .map((s: any, screenIdx: number) => {
-              const name = s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`
+              const name = cleanMarkdown(s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`)
+              const description = cleanMarkdown(s?.description || '')
               const files = Array.isArray(s?.files) ? s.files : []
               if (!files.length) return null
-              return { name, files }
+              return { name, description, files }
             })
             .filter(Boolean)
 
@@ -126,7 +154,7 @@ export class AiCardGroupingService {
           // Build normalized card with required fields
           const normalizedCard: any = {
             title,
-            description: card?.description || '',
+            description: cleanMarkdown(card?.description || ''),
             screens
           }
 

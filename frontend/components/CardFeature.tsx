@@ -57,7 +57,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 )}
               </div>
               <CardDescription className="text-sm h-10 leading-5 overflow-hidden">
-                {snippet.screens?.[0]?.description || snippet.description}
+                {snippet.description || ''}
               </CardDescription>
               {snippet.createdBy && (
                 <p className="text-xs text-gray-500 mt-1">

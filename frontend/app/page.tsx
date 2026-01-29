@@ -54,11 +54,11 @@ export default function DevPlatform() {
                 <div className="flex justify-between items-center h-16">
                   <div className="flex items-center space-x-4">
                     <SidebarTrigger />
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-center rounded-lg bg-slate-400 px-2 py-1.5">
                       <img
-                        src="/brand/10xDev-logo-fundo-preto.png"
+                        src="/brand/10xdev-logo-sem-fundo.png"
                         alt="10xDev"
-                        className="h-9 w-auto"
+                        className="h-8 w-auto"
                       />
                       <span className="sr-only">10xDev</span>
                     </div>

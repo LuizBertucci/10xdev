@@ -94,6 +94,32 @@ const LAYER_PATTERNS: Record<string, RegExp> = {
   types: /\/(types?|interfaces?)\//i
 }
 
+/**
+ * Remove formatação Markdown de texto (negrito, itálico, links, etc)
+ */
+function cleanMarkdown(text: string): string {
+  if (!text) return text
+
+  return text
+    // Remove **negrito**
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Remove *itálico*
+    .replace(/\*([^*]+)\*/g, '$1')
+    // Remove __sublinhado__
+    .replace(/__([^_]+)__/g, '$1')
+    // Remove ~~riscado~~
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove `código inline`
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove # Headers (##, ###, etc) - apenas no início da linha
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove links [texto](url)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove bullet points (-, *, +) no início da linha
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .trim()
+}
+
 const LAYER_TO_SCREEN_NAME: Record<string, string> = {
   routes: 'Backend - Routes',
   controllers: 'Backend - Controller',
@@ -991,13 +1017,13 @@ export class GithubService {
                 filesProcessed++
               }
               if (blocks.length === 0) continue
-              screens.push({ name: s.name, description: '', route: s.files[0] || '', blocks })
+              screens.push({ name: s.name, description: cleanMarkdown(s.description || ''), route: s.files[0] || '', blocks })
             }
             if (screens.length === 0) continue
             const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
             const newCard: CreateCardFeatureRequest = {
-              title: aiCard.title,
-              description: aiCard.description || this.generateFeatureDescription(featureName, featureFiles),
+              title: cleanMarkdown(aiCard.title),
+              description: cleanMarkdown(aiCard.description || this.generateFeatureDescription(featureName, featureFiles)),
               tech: aiCard.tech || tech,
               language: aiCard.language || mainLanguage,
               content_type: ContentType.CODE,
