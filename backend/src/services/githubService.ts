@@ -1014,12 +1014,13 @@ export class GithubService {
       const featureProgress = 55 + Math.floor((featureIndex / totalFeatures) * 15) // 55-70%
 
       // --- AI path (best-effort) ---
-      if (useAi) {
-        options?.onProgress?.({
-          step: 'generating_cards',
-          progress: featureProgress,
-          message: `🤖 IA analisando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`
-        })
+       if (useAi) {
+         options?.onProgress?.({
+           step: 'generating_cards',
+           progress: featureProgress,
+           message: `🤖 IA analisando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`,
+           cardEstimate: estimatedCards
+         })
         try {
           const mode = AiCardGroupingService.mode()
           const fileMetas = featureFiles.map(f => ({
@@ -1041,11 +1042,12 @@ export class GithubService {
 
           console.log('[GithubService] IA retornou', ai.cards.length, 'cards para', featureName)
 
-          options?.onProgress?.({
-            step: 'generating_cards',
-            progress: featureProgress,
-            message: `✅ IA criou ${ai.cards.length} card(s) para "${featureName}" [${featureIndex}/${totalFeatures}]`
-          })
+           options?.onProgress?.({
+             step: 'generating_cards',
+             progress: featureProgress,
+             message: `✅ IA criou ${ai.cards.length} card(s) para "${featureName}" [${featureIndex}/${totalFeatures}]`,
+             cardEstimate: estimatedCards
+           })
 
           for (const aiCard of ai.cards) {
             const screens: CardFeatureScreen[] = []
@@ -1102,22 +1104,24 @@ export class GithubService {
           if (ai.cards.length > 0) continue
         } catch (featureErr: any) {
           console.error('[GithubService] Erro IA em feature:', featureName, '-', featureErr?.message)
-          options?.onProgress?.({
-            step: 'generating_cards',
-            progress: featureProgress,
-            message: `⚠️ IA falhou em "${featureName}", usando heurística [${featureIndex}/${totalFeatures}]`
-          })
+           options?.onProgress?.({
+             step: 'generating_cards',
+             progress: featureProgress,
+             message: `⚠️ IA falhou em "${featureName}", usando heurística [${featureIndex}/${totalFeatures}]`,
+             cardEstimate: estimatedCards
+           })
           // fallback to heuristic
         }
       }
 
       // --- Heuristic path ---
       if (!useAi) {
-        options?.onProgress?.({
-          step: 'generating_cards',
-          progress: featureProgress,
-          message: `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`
-        })
+         options?.onProgress?.({
+           step: 'generating_cards',
+           progress: featureProgress,
+           message: `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`,
+           cardEstimate: estimatedCards
+         })
       }
       const filesByLayer = new Map<string, FeatureFile[]>()
       for (const file of featureFiles) {
@@ -1196,14 +1200,18 @@ export class GithubService {
     options?.onProgress?.({
       step: 'generating_cards',
       progress: 70,
-      message: `${aiSummary} (${filesProcessed} arquivos)`
+      message: `${aiSummary} (${filesProcessed} arquivos)`,
+      cardEstimate: estimatedCards,
+      cardCount: cards.length
     })
 
     // Supervisor de qualidade
     options?.onProgress?.({
       step: 'quality_check',
       progress: 80,
-      message: '🔍 Supervisor de qualidade analisando cards...'
+      message: '🔍 Supervisor de qualidade analisando cards...',
+      cardEstimate: estimatedCards,
+      cardCount: cards.length
     })
 
     console.log('\n[GithubService] Executando supervisor de qualidade...')
@@ -1212,11 +1220,13 @@ export class GithubService {
     if (qualityReport.issuesFound > 0) {
       console.log(`[GithubService] Supervisor detectou ${qualityReport.issuesFound} issue(s) de qualidade`)
 
-      options?.onProgress?.({
-        step: 'quality_corrections',
-        progress: 85,
-        message: '🔧 Aplicando correções automáticas...'
-      })
+       options?.onProgress?.({
+         step: 'quality_corrections',
+         progress: 85,
+         message: '🔧 Aplicando correções automáticas...',
+         cardEstimate: estimatedCards,
+         cardCount: cards.length
+       })
 
       const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
       cards = corrections.correctedCards
@@ -1224,18 +1234,22 @@ export class GithubService {
       console.log(`[GithubService] Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`)
       console.log(`[GithubService] Cards finais após correções: ${cards.length}`)
 
-      options?.onProgress?.({
-        step: 'quality_corrections',
-        progress: 90,
-        message: `✅ Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`
-      })
+       options?.onProgress?.({
+         step: 'quality_corrections',
+         progress: 90,
+         message: `✅ Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`,
+         cardEstimate: estimatedCards,
+         cardCount: cards.length
+       })
     } else {
       console.log('[GithubService] Supervisor: qualidade OK, nenhum problema detectado')
-      options?.onProgress?.({
-        step: 'quality_check',
-        progress: 90,
-        message: '✅ Supervisor: qualidade OK'
-      })
+       options?.onProgress?.({
+         step: 'quality_check',
+         progress: 90,
+         message: '✅ Supervisor: qualidade OK',
+         cardEstimate: estimatedCards,
+         cardCount: cards.length
+       })
     }
 
     return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
