@@ -923,13 +923,40 @@ export class GithubService {
 
     // 4. Remover duplicatas e limpar
     return [...new Set(tags)].filter(t => t.length > 2)
-  }
+   }
 
-  // ================================================
-  // MAIN PROCESSING
-  // ================================================
+   // ================================================
+   // ESTIMATIVA DE CARDS
+   // ================================================
 
-  static async processRepoToCards(
+   private static estimateCardsCount(featureGroups: [string, FeatureFile[]][]): number {
+     // Heurística 1: 1 card por feature (mínimo)
+     const byFeature = featureGroups.length
+
+     // Heurística 2: 1 card por 5 arquivos
+     const totalFiles = featureGroups.reduce(
+       (sum, [_, files]) => sum + files.length,
+       0
+     )
+     const byFiles = Math.ceil(totalFiles / 5)
+
+     // Heurística 3: 1 card por 50KB
+     const totalSize = featureGroups.reduce(
+       (sum, [_, files]) =>
+         sum + files.reduce((s, f) => s + f.size, 0),
+       0
+     )
+     const bySize = Math.ceil(totalSize / (50 * 1024))
+
+     // Usar máximo das heurísticas, com mínimo de 10
+     return Math.max(byFeature, byFiles, bySize, 10)
+   }
+
+   // ================================================
+   // MAIN PROCESSING
+   // ================================================
+
+   static async processRepoToCards(
     url: string,
     token?: string,
     options?: {
@@ -973,11 +1000,16 @@ export class GithubService {
     let filesProcessed = 0
     let aiCardsCreated = 0
 
-    const featureGroupsArray = Array.from(featureGroups.entries())
-    const totalFeatures = featureGroupsArray.length
-    let featureIndex = 0
+     const featureGroupsArray = Array.from(featureGroups.entries())
+     const totalFeatures = featureGroupsArray.length
+     
+     // Estimar quantidade de cards que serão criados
+     const estimatedCards = this.estimateCardsCount(featureGroupsArray)
+     console.log('[GithubService] Estimativa de cards:', estimatedCards)
+     
+     let featureIndex = 0
 
-    for (const [featureName, featureFiles] of featureGroupsArray) {
+     for (const [featureName, featureFiles] of featureGroupsArray) {
       featureIndex++
       const featureProgress = 55 + Math.floor((featureIndex / totalFeatures) * 15) // 55-70%
 
