@@ -14,12 +14,37 @@ import {
   type ProjectQueryParams,
   type AddProjectMemberRequest,
   type UpdateProjectMemberRequest,
-  type ShareProjectRequest
+  type ShareProjectRequest,
+  type ValidateGithubTokenRequest,
+  type ValidateGithubTokenResponse
 } from '@/types/project'
 
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
 
 export class ProjectController {
+
+  // ================================================
+  // GITHUB - POST /api/projects/validate-token
+  // ================================================
+
+  static async validateGithubToken(req: Request, res: Response): Promise<void> {
+    try {
+      const { token }: ValidateGithubTokenRequest = req.body
+      if (!token) {
+        res.status(400).json({ success: false, error: 'Token é obrigatório' })
+        return
+      }
+
+      const result = await GithubService.validateToken(token)
+      const response: ValidateGithubTokenResponse = {
+        valid: result,
+        message: result ? 'Token válido' : 'Token inválido ou expirado'
+      }
+      res.status(200).json({ success: true, data: response })
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error?.message || 'Erro ao validar token' })
+    }
+  }
 
   // ================================================
   // GITHUB - POST /api/projects/github-info
@@ -108,50 +133,64 @@ export class ProjectController {
 
       // 4) Background processing
       setImmediate(async () => {
-        const updateJob = async (patch: {
-          status?: 'running' | 'done' | 'error'
-          step?: ImportJobStep
-          progress?: number
-          message?: string | null
-          error?: string | null
-          filesProcessed?: number
-          cardsCreated?: number
-          aiUsed?: boolean
-          aiCardsCreated?: number
-        }) => {
-          await ImportJobModel.update(job.id, {
-            ...(patch.status ? { status: patch.status } : {}),
-            ...(patch.step ? { step: patch.step } : {}),
-            ...(typeof patch.progress === 'number' ? { progress: patch.progress } : {}),
-            ...(patch.message !== undefined ? { message: patch.message } : {}),
-            ...(patch.error !== undefined ? { error: patch.error } : {}),
-            ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed } : {}),
-            ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated } : {}),
-            ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed } : {}),
-            ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated } : {})
-          })
-        }
+         let lastProgress = 0
+
+         const updateJob = async (patch: {
+           status?: 'running' | 'done' | 'error'
+           step?: ImportJobStep
+           progress?: number
+           message?: string | null
+           error?: string | null
+           filesProcessed?: number
+           cardsCreated?: number
+           aiUsed?: boolean
+           aiCardsCreated?: number
+         }) => {
+           // Garantir progresso monotônico (nunca decresce)
+           if (typeof patch.progress === 'number') {
+             patch.progress = Math.max(lastProgress, patch.progress)
+             lastProgress = patch.progress
+           }
+
+           await ImportJobModel.update(job.id, {
+             ...(patch.status ? { status: patch.status } : {}),
+             ...(patch.step ? { step: patch.step } : {}),
+             ...(typeof patch.progress === 'number' ? { progress: patch.progress } : {}),
+             ...(patch.message !== undefined ? { message: patch.message } : {}),
+             ...(patch.error !== undefined ? { error: patch.error } : {}),
+             ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed } : {}),
+             ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated } : {}),
+             ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed } : {}),
+             ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated } : {})
+           })
+         }
 
         try {
           await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
 
-          let totalCardsCreated = 0
-          let totalFilesProcessed = 0
+           let totalCardsCreated = 0
+           let totalFilesProcessed = 0
+           let estimatedCards = 50  // fallback padrão
 
-          const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-            url,
-            token,
-            {
-              useAi: useAi === true,
-              onProgress: async (p) => {
-                await updateJob({
-                  step: p.step as ImportJobStep,
-                  progress: p.progress ?? 0,
-                  message: p.message ?? null,
-                  cardsCreated: totalCardsCreated,
-                  filesProcessed: totalFilesProcessed
-                })
-              },
+           const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
+             url,
+             token,
+             {
+               useAi: useAi === true,
+               onProgress: async (p) => {
+                 // Armazenar estimativa quando recebida
+                 if (p.cardEstimate) {
+                   estimatedCards = p.cardEstimate
+                 }
+
+                 await updateJob({
+                   step: p.step as ImportJobStep,
+                   progress: p.progress ?? 0,
+                   message: p.message ?? null,
+                   cardsCreated: totalCardsCreated,
+                   filesProcessed: totalFilesProcessed
+                 })
+               },
               onCardReady: async (card) => {
                 // Create card immediately after AI processes it
                 const normalizedCard = {
@@ -179,13 +218,21 @@ export class ProjectController {
                 }, 0) || 0
                 totalFilesProcessed += filesInCard
                 
-                await updateJob({
-                  step: 'creating_cards',
-                  progress: 70 + Math.min(25, Math.floor((totalCardsCreated / 100) * 25)), // Estimate based on typical 50-100 cards
-                  message: `Criando cards... (${totalCardsCreated} criados)`,
-                  cardsCreated: totalCardsCreated,
-                  filesProcessed: totalFilesProcessed
-                })
+                 // Calcular progresso dinâmico baseado em estimativa real
+                 const createdRatio = estimatedCards > 0
+                   ? totalCardsCreated / estimatedCards
+                   : 0
+                 const progressPercent = Math.min(95,
+                   60 + Math.floor(createdRatio * 35)
+                 )
+
+                 await updateJob({
+                   step: 'creating_cards',
+                   progress: progressPercent,
+                   message: `Criando cards... (${totalCardsCreated}/${estimatedCards})`,
+                   cardsCreated: totalCardsCreated,
+                   filesProcessed: totalFilesProcessed
+                 })
               }
             }
           )
