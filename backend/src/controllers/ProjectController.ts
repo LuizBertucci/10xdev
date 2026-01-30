@@ -250,7 +250,7 @@ export class ProjectController {
             return
           }
 
-          await updateJob({ step: 'linking_cards', progress: 98, message: 'Finalizando...' })
+          await updateJob({ step: 'linking_cards', progress: 95, message: 'Finalizando...' })
           await updateJob({ 
             status: 'done', 
             step: 'done', 
