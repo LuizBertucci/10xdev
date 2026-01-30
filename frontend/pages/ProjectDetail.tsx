@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2 } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -26,7 +26,9 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { ProjectSummary } from "@/components/ProjectSummary"
+import { ProjectCategories } from "@/components/ProjectCategories"
 import { usePlatform } from "@/hooks/use-platform"
+import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -53,6 +55,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [hasMoreCards, setHasMoreCards] = useState(false)
   const [totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
+  const ALL_CATEGORIES_VALUE = "__all__"
+  const ALL_CATEGORIES_LABEL = "Todas"
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES_VALUE)
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false)
   
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
@@ -584,15 +590,47 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     new Map(cardFeatures.map(f => [f.id, f])).values()
   )
 
+  const categoryGroups = useMemo(() => {
+    return buildCategoryGroups(uniqueCardFeatures)
+  }, [uniqueCardFeatures])
+
+  const allCategories = useMemo(() => {
+    return getAllCategories(categoryGroups)
+  }, [categoryGroups])
+
+  const orderedCategories = useMemo(() => {
+    return orderCategories(allCategories, project?.categoryOrder || [])
+  }, [allCategories, project?.categoryOrder])
+
+  const categoryFilterIds = useMemo(() => {
+    if (selectedCategory === ALL_CATEGORIES_VALUE) {
+      return null
+    }
+    const cardsInCategory = categoryGroups.get(selectedCategory) || []
+    return new Set(cardsInCategory.map((card) => card.id))
+  }, [categoryGroups, selectedCategory])
+
+  useEffect(() => {
+    if (selectedCategory === ALL_CATEGORIES_VALUE) {
+      return
+    }
+    if (!orderedCategories.includes(selectedCategory)) {
+      setSelectedCategory(ALL_CATEGORIES_VALUE)
+    }
+  }, [orderedCategories, selectedCategory])
+
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .filter(({ cardFeature }) =>
-      !searchTerm ||
-      (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    .filter(({ cardFeature }) => 
+      (!searchTerm || 
+        (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+      ) &&
+      (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
   const canManageMembers = project?.userRole === 'owner' || project?.userRole === 'admin'
@@ -730,14 +768,26 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
         {/* Busca inline no desktop */}
         <div className="hidden lg:flex flex-1 justify-center px-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Buscar cards..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 w-full pl-9 text-sm"
-            />
+          <div className="flex w-full max-w-sm items-center gap-2">
+            <div className="relative w-full">
+              <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Buscar cards..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-9 w-full pl-9 text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSummaryOpen(true)}
+              disabled={!projectId}
+              className="h-9 whitespace-nowrap"
+            >
+              <List className="h-4 w-4 mr-2" />
+              Sumário
+            </Button>
           </div>
         </div>
 
@@ -750,6 +800,16 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           >
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Adicionar Card</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSummaryOpen(true)}
+            disabled={!projectId}
+            className="h-8 whitespace-nowrap lg:hidden"
+          >
+            <List className="h-4 w-4 mr-2" />
+            Sumário
           </Button>
 
           <Button
@@ -889,104 +949,128 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           />
         </div>
 
-        <ProjectSummary projectId={projectId} cardFeatures={uniqueCardFeatures} />
+        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4">
+          <ProjectCategories
+            categories={orderedCategories}
+            counts={categoryGroups}
+            selectedCategory={selectedCategory}
+            onSelect={setSelectedCategory}
+            allLabel={ALL_CATEGORIES_LABEL}
+            allValue={ALL_CATEGORIES_VALUE}
+            allCount={uniqueCardFeatures.length}
+            loading={loadingCards}
+            loadingText="Carregando categorias..."
+            emptyText="Sem categorias"
+            className="md:h-[520px] md:overflow-y-auto"
+          />
 
-        {loadingCards ? (
-          <p className="text-gray-500 text-center py-8">Carregando...</p>
-        ) : filteredCards.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
-        ) : (
-          <div className="space-y-4">
-            {filteredCards.map(({ cardFeature, projectCard }, index) => {
-              const isFirst = index === 0
-              const isLast = index === filteredCards.length - 1
+          <div className="space-y-3">
+            <ProjectSummary
+              projectId={projectId}
+              cardFeatures={uniqueCardFeatures}
+              isOpen={isSummaryOpen}
+              onOpenChange={setIsSummaryOpen}
+              showTrigger={false}
+            />
 
-              return (
-                <div key={cardFeature.id} className="relative group">
-                  <CardFeatureCompact
-                    snippet={cardFeature}
-                    onEdit={() => {}} // Não permitir editar aqui
-                    onDelete={() => {}} // Não permitir deletar aqui
-                  />
+            {loadingCards ? (
+              <p className="text-gray-500 text-center py-8">Carregando...</p>
+            ) : filteredCards.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
+            ) : (
+              <div className="space-y-4">
+                {filteredCards.map(({ cardFeature, projectCard }, index) => {
+                  const isFirst = index === 0
+                  const isLast = index === filteredCards.length - 1
 
-                  {/* Painel flutuante de ações (apenas no modo de edição) */}
-                  {isEditMode && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleReorderCard(cardFeature.id, "up")
-                        }}
-                        disabled={isFirst}
-                        className="h-7 w-7 p-0"
-                        title="Mover para cima"
-                      >
-                        <ChevronUp
-                          className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleReorderCard(cardFeature.id, "down")
-                        }}
-                        disabled={isLast}
-                        className="h-7 w-7 p-0"
-                        title="Mover para baixo"
-                      >
-                        <ChevronDown
-                          className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (projectCard) {
-                            handleRemoveCard(projectCard.cardFeatureId)
-                          }
-                        }}
-                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        title="Remover do projeto"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                  return (
+                    <div key={cardFeature.id} className="relative group">
+                      <CardFeatureCompact
+                        snippet={cardFeature}
+                        onEdit={() => {}} // Não permitir editar aqui
+                        onDelete={() => {}} // Não permitir deletar aqui
+                      />
+
+                      {/* Painel flutuante de ações (apenas no modo de edição) */}
+                      {isEditMode && (
+                        <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReorderCard(cardFeature.id, "up")
+                            }}
+                            disabled={isFirst}
+                            className="h-7 w-7 p-0"
+                            title="Mover para cima"
+                          >
+                            <ChevronUp
+                              className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReorderCard(cardFeature.id, "down")
+                            }}
+                            disabled={isLast}
+                            className="h-7 w-7 p-0"
+                            title="Mover para baixo"
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (projectCard) {
+                                handleRemoveCard(projectCard.cardFeatureId)
+                              }
+                            }}
+                            className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                            title="Remover do projeto"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )
-            })}
-            
-            {/* Botão "Carregar mais cards" */}
-            {hasMoreCards && (
-              <div className="flex justify-center pt-4">
-                <Button
-                  variant="outline"
-                  onClick={loadMoreCards}
-                  disabled={loadingMoreCards}
-                  className="min-w-[200px]"
-                >
-                  {loadingMoreCards ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Carregando...
-                    </>
-                  ) : (
-                    <>
-                      Carregar mais cards
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+                  )
+                })}
+                
+                {/* Botão "Carregar mais cards" */}
+                {hasMoreCards && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={loadMoreCards}
+                      disabled={loadingMoreCards}
+                      className="min-w-[200px]"
+                    >
+                      {loadingMoreCards ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Carregando...
+                        </>
+                      ) : (
+                        <>
+                          Carregar mais cards
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Dialog Adicionar Card */}

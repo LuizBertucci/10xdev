@@ -34,14 +34,16 @@ export default function SyntaxHighlighter({
     >
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
         <pre 
-            className="text-xs leading-tight whitespace-pre" 
+            className="text-xs leading-tight whitespace-pre w-full max-w-full" 
             style={{
                 ...style, 
                 backgroundColor: 'transparent', 
                 fontFamily: 'Consolas, Monaco, "Courier New", monospace',
                 margin: 0,
                 padding: 0,
-                overflowX: 'auto'
+                overflowX: 'auto',
+                maxWidth: '100%',
+                minWidth: 0
             }}
         >
           {tokens.map((line, i) => (

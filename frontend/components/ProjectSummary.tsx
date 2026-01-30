@@ -1,24 +1,35 @@
 import { useEffect, useMemo, useState } from "react"
-import { List, Pencil, Tag, X, GripVertical } from "lucide-react"
+import { List, Pencil, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cardFeatureService, projectService } from "@/services"
 import type { CardFeature } from "@/types"
 import { toast } from "sonner"
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
+import { ProjectCategories } from "@/components/ProjectCategories"
 
 interface ProjectSummaryProps {
   projectId: string | null
   cardFeatures: CardFeature[]
+  isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
 }
 
-export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState("")
+export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, showTrigger = true }: ProjectSummaryProps) {
+  const [isOpenInternal, setIsOpenInternal] = useState(false)
+  const resolvedOpen = isOpen ?? isOpenInternal
+  const handleOpenChange = (open: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(open)
+    } else {
+      setIsOpenInternal(open)
+    }
+  }
+  const ALL_CATEGORIES_VALUE = "__all__"
+  const ALL_CATEGORIES_LABEL = "Todas"
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES_VALUE)
   const [summaryCardFeatures, setSummaryCardFeatures] = useState<CardFeature[]>([])
   const [loading, setLoading] = useState(false)
   const [editingCardId, setEditingCardId] = useState<string | null>(null)
@@ -27,14 +38,6 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
   const [savingTags, setSavingTags] = useState(false)
   const [orderedCategories, setOrderedCategories] = useState<string[]>([])
   const [savingOrder, setSavingOrder] = useState(false)
-
-  // Sensores para drag and drop
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
 
   const loadSummaryCards = async () => {
     if (!projectId) return
@@ -67,10 +70,10 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
   }
 
   useEffect(() => {
-    if (isOpen) {
+    if (resolvedOpen) {
       loadSummaryCards()
     }
-  }, [isOpen])
+  }, [resolvedOpen])
 
   const startEditTags = (card: CardFeature) => {
     setEditingCardId(card.id)
@@ -133,42 +136,20 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
   }
 
   const summaryGroups = useMemo(() => {
-    const map = new Map<string, CardFeature[]>()
-    const cards = isOpen ? summaryCardFeatures : cardFeatures
-    cards.forEach((card) => {
-      const tags = card.tags && card.tags.length > 0 ? card.tags : ["Sem categoria"]
-      tags.forEach((rawTag) => {
-        const tag = rawTag?.trim() || "Sem categoria"
-        if (!map.has(tag)) {
-          map.set(tag, [])
-        }
-        map.get(tag)?.push(card)
-      })
-    })
-    return map
-  }, [cardFeatures, isOpen, summaryCardFeatures])
+    const cards = resolvedOpen ? summaryCardFeatures : cardFeatures
+    return buildCategoryGroups(cards)
+  }, [cardFeatures, resolvedOpen, summaryCardFeatures])
+
+  const allSummaryCards = useMemo(() => {
+    return resolvedOpen ? summaryCardFeatures : cardFeatures
+  }, [cardFeatures, resolvedOpen, summaryCardFeatures])
 
   const allCategories = useMemo(() => {
-    return Array.from(summaryGroups.keys()).sort((a, b) => a.localeCompare(b, "pt-BR"))
+    return getAllCategories(summaryGroups)
   }, [summaryGroups])
 
   const summaryCategories = useMemo(() => {
-    if (orderedCategories.length === 0) {
-      return allCategories
-    }
-
-    // Usar ordem customizada, adicionando novas categorias ao final
-    const ordered = [...orderedCategories]
-    const orderedSet = new Set(orderedCategories)
-    
-    allCategories.forEach(category => {
-      if (!orderedSet.has(category)) {
-        ordered.push(category)
-      }
-    })
-
-    // Filtrar categorias que não existem mais
-    return ordered.filter(category => allCategories.includes(category))
+    return orderCategories(allCategories, orderedCategories)
   }, [allCategories, orderedCategories])
 
   const allProjectTags = useMemo(() => {
@@ -188,7 +169,10 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
 
   useEffect(() => {
     if (!summaryCategories.length) {
-      setSelectedCategory("Sem categoria")
+      setSelectedCategory(ALL_CATEGORIES_VALUE)
+      return
+    }
+    if (selectedCategory === ALL_CATEGORIES_VALUE) {
       return
     }
     if (!summaryCategories.includes(selectedCategory)) {
@@ -196,111 +180,48 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
     }
   }, [summaryCategories, selectedCategory])
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event
+  const summaryCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    summaryCategories.forEach((category) => {
+      counts.set(category, summaryGroups.get(category)?.length ?? 0)
+    })
+    return counts
+  }, [summaryCategories, summaryGroups])
 
-    if (!over || active.id === over.id) {
-      return
-    }
+  const handleOrderChange = async (newOrder: string[]) => {
+    setOrderedCategories(newOrder)
 
-    const oldIndex = summaryCategories.indexOf(active.id as string)
-    const newIndex = summaryCategories.indexOf(over.id as string)
-
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const newOrder = arrayMove(summaryCategories, oldIndex, newIndex)
-      setOrderedCategories(newOrder)
-
-      // Persistir no backend
-      if (projectId) {
-        try {
-          setSavingOrder(true)
-          const response = await projectService.update(projectId, { categoryOrder: newOrder })
-          if (!response?.success) {
-            toast.error(response?.error || "Erro ao salvar ordem das categorias")
-            // Reverter em caso de erro
-            setOrderedCategories(summaryCategories)
-          } else {
-            toast.success("Ordem das categorias salva")
-          }
-        } catch (error: any) {
-          toast.error(error?.message || "Erro ao salvar ordem das categorias")
+    if (projectId) {
+      try {
+        setSavingOrder(true)
+        const response = await projectService.update(projectId, { categoryOrder: newOrder })
+        if (!response?.success) {
+          toast.error(response?.error || "Erro ao salvar ordem das categorias")
           setOrderedCategories(summaryCategories)
-        } finally {
-          setSavingOrder(false)
+        } else {
+          toast.success("Ordem das categorias salva")
         }
+      } catch (error: any) {
+        toast.error(error?.message || "Erro ao salvar ordem das categorias")
+        setOrderedCategories(summaryCategories)
+      } finally {
+        setSavingOrder(false)
       }
     }
   }
 
-  // Componente para item de categoria arrastável
-  interface SortableCategoryItemProps {
-    category: string
-    count: number
-    isActive: boolean
-    onSelect: () => void
-  }
-
-  function SortableCategoryItem({ category, count, isActive, onSelect }: SortableCategoryItemProps) {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: category })
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    }
-
-    return (
-      <button
-        ref={setNodeRef}
-        style={style}
-        type="button"
-        onClick={onSelect}
-        className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm text-left transition-colors border ${
-          isActive
-            ? "bg-blue-50 text-blue-700 border-blue-400 shadow-sm"
-            : "border-gray-200 text-gray-700 hover:bg-gray-50"
-        } ${isDragging ? "cursor-grabbing" : "cursor-pointer"}`}
-      >
-        <span className="flex items-center gap-2 min-w-0 flex-1">
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1 -mr-1 hover:bg-gray-100 rounded"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
-          </div>
-          <Tag className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
-          <span className="truncate">{category}</span>
-        </span>
-        <span
-          className={`text-xs rounded-full px-2 py-0.5 border flex-shrink-0 ${
-            isActive ? "border-blue-200 text-blue-700 bg-blue-50" : "border-gray-200 text-gray-500 bg-white"
-          }`}
-        >
-          {count}
-        </span>
-      </button>
-    )
-  }
-
   return (
     <>
-      <div className="flex items-center justify-end mb-3">
-        <Button variant="outline" size="sm" onClick={() => setIsOpen(true)} disabled={!projectId}>
-          <List className="h-4 w-4 mr-2" />
-          Sumário
-        </Button>
-      </div>
+      {showTrigger && (
+        <div className="flex items-center justify-end mb-3">
+          <Button variant="outline" size="sm" onClick={() => handleOpenChange(true)} disabled={!projectId}>
+            <List className="h-4 w-4 mr-2" />
+            Sumário
+          </Button>
+        </div>
+      )}
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={resolvedOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-4xl h-[520px] max-h-[520px]">
           <DialogHeader>
             <DialogTitle>Sumário do Projeto</DialogTitle>
@@ -310,30 +231,22 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 min-h-[320px]">
-            <div className="border rounded-lg p-3 space-y-2 h-[420px] overflow-y-auto">
-              {loading ? (
-                <p className="text-sm text-gray-500">Carregando categorias...</p>
-              ) : summaryCategories.length === 0 ? (
-                <p className="text-sm text-gray-500">Sem categorias</p>
-              ) : (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={summaryCategories} strategy={verticalListSortingStrategy}>
-                    {summaryCategories.map((category) => {
-                      const count = summaryGroups.get(category)?.length ?? 0
-                      const isActive = category === selectedCategory
-                      return (
-                        <SortableCategoryItem
-                          key={category}
-                          category={category}
-                          count={count}
-                          isActive={isActive}
-                          onSelect={() => setSelectedCategory(category)}
-                        />
-                      )
-                    })}
-                  </SortableContext>
-                </DndContext>
-              )}
+            <div className="space-y-2">
+              <ProjectCategories
+                categories={summaryCategories}
+                counts={summaryCounts}
+                selectedCategory={selectedCategory}
+                onSelect={setSelectedCategory}
+                allLabel={ALL_CATEGORIES_LABEL}
+                allValue={ALL_CATEGORIES_VALUE}
+                allCount={allSummaryCards.length}
+                loading={loading}
+                loadingText="Carregando categorias..."
+                emptyText="Sem categorias"
+                sortable
+                onOrderChange={handleOrderChange}
+                className="h-[420px] overflow-y-auto"
+              />
               {savingOrder && (
                 <p className="text-xs text-gray-500 mt-2">Salvando ordem...</p>
               )}
@@ -343,7 +256,9 @@ export function ProjectSummary({ projectId, cardFeatures }: ProjectSummaryProps)
               {loading ? (
                 <p className="text-sm text-gray-500">Carregando cards...</p>
               ) : (() => {
-                const cards = summaryGroups.get(selectedCategory) || []
+                const cards = selectedCategory === ALL_CATEGORIES_VALUE
+                  ? allSummaryCards
+                  : summaryGroups.get(selectedCategory) || []
                 if (cards.length === 0) {
                   return <p className="text-sm text-gray-500">Nenhum card nesta categoria.</p>
                 }
