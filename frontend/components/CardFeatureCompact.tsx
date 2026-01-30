@@ -25,9 +25,10 @@ interface CardFeatureCompactProps {
   isSelectionMode?: boolean
   isSelected?: boolean
   onToggleSelect?: (id: string) => void
+  expandOnClick?: boolean
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
   const router = useRouter()
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
@@ -118,6 +119,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const handleCardClick = (e: React.MouseEvent) => {
     // Previne a navegação se clicou em um botão
     if ((e.target as HTMLElement).closest('button')) {
+      return
+    }
+
+    if (expandOnClick) {
+      toggleExpanded()
       return
     }
 

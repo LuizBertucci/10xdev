@@ -949,7 +949,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] gap-4">
           <ProjectCategories
             categories={orderedCategories}
             counts={categoryGroups}
@@ -984,11 +984,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   const isLast = index === filteredCards.length - 1
 
                   return (
-                    <div key={cardFeature.id} className="relative group">
+                    <div key={cardFeature.id} className="relative group min-w-0 overflow-hidden">
                       <CardFeatureCompact
                         snippet={cardFeature}
                         onEdit={() => {}} // Não permitir editar aqui
                         onDelete={() => {}} // Não permitir deletar aqui
+                    expandOnClick
                       />
 
                       {/* Painel flutuante de ações (apenas no modo de edição) */}

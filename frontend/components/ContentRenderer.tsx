@@ -7,7 +7,7 @@ import { ContentType, ContentBlock } from '@/types'
 // Container para blocos CODE - área azul clara com borda e sombra
 function CodeBlockContainer({ children, route, className }: { children: React.ReactNode, route?: string, className?: string }) {
   return (
-    <div className={`code-container rounded-lg p-2 sm:p-3 md:p-4 mb-4 sm:mb-6 border border-gray-200 shadow-md hover:shadow-lg transition-shadow w-full max-w-full min-w-0 overflow-x-auto ${className}`}
+    <div className={`code-container rounded-lg p-2 sm:p-3 md:p-4 mb-4 sm:mb-6 border border-gray-200 shadow-md hover:shadow-lg transition-shadow w-full max-w-full min-w-0 overflow-hidden ${className}`}
          style={{ backgroundColor: '#f8f8ff', fontFamily: 'Fira Code, Consolas, Monaco, monospace' }}>
       {/* Rota específica do bloco */}
       {route && (
@@ -19,7 +19,9 @@ function CodeBlockContainer({ children, route, className }: { children: React.Re
           </div>
         </div>
       )}
-      {children}
+      <div className="w-full max-w-full min-w-0 overflow-x-auto">
+        {children}
+      </div>
     </div>
   )
 }

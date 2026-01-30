@@ -27,44 +27,46 @@ export default function SyntaxHighlighter({
   }
 
   return (
-    <Highlight
-      theme={themes.vsLight}
-      code={code || ''}
-      language={getPrismLanguage(language)}
-    >
-      {({ className, style, tokens, getLineProps, getTokenProps }) => (
-        <pre 
-            className="text-xs leading-tight whitespace-pre w-full max-w-full" 
-            style={{
-                ...style, 
-                backgroundColor: 'transparent', 
-                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-                margin: 0,
-                padding: 0,
-                overflowX: 'auto',
-                maxWidth: '100%',
-                minWidth: 0
-            }}
-        >
-          {tokens.map((line, i) => (
-            <div key={i} {...getLineProps({ line })} className="table-row">
-              {showLineNumbers && (
-                <span 
-                  className="table-cell select-none text-right pr-4 text-gray-400 border-r border-gray-200 mr-4"
-                  style={{ width: '3em', minWidth: '3em' }}
-                >
-                  {i + 1}
+    <div className="w-full max-w-full min-w-0 overflow-x-auto">
+      <Highlight
+        theme={themes.vsLight}
+        code={code || ''}
+        language={getPrismLanguage(language)}
+      >
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre 
+              className="text-xs leading-tight whitespace-pre" 
+              style={{
+                  ...style, 
+                  backgroundColor: 'transparent', 
+                  fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                  margin: 0,
+                  padding: 0,
+                  display: 'table',
+                  width: 'max-content',
+                  minWidth: '100%'
+              }}
+          >
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })} style={{ display: 'table-row' }}>
+                {showLineNumbers && (
+                  <span 
+                    className="select-none text-right pr-4 text-gray-400 border-r border-gray-200"
+                    style={{ display: 'table-cell', width: '3em', minWidth: '3em', paddingRight: '1rem' }}
+                  >
+                    {i + 1}
+                  </span>
+                )}
+                <span style={{ display: 'table-cell', paddingLeft: '1rem' }}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token })} />
+                  ))}
                 </span>
-              )}
-              <span className="table-cell pl-4">
-                {line.map((token, key) => (
-                  <span key={key} {...getTokenProps({ token })} />
-                ))}
-              </span>
-            </div>
-          ))}
-        </pre>
-      )}
-    </Highlight>
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
+    </div>
   )
 }
