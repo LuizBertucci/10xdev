@@ -303,6 +303,26 @@ export class GithubService {
   }
 
   // ================================================
+  // TOKEN VALIDATION
+  // ================================================
+
+  static async validateToken(token: string): Promise<boolean> {
+    if (!token) return false
+    try {
+      const response = await axios.get('https://api.github.com/user', {
+        headers: this.getHeaders(token),
+        timeout: 15000
+      })
+      return response.status === 200
+    } catch (error: any) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        return false
+      }
+      return false
+    }
+  }
+
+  // ================================================
   // REPO INFO (1 request)
   // ================================================
 
@@ -914,7 +934,7 @@ export class GithubService {
     token?: string,
     options?: {
       useAi?: boolean
-      onProgress?: (update: { step: string; progress?: number; message?: string }) => void
+      onProgress?: (update: { step: string; progress?: number; message?: string; cardEstimate?: number; cardCount?: number }) => void
       onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
     }
   ): Promise<{ cards: CreateCardFeatureRequest[]; filesProcessed: number; aiUsed: boolean; aiCardsCreated: number }> {
