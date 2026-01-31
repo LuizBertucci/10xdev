@@ -1,3 +1,5 @@
+import { MacroCategory, MICRO_TO_MACRO_MAPPING, MACRO_CATEGORY_DESCRIPTIONS } from '@/types/MacroCategory'
+
 // ================================================
 // DATABASE TYPES - Supabase/PostgreSQL
 // ================================================
@@ -57,7 +59,8 @@ export interface CardFeatureRow {
   tech?: string              // Opcional: usado quando card_type === 'codigos'
   language?: string          // Opcional: usado quando card_type === 'codigos'
   description: string
-  tags?: string[]             // Categorias/tags do card
+  tags?: string[]             // Categorias/tags do card (legado - mantido para compatibilidade)
+  macro_category?: MacroCategory  // NOVO: Macro categoria principal
   content_type: ContentType    // Tipo de conteúdo dos blocos
   card_type: CardType          // Tipo do card (codigos/post)
   screens: CardFeatureScreen[]
@@ -70,7 +73,7 @@ export interface CardFeatureRow {
   approved_by?: string | null
   created_in_project_id?: string | null  // ID do projeto onde foi criado (null = criado na aba Códigos)
   // Campos opcionais para posts
-  category?: string           // Categoria do post
+  category?: string           // Categoria do post (legado - mantido para compatibilidade)
   file_url?: string           // URL do arquivo/PDF
   youtube_url?: string        // URL do vídeo do YouTube
   video_id?: string          // ID do vídeo (extraído de youtube_url)
@@ -85,7 +88,8 @@ export interface CardFeatureInsert {
   tech?: string              // Opcional: usado quando card_type === 'codigos'
   language?: string          // Opcional: usado quando card_type === 'codigos'
   description: string
-  tags?: string[]             // Categorias/tags do card
+  tags?: string[]             // Categorias/tags do card (legado - mantido para compatibilidade)
+  macro_category?: MacroCategory  // NOVO: Macro categoria principal
   content_type: ContentType
   card_type: CardType
   screens: CardFeatureScreen[]

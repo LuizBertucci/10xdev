@@ -29,6 +29,7 @@ export default function DevPlatform() {
   const contentsTab = searchParams?.get('contentsTab') || 'posts'
   const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
+  const codeId = activeTab === "codes" ? searchParams?.get('id') || null : null
 
   // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
   useEffect(() => {
@@ -55,11 +56,11 @@ export default function DevPlatform() {
                 <div className="flex justify-between items-center h-16">
                   <div className="flex items-center space-x-4">
                     <SidebarTrigger />
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-center rounded-lg bg-slate-400 px-2 py-1.5">
                       <img
-                        src="/brand/10xDev-logo-fundo-preto.png"
+                        src="/brand/10xdev-logo-sem-fundo.png"
                         alt="10xDev"
-                        className="h-9 w-auto"
+                        className="h-8 w-auto"
                       />
                       <span className="sr-only">10xDev</span>
                     </div>
@@ -73,7 +74,11 @@ export default function DevPlatform() {
               {platformState.activeTab === "home" && <Home platformState={platformState} />}
 
               {/* Codes Tab */}
-              {platformState.activeTab === "codes" && <Codes platformState={platformState} />}
+              {activeTab === "codes" && codeId ? (
+                <ContentDetail platformState={platformState} />
+              ) : (
+                activeTab === "codes" && <Codes platformState={platformState} />
+              )}
 
               {/* Contents Tab */}
               {activeTab === "contents" && contentId && contentsTab === "tutorials" ? (

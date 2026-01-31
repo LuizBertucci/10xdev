@@ -4,6 +4,56 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Rotas públicas (acessíveis sem conta)
 const publicPaths = ['/login', '/register']
 
+// Cache simples em memória para sessões (reduz rate limiting do Supabase)
+interface CacheEntry {
+  hasSession: boolean
+  expiresAt: number
+}
+
+const sessionCache = new Map<string, CacheEntry>()
+const CACHE_TTL = 30000 // 30 segundos
+const CACHE_TTL_ERROR = 5000 // 5 segundos para erros
+
+function getCacheKey(req: NextRequest): string | null {
+  // Usa o cookie de sessão do Supabase como chave de cache
+  const sessionCookie = req.cookies.get('sb-access-token')?.value || 
+                       req.cookies.get('sb-refresh-token')?.value
+  return sessionCookie || null
+}
+
+function getCachedSession(cacheKey: string | null): boolean | null {
+  if (!cacheKey) return null
+  
+  const entry = sessionCache.get(cacheKey)
+  if (!entry) return null
+  
+  if (Date.now() > entry.expiresAt) {
+    sessionCache.delete(cacheKey)
+    return null
+  }
+  
+  return entry.hasSession
+}
+
+function setCachedSession(cacheKey: string | null, hasSession: boolean, ttl: number = CACHE_TTL): void {
+  if (!cacheKey) return
+  
+  sessionCache.set(cacheKey, {
+    hasSession,
+    expiresAt: Date.now() + ttl
+  })
+  
+  // Limpa entradas expiradas periodicamente (mantém cache pequeno)
+  if (sessionCache.size > 100) {
+    const now = Date.now()
+    for (const [key, entry] of sessionCache.entries()) {
+      if (now > entry.expiresAt) {
+        sessionCache.delete(key)
+      }
+    }
+  }
+}
+
 function applyResponseCookies(target: NextResponse, source: NextResponse) {
   source.cookies.getAll().forEach((cookie) => {
     target.cookies.set(cookie)
@@ -68,50 +118,70 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Usa getSession() que é mais leve e não força refresh token
-  // Se houver erro (ex: rate limit), trata como sem sessão para não bloquear
+  // Verifica cache antes de chamar Supabase para reduzir rate limiting
+  const cacheKey = getCacheKey(req)
+  const cachedResult = getCachedSession(cacheKey)
+  
   let hasSession = false
-  try {
-    // #region agent log
-    if (debugLocal) {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H3',location:'middleware.ts:51',message:'before getSession',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
-    }
-    // #endregion
-    const { data: { session }, error } = await supabase.auth.getSession()
-    // Se houver erro (ex: rate limit), não bloqueia - deixa passar e o cliente tratará
-    if (!error && session?.user) {
-      hasSession = true
-    }
+  if (cachedResult !== null) {
+    // Usa resultado do cache
+    hasSession = cachedResult
     if (debugAuth) {
-      console.log('[middleware][supabase] getSession result', {
+      console.log('[middleware][supabase] cache hit', {
         pathname,
         hasSession,
-        hasError: Boolean(error),
         cookiesSetCount,
         cookiesRemoveCount,
       })
     }
-    // #region agent log
-    if (debugLocal) {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H3',location:'middleware.ts:55',message:'after getSession',data:{hasSession,hasError:Boolean(error)},timestamp:Date.now()})}).catch(()=>{});
-    }
-    // #endregion
-  } catch (error) {
-    // Em caso de erro (rate limit, etc), não bloqueia a requisição
-    // O cliente tratará a autenticação no lado do browser
-    console.warn('Middleware: erro ao verificar sessão (não bloqueando):', error)
-    // #region agent log
-    if (debugLocal) {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H4',location:'middleware.ts:60',message:'getSession exception',data:{hasSession:false,errorType:error instanceof Error ? error.name : typeof error},timestamp:Date.now()})}).catch(()=>{});
-    }
-    // #endregion
-    hasSession = false
-    if (debugAuth) {
-      console.log('[middleware][supabase] getSession exception', {
-        pathname,
-        cookiesSetCount,
-        cookiesRemoveCount,
-      })
+  } else {
+    // Cache miss ou expirado - verifica no Supabase
+    try {
+      // #region agent log
+      if (debugLocal) {
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H3',location:'middleware.ts:51',message:'before getSession',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
+      const { data: { session }, error } = await supabase.auth.getSession()
+      // Se houver erro (ex: rate limit), não bloqueia - deixa passar e o cliente tratará
+      if (!error && session?.user) {
+        hasSession = true
+      }
+      if (debugAuth) {
+        console.log('[middleware][supabase] getSession result', {
+          pathname,
+          hasSession,
+          hasError: Boolean(error),
+          cookiesSetCount,
+          cookiesRemoveCount,
+        })
+      }
+      // #region agent log
+      if (debugLocal) {
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H3',location:'middleware.ts:55',message:'after getSession',data:{hasSession,hasError:Boolean(error)},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
+      // Armazena no cache (mesmo se não houver sessão, para evitar chamadas repetidas)
+      setCachedSession(cacheKey, hasSession)
+    } catch (error) {
+      // Em caso de erro (rate limit, etc), não bloqueia a requisição
+      // O cliente tratará a autenticação no lado do browser
+      console.warn('Middleware: erro ao verificar sessão (não bloqueando):', error)
+      // #region agent log
+      if (debugLocal) {
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H4',location:'middleware.ts:60',message:'getSession exception',data:{hasSession:false,errorType:error instanceof Error ? error.name : typeof error},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
+      hasSession = false
+      if (debugAuth) {
+        console.log('[middleware][supabase] getSession exception', {
+          pathname,
+          cookiesSetCount,
+          cookiesRemoveCount,
+        })
+      }
+      // Cache resultado negativo por menos tempo (5s) para retentar mais cedo
+      setCachedSession(cacheKey, false, CACHE_TTL_ERROR)
     }
   }
 

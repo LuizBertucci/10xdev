@@ -20,12 +20,14 @@ export default function ContentDetail({ platformState, id: propId }: ContentDeta
 
   const handleBack = () => {
     const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
+    // Detectar qual tab está ativa
+    const currentTab = platformState?.activeTab || 'contents'
+    params.set('tab', currentTab)
     params.delete('id')
     router.push(`/?${params.toString()}`)
   }
 
-  const goToTab = (tab: 'home' | 'contents') => {
+  const goToTab = (tab: 'home' | 'codes' | 'contents' | 'projects') => {
     const params = new URLSearchParams(searchParams?.toString() || '')
     params.delete('id')
     if (tab === 'home') {

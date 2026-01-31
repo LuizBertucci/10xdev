@@ -5,6 +5,7 @@ import type { GithubRepoInfo } from '@/types/project'
 import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
+import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
 
 // ================================================
 // CONFIGURATION
@@ -93,6 +94,32 @@ const LAYER_PATTERNS: Record<string, RegExp> = {
   types: /\/(types?|interfaces?)\//i
 }
 
+/**
+ * Remove formatação Markdown de texto (negrito, itálico, links, etc)
+ */
+function cleanMarkdown(text: string): string {
+  if (!text) return text
+
+  return text
+    // Remove **negrito**
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Remove *itálico*
+    .replace(/\*([^*]+)\*/g, '$1')
+    // Remove __sublinhado__
+    .replace(/__([^_]+)__/g, '$1')
+    // Remove ~~riscado~~
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove `código inline`
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove # Headers (##, ###, etc) - apenas no início da linha
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove links [texto](url)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove bullet points (-, *, +) no início da linha
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .trim()
+}
+
 const LAYER_TO_SCREEN_NAME: Record<string, string> = {
   routes: 'Backend - Routes',
   controllers: 'Backend - Controller',
@@ -108,6 +135,129 @@ const LAYER_TO_SCREEN_NAME: Record<string, string> = {
   utils: 'Utils',
   types: 'Types',
   other: 'Other'
+}
+
+// Mapeamento semântico: feature → keywords que pertencem a ela
+const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
+  'auth': ['auth', 'login', 'logout', 'register', 'signup', 'signin', 'password', 'session', 'token', 'jwt', 'oauth', 'credential', 'authentication'],
+  'user': ['user', 'profile', 'account', 'avatar', 'preferences', 'member'],
+  'payment': ['payment', 'billing', 'checkout', 'stripe', 'invoice', 'subscription', 'pricing'],
+  'database': [
+    'supabase', 'database', 'db', 'prisma', 'drizzle', 'postgres', 'mysql', 'mongo', 'migration',
+    // Python/Django
+    'serializers', 'orm', 'querysets',
+    // Go
+    'repository', 'entity', 'gorm',
+    // Java/Spring
+    'jpa', 'hibernate',
+    // Rails
+    'activerecord'
+  ],
+  'n8n': ['n8n', 'workflow', 'automation', 'node', 'trigger', 'webhook', 'execution'],
+  'ai': ['ai', 'openai', 'gpt', 'llm', 'embedding', 'vector', 'langchain', 'claude', 'anthropic'],
+  'notification': ['notification', 'alert', 'toast', 'email', 'sms', 'push', 'mail', 'mailer', 'nodemailer'],
+  'card': ['card', 'cardfeature', 'feature'],
+  'project': ['project', 'projeto', 'import', 'github', 'repo', 'repository'],
+  'template': ['template'],
+  'content': ['content', 'conteudo', 'post', 'article'],
+  'admin': ['admin', 'dashboard', 'backoffice'],
+  'api': ['apiclient', 'httpclient', 'axios', 'fetch'],
+  'storage': ['storage', 'upload', 'file', 's3', 'bucket', 'blob'],
+  'middleware': [
+    // Node.js/Express
+    'middleware', 'cors', 'error', 'ratelimit', 'ratelimiter', 'limiter',
+    // Django/Flask
+    'decorators', 'beforerequest', 'afterrequest',
+    // Go
+    'interceptor',
+    // Java/Spring
+    'filter', 'aspect',
+    // Rails
+    'concern', 'rack'
+  ],
+  'routing': ['route', 'router', 'routing', 'protected', 'protectedroute', 'guard'],
+  'ui': ['button', 'input', 'select', 'dialog', 'modal', 'dropdown', 'tooltip', 'badge', 'avatar', 'table', 'form', 'checkbox', 'radio', 'switch', 'slider', 'collapsible', 'accordion', 'tabs', 'sheet', 'popover', 'scroll', 'separator', 'label', 'textarea', 'calendar', 'command', 'context', 'hover', 'menubar', 'navigation', 'progress', 'skeleton', 'sonner', 'toast', 'alert', 'drawer', 'aspectratio', 'breadcrumb', 'carousel', 'chart', 'combobox', 'datepicker', 'resizable', 'toggle', 'togglegroup', 'layout', 'loading', 'app', 'sidebar', 'appsidebar'],
+  'docs': ['readme', 'documentation', 'docs', 'guide', 'tutorial', 'changelog', 'contributing', 'license', 'roadmap', 'architecture', 'design'],
+  'skill': ['skill', 'skills'],
+  'utils': ['util', 'utils', 'helper', 'helpers', 'lib', 'libs', 'common', 'shared', 'constants', 'types'],
+  'config': ['config', 'configuration', 'settings', 'env', 'environment', 'setup', 'initialize', 'server'],
+  'test': ['test', 'tests', 'spec', 'testing', '__tests__', 'e2e', 'integration', 'unit', 'mock', 'fixture'],
+  'build': ['build', 'webpack', 'vite', 'rollup', 'esbuild', 'tsconfig', 'babel', 'eslint', 'prettier', 'lint', 'format'],
+  'style': ['css', 'scss', 'sass', 'less', 'style', 'styles', 'tailwind', 'theme', 'colors'],
+  'hook': ['hook', 'hooks'],
+  'controller': [
+    // Node.js/Express
+    'controller', 'endpoint',
+    // Python
+    'viewsets', 'apiview',
+    // Java/Spring
+    'restcontroller', 'requestmapping',
+    // Rails
+    'action'
+  ],
+  'service': [
+    // Node.js
+    'service', 'business', 'logic',
+    // Python
+    'usecase', 'interactor',
+    // Java/Spring
+    'serviceimpl', 'component'
+  ],
+  'validation': [
+    // Node.js
+    'validator', 'validation', 'schema', 'zod', 'yup',
+    // Python
+    'validators', 'forms', 'pydantic',
+    // Go
+    'validate',
+    // Java/Spring
+    'constraint',
+    // PHP/Laravel
+    'request', 'formrequest'
+  ],
+  'jobs': [
+    // Node.js
+    'worker', 'job', 'queue', 'bull', 'agenda',
+    // Python
+    'celery', 'tasks',
+    // Java
+    'scheduled', 'async', 'executor',
+    // Rails
+    'sidekiq', 'activejob', 'delayed'
+  ]
+}
+
+// Títulos amigáveis em português
+const FEATURE_TITLES: Record<string, string> = {
+  'auth': 'Autenticação',
+  'user': 'Usuários',
+  'payment': 'Pagamentos',
+  'database': 'Banco de Dados',
+  'n8n': 'Workflows n8n',
+  'ai': 'Inteligência Artificial',
+  'notification': 'Notificações',
+  'card': 'Cards',
+  'project': 'Projetos',
+  'template': 'Templates',
+  'content': 'Conteúdo',
+  'admin': 'Administração',
+  'api': 'Cliente de API',
+  'storage': 'Armazenamento',
+  'middleware': 'Middlewares',
+  'routing': 'Roteamento',
+  'ui': 'Componentes UI',
+  'docs': 'Documentação',
+  'skill': 'Skills n8n',
+  'utils': 'Utilitários',
+  'config': 'Configuração',
+  'test': 'Testes',
+  'build': 'Build & Tooling',
+  'style': 'Estilos',
+  'hook': 'Hooks Customizados',
+  'controller': 'Controllers',
+  'service': 'Serviços de Negócio',
+  'validation': 'Validações',
+  'jobs': 'Jobs e Tasks Assíncronas'
 }
 
 interface ParsedRepoInfo {
@@ -148,8 +298,28 @@ export class GithubService {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': '10xDev-App'
     }
-    if (token) headers.Authorization = `token ${token}`
+    if (token) headers.Authorization = `Bearer ${token}`
     return headers
+  }
+
+  // ================================================
+  // TOKEN VALIDATION
+  // ================================================
+
+  static async validateToken(token: string): Promise<boolean> {
+    if (!token) return false
+    try {
+      const response = await axios.get('https://api.github.com/user', {
+        headers: this.getHeaders(token),
+        timeout: 15000
+      })
+      return response.status === 200
+    } catch (error: any) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        return false
+      }
+      return false
+    }
   }
 
   // ================================================
@@ -175,16 +345,27 @@ export class GithubService {
         isPrivate: Boolean(response.data.private)
       }
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        throw new Error('Repositório não encontrado. Verifique a URL.')
+      const statusCode = error.response?.status
+      const message = error.response?.data?.message || error.message
+      
+      if (statusCode === 404) {
+        const err = new Error('Repositório não encontrado. Verifique a URL.') as any
+        err.statusCode = 404
+        throw err
       }
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      if (statusCode === 401 || statusCode === 403) {
         if (error.response?.headers?.['x-ratelimit-remaining'] === '0') {
-          throw new Error('Limite de requisições do GitHub atingido. Aguarde ou use um token.')
+          const err = new Error('Limite de requisições do GitHub atingido. Aguarde ou use um token.') as any
+          err.statusCode = 403
+          throw err
         }
-        throw new Error('Sem permissão. Se for privado, adicione um token de acesso.')
+        const err = new Error('Sem permissão. Se for privado, adicione um token de acesso.') as any
+        err.statusCode = statusCode
+        throw err
       }
-      throw new Error(`Erro ao acessar GitHub: ${error.message}`)
+      const err = new Error(`Erro ao acessar GitHub: ${message}`) as any
+      err.statusCode = statusCode || 500
+      throw err
     }
   }
 
@@ -214,7 +395,7 @@ export class GithubService {
     ]
 
     const headers: Record<string, string> = { 'User-Agent': '10xDev-App' }
-    if (token) headers.Authorization = `token ${token}`
+    if (token) headers.Authorization = `Bearer ${token}`
 
     for (const zipUrl of zipUrls) {
       try {
@@ -346,8 +527,102 @@ export class GithubService {
   }
 
   private static extractFeatureName(path: string): string {
+    const pathNormalized = path.toLowerCase()
+    const fileName = path.split('/').pop() || ''
+
+    // PRIORIDADE -1: Arquivos específicos de linguagens
+    // Python (Django/Flask)
+    if (fileName === 'models.py') return 'database'
+    if (fileName === 'views.py') return 'controller'
+    if (fileName === 'serializers.py') return 'database'
+    if (fileName === 'forms.py') return 'validation'
+    if (fileName === 'tasks.py' || fileName === 'celery.py') return 'jobs'
+    if (fileName === 'admin.py') return 'admin'
+    if (fileName === 'urls.py') return 'routing'
+
+    // Go
+    if (fileName.endsWith('_handler.go')) return 'controller'
+    if (fileName.endsWith('_service.go')) return 'service'
+    if (fileName.endsWith('_repository.go')) return 'database'
+    if (fileName.endsWith('_middleware.go')) return 'middleware'
+
+    // Java (Spring Boot)
+    if (fileName.endsWith('Controller.java')) return 'controller'
+    if (fileName.endsWith('Service.java')) return 'service'
+    if (fileName.endsWith('Repository.java')) return 'database'
+    if (fileName.endsWith('Entity.java')) return 'database'
+    if (fileName.endsWith('DTO.java')) return 'api'
+
+    // Ruby (Rails)
+    if (fileName.endsWith('_controller.rb')) return 'controller'
+    if (fileName.endsWith('_service.rb')) return 'service'
+    if (fileName.endsWith('_job.rb')) return 'jobs'
+    if (fileName.endsWith('_mailer.rb')) return 'notification'
+
+    // PRIORIDADE 0: Detecção por PATH específico
+    // Componentes UI
+    if (pathNormalized.includes('/components/ui/') || pathNormalized.includes('\\components\\ui\\')) {
+      return 'ui'
+    }
+
+    // Skills n8n
+    if (pathNormalized.includes('/skills/') || pathNormalized.includes('\\skills\\')) {
+      return 'skill'
+    }
+
+    // Documentação
+    if (pathNormalized.includes('/docs/') || pathNormalized.includes('\\docs\\')) {
+      return 'docs'
+    }
+    if (pathNormalized.match(/readme\.md|contributing\.md|changelog\.md|license\.md/i)) {
+      return 'docs'
+    }
+    // Qualquer arquivo .md é documentação
+    if (pathNormalized.endsWith('.md')) {
+      return 'docs'
+    }
+
+    // Utilitários
+    if (pathNormalized.includes('/utils/') || pathNormalized.includes('\\utils\\')) {
+      return 'utils'
+    }
+    if (pathNormalized.includes('/helpers/') || pathNormalized.includes('\\helpers\\')) {
+      return 'utils'
+    }
+
+    // Hooks customizados
+    if (pathNormalized.includes('/hooks/') || pathNormalized.includes('\\hooks\\')) {
+      return 'hook'
+    }
+
+    // Testes
+    if (pathNormalized.includes('/test') || pathNormalized.includes('\\test')) {
+      return 'test'
+    }
+    if (pathNormalized.match(/\.test\.|\.spec\.|__tests__|\.e2e\./)) {
+      return 'test'
+    }
+
+    // Configuração
+    if (pathNormalized.match(/\.config\.|tsconfig|webpack|vite\.config|babel\.config|eslint/)) {
+      return 'config'
+    }
+    // Arquivos de configuração comuns (multi-linguagem)
+    if (pathNormalized.match(/package\.json|requirements\.txt|go\.mod|go\.sum|pom\.xml|build\.gradle|composer\.json|gemfile|pyproject\.toml|setup\.py|application\.properties|\.env|dockerfile|docker-compose|\.dockerignore|\.gitignore|\.prettierrc|\.editorconfig/)) {
+      return 'config'
+    }
+    // Arquivos .json genéricos (exceto package.json já coberto acima)
+    if (pathNormalized.endsWith('.json') && !pathNormalized.includes('/node_modules/')) {
+      return 'config'
+    }
+
+    // Estilos
+    if (pathNormalized.match(/\.css$|\.scss$|\.sass$|\.less$|tailwind/)) {
+      return 'style'
+    }
+
     const parts = path.split('/')
-    const fileName = parts.pop() || ''
+    const fileNameFromParts = parts.pop() || ''
 
     // 1. Detectar estruturas como src/features/auth/ ou src/modules/payments/
     const featureDirs = ['features', 'modules', 'domains', 'apps']
@@ -361,7 +636,7 @@ export class GithubService {
     }
 
     // 2. Extrair do nome do arquivo
-    let baseName = fileName
+    let baseName = fileNameFromParts
       .replace(/\.(ts|tsx|js|jsx|py|java|go|rs|rb|php|vue|svelte)$/i, '')
       .replace(/\.(test|spec|stories|styles?|module)$/i, '')
       .replace(/^index$/i, '')
@@ -393,7 +668,8 @@ export class GithubService {
       baseName = baseName.substring(3)
     }
 
-    return this.normalizeFeatureName(baseName) || 'misc'
+    // 6. Normalizar e retornar (consolidateFeatures vai mapear semanticamente)
+    return this.normalizeFeatureName(baseName)
   }
 
   private static normalizeFeatureName(name: string): string {
@@ -402,6 +678,21 @@ export class GithubService {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '')
       .trim()
+  }
+
+  private static mapToSemanticFeature(name: string): string {
+    const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+    // Buscar em qual feature semântica esse nome se encaixa
+    for (const [feature, keywords] of Object.entries(FEATURE_SEMANTIC_MAP)) {
+      for (const keyword of keywords) {
+        if (normalized.includes(keyword)) {
+          return feature
+        }
+      }
+    }
+
+    return normalized || 'misc'
   }
 
   private static groupFilesByFeature(files: FileEntry[]): Map<string, FeatureFile[]> {
@@ -422,52 +713,129 @@ export class GithubService {
   }
 
   private static consolidateFeatures(groups: Map<string, FeatureFile[]>): Map<string, FeatureFile[]> {
-    const consolidated = new Map<string, FeatureFile[]>()
-    const MIN_FILES_FOR_FEATURE = 2
+    console.log('[GithubService] Consolidando features...')
+    console.log(`[GithubService] Grupos iniciais: ${groups.size}`)
 
-    const large = new Map<string, FeatureFile[]>()
-    const small: FeatureFile[] = []
+    // ==================================================
+    // PASSO 1: Mapear para features semânticas
+    // ==================================================
+    const semanticMap = new Map<string, string[]>() // semantic → [original names]
 
     for (const [name, files] of groups) {
-      const layers = new Set(files.map(f => f.layer))
-      const hasMultipleLayers = layers.size >= 2
-      const hasEnoughFiles = files.length >= MIN_FILES_FOR_FEATURE
-      if (hasMultipleLayers || hasEnoughFiles) large.set(name, files)
-      else small.push(...files)
-    }
+      const semantic = this.mapToSemanticFeature(name)
 
-    for (const [name, files] of large) consolidated.set(name, files)
-
-    if (small.length > 0) {
-      const byDir = new Map<string, FeatureFile[]>()
-      for (const file of small) {
-        const mainDir = file.path.split('/')[0] || 'root'
-        if (!byDir.has(mainDir)) byDir.set(mainDir, [])
-        byDir.get(mainDir)!.push(file)
+      if (!semanticMap.has(semantic)) {
+        semanticMap.set(semantic, [])
       }
-      for (const [dir, files] of byDir) consolidated.set(`${dir}-utils`, files)
+      semanticMap.get(semantic)!.push(name)
+
+      if (semantic !== name) {
+        console.log(`[GithubService] '${name}' → '${semantic}'`)
+      }
     }
 
-    return consolidated
+    // ==================================================
+    // PASSO 2: Consolidar TODAS features fragmentadas por semantic
+    // ==================================================
+    const consolidated = new Map<string, FeatureFile[]>()
+
+    for (const [semantic, originalNames] of semanticMap) {
+      const allFiles: FeatureFile[] = []
+
+      for (const origName of originalNames) {
+        const files = groups.get(origName)!
+        allFiles.push(...files)
+      }
+
+      consolidated.set(semantic, allFiles)
+
+      if (originalNames.length > 1) {
+        console.log(`[GithubService] Consolidado '${semantic}': ${originalNames.length} grupos → ${allFiles.length} arquivos`)
+      }
+    }
+
+    // ==================================================
+    // PASSO 3: Dividir features MUITO GRANDES inteligentemente
+    // ==================================================
+    const result = new Map<string, FeatureFile[]>()
+
+    for (const [semantic, files] of consolidated) {
+      // Sempre consolidar - deixar IA decidir se precisa dividir (>50 arquivos)
+      result.set(semantic, files)
+    }
+
+    console.log(`[GithubService] Features finais: ${result.size}`)
+
+    // Logar resultado
+    for (const [feature, files] of result) {
+      const layers = [...new Set(files.map(f => f.layer))]
+      console.log(`[GithubService] Feature '${feature}': ${files.length} arquivos [${layers.join(', ')}]`)
+    }
+
+    return result
+  }
+
+  /**
+   * Divide features muito grandes em sub-features coerentes
+   */
+  private static smartSplitLargeFeature(
+    semantic: string,
+    files: FeatureFile[]
+  ): Map<string, FeatureFile[]> {
+    const result = new Map<string, FeatureFile[]>()
+
+    // Agrupar por layer
+    const byLayer = new Map<string, FeatureFile[]>()
+    for (const file of files) {
+      if (!byLayer.has(file.layer)) byLayer.set(file.layer, [])
+      byLayer.get(file.layer)!.push(file)
+    }
+
+    const backendLayers = ['routes', 'controllers', 'services', 'models', 'middleware']
+    const frontendLayers = ['hooks', 'components', 'pages', 'stores']
+
+    const backendFiles: FeatureFile[] = []
+    const frontendFiles: FeatureFile[] = []
+    const otherFiles: FeatureFile[] = []
+
+    for (const [layer, layerFiles] of byLayer) {
+      if (backendLayers.includes(layer)) {
+        backendFiles.push(...layerFiles)
+      } else if (frontendLayers.includes(layer)) {
+        frontendFiles.push(...layerFiles)
+      } else {
+        otherFiles.push(...layerFiles)
+      }
+    }
+
+    // Dividir apenas se AMBOS backend e frontend são grandes
+    if (backendFiles.length > 15 && frontendFiles.length > 15) {
+      result.set(`${semantic}-backend`, backendFiles)
+      result.set(`${semantic}-frontend`, frontendFiles)
+      if (otherFiles.length > 0) {
+        result.set(`${semantic}-shared`, otherFiles)
+      }
+      console.log(`[GithubService] Split '${semantic}': backend (${backendFiles.length}), frontend (${frontendFiles.length})`)
+    } else {
+      // Não dividir - manter junto
+      result.set(semantic, files)
+    }
+
+    return result
   }
 
   private static generateFeatureTitle(featureName: string, files: FeatureFile[]): string {
-    // Capitalizar corretamente (camelCase -> palavras)
-    const cap = featureName
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .split(/[\s_-]+/)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ')
-
     const layers = new Set(files.map(f => f.layer))
     const hasBackend = ['routes', 'controllers', 'services', 'models'].some(l => layers.has(l))
     const hasFrontend = ['hooks', 'components', 'pages', 'stores'].some(l => layers.has(l))
 
-    // Prefixos mais específicos
-    if (hasBackend && hasFrontend) return `Sistema de ${cap}`
-    if (hasBackend) return `API de ${cap}`
-    if (hasFrontend) return `Interface de ${cap}`
-    return cap
+    // Usar título amigável da constante FEATURE_TITLES
+    const title = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
+
+    if (hasBackend && hasFrontend) return `Sistema de ${title}`
+    if (hasBackend) return `API de ${title}`
+    if (hasFrontend) return `Interface de ${title}`
+    return title
   }
 
   private static generateFeatureDescription(featureName: string, files: FeatureFile[]): string {
@@ -520,15 +888,91 @@ export class GithubService {
   }
 
   // ================================================
-  // MAIN PROCESSING
+  // AUTO-TAGGING
   // ================================================
 
-  static async processRepoToCards(
+  /**
+   * Mapeamento de categorias para tags automáticas
+   */
+  private static readonly CATEGORY_TO_TAGS: Record<string, string[]> = {
+    'Componentes UI': ['ui', 'componentes', 'interface', 'frontend'],
+    'Hooks Customizados': ['hooks', 'react', 'frontend', 'custom'],
+    'Documentação': ['docs', 'documentação', 'guias', 'readme'],
+    'Skills n8n': ['n8n', 'workflow', 'automation', 'skills'],
+    'Utilitários': ['utils', 'helpers', 'utilities', 'ferramentas'],
+    'Configurações': ['config', 'setup', 'settings', 'configuração'],
+    'Testes': ['test', 'testing', 'qa', 'quality'],
+    'Build & Tooling': ['build', 'webpack', 'bundler', 'tooling'],
+    'Estilos': ['css', 'styles', 'theme', 'design'],
+    'Templates': ['template', 'starter', 'boilerplate'],
+    'Middlewares': ['middleware', 'backend', 'server'],
+    'Roteamento': ['routing', 'routes', 'navigation', 'guard'],
+    'Modelos de Dados': ['model', 'database', 'schema', 'data'],
+    'Integrações': ['integration', 'api', 'third-party'],
+    'Cliente de API': ['api', 'client', 'http', 'rest']
+  }
+
+  /**
+   * Gera tags automáticas baseadas na categoria e tech
+   */
+  private static generateAutoTags(category: string, featureName: string, tech: string): string[] {
+    const tags: string[] = []
+
+    // 1. Tags da categoria
+    const categoryTags = this.CATEGORY_TO_TAGS[category] || []
+    tags.push(...categoryTags)
+
+    // 2. Tag da feature name (limpa)
+    if (featureName && featureName !== 'misc') {
+      tags.push(featureName.toLowerCase())
+    }
+
+    // 3. Tag da tech
+    if (tech && tech !== 'Geral') {
+      tags.push(tech.toLowerCase().replace(/\./g, ''))
+    }
+
+    // 4. Remover duplicatas e limpar
+    return [...new Set(tags)].filter(t => t.length > 2)
+   }
+
+   // ================================================
+   // ESTIMATIVA DE CARDS
+   // ================================================
+
+   private static estimateCardsCount(featureGroups: [string, FeatureFile[]][]): number {
+     // Heurística 1: 1 card por feature (mínimo)
+     const byFeature = featureGroups.length
+
+     // Heurística 2: 1 card por 5 arquivos
+     const totalFiles = featureGroups.reduce(
+       (sum, [_, files]) => sum + files.length,
+       0
+     )
+     const byFiles = Math.ceil(totalFiles / 5)
+
+     // Heurística 3: 1 card por 50KB
+     const totalSize = featureGroups.reduce(
+       (sum, [_, files]) =>
+         sum + files.reduce((s, f) => s + f.size, 0),
+       0
+     )
+     const bySize = Math.ceil(totalSize / (50 * 1024))
+
+     // Usar máximo das heurísticas, com mínimo de 10
+     return Math.max(byFeature, byFiles, bySize, 10)
+   }
+
+   // ================================================
+   // MAIN PROCESSING
+   // ================================================
+
+   static async processRepoToCards(
     url: string,
     token?: string,
     options?: {
       useAi?: boolean
-      onProgress?: (update: { step: string; progress?: number; message?: string }) => void
+      onProgress?: (update: { step: string; progress?: number; message?: string; cardEstimate?: number; cardCount?: number }) => void
       onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
     }
   ): Promise<{ cards: CreateCardFeatureRequest[]; filesProcessed: number; aiUsed: boolean; aiCardsCreated: number }> {
@@ -563,25 +1007,31 @@ export class GithubService {
       willUseAi: useAi
     })
 
-    const cards: CreateCardFeatureRequest[] = []
+    let cards: CreateCardFeatureRequest[] = []
     let filesProcessed = 0
     let aiCardsCreated = 0
 
-    const featureGroupsArray = Array.from(featureGroups.entries())
-    const totalFeatures = featureGroupsArray.length
-    let featureIndex = 0
+     const featureGroupsArray = Array.from(featureGroups.entries())
+     const totalFeatures = featureGroupsArray.length
+     
+     // Estimar quantidade de cards que serão criados
+     const estimatedCards = this.estimateCardsCount(featureGroupsArray)
+     console.log('[GithubService] Estimativa de cards:', estimatedCards)
+     
+     let featureIndex = 0
 
-    for (const [featureName, featureFiles] of featureGroupsArray) {
+     for (const [featureName, featureFiles] of featureGroupsArray) {
       featureIndex++
       const featureProgress = 55 + Math.floor((featureIndex / totalFeatures) * 15) // 55-70%
 
       // --- AI path (best-effort) ---
-      if (useAi) {
-        options?.onProgress?.({
-          step: 'generating_cards',
-          progress: featureProgress,
-          message: `🤖 IA analisando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`
-        })
+       if (useAi) {
+         options?.onProgress?.({
+           step: 'generating_cards',
+           progress: featureProgress,
+           message: `🤖 IA analisando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`,
+           cardEstimate: estimatedCards
+         })
         try {
           const mode = AiCardGroupingService.mode()
           const fileMetas = featureFiles.map(f => ({
@@ -603,11 +1053,12 @@ export class GithubService {
 
           console.log('[GithubService] IA retornou', ai.cards.length, 'cards para', featureName)
 
-          options?.onProgress?.({
-            step: 'generating_cards',
-            progress: featureProgress,
-            message: `✅ IA criou ${ai.cards.length} card(s) para "${featureName}" [${featureIndex}/${totalFeatures}]`
-          })
+           options?.onProgress?.({
+             step: 'generating_cards',
+             progress: featureProgress,
+             message: `✅ IA criou ${ai.cards.length} card(s) para "${featureName}" [${featureIndex}/${totalFeatures}]`,
+             cardEstimate: estimatedCards
+           })
 
           for (const aiCard of ai.cards) {
             const screens: CardFeatureScreen[] = []
@@ -631,16 +1082,19 @@ export class GithubService {
                 filesProcessed++
               }
               if (blocks.length === 0) continue
-              screens.push({ name: s.name, description: '', route: s.files[0] || '', blocks })
+              screens.push({ name: s.name, description: cleanMarkdown(s.description || ''), route: s.files[0] || '', blocks })
             }
             if (screens.length === 0) continue
+            const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
             const newCard: CreateCardFeatureRequest = {
-              title: aiCard.title,
-              description: aiCard.description || this.generateFeatureDescription(featureName, featureFiles),
+              title: cleanMarkdown(aiCard.title),
+              description: cleanMarkdown(aiCard.description || this.generateFeatureDescription(featureName, featureFiles)),
               tech: aiCard.tech || tech,
               language: aiCard.language || mainLanguage,
               content_type: ContentType.CODE,
               card_type: CardType.CODIGOS,
+              category,
+              tags: this.generateAutoTags(category, featureName, tech),
               visibility: Visibility.UNLISTED,
               screens
             }
@@ -661,22 +1115,24 @@ export class GithubService {
           if (ai.cards.length > 0) continue
         } catch (featureErr: any) {
           console.error('[GithubService] Erro IA em feature:', featureName, '-', featureErr?.message)
-          options?.onProgress?.({
-            step: 'generating_cards',
-            progress: featureProgress,
-            message: `⚠️ IA falhou em "${featureName}", usando heurística [${featureIndex}/${totalFeatures}]`
-          })
+           options?.onProgress?.({
+             step: 'generating_cards',
+             progress: featureProgress,
+             message: `⚠️ IA falhou em "${featureName}", usando heurística [${featureIndex}/${totalFeatures}]`,
+             cardEstimate: estimatedCards
+           })
           // fallback to heuristic
         }
       }
 
       // --- Heuristic path ---
       if (!useAi) {
-        options?.onProgress?.({
-          step: 'generating_cards',
-          progress: featureProgress,
-          message: `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`
-        })
+         options?.onProgress?.({
+           step: 'generating_cards',
+           progress: featureProgress,
+           message: `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`,
+           cardEstimate: estimatedCards
+         })
       }
       const filesByLayer = new Map<string, FeatureFile[]>()
       for (const file of featureFiles) {
@@ -721,6 +1177,7 @@ export class GithubService {
 
       if (!screens.length) continue
 
+      const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
       const heuristicCard: CreateCardFeatureRequest = {
         title: this.generateFeatureTitle(featureName, featureFiles),
         tech,
@@ -728,6 +1185,8 @@ export class GithubService {
         description: this.generateFeatureDescription(featureName, featureFiles),
         content_type: ContentType.CODE,
         card_type: CardType.CODIGOS,
+        category,
+        tags: this.generateAutoTags(category, featureName, tech),
         visibility: Visibility.UNLISTED,
         screens
       }
@@ -752,8 +1211,57 @@ export class GithubService {
     options?.onProgress?.({
       step: 'generating_cards',
       progress: 70,
-      message: `${aiSummary} (${filesProcessed} arquivos)`
+      message: `${aiSummary} (${filesProcessed} arquivos)`,
+      cardEstimate: estimatedCards,
+      cardCount: cards.length
     })
+
+    // Supervisor de qualidade
+    options?.onProgress?.({
+      step: 'quality_check',
+      progress: 80,
+      message: '🔍 Supervisor de qualidade analisando cards...',
+      cardEstimate: estimatedCards,
+      cardCount: cards.length
+    })
+
+    console.log('\n[GithubService] Executando supervisor de qualidade...')
+    const qualityReport = CardQualitySupervisor.analyzeQuality(cards)
+
+    if (qualityReport.issuesFound > 0) {
+      console.log(`[GithubService] Supervisor detectou ${qualityReport.issuesFound} issue(s) de qualidade`)
+
+       options?.onProgress?.({
+         step: 'quality_corrections',
+         progress: 85,
+         message: '🔧 Aplicando correções automáticas...',
+         cardEstimate: estimatedCards,
+         cardCount: cards.length
+       })
+
+      const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
+      cards = corrections.correctedCards
+
+      console.log(`[GithubService] Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`)
+      console.log(`[GithubService] Cards finais após correções: ${cards.length}`)
+
+       options?.onProgress?.({
+         step: 'quality_corrections',
+         progress: 90,
+         message: `✅ Correções aplicadas: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`,
+         cardEstimate: estimatedCards,
+         cardCount: cards.length
+       })
+    } else {
+      console.log('[GithubService] Supervisor: qualidade OK, nenhum problema detectado')
+       options?.onProgress?.({
+         step: 'quality_check',
+         progress: 90,
+         message: '✅ Supervisor: qualidade OK',
+         cardEstimate: estimatedCards,
+         cardCount: cards.length
+       })
+    }
 
     return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
   }

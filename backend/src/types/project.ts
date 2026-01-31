@@ -222,3 +222,16 @@ export interface ImportFromGithubResponse {
   project: ProjectResponse
   jobId: string
 }
+
+// ================================================
+// GITHUB TOKEN VALIDATION
+// ================================================
+
+export interface ValidateGithubTokenRequest {
+  token: string
+}
+
+export interface ValidateGithubTokenResponse {
+  valid: boolean
+  message?: string
+}

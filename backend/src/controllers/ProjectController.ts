@@ -14,12 +14,37 @@ import {
   type ProjectQueryParams,
   type AddProjectMemberRequest,
   type UpdateProjectMemberRequest,
-  type ShareProjectRequest
+  type ShareProjectRequest,
+  type ValidateGithubTokenRequest,
+  type ValidateGithubTokenResponse
 } from '@/types/project'
 
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
 
 export class ProjectController {
+
+  // ================================================
+  // GITHUB - POST /api/projects/validate-token
+  // ================================================
+
+  static async validateGithubToken(req: Request, res: Response): Promise<void> {
+    try {
+      const { token }: ValidateGithubTokenRequest = req.body
+      if (!token) {
+        res.status(400).json({ success: false, error: 'Token é obrigatório' })
+        return
+      }
+
+      const result = await GithubService.validateToken(token)
+      const response: ValidateGithubTokenResponse = {
+        valid: result,
+        message: result ? 'Token válido' : 'Token inválido ou expirado'
+      }
+      res.status(200).json({ success: true, data: response })
+    } catch (error: any) {
+      res.status(400).json({ success: false, error: error?.message || 'Erro ao validar token' })
+    }
+  }
 
   // ================================================
   // GITHUB - POST /api/projects/github-info
@@ -41,7 +66,23 @@ export class ProjectController {
       const info = await GithubService.getRepoDetails(url, token)
       res.status(200).json({ success: true, data: info })
     } catch (error: any) {
-      res.status(400).json({ success: false, error: error?.message || 'Erro ao buscar informações do repositório' })
+      // Propagar status codes de autenticação/permissão do GitHub (401, 403, 404)
+      // para que o frontend possa detectar repositórios privados
+      const statusCode = error?.statusCode
+      const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
+      
+      if (isAuthError) {
+        res.status(statusCode).json({ 
+          success: false, 
+          error: error?.message || 'Erro ao buscar informações do repositório',
+          statusCode: statusCode 
+        })
+      } else {
+        res.status(statusCode || 400).json({ 
+          success: false, 
+          error: error?.message || 'Erro ao buscar informações do repositório' 
+        })
+      }
     }
   }
 
@@ -106,53 +147,109 @@ export class ProjectController {
         message: 'Importação iniciada.'
       })
 
-      // 4) Background processing
-      setImmediate(async () => {
-        const updateJob = async (patch: {
-          status?: 'running' | 'done' | 'error'
-          step?: ImportJobStep
-          progress?: number
-          message?: string | null
-          error?: string | null
-          filesProcessed?: number
-          cardsCreated?: number
-          aiUsed?: boolean
-          aiCardsCreated?: number
-        }) => {
-          await ImportJobModel.update(job.id, {
-            ...(patch.status ? { status: patch.status } : {}),
-            ...(patch.step ? { step: patch.step } : {}),
-            ...(typeof patch.progress === 'number' ? { progress: patch.progress } : {}),
-            ...(patch.message !== undefined ? { message: patch.message } : {}),
-            ...(patch.error !== undefined ? { error: patch.error } : {}),
-            ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed } : {}),
-            ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated } : {}),
-            ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed } : {}),
-            ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated } : {})
-          })
-        }
+       // 4) Background processing
+        setImmediate(async () => {
+           let lastProgress = 0
+           let totalCardsCreated = 0
+           let totalFilesProcessed = 0
+           let estimatedCards = 50  // fallback padrão
+           let isProcessing = true
+           let processingStartTime = Date.now()
+           let lastTimerProgress = 5
+           let progressInterval: NodeJS.Timeout | null = null
 
-        try {
-          await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
+          const updateJob = async (patch: {
+            status?: 'running' | 'done' | 'error'
+            step?: ImportJobStep
+            progress?: number
+            message?: string | null
+            error?: string | null
+            filesProcessed?: number
+            cardsCreated?: number
+            aiUsed?: boolean
+            aiCardsCreated?: number
+          }) => {
+            // Garantir progresso monotônico (nunca decresce)
+            if (typeof patch.progress === 'number') {
+              patch.progress = Math.max(lastProgress, patch.progress)
+              lastProgress = patch.progress
+            }
 
-          let totalCardsCreated = 0
-          let totalFilesProcessed = 0
+            await ImportJobModel.update(job.id, {
+              ...(patch.status ? { status: patch.status } : {}),
+              ...(patch.step ? { step: patch.step } : {}),
+              ...(typeof patch.progress === 'number' ? { progress: patch.progress } : {}),
+              ...(patch.message !== undefined ? { message: patch.message } : {}),
+              ...(patch.error !== undefined ? { error: patch.error } : {}),
+              ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed } : {}),
+              ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated } : {}),
+              ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed } : {}),
+              ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated } : {})
+            })
+          }
 
-          const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-            url,
-            token,
-            {
-              useAi: useAi === true,
-              onProgress: async (p) => {
+          try {
+            await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
+
+             // Timer para atualizar progresso continuamente em tempo real
+             progressInterval = setInterval(async () => {
+               if (!isProcessing) {
+                 if (progressInterval) clearInterval(progressInterval)
+                 return
+               }
+
+              const elapsedSeconds = (Date.now() - processingStartTime) / 1000
+              let timerProgress = lastTimerProgress
+
+              // Se ainda não temos estimativa, incrementar lentamente (5-20%)
+              if (estimatedCards <= 50) {
+                timerProgress = Math.min(20, 5 + elapsedSeconds * 1)
+              } else if (totalCardsCreated === 0) {
+                // Se temos estimativa mas nenhum card ainda, incrementar para 30%
+                timerProgress = Math.min(30, lastTimerProgress + elapsedSeconds * 0.5)
+              } else {
+                // Se temos cards, usar progresso baseado em criados
+                const createdRatio = estimatedCards > 0
+                  ? totalCardsCreated / estimatedCards
+                  : 0
+                timerProgress = Math.min(98, 30 + createdRatio * 65)
+              }
+
+              lastTimerProgress = timerProgress
+
+              // Só atualizar se aumentou (monotônico)
+              if (timerProgress > lastProgress) {
                 await updateJob({
-                  step: p.step as ImportJobStep,
-                  progress: p.progress ?? 0,
-                  message: p.message ?? null,
+                  step: 'creating_cards',
+                  progress: Math.floor(timerProgress),
+                  message: `Criando cards... (${totalCardsCreated}/${estimatedCards})`,
                   cardsCreated: totalCardsCreated,
                   filesProcessed: totalFilesProcessed
                 })
-              },
-              onCardReady: async (card) => {
+              }
+            }, 100) // Atualizar a cada 100ms (10x por segundo)
+
+            const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
+              url,
+              token,
+              {
+                useAi: useAi === true,
+                onProgress: async (p) => {
+                  // Armazenar estimativa quando recebida
+                  if (p.cardEstimate) {
+                    estimatedCards = p.cardEstimate
+                    processingStartTime = Date.now()  // Reset timer quando recebe estimativa
+                  }
+
+                  await updateJob({
+                    step: p.step as ImportJobStep,
+                    progress: p.progress ?? 0,
+                    message: p.message ?? null,
+                    cardsCreated: totalCardsCreated,
+                    filesProcessed: totalFilesProcessed
+                  })
+                },
+               onCardReady: async (card) => {
                 // Create card immediately after AI processes it
                 const normalizedCard = {
                   ...card,
@@ -178,43 +275,44 @@ export class ProjectController {
                   return sum + (s.blocks?.length || 0)
                 }, 0) || 0
                 totalFilesProcessed += filesInCard
-                
-                await updateJob({
-                  step: 'creating_cards',
-                  progress: 70 + Math.min(25, Math.floor((totalCardsCreated / 100) * 25)), // Estimate based on typical 50-100 cards
-                  message: `Criando cards... (${totalCardsCreated} criados)`,
-                  cardsCreated: totalCardsCreated,
-                  filesProcessed: totalFilesProcessed
-                })
-              }
+                // Progresso é atualizado pelo timer a cada 100ms em tempo real
+               }
             }
           )
 
           // All cards should have been created via onCardReady callback
           // This is just a safety check
-          if (totalCardsCreated === 0 && cards.length === 0) {
-            await updateJob({
-              status: 'error',
-              step: 'error',
-              progress: 100,
-              message: 'Nenhum arquivo de código encontrado.',
-              error: 'Nenhum arquivo de código encontrado.'
-            })
-            return
-          }
+           if (totalCardsCreated === 0 && cards.length === 0) {
+             isProcessing = false
+             clearInterval(progressInterval)
+             await updateJob({
+               status: 'error',
+               step: 'error',
+               progress: 100,
+               message: 'Nenhum arquivo de código encontrado.',
+               error: 'Nenhum arquivo de código encontrado.'
+             })
+             return
+           }
 
-          await updateJob({ step: 'linking_cards', progress: 98, message: 'Finalizando...' })
-          await updateJob({ 
-            status: 'done', 
-            step: 'done', 
-            progress: 100, 
-            message: 'Importação concluída.',
-            cardsCreated: totalCardsCreated || cards.length,
-            filesProcessed: totalFilesProcessed || filesProcessed,
-            aiUsed,
-            aiCardsCreated
-          })
-        } catch (e: any) {
+           // Parar o timer de progresso contínuo
+           isProcessing = false
+           clearInterval(progressInterval)
+
+           await updateJob({ step: 'linking_cards', progress: 95, message: 'Finalizando...' })
+           await updateJob({ 
+             status: 'done', 
+             step: 'done', 
+             progress: 100, 
+             message: 'Importação concluída.',
+             cardsCreated: totalCardsCreated || cards.length,
+             filesProcessed: totalFilesProcessed || filesProcessed,
+             aiUsed,
+             aiCardsCreated
+           })
+          } catch (e: any) {
+            isProcessing = false
+            if (progressInterval) clearInterval(progressInterval)
           await ImportJobModel.update(job.id, {
             status: 'error',
             step: 'error',

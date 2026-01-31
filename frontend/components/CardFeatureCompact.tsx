@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,7 +14,7 @@ import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
 import type { CardFeature as CardFeatureType } from "@/types"
-import { ContentType, Visibility } from "@/types"
+import { ContentType, Visibility, CardType } from "@/types"
 
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
@@ -24,9 +25,11 @@ interface CardFeatureCompactProps {
   isSelectionMode?: boolean
   isSelected?: boolean
   onToggleSelect?: (id: string) => void
+  expandOnClick?: boolean
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
+  const router = useRouter()
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -112,13 +115,21 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
   }
 
-  // Função para lidar com cliques no card (mobile)
+  // Função para lidar com cliques no card
   const handleCardClick = (e: React.MouseEvent) => {
-    // Previne o toggle se clicou em um botão (desktop)
+    // Previne a navegação se clicou em um botão
     if ((e.target as HTMLElement).closest('button')) {
       return
     }
-    toggleExpanded()
+
+    if (expandOnClick) {
+      toggleExpanded()
+      return
+    }
+
+    // Navegar para view de detalhe baseado no tipo de card
+    const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
+    router.push(`/?tab=${tab}&id=${snippet.id}`)
   }
 
   // Screen ativa baseada na tab selecionada
@@ -171,8 +182,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
   return (
     <TooltipProvider>
-      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
-        <CardContent className="p-3 md:p-4">
+      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full min-w-0 overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
+        <CardContent className="p-3 md:p-4 min-w-0">
           {/* Layout Unificado - Vertical para mobile e desktop */}
           <div
             className="cursor-pointer active:bg-gray-50 rounded-lg transition-colors"
@@ -226,7 +237,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 )}
               </div>
 
-              {/* Descrição (opcional) */}
+              {/* Descrição do card (opcional) */}
               {snippet.description && (
                 <p className="text-sm text-gray-600 line-clamp-2">{snippet.description}</p>
               )}
@@ -372,7 +383,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           
           {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden">
+            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden min-w-0">
               {/* Sistema de Tabs */}
               <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden">
                 <style>{`
@@ -441,10 +452,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   }
                 `}</style>
 
-                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
+                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full compact-content"
+                    className="h-full compact-content w-full"
                   />
                 </div>
               </div>

@@ -119,6 +119,14 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
           )
         })()}
 
+        {/* Descrição do card (Sobre este card) — no ambiente das screens */}
+        {cardFeature.description && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h3 className="font-semibold text-gray-900 mb-2 text-sm">Sobre este card</h3>
+            <p className="text-gray-700 text-sm whitespace-pre-wrap">{cardFeature.description}</p>
+          </div>
+        )}
+
         {/* Renderizar screens/blocos */}
         {cardFeature.screens.map((screen, screenIndex) => (
           <div key={screenIndex} className="bg-white rounded-lg shadow-sm border p-6">
@@ -132,14 +140,7 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
 
         {/* Metadata */}
         <div className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
-          {cardFeature.description && (
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm">Descrição</h3>
-              <p className="text-gray-700 text-sm whitespace-pre-wrap">{cardFeature.description}</p>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 pt-3 border-t">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3" />
               {formatDate(cardFeature.createdAt)}

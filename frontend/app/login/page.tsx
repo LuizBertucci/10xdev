@@ -78,12 +78,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Coluna Esquerda - Branding */}
-      <div className="hidden lg:flex lg:w-[40%] bg-gradient-to-br from-purple-600 via-purple-700 to-blue-800 flex-col items-center justify-center p-12 text-white">
+      <div className="hidden lg:flex lg:w-[40%] bg-gradient-to-br from-cyan-600 via-cyan-700 to-blue-800 flex-col items-center justify-center p-12 text-white">
         <div className="max-w-md space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
             <img
-              src="/brand/10xDev-logo-fundo-preto.png"
+              src="/brand/10xdev-logo-sem-fundo.png"
               alt="10xDev"
               className="h-20 w-auto rounded-md shadow-sm"
             />
@@ -128,8 +128,8 @@ export default function LoginPage() {
             {/* Header */}
             <div className="space-y-2">
               <h2 className="text-3xl font-bold text-gray-900">Entrar na sua conta</h2>
-              <p className="text-sm text-purple-600">
-                <Link href="/register" className="hover:underline">
+              <p className="text-sm text-cyan-600">
+                <Link href="/register" className="hover:underline hover:text-cyan-500">
                   Ou crie uma nova conta
                 </Link>
               </p>
