@@ -298,7 +298,7 @@ export class GithubService {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': '10xDev-App'
     }
-    if (token) headers.Authorization = `Bearer ${token}`
+    if (token) headers.Authorization = `token ${token}`
     return headers
   }
 
