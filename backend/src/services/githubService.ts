@@ -395,7 +395,7 @@ export class GithubService {
     ]
 
     const headers: Record<string, string> = { 'User-Agent': '10xDev-App' }
-    if (token) headers.Authorization = `Bearer ${token}`
+    if (token) headers.Authorization = `token ${token}`
 
     for (const zipUrl of zipUrls) {
       try {
