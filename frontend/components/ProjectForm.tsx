@@ -15,11 +15,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Github, Loader2, Plus, Search } from "lucide-react"
+import { Github, Loader2, Plus, Search, ExternalLink, AlertCircle, CheckCircle } from "lucide-react"
 import { projectService, type GithubRepoInfo, type User } from "@/services"
 import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
 import { IMPORT_JOB_LS_KEY } from "@/lib/importJobUtils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const IMPORT_INSTRUCTIONS = [
   'Você é um arquiteto de software especializado em organizar código.',
@@ -76,6 +84,10 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   const [githubRepoInfo, setGithubRepoInfo] = useState<GithubRepoInfo | null>(null)
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
   const [importInstructions, setImportInstructions] = useState(IMPORT_INSTRUCTIONS)
+  const [showLoginWarning, setShowLoginWarning] = useState(false)
+  const [validatingToken, setValidatingToken] = useState(false)
+  const [tokenStatus, setTokenStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle')
+  const [tempTokenFromSession, setTempTokenFromSession] = useState<string>("")
   const hasGithubUrl = githubUrl.trim().length > 0
 
   useEffect(() => {
@@ -125,6 +137,46 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       resetForm()
     }
   }
+
+  // Capturar token temporário do sessionStorage quando abrir o dialog
+  useEffect(() => {
+    if (open) {
+      try {
+        const tempToken = sessionStorage.getItem('github_token_temp')
+        if (tempToken) {
+          setGithubToken(tempToken)
+          setTempTokenFromSession(tempToken)
+          sessionStorage.removeItem('github_token_temp')
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [open])
+
+  // Validar token em tempo real (com debounce)
+  useEffect(() => {
+    if (!githubToken.trim()) {
+      setTokenStatus('idle')
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setTokenStatus('checking')
+      try {
+        const response = await projectService.validateGithubToken(githubToken)
+        if (response?.success && response.data?.valid) {
+          setTokenStatus('valid')
+        } else {
+          setTokenStatus('invalid')
+        }
+      } catch {
+        setTokenStatus('invalid')
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [githubToken])
 
   // Auto buscar info do repo quando colar URL válida
   useEffect(() => {
@@ -212,9 +264,40 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     }
   }
 
+  const handleGenerateGithubToken = () => {
+    if (!githubUrl.trim()) {
+      toast.error("Cole a URL do repositório primeiro")
+      return
+    }
+    
+    // Salvar URL do repo em sessionStorage antes de redirecionar
+    try {
+      sessionStorage.setItem('pending_github_import_url', githubUrl)
+    } catch {
+      // ignore storage errors
+    }
+
+    // Redirecionar para GitHub para gerar token
+    const tokenUrl = new URL('https://github.com/settings/tokens/new')
+    tokenUrl.searchParams.set('scopes', 'repo')
+    tokenUrl.searchParams.set('description', '10xDev - Importação de Projetos')
+    
+    // Usar redirect para página de callback
+    window.location.href = `/import-github-token?token={token}&redirect=${encodeURIComponent(tokenUrl.toString())}`
+    
+    // Na verdade, vamos direto para o GitHub e deixar o callback ser acionado
+    window.location.href = tokenUrl.toString()
+  }
+
   const handleImportFromGithub = async () => {
     if (!githubUrl.trim()) { toast.error("URL do GitHub é obrigatória"); return }
     if (!newProjectName.trim()) { toast.error("Nome do projeto é obrigatório"); return }
+
+    // Se repo é privado e não tem token, oferecer gerar
+    if (githubRepoInfo?.isPrivate && !githubToken) {
+      setShowLoginWarning(true)
+      return
+    }
 
     try {
       setImportingGithub(true)
@@ -318,11 +401,66 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                           </Button>
                         </div>
                       </div>
-                      <div>
-                        <Label htmlFor="github-token" className="block text-xs font-medium text-gray-600 mb-1.5">Token de Acesso (opcional)</Label>
-                        <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} placeholder="ghp_xxxxxxxxxxxx" className="h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" autoComplete="new-password" />
-                        <p className="text-xs text-gray-500 mt-2">Necessário apenas para repositórios privados</p>
-                      </div>
+                       {githubRepoInfo?.isPrivate && !githubToken && (
+                         <div className="rounded-lg border border-yellow-200 bg-yellow-50/40 p-3 space-y-2">
+                           <div className="flex items-start gap-2">
+                             <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                             <div className="flex-1">
+                               <p className="text-sm font-medium text-yellow-900">Repositório Privado 🔒</p>
+                               <p className="text-xs text-yellow-800 mt-1">Precisamos de um token para acessar este repositório.</p>
+                             </div>
+                           </div>
+                           <div className="space-y-2 pt-2">
+                             <Button
+                               onClick={handleGenerateGithubToken}
+                               className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+                             >
+                               <ExternalLink className="h-4 w-4 mr-2" />
+                               Gerar Token no GitHub →
+                             </Button>
+                             <p className="text-xs text-yellow-700 text-center">
+                               Você será levado para o GitHub, gera o token, e voltará automaticamente.
+                             </p>
+                           </div>
+                         </div>
+                       )}
+
+                       <div>
+                         <Label htmlFor="github-token" className="block text-xs font-medium text-gray-600 mb-1.5">
+                           {githubToken ? "Token de Acesso ✓" : "Token de Acesso (opcional)"}
+                         </Label>
+                         <div className="relative">
+                           <Input
+                             id="github-token"
+                             type="password"
+                             value={githubToken}
+                             onChange={(e) => setGithubToken(e.target.value)}
+                             placeholder="ghp_xxxxxxxxxxxx"
+                             className={`h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm pr-10 ${
+                               tokenStatus === 'valid' ? 'border-green-500' : tokenStatus === 'invalid' ? 'border-red-500' : ''
+                             }`}
+                             autoComplete="new-password"
+                           />
+                           {tokenStatus === 'checking' && (
+                             <Loader2 className="h-4 w-4 text-gray-400 animate-spin absolute right-3 top-2.5" />
+                           )}
+                           {tokenStatus === 'valid' && (
+                             <CheckCircle className="h-4 w-4 text-green-600 absolute right-3 top-2.5" />
+                           )}
+                           {tokenStatus === 'invalid' && (
+                             <AlertCircle className="h-4 w-4 text-red-600 absolute right-3 top-2.5" />
+                           )}
+                         </div>
+                         {tokenStatus === 'valid' && (
+                           <p className="text-xs text-green-600 mt-1">✅ Token válido</p>
+                         )}
+                         {tokenStatus === 'invalid' && (
+                           <p className="text-xs text-red-600 mt-1">❌ Token inválido ou expirado</p>
+                         )}
+                         {!githubToken && (
+                           <p className="text-xs text-gray-500 mt-1">Necessário apenas para repositórios privados</p>
+                         )}
+                       </div>
                       <div>
                         <Label htmlFor="import-project-name" className="block text-xs font-medium text-gray-600 mb-1.5">Nome do Projeto *</Label>
                         <Input id="import-project-name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Ex: E-commerce Completo" className="h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" />
@@ -392,8 +530,43 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
               </>
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
+         </DialogFooter>
+       </DialogContent>
+
+       {/* AlertDialog para avisar sobre repo privado */}
+       <AlertDialog open={showLoginWarning} onOpenChange={setShowLoginWarning}>
+         <AlertDialogContent>
+           <AlertDialogTitle>🔒 Repositório Privado</AlertDialogTitle>
+           <AlertDialogDescription>
+             <div className="space-y-3">
+               <p>
+                 Este repositório é privado. Você precisa de um token de acesso para importá-lo.
+               </p>
+               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                 <p className="text-sm text-blue-900 font-medium">Como funciona:</p>
+                 <ol className="text-sm text-blue-800 mt-2 space-y-1 list-decimal list-inside">
+                   <li>Clique em "Gerar Token"</li>
+                   <li>Você será levado para o GitHub</li>
+                   <li>O token será gerado automaticamente</li>
+                   <li>Você voltará e poderá importar</li>
+                 </ol>
+               </div>
+             </div>
+           </AlertDialogDescription>
+           <div className="flex gap-3">
+             <AlertDialogCancel className="h-9">Cancelar</AlertDialogCancel>
+             <AlertDialogAction
+               onClick={() => {
+                 setShowLoginWarning(false)
+                 handleGenerateGithubToken()
+               }}
+               className="h-9 bg-blue-600 hover:bg-blue-700"
+             >
+               Gerar Token →
+             </AlertDialogAction>
+           </div>
+         </AlertDialogContent>
+       </AlertDialog>
+     </Dialog>
+   )
 }

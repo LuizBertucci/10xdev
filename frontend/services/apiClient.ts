@@ -128,29 +128,40 @@ class ApiClient {
       data = { success: false, error: 'Erro ao processar resposta do servidor' }
     }
 
-    if (!response.ok) {
-      // Tentar extrair mensagem de erro de diferentes formatos
-      const errorMessage = 
-        data?.error || 
-        data?.message || 
-        (typeof data === 'string' ? data : null) ||
-        `HTTP ${response.status}: ${response.statusText || 'Erro desconhecido'}`
-      
-      console.error('Erro na resposta HTTP:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        data: data,
-        errorMessage
-      })
-      
-      throw {
-        success: false,
-        error: errorMessage,
-        statusCode: response.status,
-        details: data
-      } as ApiError
-    }
+     if (!response.ok) {
+       // Tentar extrair mensagem de erro de diferentes formatos
+       const errorMessage = 
+         data?.error || 
+         data?.message || 
+         (typeof data === 'string' ? data : null) ||
+         `HTTP ${response.status}: ${response.statusText || 'Erro desconhecido'}`
+       
+       // Log detalhado para erro 401 (autenticação)
+       if (response.status === 401) {
+         console.error('❌ Erro 401: Sem autenticação. Verifique se está logado e se o token é válido.', {
+           status: response.status,
+           url: response.url,
+           errorMessage,
+           cachedToken: cachedAccessToken ? '✅ Token em cache' : '❌ Sem token em cache',
+           tokenExpiry: cachedAccessTokenExpiresAtMs > 0 ? new Date(cachedAccessTokenExpiresAtMs).toISOString() : 'N/A'
+         })
+       } else {
+         console.error('Erro na resposta HTTP:', {
+           status: response.status,
+           statusText: response.statusText,
+           url: response.url,
+           data: data,
+           errorMessage
+         })
+       }
+       
+       throw {
+         success: false,
+         error: errorMessage,
+         statusCode: response.status,
+         details: data
+       } as ApiError
+     }
 
     return data
   }
@@ -203,27 +214,29 @@ class ApiClient {
         return headers
       }
 
-      // 4. Inicia nova verificação de sessão com mutex
-      lastSessionCheckAtMs = nowMs
-      sessionCheckInProgress = (async () => {
-        try {
-          const { createClient } = await import('@/lib/supabase')
-          const supabase = createClient()
-          const { data: { session }, error } = await supabase.auth.getSession()
-          
-          // Se houve erro (rate limit, etc), mantém token atual se existir
-          if (error) {
-            console.warn('[apiClient] getSession error:', error.message)
-            return
-          }
-          
-          if (session?.access_token) {
-            cachedAccessToken = session.access_token
-            cachedAccessTokenExpiresAtMs = (session.expires_at ?? 0) * 1000
-          } else {
-            cachedAccessToken = null
-            cachedAccessTokenExpiresAtMs = 0
-          }
+       // 4. Inicia nova verificação de sessão com mutex
+       lastSessionCheckAtMs = nowMs
+       sessionCheckInProgress = (async () => {
+         try {
+           const { createClient } = await import('@/lib/supabase')
+           const supabase = createClient()
+           const { data: { session }, error } = await supabase.auth.getSession()
+           
+           // Se houve erro (rate limit, etc), mantém token atual se existir
+           if (error) {
+             console.warn('[apiClient] getSession error:', error.message)
+             return
+           }
+           
+           if (session?.access_token) {
+             cachedAccessToken = session.access_token
+             cachedAccessTokenExpiresAtMs = (session.expires_at ?? 0) * 1000
+             console.log('[apiClient] Token obtido do Supabase:', cachedAccessToken.substring(0, 20) + '...')
+           } else {
+             console.warn('[apiClient] Nenhuma sessão ativa encontrada no Supabase')
+             cachedAccessToken = null
+             cachedAccessTokenExpiresAtMs = 0
+           }
         } catch (err) {
           console.warn('[apiClient] getSession exception:', err)
           // Mantém token atual em caso de erro

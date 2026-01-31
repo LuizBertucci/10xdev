@@ -33,6 +33,11 @@ export interface GithubRepoInfo {
   isPrivate: boolean
 }
 
+export interface ValidateGithubTokenResponse {
+  valid: boolean
+  message?: string
+}
+
 interface ProjectMember {
   id: string
   projectId: string
@@ -97,6 +102,10 @@ class ProjectService {
   // ================================================
   // GITHUB INTEGRATION
   // ================================================
+
+  async validateGithubToken(token: string): Promise<ApiResponse<ValidateGithubTokenResponse> | undefined> {
+    return apiClient.post<ValidateGithubTokenResponse>(`${this.endpoint}/validate-token`, { token })
+  }
 
   async getGithubInfo(data: { url: string; token?: string }): Promise<ApiResponse<GithubRepoInfo> | undefined> {
     return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data)
