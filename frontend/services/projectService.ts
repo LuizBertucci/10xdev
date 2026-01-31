@@ -111,6 +111,10 @@ class ProjectService {
     return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data)
   }
 
+  async getGithubInfoSilent(data: { url: string; token?: string }): Promise<ApiResponse<GithubRepoInfo> | undefined> {
+    return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data, true)
+  }
+
   async importFromGithub(data: {
     url: string
     token?: string

@@ -28,6 +28,14 @@ let cachedAccessTokenExpiresAtMs = 0
 let lastSessionCheckAtMs = 0
 let sessionCheckInProgress: Promise<void> | null = null // Mutex para evitar race condition
 
+// Função para limpar cache do token (chamada quando recebe 401)
+function clearTokenCache(): void {
+  cachedAccessToken = null
+  cachedAccessTokenExpiresAtMs = 0
+  lastSessionCheckAtMs = 0
+  console.log('[apiClient] Token cache limpo devido a erro 401')
+}
+
 class ApiClient {
   private baseURL: string
   private defaultHeaders: Record<string, string>
@@ -104,7 +112,7 @@ class ApiClient {
     }
   }
 
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T> | undefined> {
+  private async handleResponse<T>(response: Response, silent = false): Promise<ApiResponse<T> | undefined> {
     const contentType = response.headers.get('content-type')
 
     let data: ApiResponse<T> | undefined
@@ -116,7 +124,7 @@ class ApiClient {
           try {
             data = JSON.parse(textData) as ApiResponse<T>
           } catch (parseError) {
-            console.error('Erro ao fazer parse do JSON:', parseError)
+            if (!silent) console.error('Erro ao fazer parse do JSON:', parseError)
             data = { success: false, error: textData || `HTTP ${response.status}` }
           }
         } else {
@@ -124,11 +132,11 @@ class ApiClient {
         }
       }
     } catch (error) {
-      console.error('Erro ao processar resposta:', error)
+      if (!silent) console.error('Erro ao processar resposta:', error)
       data = { success: false, error: 'Erro ao processar resposta do servidor' }
     }
 
-     if (!response.ok) {
+      if (!response.ok) {
        // Tentar extrair mensagem de erro de diferentes formatos
        const errorMessage = 
          data?.error || 
@@ -136,30 +144,37 @@ class ApiClient {
          (typeof data === 'string' ? data : null) ||
          `HTTP ${response.status}: ${response.statusText || 'Erro desconhecido'}`
        
-       // Log detalhado para erro 401 (autenticação)
-       if (response.status === 401) {
-         console.error('❌ Erro 401: Sem autenticação. Verifique se está logado e se o token é válido.', {
-           status: response.status,
-           url: response.url,
-           errorMessage,
-           cachedToken: cachedAccessToken ? '✅ Token em cache' : '❌ Sem token em cache',
-           tokenExpiry: cachedAccessTokenExpiresAtMs > 0 ? new Date(cachedAccessTokenExpiresAtMs).toISOString() : 'N/A'
-         })
-       } else {
-         console.error('Erro na resposta HTTP:', {
-           status: response.status,
-           statusText: response.statusText,
-           url: response.url,
-           data: data,
-           errorMessage
-         })
-       }
+        // Se recebeu 401, limpar cache do token para forçar refresh na próxima requisição
+        if (response.status === 401) {
+          clearTokenCache()
+        }
+        
+        // Log de erro apenas quando não está em modo silencioso
+        if (!silent) {
+          if (response.status === 401) {
+            console.error('❌ Erro 401: Sem autenticação. Verifique se está logado e se o token é válido.', {
+              status: response.status,
+              url: response.url,
+              errorMessage,
+              cachedToken: cachedAccessToken ? '✅ Token em cache' : '❌ Sem token em cache',
+              tokenExpiry: cachedAccessTokenExpiresAtMs > 0 ? new Date(cachedAccessTokenExpiresAtMs).toISOString() : 'N/A'
+            })
+          } else {
+            console.error('Erro na resposta HTTP:', {
+              status: response.status,
+              statusText: response.statusText,
+              url: response.url,
+              data: data,
+              errorMessage
+            })
+          }
+        }
        
        throw {
          success: false,
          error: errorMessage,
          statusCode: response.status,
-         details: data
+         details: data || { status: response.status, statusText: response.statusText }
        } as ApiError
      }
 
@@ -279,15 +294,19 @@ class ApiClient {
     }
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
+  async post<T>(endpoint: string, data?: any, silent = false): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint)
-      console.log('POST request URL:', url)
-      console.log('POST request data:', data)
+      if (!silent) {
+        console.log('POST request URL:', url)
+        console.log('POST request data:', data)
+      }
 
       const headers = await this.getHeaders()
 
-      console.log('POST request headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : 'none' })
+      if (!silent) {
+        console.log('POST request headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : 'none' })
+      }
       
       const response = await this.fetchWithTimeout(url, {
         method: 'POST',
@@ -296,12 +315,14 @@ class ApiClient {
         credentials: 'include'
       }, this.requestTimeoutMs)
 
-      console.log('POST response status:', response.status)
-      console.log('POST response ok:', response.ok)
+      if (!silent) {
+        console.log('POST response status:', response.status)
+        console.log('POST response ok:', response.ok)
+      }
 
-      return await this.handleResponse<T>(response)
+      return await this.handleResponse<T>(response, silent)
     } catch (error) {
-      console.error('POST request error:', error)
+      if (!silent) console.error('POST request error:', error)
       if (error && typeof error === 'object' && 'success' in error) {
         throw error
       }

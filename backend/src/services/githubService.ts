@@ -298,7 +298,7 @@ export class GithubService {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': '10xDev-App'
     }
-    if (token) headers.Authorization = `token ${token}`
+    if (token) headers.Authorization = `Bearer ${token}`
     return headers
   }
 
@@ -345,16 +345,27 @@ export class GithubService {
         isPrivate: Boolean(response.data.private)
       }
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        throw new Error('Repositório não encontrado. Verifique a URL.')
+      const statusCode = error.response?.status
+      const message = error.response?.data?.message || error.message
+      
+      if (statusCode === 404) {
+        const err = new Error('Repositório não encontrado. Verifique a URL.') as any
+        err.statusCode = 404
+        throw err
       }
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      if (statusCode === 401 || statusCode === 403) {
         if (error.response?.headers?.['x-ratelimit-remaining'] === '0') {
-          throw new Error('Limite de requisições do GitHub atingido. Aguarde ou use um token.')
+          const err = new Error('Limite de requisições do GitHub atingido. Aguarde ou use um token.') as any
+          err.statusCode = 403
+          throw err
         }
-        throw new Error('Sem permissão. Se for privado, adicione um token de acesso.')
+        const err = new Error('Sem permissão. Se for privado, adicione um token de acesso.') as any
+        err.statusCode = statusCode
+        throw err
       }
-      throw new Error(`Erro ao acessar GitHub: ${error.message}`)
+      const err = new Error(`Erro ao acessar GitHub: ${message}`) as any
+      err.statusCode = statusCode || 500
+      throw err
     }
   }
 
@@ -384,7 +395,7 @@ export class GithubService {
     ]
 
     const headers: Record<string, string> = { 'User-Agent': '10xDev-App' }
-    if (token) headers.Authorization = `token ${token}`
+    if (token) headers.Authorization = `Bearer ${token}`
 
     for (const zipUrl of zipUrls) {
       try {

@@ -66,7 +66,23 @@ export class ProjectController {
       const info = await GithubService.getRepoDetails(url, token)
       res.status(200).json({ success: true, data: info })
     } catch (error: any) {
-      res.status(400).json({ success: false, error: error?.message || 'Erro ao buscar informações do repositório' })
+      // Propagar status codes de autenticação/permissão do GitHub (401, 403, 404)
+      // para que o frontend possa detectar repositórios privados
+      const statusCode = error?.statusCode
+      const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
+      
+      if (isAuthError) {
+        res.status(statusCode).json({ 
+          success: false, 
+          error: error?.message || 'Erro ao buscar informações do repositório',
+          statusCode: statusCode 
+        })
+      } else {
+        res.status(statusCode || 400).json({ 
+          success: false, 
+          error: error?.message || 'Erro ao buscar informações do repositório' 
+        })
+      }
     }
   }
 
