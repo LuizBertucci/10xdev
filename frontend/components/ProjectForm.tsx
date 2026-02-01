@@ -258,7 +258,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       setLoadingGithub(true)
       const response = showToasts 
         ? await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined })
-        : await projectService.getGithubInfoSilent({ url: githubUrl, token: githubToken || undefined })
+        : await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined }, true)
       
       if (response?.success && response.data) {
         setGithubRepoInfo(response.data)

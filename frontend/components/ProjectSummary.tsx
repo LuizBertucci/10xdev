@@ -44,7 +44,7 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
     try {
       setLoading(true)
       const [cardsResponse, projectResponse] = await Promise.all([
-        projectService.getCardsAll(projectId),
+        projectService.getCards(projectId),
         projectService.getById(projectId)
       ])
 

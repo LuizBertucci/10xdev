@@ -309,7 +309,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       } else if (!incremental) {
         setLoadingCards(true)
       }
-      const response = await projectService.getCardsAll(projectId)
+      const response = await projectService.getCards(projectId)
       if (response?.success && response?.data) {
         const newCards = response.data
         const totalCount = response.count ?? newCards.length

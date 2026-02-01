@@ -66,7 +66,7 @@ class CardFeatureService {
   }
 
   async bulkDelete(ids: string[]): Promise<ApiResponse<{ deletedCount: number }> | undefined> {
-    return apiClient.deleteWithBody<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
+    return apiClient.delete<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
   }
 
   // ================================================

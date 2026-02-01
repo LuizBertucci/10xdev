@@ -63,7 +63,7 @@ export type {
 
 // Pagination types
 export type {
-  PaginationConfig,
+  PaginationConfig as PaginationHookConfig,
   FetchParams,
   UsePaginationReturn
 } from '../hooks/usePagination'
