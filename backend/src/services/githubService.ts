@@ -616,7 +616,7 @@ export class GithubService {
     tech: string,
     lang: string,
     featureFiles: FeatureFile[],
-    aiOverrides?: { title: string; description?: string; tech?: string; language?: string }
+    aiOverrides?: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined }
   ): CreateCardFeatureRequest {
     const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
     return {
