@@ -293,12 +293,17 @@ export class GithubService {
     }
   }
 
+  /** Monta headers para a API do GitHub.
+   *  Suporta Classic PATs (ghp_) com prefixo 'token' e Fine-grained PATs (github_pat_) com 'Bearer'. */
   private static getHeaders(token?: string): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': '10xDev-App'
     }
-    if (token) headers.Authorization = `token ${token}`
+    if (token) {
+      const prefix = token.startsWith('github_pat_') ? 'Bearer' : 'token'
+      headers.Authorization = `${prefix} ${token}`
+    }
     return headers
   }
 
@@ -388,25 +393,51 @@ export class GithubService {
       // best-effort
     }
 
+    // Para repos privados: usar API do GitHub (retorna redirect com URL pre-assinada)
+    if (token) {
+      console.log(`[GithubService] Tentando download via API com token para ${repoInfo.owner}/${repoInfo.repo}`)
+      const apiBranches = [...new Set([defaultBranch, 'main', 'master'])]
+      for (const branch of apiBranches) {
+        try {
+          const apiUrl = `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/zipball/${branch}`
+          console.log(`[GithubService] Tentando: ${apiUrl}`)
+          const response = await axios.get(apiUrl, {
+              headers: this.getHeaders(token),
+              responseType: 'arraybuffer',
+              timeout: 600000,
+              maxContentLength: 500 * 1024 * 1024
+            }
+          )
+          console.log(`[GithubService] Download via API OK (${response.data.length} bytes)`)
+          return Buffer.from(response.data)
+        } catch (err: any) {
+          console.error(`[GithubService] Falha API zipball/${branch}:`, err?.response?.status, err?.message)
+          continue
+        }
+      }
+      console.error('[GithubService] Todas tentativas via API falharam')
+    }
+
+    // Fallback: URLs publicas do github.com (repos publicos)
+    console.log(`[GithubService] Tentando download via github.com (público)`)
     const zipUrls = [
       `https://github.com/${repoInfo.owner}/${repoInfo.repo}/archive/refs/heads/${defaultBranch}.zip`,
       `https://github.com/${repoInfo.owner}/${repoInfo.repo}/archive/refs/heads/main.zip`,
       `https://github.com/${repoInfo.owner}/${repoInfo.repo}/archive/refs/heads/master.zip`
     ]
 
-    const headers: Record<string, string> = { 'User-Agent': '10xDev-App' }
-    if (token) headers.Authorization = `token ${token}`
-
     for (const zipUrl of zipUrls) {
       try {
         const response = await axios.get(zipUrl, {
-          headers,
+          headers: { 'User-Agent': '10xDev-App' },
           responseType: 'arraybuffer',
           timeout: 600000,
           maxContentLength: 500 * 1024 * 1024
         })
+        console.log(`[GithubService] Download público OK (${response.data.length} bytes)`)
         return Buffer.from(response.data)
-      } catch {
+      } catch (err: any) {
+        console.error(`[GithubService] Falha ${zipUrl}:`, err?.response?.status, err?.message)
         continue
       }
     }

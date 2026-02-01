@@ -171,8 +171,11 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
         const response = await projectService.validateGithubToken(githubToken)
         if (response?.success && response.data?.valid) {
           setTokenStatus('valid')
-          // Token válido, limpar flag de possível repo privado
           setPossiblePrivateRepo(false)
+          // Token validado: buscar metadata do repo automaticamente (preenche nome/descricao)
+          if (githubUrl.trim() && isValidGithubUrl(githubUrl)) {
+            handleAnalyzeGithub(false)
+          }
         } else {
           setTokenStatus('invalid')
         }
@@ -274,24 +277,28 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
         setNewProjectDescription(response.data.description || "")
         setPossiblePrivateRepo(false) // Limpar flag quando encontra com sucesso
         if (showToasts) toast.success(`Repositório${response.data.isPrivate ? " privado" : ""} encontrado!`)
-      } else if (showToasts) {
-        toast.error(response?.error || "Erro ao buscar informações do repositório")
-      } else if (!response?.success && !githubToken) {
-        // Auto-busca falhou sem token - pode ser repo privado
-        setShowTokenField(true)
-        setPossiblePrivateRepo(true)
+      } else if (!response?.success) {
+        if (!githubToken) {
+          // Sem token: provavelmente repo privado
+          setShowTokenField(true)
+          setPossiblePrivateRepo(true)
+        }
+        if (showToasts) {
+          toast.error(githubToken
+            ? "Token sem permissão para este repositório"
+            : (response?.error || "Erro ao buscar informações do repositório"))
+        }
       }
     } catch (error: any) {
       const statusCode = error?.statusCode || error?.response?.status
       const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
-      
+
       if (isAuthError && !githubToken) {
-        // Erro de autenticação sem token = provavelmente repo privado
         setShowTokenField(true)
         setPossiblePrivateRepo(true)
-        if (showToasts) {
-          toast.info("Repositório privado detectado. Adicione um token de acesso.")
-        }
+        if (showToasts) toast.info("Repositório privado detectado. Adicione um token de acesso.")
+      } else if (isAuthError && githubToken) {
+        if (showToasts) toast.error("Token sem permissão para este repositório")
       } else if (showToasts) {
         toast.error(error?.message || "Erro ao buscar informações do repositório")
       }
@@ -440,7 +447,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                       <div>
                         <Label htmlFor="github-url" className="block text-xs font-medium text-gray-600 mb-1.5">URL do Repositório *</Label>
                         <div className="flex gap-2">
-                          <Input id="github-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" autoComplete="off" />
+                          <Input id="github-url" name="github-repo-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className="flex-1 h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm" autoComplete="off" data-form-type="other" data-lpignore="true" />
                           <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-9 px-3">
                             {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
@@ -464,14 +471,17 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                          <div className="relative">
                            <Input
                              id="github-token"
-                             type="password"
+                             name="github-access-token"
+                             type="text"
                              value={githubToken}
                              onChange={(e) => setGithubToken(e.target.value)}
                              placeholder="cole seu token aqui"
-                             className={`h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm pr-10 ${
+                             className={`h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm pr-10 [-webkit-text-security:disc] ${
                                tokenStatus === 'valid' ? 'border-green-500' : tokenStatus === 'invalid' ? 'border-red-500' : ''
                              }`}
-                             autoComplete="new-password"
+                             autoComplete="off"
+                             data-form-type="other"
+                             data-lpignore="true"
                            />
                            {tokenStatus === 'checking' && (
                              <Loader2 className="h-4 w-4 text-gray-400 animate-spin absolute right-3 top-2.5" />
