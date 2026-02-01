@@ -107,12 +107,8 @@ class ProjectService {
     return apiClient.post<ValidateGithubTokenResponse>(`${this.endpoint}/validate-token`, { token })
   }
 
-  async getGithubInfo(data: { url: string; token?: string }): Promise<ApiResponse<GithubRepoInfo> | undefined> {
-    return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data)
-  }
-
-  async getGithubInfoSilent(data: { url: string; token?: string }): Promise<ApiResponse<GithubRepoInfo> | undefined> {
-    return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data, true)
+  async getGithubInfo(data: { url: string; token?: string }, silent = false): Promise<ApiResponse<GithubRepoInfo> | undefined> {
+    return apiClient.post<GithubRepoInfo>(`${this.endpoint}/github-info`, data, silent)
   }
 
   async importFromGithub(data: {
@@ -194,14 +190,14 @@ class ProjectService {
   // ================================================
 
   async getCards(projectId: string, limit?: number, offset?: number): Promise<ApiResponse<ProjectCard[]> | undefined> {
+    // Sem paginação: busca todos via /cards/all
+    if (limit === undefined && offset === undefined) {
+      return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`)
+    }
     const params: Record<string, any> = {}
     if (limit !== undefined) params.limit = limit
     if (offset !== undefined) params.offset = offset
-    return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, Object.keys(params).length > 0 ? params : undefined)
-  }
-
-  async getCardsAll(projectId: string): Promise<ApiResponse<ProjectCard[]> | undefined> {
-    return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`)
+    return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, params)
   }
 
   async addCard(projectId: string, cardFeatureId: string): Promise<ApiResponse<ProjectCard> | undefined> {
