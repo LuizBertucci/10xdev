@@ -47,6 +47,8 @@ const IGNORED_FILES = [
   'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', '.editorconfig'
 ]
 
+/** Mapeamento de extensões de arquivo para linguagens de programação.
+ *  Usado para syntax highlighting e detecção de tech stack. */
 const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   '.ts': 'typescript', '.tsx': 'typescript',
   '.js': 'javascript', '.jsx': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript',
@@ -64,12 +66,16 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   '.dockerfile': 'dockerfile', '.env': 'plaintext'
 }
 
+/** Keywords para detecção automática de framework/tech stack a partir de package.json.
+ *  Mapeia nome do pacote (ou parte) para nome legível da tecnologia. */
 const TECH_DETECTION: Record<string, string> = {
   react: 'React', next: 'Next.js', vue: 'Vue.js', angular: 'Angular',
   svelte: 'Svelte', express: 'Express', fastify: 'Fastify', nest: 'NestJS',
   django: 'Django', flask: 'Flask', fastapi: 'FastAPI'
 }
 
+/** Regex patterns para detectar a camada técnica de um arquivo pelo seu path.
+ *  Usado para agrupar arquivos em "screens" (Backend - Controller, Frontend - Hook, etc). */
 const LAYER_PATTERNS: Record<string, RegExp> = {
   routes: /\/(routes?|routers?)\//i,
   controllers: /\/(controllers?)\//i,
@@ -86,6 +92,8 @@ const LAYER_PATTERNS: Record<string, RegExp> = {
   types: /\/(types?|interfaces?)\//i
 }
 
+/** Nomes amigáveis para cada camada técnica, usados como título das screens nos cards.
+ *  Exibe "Backend - Controller" ao invés de apenas "controllers". */
 const LAYER_TO_SCREEN_NAME: Record<string, string> = {
   routes: 'Backend - Routes', controllers: 'Backend - Controller',
   services: 'Backend - Service', models: 'Backend - Model',
@@ -115,6 +123,9 @@ function cleanMarkdown(text: string): string {
 // ================================================
 
 /** Mapeamento semantico: feature → keywords que pertencem a ela. */
+/** Mapeamento semântico: nome da feature → keywords que identificam arquivos dessa feature.
+ *  Usado para agrupar arquivos relacionados em cards coesos.
+ *  Ex: 'auth' agrupa auth.ts, login.tsx, jwt.ts, session.py, etc. */
 const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
   'auth': ['auth', 'login', 'logout', 'register', 'signup', 'signin', 'password', 'session', 'token', 'jwt', 'oauth', 'credential', 'authentication'],
   'user': ['user', 'profile', 'account', 'avatar', 'preferences', 'member'],
