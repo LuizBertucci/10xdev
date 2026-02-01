@@ -122,8 +122,7 @@ function cleanMarkdown(text: string): string {
 // FEATURE DETECTION MAPS
 // ================================================
 
-/** Mapeamento semantico: feature → keywords que pertencem a ela. */
-/** Mapeamento semântico: nome da feature → keywords que identificam arquivos dessa feature.
+/** Mapeamento semantico: feature → keywords que pertencem a ela.
  *  Usado para agrupar arquivos relacionados em cards coesos.
  *  Ex: 'auth' agrupa auth.ts, login.tsx, jwt.ts, session.py, etc. */
 const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
