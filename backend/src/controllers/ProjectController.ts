@@ -1,7 +1,6 @@
-import { Request, Response } from 'express'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
-import { ImportJobModel, type ImportJobStep } from '@/models/ImportJobModel'
+import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
 import { GithubService } from '@/services/githubService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
@@ -10,1301 +9,394 @@ import {
   type CreateProjectRequest,
   type GetGithubInfoRequest,
   type ImportFromGithubRequest,
-  type UpdateProjectRequest,
-  type ProjectQueryParams,
   type AddProjectMemberRequest,
   type UpdateProjectMemberRequest,
   type ShareProjectRequest,
   type ValidateGithubTokenRequest,
   type ValidateGithubTokenResponse
 } from '@/types/project'
+import {
+  safeHandler,
+  badRequest,
+  requireId,
+  respond,
+  respondList,
+  assertResult,
+  parsePagination,
+  parseCardPagination
+} from '@/middleware/controllerHelpers'
 
 const ALLOWED_MEMBER_ROLES = Object.values(ProjectMemberRole) as ProjectMemberRole[]
 
 export class ProjectController {
 
-  // ================================================
-  // GITHUB - POST /api/projects/validate-token
-  // ================================================
-
-  static async validateGithubToken(req: Request, res: Response): Promise<void> {
-    try {
-      const { token }: ValidateGithubTokenRequest = req.body
-      if (!token) {
-        res.status(400).json({ success: false, error: 'Token é obrigatório' })
-        return
-      }
-
-      const result = await GithubService.validateToken(token)
-      const response: ValidateGithubTokenResponse = {
-        valid: result,
-        message: result ? 'Token válido' : 'Token inválido ou expirado'
-      }
-      res.status(200).json({ success: true, data: response })
-    } catch (error: any) {
-      res.status(400).json({ success: false, error: error?.message || 'Erro ao validar token' })
+  /** POST /api/projects/validate-token */
+  static validateGithubToken = safeHandler(async (req, res) => {
+    const { token } = req.body as ValidateGithubTokenRequest
+    if (!token) throw badRequest('Token é obrigatório')
+    const valid = await GithubService.validateToken(token)
+    const data: ValidateGithubTokenResponse = {
+      valid,
+      message: valid ? 'Token válido' : 'Token inválido ou expirado'
     }
-  }
+    res.json({ success: true, data })
+  })
 
-  // ================================================
-  // GITHUB - POST /api/projects/github-info
-  // ================================================
+  /** POST /api/projects/github-info */
+  static getGithubInfo = safeHandler(async (req, res) => {
+    const { url, token } = req.body as GetGithubInfoRequest
+    if (!url) throw badRequest('URL é obrigatória')
+    const info = await GithubService.getRepoDetails(url, token)
+    res.json({ success: true, data: info })
+  })
 
-  static async getGithubInfo(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
-        return
-      }
+  /** POST /api/projects/import-from-github
+   *  Cria projeto, responde 202, e processa import em background. */
+  static importFromGithub = safeHandler(async (req, res) => {
+    const { url, token, name, description, useAi } = req.body as ImportFromGithubRequest
+    const userId = req.user!.id
+    if (!url) throw badRequest('URL do repositório é obrigatória')
 
-      const { url, token }: GetGithubInfoRequest = req.body
-      if (!url) {
-        res.status(400).json({ success: false, error: 'URL é obrigatória' })
-        return
-      }
-
-      const info = await GithubService.getRepoDetails(url, token)
-      res.status(200).json({ success: true, data: info })
-    } catch (error: any) {
-      // Propagar status codes de autenticação/permissão do GitHub (401, 403, 404)
-      // para que o frontend possa detectar repositórios privados
-      const statusCode = error?.statusCode
-      const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
-      
-      if (isAuthError) {
-        res.status(statusCode).json({ 
-          success: false, 
-          error: error?.message || 'Erro ao buscar informações do repositório',
-          statusCode: statusCode 
-        })
-      } else {
-        res.status(statusCode || 400).json({ 
-          success: false, 
-          error: error?.message || 'Erro ao buscar informações do repositório' 
-        })
-      }
+    // Obter nome/descricao do repo (best-effort)
+    let projectName = name
+    let projectDescription = description
+    if (!projectName) {
+      const repoInfo = await GithubService.getRepoDetails(url, token)
+      projectName = repoInfo.name
+      projectDescription = projectDescription || repoInfo.description || undefined
     }
-  }
 
-  // ================================================
-  // GITHUB - POST /api/projects/import-from-github
-  // ================================================
+    // Criar o projeto
+    const cleanUrl = url.replace(/\.git$/i, '').split('?')[0] || undefined
+    const projectData: CreateProjectRequest = {
+      name: projectName || 'Projeto',
+      ...(projectDescription ? { description: projectDescription } : {}),
+      ...(cleanUrl ? { repositoryUrl: cleanUrl } : {})
+    }
 
-  static async importFromGithub(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
-        return
+    const projectResult = await ProjectModel.create(projectData, userId)
+    assertResult(projectResult)
+    const projectId = projectResult.data!.id
+
+    // Criar job e responder 202 imediatamente
+    const job = await ImportJobModel.create({
+      project_id: projectId,
+      created_by: userId,
+      status: 'running',
+      step: 'starting',
+      progress: 0,
+      message: 'Iniciando importação...',
+      ai_requested: useAi === true
+    })
+
+    res.status(202).json({
+      success: true,
+      data: { project: projectResult.data, jobId: job.id },
+      message: 'Importação iniciada.'
+    })
+
+    // Background: processar repo e criar cards
+    setImmediate(async () => {
+      let lastProgress = 0
+      let totalCardsCreated = 0
+      let totalFilesProcessed = 0
+      let isProcessing = true
+      let progressInterval: NodeJS.Timeout | null = null
+
+      /** Atualiza job garantindo progresso monotônico (nunca decresce). */
+      const updateJob = async (patch: ImportJobUpdate) => {
+        if (typeof patch.progress === 'number') {
+          patch.progress = Math.max(lastProgress, patch.progress)
+          lastProgress = patch.progress
+        }
+        await ImportJobModel.update(job.id, patch)
       }
 
-      const { url, token, name, description, useAi }: ImportFromGithubRequest = req.body
-      const userId = req.user.id
+      try {
+        await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
 
-      if (!url) {
-        res.status(400).json({ success: false, error: 'URL do repositório é obrigatória' })
-        return
-      }
-
-      // 1) Obter nome/descrição do repo (best-effort)
-      let projectName = name
-      let projectDescription = description
-      if (!projectName) {
-        const repoInfo = await GithubService.getRepoDetails(url, token)
-        projectName = repoInfo.name
-        projectDescription = projectDescription || repoInfo.description || undefined
-      }
-
-      // 2) Criar o projeto
-      const cleanUrl = url.replace(/\.git$/i, '').split('?')[0] || undefined
-      const projectData: CreateProjectRequest = {
-        name: projectName || 'Projeto',
-        ...(projectDescription ? { description: projectDescription } : {}),
-        ...(cleanUrl ? { repositoryUrl: cleanUrl } : {})
-      }
-
-      const projectResult = await ProjectModel.create(projectData, userId)
-      if (!projectResult.success || !projectResult.data) {
-        res.status(500).json({ success: false, error: 'Erro ao criar projeto' })
-        return
-      }
-
-      const projectId = projectResult.data.id
-
-      // 3) Criar job e responder imediatamente
-      const job = await ImportJobModel.create({
-        project_id: projectId,
-        created_by: userId,
-        status: 'running',
-        step: 'starting',
-        progress: 0,
-        message: 'Iniciando importação...',
-        ai_requested: useAi === true
-      })
-
-      res.status(202).json({
-        success: true,
-        data: { project: projectResult.data, jobId: job.id },
-        message: 'Importação iniciada.'
-      })
-
-       // 4) Background processing
-        setImmediate(async () => {
-           let lastProgress = 0
-           let totalCardsCreated = 0
-           let totalFilesProcessed = 0
-           let estimatedCards = 50  // fallback padrão
-           let isProcessing = true
-           let processingStartTime = Date.now()
-           let lastTimerProgress = 5
-           let progressInterval: NodeJS.Timeout | null = null
-
-          const updateJob = async (patch: {
-            status?: 'running' | 'done' | 'error'
-            step?: ImportJobStep
-            progress?: number
-            message?: string | null
-            error?: string | null
-            filesProcessed?: number
-            cardsCreated?: number
-            aiUsed?: boolean
-            aiCardsCreated?: number
-          }) => {
-            // Garantir progresso monotônico (nunca decresce)
-            if (typeof patch.progress === 'number') {
-              patch.progress = Math.max(lastProgress, patch.progress)
-              lastProgress = patch.progress
-            }
-
-            await ImportJobModel.update(job.id, {
-              ...(patch.status ? { status: patch.status } : {}),
-              ...(patch.step ? { step: patch.step } : {}),
-              ...(typeof patch.progress === 'number' ? { progress: patch.progress } : {}),
-              ...(patch.message !== undefined ? { message: patch.message } : {}),
-              ...(patch.error !== undefined ? { error: patch.error } : {}),
-              ...(typeof patch.filesProcessed === 'number' ? { files_processed: patch.filesProcessed } : {}),
-              ...(typeof patch.cardsCreated === 'number' ? { cards_created: patch.cardsCreated } : {}),
-              ...(typeof patch.aiUsed === 'boolean' ? { ai_used: patch.aiUsed } : {}),
-              ...(typeof patch.aiCardsCreated === 'number' ? { ai_cards_created: patch.aiCardsCreated } : {})
+        // Timer de progresso: incremento linear a cada 500ms ate 98%
+        progressInterval = setInterval(async () => {
+          if (!isProcessing) return
+          const next = Math.min(98, lastProgress + 1)
+          if (next > lastProgress) {
+            await updateJob({
+              step: 'creating_cards',
+              progress: next,
+              message: `Criando cards... (${totalCardsCreated})`,
+              cards_created: totalCardsCreated,
+              files_processed: totalFilesProcessed
             })
           }
+        }, 500)
 
-          try {
-            await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
-
-             // Timer para atualizar progresso continuamente em tempo real
-             progressInterval = setInterval(async () => {
-               if (!isProcessing) {
-                 if (progressInterval) clearInterval(progressInterval)
-                 return
-               }
-
-              const elapsedSeconds = (Date.now() - processingStartTime) / 1000
-              let timerProgress = lastTimerProgress
-
-              // Se ainda não temos estimativa, incrementar lentamente (5-20%)
-              if (estimatedCards <= 50) {
-                timerProgress = Math.min(20, 5 + elapsedSeconds * 1)
-              } else if (totalCardsCreated === 0) {
-                // Se temos estimativa mas nenhum card ainda, incrementar para 30%
-                timerProgress = Math.min(30, lastTimerProgress + elapsedSeconds * 0.5)
-              } else {
-                // Se temos cards, usar progresso baseado em criados
-                const createdRatio = estimatedCards > 0
-                  ? totalCardsCreated / estimatedCards
-                  : 0
-                timerProgress = Math.min(98, 30 + createdRatio * 65)
+        const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
+          url, token,
+          {
+            useAi: useAi === true,
+            onProgress: async (p) => {
+              await updateJob({
+                step: p.step as ImportJobStep,
+                progress: p.progress ?? 0,
+                message: p.message ?? null,
+                cards_created: totalCardsCreated,
+                files_processed: totalFilesProcessed
+              })
+            },
+            onCardReady: async (card) => {
+              const normalizedCard = {
+                ...card,
+                visibility: Visibility.UNLISTED,
+                created_in_project_id: projectId
               }
-
-              lastTimerProgress = timerProgress
-
-              // Só atualizar se aumentou (monotônico)
-              if (timerProgress > lastProgress) {
-                await updateJob({
-                  step: 'creating_cards',
-                  progress: Math.floor(timerProgress),
-                  message: `Criando cards... (${totalCardsCreated}/${estimatedCards})`,
-                  cardsCreated: totalCardsCreated,
-                  filesProcessed: totalFilesProcessed
-                })
+              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
+              if (!createdRes.success || !createdRes.data?.length) {
+                throw new Error(createdRes.error || 'Erro ao criar card')
               }
-            }, 100) // Atualizar a cada 100ms (10x por segundo)
-
-            const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-              url,
-              token,
-              {
-                useAi: useAi === true,
-                onProgress: async (p) => {
-                  // Armazenar estimativa quando recebida
-                  if (p.cardEstimate) {
-                    estimatedCards = p.cardEstimate
-                    processingStartTime = Date.now()  // Reset timer quando recebe estimativa
-                  }
-
-                  await updateJob({
-                    step: p.step as ImportJobStep,
-                    progress: p.progress ?? 0,
-                    message: p.message ?? null,
-                    cardsCreated: totalCardsCreated,
-                    filesProcessed: totalFilesProcessed
-                  })
-                },
-               onCardReady: async (card) => {
-                // Create card immediately after AI processes it
-                const normalizedCard = {
-                  ...card,
-                  visibility: Visibility.UNLISTED,
-                  created_in_project_id: projectId
-                }
-                
-                const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
-                if (!createdRes.success || !createdRes.data || createdRes.data.length === 0) {
-                  throw new Error(createdRes.error || 'Erro ao criar card')
-                }
-                
-                const cardId = createdRes.data[0]!.id
-                const assoc = await ProjectModel.addCardsBulk(projectId, [cardId], userId)
-                if (!assoc.success) {
-                  throw new Error(assoc.error || 'Erro ao associar card ao projeto')
-                }
-                
-                totalCardsCreated++
-                // Count files from screens
-                const filesInCard = card.screens?.reduce((sum, s) => {
-                  // Each screen has blocks, each block is a file
-                  return sum + (s.blocks?.length || 0)
-                }, 0) || 0
-                totalFilesProcessed += filesInCard
-                // Progresso é atualizado pelo timer a cada 100ms em tempo real
-               }
+              const cardId = createdRes.data[0]!.id
+              const assoc = await ProjectModel.addCardsBulk(projectId, [cardId], userId)
+              if (!assoc.success) throw new Error(assoc.error || 'Erro ao associar card ao projeto')
+              totalCardsCreated++
+              totalFilesProcessed += card.screens?.reduce((sum, s) => sum + (s.blocks?.length || 0), 0) || 0
             }
-          )
-
-          // All cards should have been created via onCardReady callback
-          // This is just a safety check
-           if (totalCardsCreated === 0 && cards.length === 0) {
-             isProcessing = false
-             clearInterval(progressInterval)
-             await updateJob({
-               status: 'error',
-               step: 'error',
-               progress: 100,
-               message: 'Nenhum arquivo de código encontrado.',
-               error: 'Nenhum arquivo de código encontrado.'
-             })
-             return
-           }
-
-           // Parar o timer de progresso contínuo
-           isProcessing = false
-           clearInterval(progressInterval)
-
-           await updateJob({ step: 'linking_cards', progress: 95, message: 'Finalizando...' })
-           await updateJob({ 
-             status: 'done', 
-             step: 'done', 
-             progress: 100, 
-             message: 'Importação concluída.',
-             cardsCreated: totalCardsCreated || cards.length,
-             filesProcessed: totalFilesProcessed || filesProcessed,
-             aiUsed,
-             aiCardsCreated
-           })
-          } catch (e: any) {
-            isProcessing = false
-            if (progressInterval) clearInterval(progressInterval)
-          await ImportJobModel.update(job.id, {
-            status: 'error',
-            step: 'error',
-            progress: 100,
-            message: 'Falha ao importar.',
-            error: e?.message || 'Erro desconhecido'
-          })
-        }
-      })
-    } catch (error: any) {
-      let statusCode = 400
-      const errorMessage = error?.message || 'Erro ao importar projeto do GitHub'
-
-      if (errorMessage.toLowerCase().includes('rate') || errorMessage.toLowerCase().includes('limite')) statusCode = 429
-      else if (errorMessage.toLowerCase().includes('timeout')) statusCode = 504
-      else if (errorMessage.toLowerCase().includes('não encontrado') || errorMessage.includes('404')) statusCode = 404
-      else if (errorMessage.toLowerCase().includes('token') || errorMessage.toLowerCase().includes('permissão')) statusCode = 401
-
-      res.status(statusCode).json({ success: false, error: errorMessage })
-    }
-  }
-
-  // ================================================
-  // CREATE - POST /api/projects
-  // ================================================
-  
-  static async create(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const data: CreateProjectRequest = req.body
-      const userId = req.user.id
-
-      if (!data.name) {
-        res.status(400).json({
-          success: false,
-          error: 'Nome do projeto é obrigatório'
-        })
-        return
-      }
-
-      const result = await ProjectModel.create(data, userId)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(201).json({
-        success: true,
-        data: result.data,
-        message: 'Projeto criado com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller create:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // READ - GET /api/projects
-  // ================================================
-  
-  static async getAll(req: Request, res: Response): Promise<void> {
-    try {
-      const userId = req.user!.id
-
-      const pageParam = req.query.page
-      const limitParam = req.query.limit
-      const sortByParam = req.query.sortBy
-      const sortOrderParam = req.query.sortOrder
-
-      const page = pageParam ? Number(pageParam) : 1
-      const limit = limitParam ? Number(limitParam) : 10
-
-      if (!Number.isInteger(page) || page <= 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Parâmetro "page" deve ser um número inteiro maior que zero'
-        })
-        return
-      }
-
-      if (!Number.isInteger(limit) || limit <= 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Parâmetro "limit" deve ser um número inteiro maior que zero'
-        })
-        return
-      }
-
-      const allowedSortBy: NonNullable<ProjectQueryParams['sortBy']>[] = ['name', 'created_at', 'updated_at']
-      let sortBy: ProjectQueryParams['sortBy']
-
-      if (typeof sortByParam === 'string') {
-        if (!allowedSortBy.includes(sortByParam as NonNullable<ProjectQueryParams['sortBy']>)) {
-          res.status(400).json({
-            success: false,
-            error: 'Parâmetro "sortBy" inválido'
-          })
-          return
-        }
-        sortBy = sortByParam as ProjectQueryParams['sortBy']
-      }
-
-      let sortOrder: ProjectQueryParams['sortOrder']
-      if (typeof sortOrderParam === 'string') {
-        const normalizedSortOrder = sortOrderParam.toLowerCase()
-        if (normalizedSortOrder !== 'asc' && normalizedSortOrder !== 'desc') {
-          res.status(400).json({
-            success: false,
-            error: 'Parâmetro "sortOrder" deve ser "asc" ou "desc"'
-          })
-          return
-        }
-        sortOrder = normalizedSortOrder as ProjectQueryParams['sortOrder']
-      }
-
-      const params: ProjectQueryParams = {
-        page,
-        limit,
-        ...(typeof req.query.search === 'string' ? { search: req.query.search } : {}),
-        ...(sortBy ? { sortBy } : {}),
-        ...(sortOrder ? { sortOrder } : {})
-      }
-
-      const result = await ProjectModel.findAll(params, userId)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      // Calcular informações de paginação
-      const totalPages = params.limit ? Math.ceil((result.count || 0) / params.limit) : 1
-      const currentPage = params.page || 1
-
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        count: result.count,
-        totalPages,
-        currentPage,
-        hasNextPage: currentPage < totalPages,
-        hasPrevPage: currentPage > 1
-      })
-    } catch (error) {
-      console.error('Erro no controller getAll:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  static async getById(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-      const userId = req.user.id
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID é obrigatório'
-        })
-        return
-      }
-
-      const result = await ProjectModel.findById(id, userId)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        data: result.data
-      })
-    } catch (error) {
-      console.error('Erro no controller getById:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // UPDATE - PUT /api/projects/:id
-  // ================================================
-  
-  static async update(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-      const data: UpdateProjectRequest = req.body
-      const userId = req.user.id
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID é obrigatório'
-        })
-        return
-      }
-
-      const result = await ProjectModel.update(id, data, userId)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        message: 'Projeto atualizado com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller update:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  static async delete(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-      const userId = req.user.id
-      const deleteCards = req.query.deleteCards === 'true'
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID é obrigatório'
-        })
-        return
-      }
-
-      const result = await ProjectModel.delete(id, userId, deleteCards)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      const cardsDeleted = result.data?.cardsDeleted || 0
-      const message = cardsDeleted > 0
-        ? `Projeto e ${cardsDeleted} card${cardsDeleted > 1 ? 's' : ''} removidos com sucesso`
-        : 'Projeto removido com sucesso'
-
-      res.status(200).json({
-        success: true,
-        message,
-        data: { cardsDeleted }
-      })
-    } catch (error) {
-      console.error('Erro no controller delete:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // MEMBERS - GET /api/projects/:id/members
-  // ================================================
-  
-  static async getMembers(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto é obrigatório'
-        })
-        return
-      }
-
-      // Verificar se usuário é membro do projeto
-      const project = await ProjectModel.findById(id, req.user!.id)
-      if (!project.success) {
-        res.status(project.statusCode || 404).json({
-          success: false,
-          error: project.error || 'Projeto não encontrado'
-        })
-        return
-      }
-
-      const result = await ProjectModel.getMembers(id)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        count: result.count
-      })
-    } catch (error) {
-      console.error('Erro no controller getMembers:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // MEMBERS - POST /api/projects/:id/members
-  // ================================================
-  
-  static async addMember(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-      const data: AddProjectMemberRequest = req.body
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto é obrigatório'
-        })
-        return
-      }
-
-      if (!data.userId) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do usuário é obrigatório'
-        })
-        return
-      }
-
-      const requesterId = req.user!.id
-      const roleToAssign = data.role ?? ProjectMemberRole.MEMBER
-
-      if (data.role && !ALLOWED_MEMBER_ROLES.includes(data.role)) {
-        res.status(400).json({
-          success: false,
-          error: 'Role inválido'
-        })
-        return
-      }
-
-      const memberPayload: AddProjectMemberRequest = {
-        userId: data.userId,
-        role: roleToAssign
-      }
-
-      const result = await ProjectModel.addMember(id, memberPayload, requesterId)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(201).json({
-        success: true,
-        data: result.data,
-        message: 'Membro adicionado com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller addMember:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // MEMBERS - PUT /api/projects/:id/members/:userId
-  // ================================================
-  
-  static async updateMember(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id, userId } = req.params
-      const data: UpdateProjectMemberRequest = req.body
-      const requesterId = req.user!.id
-
-      if (!id || !userId) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto e do usuário são obrigatórios'
-        })
-        return
-      }
-
-      if (!data.role) {
-        res.status(400).json({
-          success: false,
-          error: 'Role é obrigatório'
-        })
-        return
-      }
-
-      if (!ALLOWED_MEMBER_ROLES.includes(data.role)) {
-        res.status(400).json({
-          success: false,
-          error: 'Role inválido'
-        })
-        return
-      }
-
-      const result = await ProjectModel.updateMember(id, userId, data.role, requesterId)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        message: 'Membro atualizado com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller updateMember:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // MEMBERS - DELETE /api/projects/:id/members/:userId
-  // ================================================
-  
-  static async removeMember(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id, userId } = req.params
-
-      if (!id || !userId) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto e do usuário são obrigatórios'
-        })
-        return
-      }
-
-      const result = await ProjectModel.removeMember(id, userId, req.user!.id)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Membro removido com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller removeMember:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // MEMBERS - POST /api/projects/:id/share
-  // ================================================
-
-  static async shareProject(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-      const payload: ShareProjectRequest = req.body
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto é obrigatório'
-        })
-        return
-      }
-
-      const rawUserIds = Array.isArray(payload.userIds) ? payload.userIds.filter(Boolean) : []
-      const rawEmails = Array.isArray(payload.emails) ? payload.emails : []
-
-      const normalizedEmails = Array.from(
-        new Set(
-          rawEmails
-            .map((email) => (typeof email === 'string' ? email.toLowerCase().trim() : ''))
-            .filter(Boolean)
+          }
         )
+
+        isProcessing = false
+        if (progressInterval) clearInterval(progressInterval)
+
+        if (totalCardsCreated === 0 && cards.length === 0) {
+          await updateJob({
+            status: 'error', step: 'error', progress: 100,
+            message: 'Nenhum arquivo de código encontrado.',
+            error: 'Nenhum arquivo de código encontrado.'
+          })
+          return
+        }
+
+        await updateJob({ step: 'linking_cards', progress: 95, message: 'Finalizando...' })
+        await updateJob({
+          status: 'done', step: 'done', progress: 100,
+          message: 'Importação concluída.',
+          cards_created: totalCardsCreated || cards.length,
+          files_processed: totalFilesProcessed || filesProcessed,
+          ai_used: aiUsed,
+          ai_cards_created: aiCardsCreated
+        })
+      } catch (e: any) {
+        isProcessing = false
+        if (progressInterval) clearInterval(progressInterval)
+        await ImportJobModel.update(job.id, {
+          status: 'error', step: 'error', progress: 100,
+          message: 'Falha ao importar.', error: e?.message || 'Erro desconhecido'
+        })
+      }
+    })
+  })
+
+  /** POST /api/projects */
+  static create = safeHandler(async (req, res) => {
+    const data: CreateProjectRequest = req.body
+    if (!data.name) throw badRequest('Nome do projeto é obrigatório')
+    respond(res, await ProjectModel.create(data, req.user!.id), 'Projeto criado com sucesso', 201)
+  })
+
+  /** GET /api/projects */
+  static getAll = safeHandler(async (req, res) => {
+    const params = parsePagination(req.query)
+    const result = await ProjectModel.findAll(params, req.user!.id)
+    assertResult(result)
+
+    const totalPages = params.limit ? Math.ceil((result.count || 0) / params.limit) : 1
+    const currentPage = params.page || 1
+
+    res.json({
+      success: true,
+      data: result.data,
+      count: result.count,
+      totalPages,
+      currentPage,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    })
+  })
+
+  /** GET /api/projects/:id */
+  static getById = safeHandler(async (req, res) => {
+    respond(res, await ProjectModel.findById(requireId(req), req.user!.id))
+  })
+
+  /** PUT /api/projects/:id */
+  static update = safeHandler(async (req, res) => {
+    respond(res, await ProjectModel.update(requireId(req), req.body, req.user!.id), 'Projeto atualizado com sucesso')
+  })
+
+  /** DELETE /api/projects/:id */
+  static delete = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const deleteCards = req.query.deleteCards === 'true'
+    const result = await ProjectModel.delete(id, req.user!.id, deleteCards)
+    assertResult(result)
+
+    const n = result.data?.cardsDeleted || 0
+    res.json({
+      success: true,
+      message: n > 0 ? `Projeto e ${n} card${n > 1 ? 's' : ''} removidos com sucesso` : 'Projeto removido com sucesso',
+      data: { cardsDeleted: n }
+    })
+  })
+
+  /** GET /api/projects/:id/members */
+  static getMembers = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+    respondList(res, await ProjectModel.getMembers(id))
+  })
+
+  /** POST /api/projects/:id/members */
+  static addMember = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { userId, role }: AddProjectMemberRequest = req.body
+    if (!userId) throw badRequest('ID do usuário é obrigatório')
+    if (role && !ALLOWED_MEMBER_ROLES.includes(role)) throw badRequest('Role inválido')
+    respond(
+      res,
+      await ProjectModel.addMember(id, { userId, role: role ?? ProjectMemberRole.MEMBER }, req.user!.id),
+      'Membro adicionado com sucesso',
+      201
+    )
+  })
+
+  /** PUT /api/projects/:id/members/:userId */
+  static updateMember = safeHandler(async (req, res) => {
+    const { id, userId } = req.params
+    if (!id || !userId) throw badRequest('ID do projeto e do usuário são obrigatórios')
+    const { role }: UpdateProjectMemberRequest = req.body
+    if (!role) throw badRequest('Role é obrigatório')
+    if (!ALLOWED_MEMBER_ROLES.includes(role)) throw badRequest('Role inválido')
+    respond(res, await ProjectModel.updateMember(id, userId, role, req.user!.id), 'Membro atualizado com sucesso')
+  })
+
+  /** DELETE /api/projects/:id/members/:userId */
+  static removeMember = safeHandler(async (req, res) => {
+    const { id, userId } = req.params
+    if (!id || !userId) throw badRequest('ID do projeto e do usuário são obrigatórios')
+    respond(res, await ProjectModel.removeMember(id, userId, req.user!.id), 'Membro removido com sucesso')
+  })
+
+  /** POST /api/projects/:id/share
+   *  Resolve emails/userIds, valida existencia, e adiciona como membros. */
+  static shareProject = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { userIds, emails }: ShareProjectRequest = req.body
+    const requesterId = req.user!.id
+
+    const rawUserIds = Array.isArray(userIds) ? userIds.filter(Boolean) : []
+    const normalizedEmails = Array.from(new Set(
+      (Array.isArray(emails) ? emails : [])
+        .map(e => typeof e === 'string' ? e.toLowerCase().trim() : '')
+        .filter(Boolean)
+    ))
+
+    if (rawUserIds.length === 0 && normalizedEmails.length === 0) {
+      throw badRequest('Informe ao menos um userId ou email')
+    }
+
+    const failed: Array<{ userIdOrEmail: string; error: string }> = []
+    const ignored: Array<{ userIdOrEmail: string; reason: string }> = []
+
+    // Resolver emails → user IDs
+    const resolvedEmailIds: string[] = []
+    if (normalizedEmails.length > 0) {
+      const { data: emailUsers } = await executeQuery(
+        supabaseAdmin.from('users').select('id, email').in('email', normalizedEmails)
       )
-
-      if (rawUserIds.length === 0 && normalizedEmails.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'Informe ao menos um userId ou email'
-        })
-        return
-      }
-
-      const failed: Array<{ userIdOrEmail: string; error: string }> = []
-      const ignored: Array<{ userIdOrEmail: string; reason: string }> = []
-
-      const resolvedEmailIds: string[] = []
-      if (normalizedEmails.length > 0) {
-        const { data: emailUsers } = await executeQuery(
-          supabaseAdmin
-            .from('users')
-            .select('id, email')
-            .in('email', normalizedEmails)
-        )
-
-        const emailMap = new Map<string, string>()
-        emailUsers?.forEach((user: any) => {
-          if (user?.email && user?.id) {
-            emailMap.set(String(user.email).toLowerCase(), String(user.id))
-          }
-        })
-
-        normalizedEmails.forEach((email) => {
-          const foundId = emailMap.get(email)
-          if (foundId) {
-            resolvedEmailIds.push(foundId)
-          } else {
-            failed.push({ userIdOrEmail: email, error: 'email_not_found' })
-          }
-        })
-      }
-
-      const normalizedUserIds = Array.from(new Set(rawUserIds.map(String))).filter(Boolean)
-      let validUserIds: string[] = []
-      if (normalizedUserIds.length > 0) {
-        const { data: userRows } = await executeQuery(
-          supabaseAdmin
-            .from('users')
-            .select('id')
-            .in('id', normalizedUserIds)
-        )
-
-        const validIdSet = new Set((userRows || []).map((row: any) => String(row.id)))
-        validUserIds = normalizedUserIds.filter((userId) => validIdSet.has(userId))
-        normalizedUserIds.forEach((userId) => {
-          if (!validIdSet.has(userId)) {
-            failed.push({ userIdOrEmail: userId, error: 'user_not_found' })
-          }
-        })
-      }
-
-      const requesterId = req.user.id
-      const combinedIds = Array.from(new Set([...validUserIds, ...resolvedEmailIds]))
-      const filteredIds = combinedIds.filter((userId) => {
-        if (userId === requesterId) {
-          ignored.push({ userIdOrEmail: userId, reason: 'requester' })
-          return false
-        }
-        return true
+      const emailMap = new Map<string, string>()
+      emailUsers?.forEach((u: any) => {
+        if (u?.email && u?.id) emailMap.set(String(u.email).toLowerCase(), String(u.id))
       })
-
-      const result = await ProjectModel.addMembersBulk(id, filteredIds, requesterId)
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      const insertedIds = result.data?.insertedIds || []
-      const ignoredIds = result.data?.ignoredIds || []
-
-      ignoredIds.forEach((userId) => {
-        ignored.push({ userIdOrEmail: userId, reason: 'already_member_or_owner' })
-      })
-
-      res.status(200).json({
-        success: true,
-        data: {
-          addedIds: insertedIds,
-          ignored,
-          failed
-        },
-        message: 'Compartilhamento processado'
-      })
-    } catch (error) {
-      console.error('Erro no controller shareProject:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
+      normalizedEmails.forEach(email => {
+        const foundId = emailMap.get(email)
+        if (foundId) resolvedEmailIds.push(foundId)
+        else failed.push({ userIdOrEmail: email, error: 'email_not_found' })
       })
     }
-  }
 
-  // ================================================
-  // CARDS - GET /api/projects/:id/cards
-  // ================================================
-  
-  static async getCards(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id } = req.params
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto é obrigatório'
-        })
-        return
-      }
-
-      // Verificar se usuário é membro do projeto
-      const project = await ProjectModel.findById(id, req.user.id)
-      if (!project.success) {
-        res.status(project.statusCode || 404).json({
-          success: false,
-          error: project.error || 'Projeto não encontrado'
-        })
-        return
-      }
-
-      // Extrair parâmetros de paginação
-      const limitParam = req.query.limit
-      const offsetParam = req.query.offset
-      const limit = limitParam ? Number(limitParam) : undefined
-      const offset = offsetParam ? Number(offsetParam) : undefined
-
-      // Validar parâmetros de paginação
-      if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0)) {
-        res.status(400).json({
-          success: false,
-          error: 'Parâmetro "limit" deve ser um número inteiro maior que zero'
-        })
-        return
-      }
-
-      if (offset !== undefined && (!Number.isInteger(offset) || offset < 0)) {
-        res.status(400).json({
-          success: false,
-          error: 'Parâmetro "offset" deve ser um número inteiro maior ou igual a zero'
-        })
-        return
-      }
-
-      const result = await ProjectModel.getCards(id, limit, offset)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        count: result.count
-      })
-    } catch (error) {
-      console.error('Erro no controller getCards:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
+    // Validar userIds existem no banco
+    const normalizedUserIds = Array.from(new Set(rawUserIds.map(String))).filter(Boolean)
+    let validUserIds: string[] = []
+    if (normalizedUserIds.length > 0) {
+      const { data: userRows } = await executeQuery(
+        supabaseAdmin.from('users').select('id').in('id', normalizedUserIds)
+      )
+      const validIdSet = new Set((userRows || []).map((r: any) => String(r.id)))
+      validUserIds = normalizedUserIds.filter(uid => validIdSet.has(uid))
+      normalizedUserIds.forEach(uid => {
+        if (!validIdSet.has(uid)) failed.push({ userIdOrEmail: uid, error: 'user_not_found' })
       })
     }
-  }
 
-  // ================================================
-  // CARDS - GET /api/projects/:id/cards/all
-  // ================================================
-  
-  static async getCardsAll(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
+    // Combinar IDs, remover requester, adicionar em bulk
+    const combinedIds = Array.from(new Set([...validUserIds, ...resolvedEmailIds]))
+    const filteredIds = combinedIds.filter(uid => {
+      if (uid === requesterId) {
+        ignored.push({ userIdOrEmail: uid, reason: 'requester' })
+        return false
       }
+      return true
+    })
 
-      const { id } = req.params
+    const result = await ProjectModel.addMembersBulk(id, filteredIds, requesterId)
+    assertResult(result)
 
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto é obrigatório'
-        })
-        return
-      }
+    const insertedIds = result.data?.insertedIds || []
+    ;(result.data?.ignoredIds || []).forEach(uid => {
+      ignored.push({ userIdOrEmail: uid, reason: 'already_member_or_owner' })
+    })
 
-      // Verificar se usuário é membro do projeto
-      const project = await ProjectModel.findById(id, req.user.id)
-      if (!project.success) {
-        res.status(project.statusCode || 404).json({
-          success: false,
-          error: project.error || 'Projeto não encontrado'
-        })
-        return
-      }
+    res.json({
+      success: true,
+      data: { addedIds: insertedIds, ignored, failed },
+      message: 'Compartilhamento processado'
+    })
+  })
 
-      const result = await ProjectModel.getCardsAll(id)
+  /** GET /api/projects/:id/cards */
+  static getCards = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+    const { limit, offset } = parseCardPagination(req.query)
+    respondList(res, await ProjectModel.getCards(id, limit, offset))
+  })
 
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
+  /** GET /api/projects/:id/cards/all */
+  static getCardsAll = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+    respondList(res, await ProjectModel.getCardsAll(id))
+  })
 
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        count: result.count
-      })
-    } catch (error) {
-      console.error('Erro no controller getCardsAll:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
+  /** POST /api/projects/:id/cards */
+  static addCard = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { cardFeatureId } = req.body
+    if (!cardFeatureId) throw badRequest('ID do card é obrigatório')
+    respond(res, await ProjectModel.addCard(id, cardFeatureId, req.user!.id), 'Card adicionado ao projeto com sucesso', 201)
+  })
 
-  // ================================================
-  // CARDS - POST /api/projects/:id/cards
-  // ================================================
-  
-  static async addCard(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
+  /** DELETE /api/projects/:id/cards/:cardFeatureId */
+  static removeCard = safeHandler(async (req, res) => {
+    const { id, cardFeatureId } = req.params
+    if (!id || !cardFeatureId) throw badRequest('ID do projeto e do card são obrigatórios')
+    respond(res, await ProjectModel.removeCard(id, cardFeatureId, req.user!.id), 'Card removido do projeto com sucesso')
+  })
 
-      const { id } = req.params
-      const { cardFeatureId } = req.body
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto é obrigatório'
-        })
-        return
-      }
-
-      if (!cardFeatureId) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do card é obrigatório'
-        })
-        return
-      }
-
-      const result = await ProjectModel.addCard(id, cardFeatureId, req.user.id)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(201).json({
-        success: true,
-        data: result.data,
-        message: 'Card adicionado ao projeto com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller addCard:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // CARDS - DELETE /api/projects/:id/cards/:cardFeatureId
-  // ================================================
-  
-  static async removeCard(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id, cardFeatureId } = req.params
-
-      if (!id || !cardFeatureId) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto e do card são obrigatórios'
-        })
-        return
-      }
-
-      const result = await ProjectModel.removeCard(id, cardFeatureId, req.user.id)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Card removido do projeto com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller removeCard:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
-
-  // ================================================
-  // CARDS - PATCH /api/projects/:id/cards/:cardFeatureId/reorder
-  // ================================================
-  
-  static async reorderCard(req: Request, res: Response): Promise<void> {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: 'Usuário não autenticado'
-        })
-        return
-      }
-
-      const { id, cardFeatureId } = req.params
-      const { direction } = req.body
-
-      if (!id || !cardFeatureId) {
-        res.status(400).json({
-          success: false,
-          error: 'ID do projeto e do card são obrigatórios'
-        })
-        return
-      }
-
-      if (!direction || (direction !== 'up' && direction !== 'down')) {
-        res.status(400).json({
-          success: false,
-          error: 'Direção deve ser "up" ou "down"'
-        })
-        return
-      }
-
-      const result = await ProjectModel.reorderCard(id, cardFeatureId, direction, req.user.id)
-
-      if (!result.success) {
-        res.status(result.statusCode || 400).json({
-          success: false,
-          error: result.error
-        })
-        return
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Card reordenado com sucesso'
-      })
-    } catch (error) {
-      console.error('Erro no controller reorderCard:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      })
-    }
-  }
+  /** PATCH /api/projects/:id/cards/:cardFeatureId/reorder */
+  static reorderCard = safeHandler(async (req, res) => {
+    const { id, cardFeatureId } = req.params
+    if (!id || !cardFeatureId) throw badRequest('ID do projeto e do card são obrigatórios')
+    const { direction } = req.body
+    if (direction !== 'up' && direction !== 'down') throw badRequest('Direção deve ser "up" ou "down"')
+    respond(res, await ProjectModel.reorderCard(id, cardFeatureId, direction, req.user!.id), 'Card reordenado com sucesso')
+  })
 }
-
