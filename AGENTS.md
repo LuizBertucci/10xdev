@@ -21,7 +21,7 @@ npm run test       # Run backend tests only (Jest)
 ### Backend Only
 ```bash
 cd backend
-npm run dev        # Start with nodemon
+npm run dev        # Start with ts-node-dev
 npm run build      # tsc && tsc-alias
 npm run start      # node dist/server.js
 npm run lint       # eslint src/**/*.ts
