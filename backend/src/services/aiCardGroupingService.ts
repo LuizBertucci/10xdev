@@ -497,5 +497,52 @@ export class AiCardGroupingService {
       throw err
     }
   }
-}
 
+  static async generateCardSummary(params: {
+    cardTitle: string
+    screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string }> }>
+    tech?: string
+    language?: string
+  }): Promise<{ summary: string }> {
+    const apiKey = this.resolveApiKey()
+    if (!apiKey) throw new Error('API key não configurada')
+    const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
+    const endpoint = this.resolveChatCompletionsUrl()
+    const screensContext = params.screens.slice(0, 10).map((screen) => {
+      const files = screen.blocks
+        .filter(b => b.type === ContentType.CODE)
+        .map(b => `\`${b.language || 'code'}\`: ${b.title || b.route || 'arquivo'}`)
+        .join(', ')
+      return `### ${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
+    }).join('\n\n')
+    const system = [
+      'Você gera resumos claros sobre features de software.',
+      'Regras: português brasileiro, 150-300 caracteres, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
+    ].join('\n')
+    const user = [
+      `Card: ${params.cardTitle}`,
+      `Tech: ${params.tech || 'N/A'}`,
+      '',
+      'Screens:',
+      screensContext,
+      '',
+      'Gere um parágrafo resumindo o que esta feature faz e qual problema ela resolve. Responda apenas com o resumo, sem markdown:'
+    ].join('\n')
+    const { content } = await this.callChatCompletions({
+      endpoint,
+      apiKey,
+      body: { model, temperature: 0.3, max_tokens: 400, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }
+    })
+    const summary = content
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    return { summary }
+  }
+}
