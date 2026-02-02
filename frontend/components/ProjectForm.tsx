@@ -9,6 +9,7 @@ import { AIInstructions } from "@/components/AIInstructions"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -89,6 +90,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   const [importInstructions, setImportInstructions] = useState(IMPORT_INSTRUCTIONS)
   const [showLoginWarning, setShowLoginWarning] = useState(false)
   const [tokenStatus, setTokenStatus] = useState<'idle' | 'valid' | 'invalid' | 'checking'>('idle')
+  const [urlStatus, setUrlStatus] = useState<'idle' | 'valid' | 'invalid'>('idle')
   const [showTokenField, setShowTokenField] = useState(false)
   const [possiblePrivateRepo, setPossiblePrivateRepo] = useState(false)
   const hasGithubUrl = githubUrl.trim().length > 0
@@ -105,6 +107,24 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       localStorage.setItem(IMPORT_INSTRUCTIONS_LS_KEY, importInstructions)
     } catch { /* ignore */ }
   }, [importInstructions])
+
+  // Validação da URL do GitHub
+  useEffect(() => {
+    if (!githubUrl.trim()) {
+      setUrlStatus('idle')
+      return
+    }
+
+    const timer = setTimeout(() => {
+      if (isValidGithubUrl(githubUrl)) {
+        setUrlStatus('valid')
+      } else {
+        setUrlStatus('invalid')
+      }
+    }, 500) // Debounce de 500ms
+
+    return () => clearTimeout(timer)
+  }, [githubUrl])
 
   const isValidGithubUrl = (url: string): boolean => {
     try {
@@ -381,6 +401,9 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Criar Novo Projeto</DialogTitle>
+          <DialogDescription>
+            Crie um projeto do zero ou importe de um repositório GitHub
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden pr-1">
@@ -413,11 +436,26 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                       <div>
                         <Label htmlFor="github-url" className="block text-xs font-medium text-gray-600 mb-1.5">URL do Repositório *</Label>
                         <div className="flex gap-2">
-                          <Input id="github-url" name="github-repo-url" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} placeholder="https://github.com/usuario/repositorio" className={`flex-1 ${INPUT_CLASS}`} autoComplete="off" data-form-type="other" data-lpignore="true" />
-                          <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim()} variant="outline" className="h-9 px-3">
+                          <div className="relative flex-1">
+                            <Input
+                              id="github-url"
+                              name="github-repo-url"
+                              value={githubUrl}
+                              onChange={(e) => setGithubUrl(e.target.value)}
+                              placeholder="https://github.com/usuario/repositorio"
+                              className={`pr-10 ${INPUT_CLASS} ${urlStatus === 'valid' ? 'border-green-500' : urlStatus === 'invalid' ? 'border-red-500' : ''}`}
+                              autoComplete="off"
+                              data-form-type="other"
+                              data-lpignore="true"
+                            />
+                            {urlStatus === 'valid' && <CheckCircle className="h-4 w-4 text-green-600 absolute right-3 top-2.5" />}
+                            {urlStatus === 'invalid' && <AlertCircle className="h-4 w-4 text-red-600 absolute right-3 top-2.5" />}
+                          </div>
+                          <Button onClick={() => handleAnalyzeGithub(true)} disabled={loadingGithub || !githubUrl.trim() || urlStatus === 'invalid'} variant="outline" className="h-9 px-3">
                             {loadingGithub ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
                         </div>
+                        {urlStatus === 'invalid' && <p className="text-xs text-red-600 mt-1">❌ URL inválida. Use: https://github.com/usuario/repositorio</p>}
                         {(githubRepoInfo?.isPrivate || possiblePrivateRepo) && !githubToken && (
                           <button onClick={handleShowTokenFieldAndOpenGithub} className="mt-1.5 text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer flex items-center gap-1">
                             <ExternalLink className="h-3 w-3" />
@@ -439,6 +477,18 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
                           </div>
                           {tokenStatus === 'valid' && <p className="text-xs text-green-600 mt-1">✅ Token válido</p>}
                           {tokenStatus === 'invalid' && <p className="text-xs text-red-600 mt-1">❌ Token inválido ou expirado</p>}
+                          {(githubRepoInfo?.isPrivate || possiblePrivateRepo) && tokenStatus !== 'valid' && (
+                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900">
+                              <p className="font-medium mb-1">🔒 Repositório privado detectado</p>
+                              <p className="text-amber-800">
+                                Crie um token em{' '}
+                                <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900">
+                                  github.com/settings/tokens
+                                </a>
+                                {' '}e marque o escopo <span className="font-mono bg-amber-100 px-1 rounded">repo</span> para acessar repositórios privados.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                       <div>
@@ -456,10 +506,10 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
 
                       {githubRepoInfo && (
                         <div className="rounded-lg bg-green-50 p-4 border-2 border-green-200">
-                          <p className="text-sm font-semibold text-green-900 flex items-center gap-2">
+                          <div className="text-sm font-semibold text-green-900 flex items-center gap-2">
                             Repositório encontrado!
                             {githubRepoInfo.isPrivate && <Badge variant="secondary" className="text-xs bg-gray-800 text-white">Privado</Badge>}
-                          </p>
+                          </div>
                           <p className="text-xs text-green-700 mt-1">Clique em "Importar Projeto" para criar os cards automaticamente.</p>
                         </div>
                       )}
