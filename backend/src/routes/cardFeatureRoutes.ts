@@ -43,4 +43,7 @@ router.post('/', supabaseMiddleware, authenticate, CardFeatureController.create)
 router.put('/:id', supabaseMiddleware, authenticate, CardFeatureController.update)
 router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.delete)
 
+// GERAR RESUMO - Gerar resumo automático com IA
+router.post('/:id/generate-summary', supabaseMiddleware, authenticate, CardFeatureController.generateSummary)
+
 export { router as cardFeatureRoutes }
