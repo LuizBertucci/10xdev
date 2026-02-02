@@ -114,22 +114,6 @@ export class ProjectController {
 
       try {
         await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
-
-        // Timer de progresso: incremento linear a cada 500ms ate 98%
-        progressInterval = setInterval(async () => {
-          if (!isProcessing) return
-          const next = Math.min(98, lastProgress + 1)
-          if (next > lastProgress) {
-            await updateJob({
-              step: 'creating_cards',
-              progress: next,
-              message: `Criando cards... (${totalCardsCreated})`,
-              cards_created: totalCardsCreated,
-              files_processed: totalFilesProcessed
-            })
-          }
-        }, 500)
-
         const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
           url, token,
           {
