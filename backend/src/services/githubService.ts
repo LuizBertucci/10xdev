@@ -320,7 +320,9 @@ export class GithubService {
         headers: this.getHeaders(token), timeout: 15000
       })
       defaultBranch = resp.data.default_branch || 'main'
-    } catch { /* best-effort */ }
+    } catch {
+      // Ignora erro, usa branches padrão
+    }
 
     const branches = [...new Set([defaultBranch, 'main', 'master'])]
 
@@ -328,24 +330,28 @@ export class GithubService {
     if (token) {
       for (const branch of branches) {
         try {
-          const resp = await axios.get(
-            `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/zipball/${branch}`,
-            { headers: this.getHeaders(token), responseType: 'arraybuffer', timeout: 600000, maxContentLength: 500 * 1024 * 1024 }
-          )
+          const apiUrl = `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}/zipball/${branch}`
+          const resp = await axios.get(apiUrl, {
+            headers: this.getHeaders(token), responseType: 'arraybuffer', timeout: 600000, maxContentLength: 500 * 1024 * 1024
+          })
           return Buffer.from(resp.data)
-        } catch { continue }
+        } catch {
+          continue
+        }
       }
     }
 
     // Fallback: URLs publicas
     for (const branch of branches) {
       try {
-        const resp = await axios.get(
-          `https://github.com/${repoInfo.owner}/${repoInfo.repo}/archive/refs/heads/${branch}.zip`,
-          { headers: { 'User-Agent': '10xDev-App' }, responseType: 'arraybuffer', timeout: 600000, maxContentLength: 500 * 1024 * 1024 }
-        )
+        const publicUrl = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/archive/refs/heads/${branch}.zip`
+        const resp = await axios.get(publicUrl, {
+          headers: { 'User-Agent': '10xDev-App' }, responseType: 'arraybuffer', timeout: 600000, maxContentLength: 500 * 1024 * 1024
+        })
         return Buffer.from(resp.data)
-      } catch { continue }
+      } catch {
+        continue
+      }
     }
 
     throw new Error('Não foi possível baixar o repositório. Se for privado, informe um token.')
