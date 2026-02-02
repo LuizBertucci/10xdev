@@ -137,6 +137,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         if (session?.user) {
+          // TOKEN_REFRESHED: não resetar para dados básicos — evita piscar (nome sem coroa)
+          // ao trocar de aba. Apenas atualiza o perfil em background mantendo o estado atual.
+          if (event === 'TOKEN_REFRESHED') {
+            fetchUserProfile(session.user.id)
+              .then(profile => {
+                if (mounted && profile) {
+                  // Só atualiza se os dados realmente mudaram (evita re-render desnecessária)
+                  setUser(prev => {
+                    if (!prev) return profile
+                    if (prev.id === profile.id &&
+                        prev.email === profile.email &&
+                        prev.name === profile.name &&
+                        prev.role === profile.role &&
+                        prev.status === profile.status &&
+                        prev.avatarUrl === profile.avatarUrl) {
+                      return prev // Retorna mesma referência, não re-renderiza
+                    }
+                    return profile
+                  })
+                }
+              })
+              .catch(err => console.error('Erro ao buscar perfil completo:', err))
+            return
+          }
+
           setIsProfileLoaded(false)
           // Define dados básicos rapidamente
           setUser({
