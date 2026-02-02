@@ -15,7 +15,7 @@ import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
 import AdminPanel from "@/pages/AdminPanel"
 import { useAuth } from "@/hooks/useAuth"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import PublicHome from "@/components/PublicHome"
 
 export default function DevPlatform() {
@@ -30,6 +30,9 @@ export default function DevPlatform() {
   const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
   const codeId = activeTab === "codes" ? searchParams?.get('id') || null : null
+
+  // Memoiza isAdmin para evitar re-renders quando user muda mas role não
+  const isAdmin = useMemo(() => user?.role === 'admin', [user?.role])
 
   // Abas já visitadas: mantém montadas e só oculta com CSS, evitando piscar ao trocar de aba
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([activeTab]))
@@ -115,7 +118,7 @@ export default function DevPlatform() {
                 </div>
               )}
 
-              {user?.role === "admin" && visitedTabs.has("admin") && (
+              {isAdmin && visitedTabs.has("admin") && (
                 <div className={platformState.activeTab === "admin" ? "block" : "hidden"}>
                   <AdminPanel />
                 </div>
