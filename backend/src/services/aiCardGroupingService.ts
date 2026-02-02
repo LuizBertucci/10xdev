@@ -517,7 +517,7 @@ export class AiCardGroupingService {
     }).join('\n\n')
     const system = [
       'Você gera resumos claros sobre features de software.',
-      'Regras: português brasileiro, 150-300 caracteres, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
+      'Regras: português brasileiro, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
     ].join('\n')
     const user = [
       `Card: ${params.cardTitle}`,
