@@ -1,10 +1,13 @@
 import { Request, Response } from 'express'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
+import { AiCardGroupingService } from '@/services/aiCardGroupingService'
+import { randomUUID } from 'crypto'
 import type {
   CreateCardFeatureRequest,
   UpdateCardFeatureRequest,
   CardFeatureQueryParams,
-  ContentType
+  ContentType,
+  CardFeatureScreen
 } from '@/types/cardfeature'
 
 export class CardFeatureController {
@@ -708,6 +711,79 @@ export class CardFeatureController {
     } catch (error) {
       console.error('Erro no controller getCardShares:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
+    }
+  }
+
+  static async generateSummary(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+      const { id } = req.params
+      const { force } = req.body as { force?: boolean }
+      if (!id) {
+        res.status(400).json({ success: false, error: 'ID é obrigatório' })
+        return
+      }
+      const cardResult = await CardFeatureModel.findById(id, req.user.id, req.user.role)
+      if (!cardResult.success) {
+        res.status(cardResult.statusCode || 400).json({ success: false, error: cardResult.error })
+        return
+      }
+      const card = cardResult.data
+      if (card.createdBy !== req.user.id && req.user.role !== 'admin') {
+        res.status(403).json({ success: false, error: 'Sem permissão para editar este card' })
+        return
+      }
+      const existingSummaryScreen = card.screens.find(
+        s => s.name.toLowerCase() === 'resumo' || s.name.toLowerCase() === 'overview'
+      )
+      if (existingSummaryScreen && !force) {
+        res.status(200).json({
+          success: true,
+          summary: existingSummaryScreen.blocks[0]?.content || '',
+          message: 'Resumo já existente'
+        })
+        return
+      }
+      const { summary } = await AiCardGroupingService.generateCardSummary({
+        cardTitle: card.title,
+        screens: card.screens.map(s => ({
+          name: s.name,
+          description: s.description,
+          blocks: s.blocks.map(b => ({
+            type: b.type,
+            content: b.content,
+            language: b.language,
+            title: b.title
+          }))
+        })),
+        tech: card.tech,
+        language: card.language
+      })
+      const summaryScreen: CardFeatureScreen = {
+        name: 'Resumo',
+        description: 'Resumo gerado por IA sobre esta feature',
+        blocks: [{
+          id: randomUUID(),
+          type: ContentType.TEXT,
+          content: summary,
+          order: 0
+        }]
+      }
+      const updatedScreens = existingSummaryScreen
+        ? card.screens.map(s => s.name === 'Resumo' || s.name === 'Overview' ? summaryScreen : s)
+        : [summaryScreen, ...card.screens]
+      const updateResult = await CardFeatureModel.update(id, { screens: updatedScreens }, req.user.id)
+      if (!updateResult.success) {
+        res.status(updateResult.statusCode || 400).json({ success: false, error: updateResult.error })
+        return
+      }
+      res.status(200).json({ success: true, summary, message: 'Resumo gerado com sucesso' })
+    } catch (error) {
+      console.error('Erro generateSummary:', error)
+      res.status(500).json({ success: false, error: 'Erro ao gerar resumo' })
     }
   }
 }
