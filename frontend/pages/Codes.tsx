@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react"
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -31,6 +31,62 @@ interface PlatformState {
 interface CodesProps {
   platformState?: PlatformState
 }
+
+// Memoized CreateCardButton component - prevents flickering when parent re-renders
+interface CreateCardButtonProps {
+  onClick: () => void
+  disabled: boolean
+  loading: boolean
+  creating: boolean
+  isSelectionMode: boolean
+  isVisible: boolean
+}
+
+const CreateCardButton = React.memo(function CreateCardButton({
+  onClick,
+  disabled,
+  loading,
+  creating,
+  isSelectionMode,
+  isVisible
+}: CreateCardButtonProps) {
+  if (!isVisible) return null
+
+  const buttonDisabled = disabled || loading || creating || isSelectionMode
+  const buttonText = creating ? 'Criando...' : 'Novo card'
+
+  return (
+    <div className="flex flex-shrink-0">
+      <Button
+        onClick={onClick}
+        disabled={buttonDisabled}
+        size="sm"
+        className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
+      >
+        <Plus className="h-4 w-4 mr-1" />
+        <span className="sm:hidden">{creating ? 'Criando...' : 'Criar'}</span>
+        <span className="hidden sm:inline">{buttonText}</span>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            disabled={buttonDisabled}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem>
+            <FileJson className="h-4 w-4 mr-2" />
+            Criar via JSON
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+})
 
 export default function Codes({ platformState }: CodesProps) {
   const { user, isProfileLoaded } = useAuth()
@@ -231,6 +287,11 @@ export default function Codes({ platformState }: CodesProps) {
     }
   }
 
+  // Memoized callback for create button - prevents re-renders
+  const handleStartCreating = useCallback(() => {
+    cardFeatures.startCreating()
+  }, [cardFeatures.startCreating])
+
   // Handler para ativar/desativar modo seleção
   const handleToggleSelectionMode = () => {
     setIsSelectionMode(!isSelectionMode)
@@ -336,41 +397,14 @@ export default function Codes({ platformState }: CodesProps) {
           )}
 
           {/* Create Button with Dropdown (admin only) */}
-          <div className={`flex flex-shrink-0 transition-opacity duration-200 ${
-            isProfileLoaded && isAuthed ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
-          }`}>
-            <Button
-                onClick={cardFeatures.startCreating}
-                disabled={cardFeatures.loading || cardFeatures.creating || isSelectionMode}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                <span className="sm:hidden">
-                  {cardFeatures.creating ? 'Criando...' : 'Criar'}
-                </span>
-                <span className="hidden sm:inline">
-                  {cardFeatures.creating ? 'Criando...' : 'Novo card'}
-                </span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    disabled={cardFeatures.loading || cardFeatures.creating || isSelectionMode}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-l-none border-l border-blue-500 px-2"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsCreatingJSON(true)}>
-                    <FileJson className="h-4 w-4 mr-2" />
-                    Criar via JSON
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-          </div>
+          <CreateCardButton
+            onClick={handleStartCreating}
+            disabled={false}
+            loading={cardFeatures.loading}
+            creating={cardFeatures.creating}
+            isSelectionMode={isSelectionMode}
+            isVisible={isProfileLoaded && isAuthed}
+          />
         </div>
 
         {/* Visibility Tabs Row - Split into Global and Personal Groups */}
