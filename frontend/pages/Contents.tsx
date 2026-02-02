@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef, useCallback } from "react"
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Search, Plus, FileText, ChevronRight, Video, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -61,6 +61,10 @@ const AddPostButton = React.memo(function AddPostButton({ onClick, disabled, isA
       <span className="hidden sm:inline">Adicionar post</span>
     </Button>
   )
+}, (prevProps, nextProps) => {
+  // Only re-render if disabled changes
+  if (prevProps.disabled !== nextProps.disabled) return false
+  return true
 })
 
 // Memoized AddTutorialButton component - prevents re-renders when parent changes
@@ -85,6 +89,10 @@ const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disab
       <span className="hidden sm:inline">Adicionar tutorial</span>
     </Button>
   )
+}, (prevProps, nextProps) => {
+  // Only re-render if disabled changes
+  if (prevProps.disabled !== nextProps.disabled) return false
+  return true
 })
 
 export default function Contents({ platformState }: ContentsProps) {

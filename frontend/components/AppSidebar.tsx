@@ -146,4 +146,10 @@ function AppSidebar({ platformState }: AppSidebarProps) {
 }
 
 // Memoiza o componente para evitar re-renders desnecessários quando o pai re-renderiza
-export default React.memo(AppSidebar)
+export default React.memo(AppSidebar, (prevProps, nextProps) => {
+  // Only re-render if platformState.activeTab changes
+  const prevActiveTab = prevProps.platformState?.activeTab
+  const nextActiveTab = nextProps.platformState?.activeTab
+  if (prevActiveTab !== nextActiveTab) return false
+  return true
+})

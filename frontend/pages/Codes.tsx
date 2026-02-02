@@ -50,13 +50,11 @@ const CreateCardButton = React.memo(function CreateCardButton({
   isSelectionMode,
   isVisible
 }: CreateCardButtonProps) {
-  if (!isVisible) return null
-
   const buttonDisabled = disabled || loading || creating || isSelectionMode
   const buttonText = creating ? 'Criando...' : 'Novo card'
 
   return (
-    <div className="flex flex-shrink-0">
+    <div className={`flex flex-shrink-0 ${isVisible ? '' : 'hidden'}`}>
       <Button
         onClick={onClick}
         disabled={buttonDisabled}
@@ -86,6 +84,25 @@ const CreateCardButton = React.memo(function CreateCardButton({
       </DropdownMenu>
     </div>
   )
+}, (prevProps, nextProps) => {
+  // Skip re-render if props that affect rendering haven't changed
+  // Return true to skip re-render, false to re-render
+  const isVisibleChanged = prevProps.isVisible !== nextProps.isVisible
+  const isVisibleNowVisible = nextProps.isVisible
+
+  // Always re-render when becoming visible to show the button
+  if (isVisibleChanged && isVisibleNowVisible) return false
+
+  // Skip re-render if only these specific props changed
+  if (prevProps.disabled !== nextProps.disabled) return false
+  if (prevProps.loading !== nextProps.loading) return false
+  if (prevProps.creating !== nextProps.creating) return false
+  if (prevProps.isSelectionMode !== nextProps.isSelectionMode) return false
+
+  // Re-render if isVisible changed from true to false (but we still render, just hidden)
+  if (isVisibleChanged) return false
+
+  return true
 })
 
 export default function Codes({ platformState }: CodesProps) {
