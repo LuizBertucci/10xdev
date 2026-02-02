@@ -162,7 +162,7 @@ class CardFeatureService {
   }
 
   async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
-    const response = await fetch(`/card-features/${cardId}/generate-summary`, {
+    const response = await fetch(`/api/card-features/${cardId}/generate-summary`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ force })
