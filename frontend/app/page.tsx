@@ -15,7 +15,7 @@ import Projects from "@/pages/Projects"
 import ProjectDetail from "@/pages/ProjectDetail"
 import AdminPanel from "@/pages/AdminPanel"
 import { useAuth } from "@/hooks/useAuth"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import PublicHome from "@/components/PublicHome"
 
 export default function DevPlatform() {
@@ -30,6 +30,12 @@ export default function DevPlatform() {
   const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
   const projectId = activeTab === "projects" ? searchParams?.get('id') || null : null
   const codeId = activeTab === "codes" ? searchParams?.get('id') || null : null
+
+  // Abas já visitadas: mantém montadas e só oculta com CSS, evitando piscar ao trocar de aba
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([activeTab]))
+  useEffect(() => {
+    setVisitedTabs(prev => new Set(prev).add(activeTab))
+  }, [activeTab])
 
   // Hard-guard: se usuário não é admin, não deixa permanecer na tab admin
   useEffect(() => {
@@ -70,34 +76,50 @@ export default function DevPlatform() {
             </header>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
-              {/* Home Tab */}
-              {platformState.activeTab === "home" && <Home platformState={platformState} />}
-
-              {/* Codes Tab */}
-              {activeTab === "codes" && codeId ? (
-                <ContentDetail platformState={platformState} />
-              ) : (
-                activeTab === "codes" && <Codes platformState={platformState} />
+              {/* Só monta abas já visitadas; ocultar com CSS evita piscar ao trocar (sidebar, botões, painel). */}
+              {visitedTabs.has("home") && (
+                <div className={platformState.activeTab === "home" ? "block" : "hidden"}>
+                  <Home platformState={platformState} />
+                </div>
               )}
 
-              {/* Contents Tab */}
-              {activeTab === "contents" && contentId && contentsTab === "tutorials" ? (
-                <TutorialDetail platformState={platformState} />
-              ) : activeTab === "contents" && contentId && contentsTab !== "tutorials" ? (
-                <ContentDetail platformState={platformState} />
-              ) : (
-                activeTab === "contents" && <Contents platformState={platformState} />
+              {visitedTabs.has("codes") && (
+                <div className={platformState.activeTab === "codes" ? "block" : "hidden"}>
+                  {codeId ? (
+                    <ContentDetail platformState={platformState} />
+                  ) : (
+                    <Codes platformState={platformState} />
+                  )}
+                </div>
               )}
 
-              {/* Projects Tab */}
-              {activeTab === "projects" && projectId ? (
-                <ProjectDetail platformState={platformState} />
-              ) : (
-                activeTab === "projects" && <Projects platformState={platformState} />
+              {visitedTabs.has("contents") && (
+                <div className={platformState.activeTab === "contents" ? "block" : "hidden"}>
+                  {contentId && contentsTab === "tutorials" ? (
+                    <TutorialDetail platformState={platformState} />
+                  ) : contentId && contentsTab !== "tutorials" ? (
+                    <ContentDetail platformState={platformState} />
+                  ) : (
+                    <Contents platformState={platformState} />
+                  )}
+                </div>
               )}
 
-              {/* Admin Tab */}
-              {platformState.activeTab === "admin" && user?.role === "admin" && <AdminPanel />}
+              {visitedTabs.has("projects") && (
+                <div className={platformState.activeTab === "projects" ? "block" : "hidden"}>
+                  {projectId ? (
+                    <ProjectDetail platformState={platformState} />
+                  ) : (
+                    <Projects platformState={platformState} />
+                  )}
+                </div>
+              )}
+
+              {user?.role === "admin" && visitedTabs.has("admin") && (
+                <div className={platformState.activeTab === "admin" ? "block" : "hidden"}>
+                  <AdminPanel />
+                </div>
+              )}
             </main>
           </div>
         </SidebarInset>
