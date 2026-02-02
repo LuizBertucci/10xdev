@@ -258,16 +258,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={handleGenerateSummary}
                         disabled={!canEdit || isGeneratingSummary}
                       >
                         {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
                         {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Editar
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onDelete(snippet.id)}
