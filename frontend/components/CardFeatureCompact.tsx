@@ -1,18 +1,20 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { randomUUID } from 'crypto'
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video, Sparkles, Loader2 } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
+import { cardFeatureService } from "@/services/cardFeatureService"
 import type { CardFeature as CardFeatureType } from "@/types"
 import { ContentType, Visibility, CardType } from "@/types"
 
@@ -39,6 +41,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [apiLinkCopied, setApiLinkCopied] = useState(false)
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
@@ -150,6 +153,41 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
   }
 
+  const handleGenerateSummary = async () => {
+    if (!canEdit || isGeneratingSummary) return
+    
+    setIsGeneratingSummary(true)
+    try {
+      const response = await cardFeatureService.generateSummary(snippet.id, true)
+      
+      if (response.success) {
+        const updatedScreens = response.summary 
+          ? [
+              {
+                name: 'Resumo',
+                description: 'Resumo gerado por IA',
+                blocks: [{ id: randomUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
+                route: ''
+              },
+              ...snippet.screens.filter(s => s.name !== 'Resumo')
+            ]
+          : snippet.screens
+        
+        if (onUpdate) {
+          await onUpdate(snippet.id, { screens: updatedScreens })
+          toast.success('Resumo gerado com sucesso!')
+        }
+      } else {
+        toast.error(response.message || 'Erro ao gerar resumo')
+      }
+    } catch (error) {
+      console.error('Erro ao gerar resumo:', error)
+      toast.error('Erro ao gerar resumo')
+    } finally {
+      setIsGeneratingSummary(false)
+    }
+  }
+
   const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -223,6 +261,13 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={handleGenerateSummary}
+                        disabled={!canEdit || isGeneratingSummary}
+                      >
+                        {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onDelete(snippet.id)}
