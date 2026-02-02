@@ -1,5 +1,5 @@
 import { apiClient, ApiResponse } from './apiClient'
-import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats } from '@/types'
+import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats, GenerateSummaryResponse } from '@/types'
 
 class CardFeatureService {
   private readonly endpoint = '/card-features'
@@ -161,6 +161,14 @@ class CardFeatureService {
     return uniqueCardFeatures
   }
 
+  async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
+    const response = await fetch(`/card-features/${cardId}/generate-summary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force })
+    })
+    return response.json()
+  }
 
   /**
    * Formata CardFeature para exibição
