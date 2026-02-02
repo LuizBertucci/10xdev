@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import supabase, { type User, type RegisterData, type LoginData } from '@/services/auth'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -18,15 +18,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Cache em memória para evitar requisições repetidas do mesmo perfil
+const profileCache = new Map<string, { profile: User; timestamp: number }>()
+const PROFILE_CACHE_TTL = 30 * 1000 // 30 segundos
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  // Começa em loading para evitar redirect prematuro antes de checar a sessão
   const [isLoading, setIsLoading] = useState(true)
-  // Flag: indica quando já tentamos carregar o perfil (role/status) do user atual
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
 
-  // Helper para buscar perfil completo do usuário da tabela users
-  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+  // Helper memoizado para buscar perfil completo do usuário da tabela users
+  const fetchUserProfile = useCallback(async (userId: string): Promise<User | null> => {
+    // Verifica cache primeiro
+    const cached = profileCache.get(userId)
+    if (cached && Date.now() - cached.timestamp < PROFILE_CACHE_TTL) {
+      return cached.profile
+    }
+
     try {
       const { data, error } = await supabase
         .from('users')
@@ -48,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status: string | null
           avatar_url: string | null
         }
-        
-        return {
+
+        const profile: User = {
           id: userData.id,
           email: userData.email ?? null,
           name: userData.name ?? null,
@@ -57,6 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status: userData.status ?? null,
           avatarUrl: userData.avatar_url ?? null
         }
+
+        // Salva no cache
+        profileCache.set(userId, { profile, timestamp: Date.now() })
+
+        return profile
       }
 
       return null
@@ -64,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Erro ao buscar perfil:', error)
       return null
     }
-  }
+  }, [])
 
   // Inicializar sessão ao montar
   useEffect(() => {
@@ -126,78 +139,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
-      // Eventos que indicam que a sessão foi invalidada - limpar estado local
-      // Isso quebra o loop de refresh quando o token é inválido
-      if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-        console.log('[useAuth] Sessão invalidada, limpando estado local', { event })
+      // SIGNED_OUT: limpa tudo
+      if (event === 'SIGNED_OUT') {
+        console.log('[useAuth] Sessão encerrada, limpando estado')
         setUser(null)
         setIsProfileLoaded(true)
         return
       }
 
-      try {
-        if (session?.user) {
-          // TOKEN_REFRESHED: não resetar para dados básicos — evita piscar (nome sem coroa)
-          // ao trocar de aba. Apenas atualiza o perfil em background mantendo o estado atual.
-          if (event === 'TOKEN_REFRESHED') {
-            fetchUserProfile(session.user.id)
-              .then(profile => {
-                if (mounted && profile) {
-                  // Só atualiza se os dados realmente mudaram (evita re-render desnecessária)
-                  setUser(prev => {
-                    if (!prev) return profile
-                    if (prev.id === profile.id &&
-                        prev.email === profile.email &&
-                        prev.name === profile.name &&
-                        prev.role === profile.role &&
-                        prev.status === profile.status &&
-                        prev.avatarUrl === profile.avatarUrl) {
-                      return prev // Retorna mesma referência, não re-renderiza
-                    }
-                    return profile
-                  })
-                }
-              })
-              .catch(err => console.error('Erro ao buscar perfil completo:', err))
-            return
-          }
+      // TOKEN_REFRESHED sem sessão: sessão foi invalidada
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        console.log('[useAuth] Token refresh falhou, limpando estado')
+        setUser(null)
+        setIsProfileLoaded(true)
+        return
+      }
 
-          setIsProfileLoaded(false)
-          // Define dados básicos rapidamente
-          setUser({
-              id: session.user.id,
-              email: session.user.email ?? null,
-              name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
-              role: 'user',
-              status: 'active'
-          })
+      // TOKEN_REFRESHED: mantém estado atual, não faz nada
+      // O estado do usuário deve permanecer constante até o logout
+      if (event === 'TOKEN_REFRESHED') {
+        return
+      }
 
-          // Atualiza role/status em background
+      // SIGNED_IN: só processa se ainda não temos perfil carregado
+      // Evita re-renders desnecessários que causam flicker
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Se já temos perfil carregado, mantém o estado atual
+        if (isProfileLoaded && user?.id === session.user.id) {
+          return
+        }
+
+        // Se não temos perfil ainda, busca em background (sem resetar estado)
+        if (!isProfileLoaded) {
           fetchUserProfile(session.user.id)
             .then(profile => {
-              if (mounted && profile) setUser(profile)
+              if (mounted && profile) {
+                setUser(profile)
+                setIsProfileLoaded(true)
+              }
             })
-            .catch(err => console.error('Erro ao buscar perfil completo:', err))
-            .finally(() => {
-              if (mounted) setIsProfileLoaded(true)
-            })
-        } else if (mounted) {
-          setUser(null)
-          setIsProfileLoaded(true)
+            .catch(err => console.error('Erro ao buscar perfil:', err))
         }
-      } catch (err) {
-        console.error('Erro no onAuthStateChange:', err)
-        // Não derruba a sessão local por falha de perfil; mantém pelo menos o auth user quando possível
-        if (mounted && session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email ?? null,
-            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
-            role: 'user',
-            status: 'active'
-          })
-        }
-        if (mounted) setIsProfileLoaded(true)
       }
     })
 
@@ -322,7 +304,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      // Limpa cache e estado
+      profileCache.clear()
       setUser(null)
+      setIsProfileLoaded(true)
     } catch (error: any) {
       console.error('Erro no logout:', error)
       throw error
