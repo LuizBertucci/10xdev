@@ -639,6 +639,28 @@ export class GithubService {
     }
   }
 
+  private static addSummaryScreen(card: CreateCardFeatureRequest): CreateCardFeatureRequest {
+    const allFiles = card.screens
+      .flatMap(s => s.blocks.filter(b => b.route).map(b => b.route!))
+      .filter(Boolean)
+    const summaryBlock: ContentBlock = {
+      id: randomUUID(),
+      type: ContentType.TEXT,
+      content: `## ${card.title}\n\n${card.description}\n\n### Arquivos (${allFiles.length})\n${allFiles.map(f => `- \`${f}\``).join('\n')}`,
+      order: 0
+    }
+    const summaryScreen: CardFeatureScreen = {
+      name: 'Sumário',
+      description: card.description,
+      route: '',
+      blocks: [summaryBlock]
+    }
+    return {
+      ...card,
+      screens: [summaryScreen, ...card.screens]
+    }
+  }
+
   /** Gera tags automaticas baseadas na feature e tech. */
   private static generateAutoTags(featureName: string, tech: string): string[] {
     const tags: string[] = []
@@ -672,12 +694,16 @@ export class GithubService {
     const notify = (step: string, progress: number, message: string, extra?: { cardEstimate?: number; cardCount?: number }) =>
       options?.onProgress?.({ step, progress, message, ...extra })
 
-    notify('downloading_zip', 10, 'Baixando o repositório do GitHub...')
+    notify('downloading_zip', 5, 'Baixando o repositório do GitHub...')
     const zipBuffer = await this.downloadRepoAsZip(url, token)
 
-    notify('extracting_files', 25, 'Extraindo arquivos do repositório...')
     const files = this.extractFilesFromZip(zipBuffer)
     if (files.length === 0) throw new Error('Nenhum arquivo de código encontrado no repositório.')
+
+    const totalFiles = files.length
+    let filesProcessed = 0
+
+    notify('extracting_files', 10, `Extraindo ${totalFiles} arquivos...`)
 
     let packageJson: any = null
     const pkg = files.find(f => f.path === 'package.json')
@@ -686,20 +712,21 @@ export class GithubService {
     const tech = this.detectTech(files, packageJson)
     const mainLanguage = this.detectMainLanguage(files)
 
-    notify('analyzing_repo', 45, `Tecnologia detectada: ${tech}. Mapeando funcionalidades...`)
+    notify('analyzing_repo', 20, `Tecnologia: ${tech}. Mapeando funcionalidades...`)
     const featureGroups = this.groupFilesByFeature(files)
-    notify('generating_cards', 55, 'Organizando funcionalidades...')
+
+    const notifyProgress = (step: string, progress: number, message: string) => {
+      options?.onProgress?.({ step, progress, message })
+    }
 
     const useAi = options?.useAi === true && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
 
     let cards: CreateCardFeatureRequest[] = []
-    let filesProcessed = 0
     let aiCardsCreated = 0
 
     const featureGroupsArray = Array.from(featureGroups.entries())
     const totalFeatures = featureGroupsArray.length
     const estimatedCards = this.estimateCardsCount(featureGroupsArray)
-    let featureIndex = 0
 
     /** Emite card para o array e chama onCardReady se disponivel. */
     const emitCard = async (card: CreateCardFeatureRequest) => {
@@ -710,70 +737,104 @@ export class GithubService {
       }
     }
 
-    for (const [featureName, featureFiles] of featureGroupsArray) {
-      featureIndex++
-      const featureProgress = 55 + Math.floor((featureIndex / totalFeatures) * 15)
-
-      // --- AI path (best-effort, fallback para heuristica) ---
-      if (useAi) {
-        notify('generating_cards', featureProgress,
-          `🤖 IA analisando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`,
-          { cardEstimate: estimatedCards })
-
-        try {
-          const mode = AiCardGroupingService.mode()
-          const fileMetas = featureFiles.map(f => ({
-            path: f.path, layer: f.layer, featureName: f.featureName, size: f.size,
-            snippet: mode === 'full' ? f.content : this.makeSnippet(f.content)
+    // ================================================
+    // AI PATH: Chamar IA 1x com todos os arquivos ANTES do loop
+    // ================================================
+    if (useAi) {
+      notify('generating_cards', 55,
+        `🤖 IA analisando todo o repositório [1/1]`,
+        { cardEstimate: estimatedCards })
+      try {
+        const mode = AiCardGroupingService.mode()
+        const allFeatureFiles = featureGroupsArray.flatMap(([, files]) => files)
+        const fileMetas = allFeatureFiles.map(f => ({
+          path: f.path,
+          layer: f.layer,
+          featureName: f.featureName,
+          size: f.size,
+          snippet: mode === 'full' ? f.content : this.makeSnippet(f.content)
+        }))
+        const ai = await AiCardGroupingService.refineGrouping({
+          repoUrl: url,
+          detectedTech: tech,
+          detectedLanguage: mainLanguage,
+          files: fileMetas,
+          proposedGroups: featureGroupsArray.map(([key, files]) => ({
+            key,
+            files: files.map(f => f.path)
           }))
-
-          const ai = await AiCardGroupingService.refineGrouping({
-            repoUrl: url, detectedTech: tech, detectedLanguage: mainLanguage,
-            files: fileMetas,
-            proposedGroups: [{ key: featureName, files: featureFiles.map(f => f.path) }]
-          })
-
-          notify('generating_cards', featureProgress,
-            `✅ IA criou ${ai.cards.length} card(s) para "${featureName}" [${featureIndex}/${totalFeatures}]`,
-            { cardEstimate: estimatedCards })
-
-          for (const aiCard of ai.cards) {
-            const screens: CardFeatureScreen[] = []
-            for (const s of aiCard.screens) {
-              const blocks: ContentBlock[] = []
-              for (const filePath of s.files) {
-                const file = featureFiles.find(ff => ff.path === filePath)
-                if (!file) continue
-                blocks.push(this.fileToBlock(file, blocks.length))
-                filesProcessed++
-              }
-              if (blocks.length === 0) continue
-              screens.push({ name: s.name, description: cleanMarkdown(s.description || ''), route: s.files[0] || '', blocks })
+        })
+        notify('generating_cards', 65,
+          `✅ IA criou ${ai.cards.length} card(s) consolidados`,
+          { cardEstimate: estimatedCards, cardCount: ai.cards.length })
+        for (const aiCard of ai.cards) {
+          const screens: CardFeatureScreen[] = []
+          for (const s of aiCard.screens) {
+            const blocks: ContentBlock[] = []
+            for (const filePath of s.files) {
+              const file = allFeatureFiles.find(ff => ff.path === filePath)
+              if (!file) continue
+              blocks.push(this.fileToBlock(file, blocks.length))
+              filesProcessed++
             }
-            if (screens.length === 0) continue
-
-            const newCard = this.buildCard(featureName, screens, tech, mainLanguage, featureFiles, {
-              title: aiCard.title, description: aiCard.description, tech: aiCard.tech, language: aiCard.language
+            if (blocks.length === 0) continue
+            screens.push({
+              name: s.name,
+              description: cleanMarkdown(s.description || ''),
+              route: s.files[0] || '',
+              blocks
             })
-            await emitCard(newCard)
-            aiCardsCreated++
           }
-
-          if (ai.cards.length > 0) continue
-        } catch (featureErr: any) {
-          console.error('[GithubService] Erro IA em feature:', featureName, '-', featureErr?.message)
-          notify('generating_cards', featureProgress,
-            `⚠️ IA falhou em "${featureName}", usando heurística [${featureIndex}/${totalFeatures}]`,
-            { cardEstimate: estimatedCards })
+          if (screens.length === 0) continue
+          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, allFeatureFiles, {
+            title: aiCard.title,
+            description: aiCard.description,
+            tech: aiCard.tech,
+            language: aiCard.language
+          })
+          const cardWithSummary = this.addSummaryScreen(newCard)
+          await emitCard(cardWithSummary)
+          aiCardsCreated++
+          if (totalFiles > 0) {
+            const progress = Math.floor(30 + (filesProcessed / totalFiles) * 55)
+            notifyProgress('generating_cards', progress, `${filesProcessed}/${totalFiles} arquivos processados`)
+          }
         }
+        // Após processar todos os cards da IA, adicionar Sumário e retornar
+        cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
+        // Qualidade check
+        notify('quality_check', 80, '🔍 Supervisor de qualidade analisando cards...', { cardEstimate: estimatedCards, cardCount: cards.length })
+        const qualityReport = CardQualitySupervisor.analyzeQuality(cards)
+        if (qualityReport.issuesFound > 0) {
+          notify('quality_corrections', 85, '🔧 Aplicando correções automáticas...', { cardEstimate: estimatedCards, cardCount: cards.length })
+          const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
+          cards = corrections.correctedCards
+          notify('quality_corrections', 90, `✅ Correções: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`, { cardEstimate: estimatedCards, cardCount: cards.length })
+        } else {
+          notify('quality_check', 90, '✅ Supervisor: qualidade OK', { cardEstimate: estimatedCards, cardCount: cards.length })
+        }
+        const aiSummary = aiCardsCreated > 0
+          ? `🤖 IA criou ${aiCardsCreated} cards de ${cards.length} totais`
+          : `📁 ${cards.length} cards criados via heurística`
+        notify('generating_cards', 90, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
+        return { cards, filesProcessed, aiUsed: true, aiCardsCreated }
+      } catch (featureErr: any) {
+        console.error('[GithubService] Erro IA no processamento único:', featureErr?.message)
+        notify('generating_cards', 60,
+          `⚠️ IA falhou, usando heurística`,
+          { cardEstimate: estimatedCards })
+        // Fallback: continua para o caminho heurístico
       }
+    }
+    // ================================================
+
+    for (const [featureName, featureFiles] of featureGroupsArray) {
+      const featureProgress = 55 + Math.floor(((featureGroupsArray.indexOf([featureName, featureFiles]) + 1) / totalFeatures) * 15)
 
       // --- Heuristic path ---
-      if (!useAi) {
-        notify('generating_cards', featureProgress,
-          `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureIndex}/${totalFeatures}]`,
-          { cardEstimate: estimatedCards })
-      }
+      notify('generating_cards', featureProgress,
+        `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureGroupsArray.indexOf([featureName, featureFiles]) + 1}/${totalFeatures}]`,
+        { cardEstimate: estimatedCards })
 
       const filesByLayer = new Map<string, FeatureFile[]>()
       for (const file of featureFiles) {
@@ -804,7 +865,9 @@ export class GithubService {
       }
 
       if (!screens.length) continue
-      await emitCard(this.buildCard(featureName, screens, tech, mainLanguage, featureFiles))
+      const newCard = this.buildCard(featureName, screens, tech, mainLanguage, featureFiles)
+      const cardWithSummary = this.addSummaryScreen(newCard)
+      await emitCard(cardWithSummary)
     }
 
     cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
