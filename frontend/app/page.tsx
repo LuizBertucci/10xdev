@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
 import Home from "@/pages/Home"
 import Codes from "@/pages/Codes"
+import CodeDetail from "@/pages/CodeDetail"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import Contents from "@/pages/Contents"
 import ContentDetail from "@/pages/ContentDetail"
@@ -89,7 +90,7 @@ export default function DevPlatform() {
               {visitedTabs.has("codes") && (
                 <div className={platformState.activeTab === "codes" ? "block" : "hidden"}>
                   {codeId ? (
-                    <ContentDetail platformState={platformState} />
+                    <CodeDetail platformState={platformState} />
                   ) : (
                     <Codes platformState={platformState} />
                   )}
