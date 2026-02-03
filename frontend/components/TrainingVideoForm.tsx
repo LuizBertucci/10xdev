@@ -48,6 +48,7 @@ export default function TrainingVideoForm({
         tags: initialData.tags || []
       })
       setPreviewThumbnail(initialData.thumbnail || null)
+      setUrlError(null)
     } else if (mode === 'create') {
       setFormData(DEFAULT_FORM_DATA)
       setPreviewThumbnail(null)
