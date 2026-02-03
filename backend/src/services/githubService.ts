@@ -828,12 +828,12 @@ export class GithubService {
     }
     // ================================================
 
-    for (const [featureName, featureFiles] of featureGroupsArray) {
-      const featureProgress = 55 + Math.floor(((featureGroupsArray.indexOf([featureName, featureFiles]) + 1) / totalFeatures) * 15)
+    for (const [idx, [featureName, featureFiles]] of featureGroupsArray.entries()) {
+      const featureProgress = 55 + Math.floor(((idx + 1) / totalFeatures) * 15)
 
       // --- Heuristic path ---
       notify('generating_cards', featureProgress,
-        `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${featureGroupsArray.indexOf([featureName, featureFiles]) + 1}/${totalFeatures}]`,
+        `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${idx + 1}/${totalFeatures}]`,
         { cardEstimate: estimatedCards })
 
       const filesByLayer = new Map<string, FeatureFile[]>()
