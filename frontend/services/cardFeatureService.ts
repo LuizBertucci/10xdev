@@ -163,15 +163,15 @@ class CardFeatureService {
 
   async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
     const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force })
-    
-    if (response?.success) {
+
+    if (response?.success && response.data) {
       return {
         success: true,
-        summary: (response as any).summary || response.data?.summary || '',
-        message: (response as any).message || response.data?.message
+        summary: response.data.summary || '',
+        message: response.data.message
       }
     }
-    
+
     throw new Error(response?.error || 'Erro ao gerar resumo')
   }
 
