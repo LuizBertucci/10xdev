@@ -719,8 +719,7 @@ export class CardFeatureController {
     console.log('[generateSummary] Card ID:', req.params.id)
     console.log('[generateSummary] User ID:', req.user?.id)
     console.log('[generateSummary] User Role:', req.user?.role)
-    console.log('[generateSummary] User Email:', req.user?.email)
-    
+
     try {
       if (!req.user) {
         console.log('[generateSummary] ERRO: Usuário não autenticado')
@@ -818,7 +817,7 @@ export class CardFeatureController {
         }]
       }
       const updatedScreens = existingSummaryScreen
-        ? card.screens.map(s => s.name === 'Resumo' || s.name === 'Overview' ? summaryScreen : s)
+        ? card.screens.map(s => s.name.toLowerCase() === existingSummaryScreen.name.toLowerCase() ? summaryScreen : s)
         : [summaryScreen, ...card.screens]
       
       console.log('[generateSummary] Salvando resumo no banco...')
