@@ -189,6 +189,7 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
   }, [summaryCategories, summaryGroups])
 
   const handleOrderChange = async (newOrder: string[]) => {
+    const previousOrder = orderedCategories
     setOrderedCategories(newOrder)
 
     if (projectId) {
@@ -197,13 +198,13 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
         const response = await projectService.update(projectId, { categoryOrder: newOrder })
         if (!response?.success) {
           toast.error(response?.error || "Erro ao salvar ordem das categorias")
-          setOrderedCategories(summaryCategories)
+          setOrderedCategories(previousOrder)
         } else {
           toast.success("Ordem das categorias salva")
         }
       } catch (error: any) {
         toast.error(error?.message || "Erro ao salvar ordem das categorias")
-        setOrderedCategories(summaryCategories)
+        setOrderedCategories(previousOrder)
       } finally {
         setSavingOrder(false)
       }
