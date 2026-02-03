@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,14 +16,6 @@ import { useCardTabState } from "@/hooks/useCardTabState"
 import { cardFeatureService } from "@/services/cardFeatureService"
 import type { CardFeature as CardFeatureType } from "@/types"
 import { ContentType, Visibility, CardType } from "@/types"
-
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
 
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
@@ -182,35 +174,31 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
   }
 
-  const handleGenerateSummary = async () => {
+  const handleGenerateSummary = useCallback(async () => {
     if (!accessInfo?.canGenerate || isGeneratingSummary) return
-    
     setIsGeneratingSummary(true)
     try {
       const response = await cardFeatureService.generateSummary(snippet.id, true)
-      
       if (response.success) {
-        const updatedScreens = response.summary 
+        const updatedScreens = response.summary
           ? [
               {
                 name: 'Resumo',
                 description: 'Resumo gerado por IA',
-                blocks: [{ id: generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
+                blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
               ...snippet.screens.filter(s => s.name !== 'Resumo')
             ]
           : snippet.screens
-        
         if (onUpdate) {
           await onUpdate(snippet.id, { screens: updatedScreens })
           toast.success('Resumo gerado com sucesso!')
-          
-          const shouldRedirect = currentCardIdFromUrl !== snippet.id
-          
-          if (shouldRedirect) {
+          if (currentCardIdFromUrl !== snippet.id) {
             const tab = (snippet as any).card_type === 'conteudos' ? 'contents' : 'codes'
-            router.push(`/?tab=${tab}&id=${snippet.id}&refresh=${Date.now()}`)
+            setTimeout(() => {
+              router.push(`/?tab=${tab}&id=${snippet.id}&refresh=${Date.now()}`)
+            }, 150)
           }
         }
       } else {
@@ -225,7 +213,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     } finally {
       setIsGeneratingSummary(false)
     }
-  }
+  }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl])
 
   const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
     <DropdownMenu>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,14 +11,6 @@ import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
 import { Visibility, ContentType } from "@/types"
 import { toast } from "sonner"
-
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
 
 interface CardFeatureProps {
   snippet: CardFeatureType
@@ -35,16 +27,12 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
   const techValue = snippet.tech ?? "Geral"
   const languageValue = snippet.language ?? "text"
-  
-  // Verificar se o usuário é o criador do card
   const isOwner = user?.id === snippet.createdBy
   const canEdit = isOwner
 
-  // Verificar acesso para mostrar botão de gerar resumo
   useEffect(() => {
     const checkAccess = async () => {
       if (!user || !snippet.id) return
-      
       try {
         const response = await cardFeatureService.checkAccess(snippet.id)
         if (response.success && response.data) {
@@ -55,30 +43,26 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
         setAccessInfo(null)
       }
     }
-    
     checkAccess()
   }, [user, snippet.id])
 
-  const handleGenerateSummary = async () => {
+  const handleGenerateSummary = useCallback(async () => {
     if (!accessInfo?.canGenerate || isGeneratingSummary) return
-    
     setIsGeneratingSummary(true)
     try {
       const response = await cardFeatureService.generateSummary(snippet.id, true)
-      
       if (response.success) {
-        const updatedScreens = response.summary 
+        const updatedScreens = response.summary
           ? [
               {
                 name: 'Resumo',
                 description: 'Resumo gerado por IA',
-                blocks: [{ id: generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
+                blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
               ...snippet.screens.filter(s => s.name !== 'Resumo')
             ]
           : snippet.screens
-    
         onEdit({ ...snippet, screens: updatedScreens })
         toast.success('Resumo gerado com sucesso!')
       } else if (response.message === 'Resumo já existente') {
@@ -96,7 +80,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
     } finally {
       setIsGeneratingSummary(false)
     }
-  }
+  }, [accessInfo, isGeneratingSummary, snippet])
 
   return (
     <TooltipProvider>

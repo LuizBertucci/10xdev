@@ -1,22 +1,43 @@
 "use client"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Calendar, Tag, ChevronRight, Code2, Copy, Check } from "lucide-react"
 import ContentRenderer from "@/components/ContentRenderer"
 import { Button } from "@/components/ui/button"
 import { cardFeatureService } from "@/services"
 import type { CardFeature as CardFeatureType } from "@/types"
+
 interface CodeDetailViewProps {
-  id?: string | null
-  onBack: () => void
-  onGoHome: () => void
+  platformState?: {
+    activeTab: string
+    setActiveTab: (tab: string) => void
+  }
 }
-export default function CodeDetailView({ id, onBack, onGoHome }: CodeDetailViewProps) {
+
+export default function CodeDetailView({ platformState }: CodeDetailViewProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const id = searchParams?.get('id')
   const [cardFeature, setCardFeature] = useState<CardFeatureType | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedScreen, setCopiedScreen] = useState<number | null>(null)
+
+  const handleBack = () => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    const currentTab = platformState?.activeTab || 'codes'
+    params.set('tab', currentTab)
+    params.delete('id')
+    router.push(`/?${params.toString()}`)
+  }
+
+  const handleGoHome = () => {
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    params.delete('id')
+    params.delete('tab')
+    router.push(`/?${params.toString()}`)
+  }
+
   useEffect(() => {
     if (!id) return
     router.refresh()
@@ -38,11 +59,13 @@ export default function CodeDetailView({ id, onBack, onGoHome }: CodeDetailViewP
     }
     fetchContent()
   }, [id])
+
   const formatDate = (iso?: string) => {
     if (!iso) return ""
     const d = new Date(iso)
     return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
   }
+
   const copyScreenContent = async (screenIndex: number) => {
     const screen = cardFeature?.screens[screenIndex]
     if (!screen) return
@@ -53,6 +76,7 @@ export default function CodeDetailView({ id, onBack, onGoHome }: CodeDetailViewP
     setCopiedScreen(screenIndex)
     setTimeout(() => setCopiedScreen(null), 2000)
   }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -60,32 +84,35 @@ export default function CodeDetailView({ id, onBack, onGoHome }: CodeDetailViewP
       </div>
     )
   }
+
   if (error) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
         </Button>
         <div className="text-red-600 bg-red-50 p-4 rounded-lg">{error}</div>
       </div>
     )
   }
+
   if (!cardFeature) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
         </Button>
         <div className="text-gray-600">Código não encontrado</div>
       </div>
     )
   }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-2 text-sm overflow-x-auto pb-2">
         <button
           type="button"
-          onClick={onGoHome}
+          onClick={handleGoHome}
           className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors whitespace-nowrap"
         >
           Início
@@ -93,7 +120,7 @@ export default function CodeDetailView({ id, onBack, onGoHome }: CodeDetailViewP
         <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleBack}
           className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors whitespace-nowrap"
         >
           Códigos
