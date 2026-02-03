@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MacroCategory, MICRO_TO_MACRO_MAPPING, MACRO_CATEGORY_DESCRIPTIONS } from '@/types/MacroCategory'
+import { ContentType } from '@/types/cardfeature'
 
 /**
  * Remove formatação Markdown de texto (negrito, itálico, links, etc)
@@ -504,21 +505,33 @@ export class AiCardGroupingService {
     tech?: string
     language?: string
   }): Promise<{ summary: string }> {
+    console.log('[generateCardSummary] Iniciando...')
     const apiKey = this.resolveApiKey()
-    if (!apiKey) throw new Error('API key não configurada')
+    console.log('[generateCardSummary] API Key presente:', Boolean(apiKey))
+    
+    if (!apiKey) {
+      console.error('[generateCardSummary] ERRO: API key não configurada')
+      throw new Error('API key não configurada')
+    }
+    
     const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
     const endpoint = this.resolveChatCompletionsUrl()
+    console.log('[generateCardSummary] Model:', model)
+    console.log('[generateCardSummary] Endpoint:', endpoint)
+    
     const screensContext = params.screens.slice(0, 10).map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
-        .map(b => `\`${b.language || 'code'}\`: ${b.title || b.route || 'arquivo'}`)
+        .map(b => `\`${b.language || 'code'}\`: ${b.title || 'arquivo'}`)
         .join(', ')
       return `### ${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
     }).join('\n\n')
+    
     const system = [
       'Você gera resumos claros sobre features de software.',
       'Regras: português brasileiro, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
     ].join('\n')
+    
     const user = [
       `Card: ${params.cardTitle}`,
       `Tech: ${params.tech || 'N/A'}`,
@@ -528,11 +541,15 @@ export class AiCardGroupingService {
       '',
       'Gere um parágrafo resumindo o que esta feature faz e qual problema ela resolve. Responda apenas com o resumo, sem markdown:'
     ].join('\n')
+    
+    console.log('[generateCardSummary] Chamando API de IA...')
     const { content } = await this.callChatCompletions({
       endpoint,
       apiKey,
       body: { model, temperature: 0.3, max_tokens: 400, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }
     })
+    
+    console.log('[generateCardSummary] Resposta recebida da IA, processando...')
     const summary = content
       .replace(/^#{1,6}\s+/gm, '')
       .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -543,6 +560,8 @@ export class AiCardGroupingService {
       .replace(/^\s*[-*+]\s+/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
+    
+    console.log('[generateCardSummary] Resumo processado:', summary?.substring(0, 100) + '...')
     return { summary }
   }
 }
