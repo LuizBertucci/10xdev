@@ -100,6 +100,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
   if (prevProps.loading !== nextProps.loading) return false
   if (prevProps.creating !== nextProps.creating) return false
   if (prevProps.isSelectionMode !== nextProps.isSelectionMode) return false
+  if (prevProps.onClick !== nextProps.onClick) return false
   if (prevProps.onCreateJson !== nextProps.onCreateJson) return false
 
   // Re-render if isVisible changed from true to false (but we still render, just hidden)
