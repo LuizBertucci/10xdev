@@ -162,12 +162,25 @@ class CardFeatureService {
   }
 
   async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
-    const response = await fetch(`/api/card-features/${cardId}/generate-summary`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ force })
-    })
-    return response.json()
+    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force })
+    
+    if (response?.success) {
+      return {
+        success: true,
+        summary: (response as any).summary || response.data?.summary || '',
+        message: (response as any).message || response.data?.message
+      }
+    }
+    
+    throw new Error(response?.error || 'Erro ao gerar resumo')
+  }
+
+  async checkAccess(cardId: string): Promise<{ success: boolean; data?: { canGenerate: boolean; isOwner: boolean; isAdmin: boolean }; error?: string }> {
+    const response = await apiClient.get(`${this.endpoint}/${cardId}/access`)
+    if (!response) {
+      return { success: false, error: 'Erro ao verificar acesso' }
+    }
+    return response as { success: boolean; data?: { canGenerate: boolean; isOwner: boolean; isAdmin: boolean }; error?: string }
   }
 
   /**
