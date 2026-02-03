@@ -63,7 +63,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   // Verificar acesso para mostrar botão de gerar resumo
   useEffect(() => {
     const checkAccess = async () => {
-      if (!user || !snippet.id) return
+    if (!user || !snippet.id) {
+      setAccessInfo(null)
+      return
+    }
       
       try {
         const response = await cardFeatureService.checkAccess(snippet.id)
