@@ -895,11 +895,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowCategories(!showCategories)}
+              onClick={() => setIsSummaryOpen(true)}
               className="w-full md:w-auto"
             >
               <List className="h-4 w-4 mr-2" />
-              {showCategories ? 'Ocultar Sumário' : 'Mostrar Sumário'}
+              Ver Sumário
             </Button>
           )}
         </div>
