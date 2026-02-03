@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useCallback } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -195,7 +195,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [githubToken])
+  }, [githubToken, githubUrl, isValidGithubUrl, handleAnalyzeGithub])
 
   // Auto buscar info do repo quando colar URL válida
   useEffect(() => {
@@ -264,7 +264,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     }
   }
 
-  const handleAnalyzeGithub = async (showToasts = true) => {
+  const handleAnalyzeGithub = useCallback(async (showToasts = true) => {
     if (!githubUrl.trim()) {
       if (showToasts) toast.error("URL do GitHub é obrigatória")
       return
@@ -313,7 +313,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     } finally {
       setLoadingGithub(false)
     }
-  }
+  }, [githubUrl, githubToken])
 
   const handleGenerateGithubToken = () => {
     if (!githubUrl.trim()) {
