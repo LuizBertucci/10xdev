@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef, useCallback } from "react"
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Search, Plus, FileText, ChevronRight, Video, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -38,6 +38,64 @@ interface ContentsProps {
 }
 
 const ITEMS_PER_PAGE = 12
+
+// Memoized AddPostButton component - prevents re-renders when parent changes
+interface AddPostButtonProps {
+  onClick: () => void
+  disabled: boolean
+  isAdmin: boolean
+}
+
+const AddPostButton = React.memo(function AddPostButton({ onClick, disabled, isAdmin }: AddPostButtonProps) {
+  if (!isAdmin) return null
+
+  return (
+    <Button
+      onClick={onClick}
+      disabled={disabled}
+      className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap px-2 sm:px-4"
+      size="sm"
+    >
+      <Plus className="h-4 w-4 mr-1" />
+      <span className="sm:hidden">Criar</span>
+      <span className="hidden sm:inline">Adicionar post</span>
+    </Button>
+  )
+}, (prevProps, nextProps) => {
+  if (prevProps.disabled !== nextProps.disabled) return false
+  if (prevProps.isAdmin !== nextProps.isAdmin) return false
+  if (prevProps.onClick !== nextProps.onClick) return false
+  return true
+})
+
+// Memoized AddTutorialButton component - prevents re-renders when parent changes
+interface AddTutorialButtonProps {
+  onClick: () => void
+  disabled: boolean
+  isAdmin: boolean
+}
+
+const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disabled, isAdmin }: AddTutorialButtonProps) {
+  if (!isAdmin) return null
+
+  return (
+    <Button
+      onClick={onClick}
+      disabled={disabled}
+      className="bg-rose-500 hover:bg-rose-600 text-white whitespace-nowrap px-2 sm:px-4"
+      size="sm"
+    >
+      <Plus className="h-4 w-4 mr-1" />
+      <span className="sm:hidden">Criar</span>
+      <span className="hidden sm:inline">Adicionar tutorial</span>
+    </Button>
+  )
+}, (prevProps, nextProps) => {
+  if (prevProps.disabled !== nextProps.disabled) return false
+  if (prevProps.isAdmin !== nextProps.isAdmin) return false
+  if (prevProps.onClick !== nextProps.onClick) return false
+  return true
+})
 
 export default function Contents({ platformState }: ContentsProps) {
   const router = useRouter()
@@ -214,6 +272,16 @@ export default function Contents({ platformState }: ContentsProps) {
 
   const hasPostFilters = !!cardFeatures.searchTerm
 
+  // Memoized callback for add post button
+  const handleAddPostClick = useCallback(() => {
+    cardFeatures.startCreating()
+  }, [cardFeatures.startCreating])
+
+  // Memoized callback for add tutorial button
+  const handleAddTutorialClick = useCallback(() => {
+    setCreateTutorialOpen(true)
+  }, [setCreateTutorialOpen])
+
   return (
     <div className="space-y-6 w-full overflow-x-hidden px-1">
       {/* Header */}
@@ -265,17 +333,11 @@ export default function Contents({ platformState }: ContentsProps) {
                   className="pl-10 pr-10 w-full h-10"
                 />
               </div>
-              {isAdmin && (
-                <Button
-                  onClick={cardFeatures.startCreating}
-                  className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap px-2 sm:px-4"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="sm:hidden">Criar</span>
-                  <span className="hidden sm:inline">Adicionar post</span>
-                </Button>
-              )}
+              <AddPostButton
+                onClick={handleAddPostClick}
+                disabled={cardFeatures.loading || cardFeatures.creating}
+                isAdmin={isAdmin}
+              />
             </div>
 
             {/* Loading */}
@@ -326,6 +388,7 @@ export default function Contents({ platformState }: ContentsProps) {
                     onEdit={(snippet) => cardFeatures.startEditing(snippet)}
                     onDelete={(snippetId) => handleDelete(snippetId)}
                     onUpdate={cardFeatures.updateCardFeature}
+                    expandOnClick
                   />
                 ))}
               </div>
@@ -412,17 +475,11 @@ export default function Contents({ platformState }: ContentsProps) {
                   className="pl-10 pr-10 w-full h-10"
                 />
               </div>
-              {isAdmin && (
-                <Button
-                  onClick={() => setCreateTutorialOpen(true)}
-                  className="bg-rose-500 hover:bg-rose-600 text-white whitespace-nowrap px-2 sm:px-4"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="sm:hidden">Criar</span>
-                  <span className="hidden sm:inline">Adicionar tutorial</span>
-                </Button>
-              )}
+              <AddTutorialButton
+                onClick={handleAddTutorialClick}
+                disabled={tutorialsLoading}
+                isAdmin={isAdmin}
+              />
             </div>
 
             {/* Loading */}

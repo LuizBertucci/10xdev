@@ -4,12 +4,13 @@
   "description": "Backend API for 10xDev platform - CardFeatures CRUD system",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "ts-node-dev --require tsconfig-paths/register --respawn --transpile-only src/server.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/server.js",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "analyze-cards": "ts-node src/scripts/analyze-project-cards.ts"
   },
   "keywords": [
     "api",
@@ -52,9 +53,9 @@
     "@typescript-eslint/parser": "^6.15.0",
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
-    "nodemon": "^3.0.2",
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3"
   },

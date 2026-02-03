@@ -1,19 +1,21 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video, Sparkles, Loader2 } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
+import { cardFeatureService } from "@/services/cardFeatureService"
 import type { CardFeature as CardFeatureType } from "@/types"
-import { ContentType, Visibility } from "@/types"
+import { ContentType, Visibility, CardType } from "@/types"
 
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
@@ -24,9 +26,13 @@ interface CardFeatureCompactProps {
   isSelectionMode?: boolean
   isSelected?: boolean
   onToggleSelect?: (id: string) => void
+  expandOnClick?: boolean
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const currentCardIdFromUrl = searchParams?.get('id')
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -36,6 +42,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [apiLinkCopied, setApiLinkCopied] = useState(false)
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
@@ -51,6 +59,28 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3000'
     : 'https://10xdev.com.br'
   const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
+
+  // Verificar acesso para mostrar botão de gerar resumo
+  useEffect(() => {
+    const checkAccess = async () => {
+    if (!user || !snippet.id) {
+      setAccessInfo(null)
+      return
+    }
+      
+      try {
+        const response = await cardFeatureService.checkAccess(snippet.id)
+        if (response.success && response.data) {
+          setAccessInfo(response.data)
+        }
+      } catch (error) {
+        console.error('Erro ao verificar acesso:', error)
+        setAccessInfo(null)
+      }
+    }
+    
+    checkAccess()
+  }, [user, snippet.id])
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -112,13 +142,21 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
   }
 
-  // Função para lidar com cliques no card (mobile)
+  // Função para lidar com cliques no card
   const handleCardClick = (e: React.MouseEvent) => {
-    // Previne o toggle se clicou em um botão (desktop)
+    // Previne a navegação se clicou em um botão
     if ((e.target as HTMLElement).closest('button')) {
       return
     }
-    toggleExpanded()
+
+    if (expandOnClick) {
+      toggleExpanded()
+      return
+    }
+
+    // Navegar para view de detalhe baseado no tipo de card
+    const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
+    router.push(`/?tab=${tab}&id=${snippet.id}`)
   }
 
   // Screen ativa baseada na tab selecionada
@@ -138,6 +176,47 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       toast.error("Erro ao alterar visibilidade")
     }
   }
+
+  const handleGenerateSummary = useCallback(async () => {
+    if (!accessInfo?.canGenerate || isGeneratingSummary) return
+    setIsGeneratingSummary(true)
+    try {
+      const response = await cardFeatureService.generateSummary(snippet.id, true)
+      if (response.success) {
+        const updatedScreens = response.summary
+          ? [
+              {
+                name: 'Resumo',
+                description: 'Resumo gerado por IA',
+                blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
+                route: ''
+              },
+              ...snippet.screens.filter(s => s.name !== 'Resumo')
+            ]
+          : snippet.screens
+        if (onUpdate) {
+          await onUpdate(snippet.id, { screens: updatedScreens })
+          toast.success('Resumo gerado com sucesso!')
+          if (currentCardIdFromUrl !== snippet.id) {
+            const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
+            setTimeout(() => {
+              router.push(`/?tab=${tab}&id=${snippet.id}&refresh=${Date.now()}`)
+            }, 150)
+          }
+        }
+      } else {
+        toast.error(response.message || 'Erro ao gerar resumo')
+      }
+    } catch (error: any) {
+      if (error.message) {
+        toast.error(error.message)
+      } else {
+        toast.error('Erro ao gerar resumo')
+      }
+    } finally {
+      setIsGeneratingSummary(false)
+    }
+  }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl])
 
   const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
     <DropdownMenu>
@@ -171,8 +250,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
   return (
     <TooltipProvider>
-      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
-        <CardContent className="p-3 md:p-4">
+      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full min-w-0 overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
+        <CardContent className="p-3 md:p-4 min-w-0">
           {/* Layout Unificado - Vertical para mobile e desktop */}
           <div
             className="cursor-pointer active:bg-gray-50 rounded-lg transition-colors"
@@ -209,15 +288,31 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(snippet)} disabled={!canEdit}>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onDelete(snippet.id)}
-                        className="text-red-600"
-                        disabled={!canEdit}
+                      <DropdownMenuItem 
+                        onClick={handleGenerateSummary}
+                        disabled={!accessInfo?.canGenerate || isGeneratingSummary}
                       >
+                        {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
+                      </DropdownMenuItem>
+<DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEdit(snippet)
+                          }}
+                          disabled={!canEdit}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDelete(snippet.id)
+                          }}
+                          className="text-red-600"
+                          disabled={!canEdit}
+                        >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Excluir
                       </DropdownMenuItem>
@@ -226,7 +321,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 )}
               </div>
 
-              {/* Descrição (opcional) */}
+              {/* Descrição do card (opcional) */}
               {snippet.description && (
                 <p className="text-sm text-gray-600 line-clamp-2">{snippet.description}</p>
               )}
@@ -372,7 +467,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           
           {/* Área de Código Condicional */}
           {isExpanded && (
-            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden">
+            <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden min-w-0">
               {/* Sistema de Tabs */}
               <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden">
                 <style>{`
@@ -441,10 +536,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   }
                 `}</style>
 
-                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible -mx-2 md:-mx-3 px-2 md:px-3 pt-0">
+                <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
-                    className="h-full compact-content"
+                    className="h-full compact-content w-full"
                   />
                 </div>
               </div>

@@ -229,7 +229,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-0">
+            <Card className="bg-gradient-to-br from-indigo-600 to-cyan-700 text-white border-0">
               <CardContent className="p-5">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center mb-3">
                   <Play className="h-5 w-5 text-white" />
@@ -238,7 +238,7 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
                 <p className="text-white/90 text-sm mb-3">Vídeos, posts, manuais e tutoriais</p>
                 <Button
                   variant="secondary"
-                  className="w-full bg-white text-purple-700 hover:bg-gray-100 font-medium"
+                  className="w-full bg-white text-cyan-700 hover:bg-gray-100 font-medium"
                   onClick={handleGoToContents}
                   aria-label="Acessar página de Conteúdos"
                 >

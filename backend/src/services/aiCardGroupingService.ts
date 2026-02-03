@@ -1,4 +1,32 @@
 import { z } from 'zod'
+import { MacroCategory, MICRO_TO_MACRO_MAPPING, MACRO_CATEGORY_DESCRIPTIONS } from '@/types/MacroCategory'
+import { ContentType } from '@/types/cardfeature'
+
+/**
+ * Remove formatação Markdown de texto (negrito, itálico, links, etc)
+ */
+function cleanMarkdown(text: string): string {
+  if (!text) return text
+
+  return text
+    // Remove **negrito**
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Remove *itálico*
+    .replace(/\*([^*]+)\*/g, '$1')
+    // Remove __sublinhado__
+    .replace(/__([^_]+)__/g, '$1')
+    // Remove ~~riscado~~
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Remove `código inline`
+    .replace(/`([^`]+)`/g, '$1')
+    // Remove # Headers (##, ###, etc) - apenas no início da linha
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove links [texto](url)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove bullet points (-, *, +) no início da linha
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .trim()
+}
 
 type FileMeta = {
   path: string
@@ -19,8 +47,11 @@ const AiOutputSchema = z.object({
     description: z.string().optional().default(''),
     tech: z.string().optional(),
     language: z.string().optional(),
+    macroCategory: z.nativeEnum(MacroCategory).optional(),
+    tags: z.array(z.string()).optional(),
     screens: z.array(z.object({
       name: z.string().min(1),
+      description: z.string().optional().default(''),
       files: z.array(z.string().min(1)).min(1)
     })).min(1)
   })).min(1)
@@ -107,16 +138,17 @@ export class AiCardGroupingService {
       const normalizedCards = raw.cards
         .map((card: any, cardIdx: number) => {
           // Map name→title with fallbacks
-          const title = card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`
-          
+          const title = cleanMarkdown(card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`)
+
           // Normalize screens array
           const screensRaw = Array.isArray(card?.screens) ? card.screens : []
           const screens = screensRaw
             .map((s: any, screenIdx: number) => {
-              const name = s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`
+              const name = cleanMarkdown(s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`)
+              const description = cleanMarkdown(s?.description || '')
               const files = Array.isArray(s?.files) ? s.files : []
               if (!files.length) return null
-              return { name, files }
+              return { name, description, files }
             })
             .filter(Boolean)
 
@@ -126,7 +158,7 @@ export class AiCardGroupingService {
           // Build normalized card with required fields
           const normalizedCard: any = {
             title,
-            description: card?.description || '',
+            description: cleanMarkdown(card?.description || ''),
             screens
           }
 
@@ -184,29 +216,209 @@ export class AiCardGroupingService {
       'Você é um arquiteto de software especializado em organizar código.',
       '',
       '## Tarefa',
-      'Organize os arquivos em "cards" por funcionalidade de negócio.',
+      'Organize os arquivos em "cards" por funcionalidade de negócio usando MACRO-CATEGORIAS coerentes.',
       '',
-      '## Regras',
-      '- 1 card = 1 feature coesa (ex: Autenticação, Usuários, Pagamentos)',
-      '- Agrupe arquivos relacionados mesmo de camadas diferentes',
-      '- Cada card tem múltiplas "screens" organizadas por camada técnica',
+      '## MACRO-CATEGORIAS OBRIGATÓRIAS (use APENAS estas)',
+      '1. Frontend - Componentes UI, páginas, estilos, estado',
+      '2. Backend - APIs, serviços, banco de dados, lógica',
+      '3. Fullstack - Autenticação, usuários, pagamentos, notificações',
+      '4. DevOps - Configuração, build, deploy, infraestrutura',
+      '5. Conteúdo - Documentação, tutoriais, guias',
+      '6. Ferramentas - Utilitários, scripts, templates',
+      '7. Testes - Testes automatizados, qualidade',
+      '',
+      '## Regras CRÍTICAS para Bom Agrupamento',
+      '- **OBRIGATÓRIO**: Use APENAS as 7 macro-categorias acima',
+      '- **NÃO IMPORTA O QUÃO ESPECÍFICO**: Sempre classifique em uma das 7 categorias',
+      '- **AGRUPE TUDO relacionado** em 1 card só (não fragmente)',
+      '- Ex: "Componente de Botão" + "Componente de Input" = 1 card "Componentes UI" na categoria "Frontend"',
+      '- Ex: "Auth Controller" + "Auth Service" = 1 card "Autenticação" na categoria "Fullstack"',
+      '- Ex: "User Model" + "Payment Controller" = 1 card "Sistema de Usuários" na categoria "Fullstack"',
+      '',
+      '## Mapeamento FORÇADO (obrigatório seguir)',
+      '- QUALQUER coisa de UI/Componentes → Categoria "Frontend"',
+      '- QUALQUER coisa de API/Controller/Service → Categoria "Backend"', 
+      '- QUALQUER coisa de Auth/User/Payment → Categoria "Fullstack"',
+      '- QUALQUER coisa de Config/Build/Deploy → Categoria "DevOps"',
+      '- QUALQUER coisa de Docs/Tutorial/Guide → Categoria "Conteúdo"',
+      '- QUALQUER coisa de Utils/Helpers/Scripts → Categoria "Ferramentas"',
+      '- QUALQUER coisa de Test → Categoria "Testes"',
+      '',
+      '## Detecção de Namespace',
+      'Se arquivos estão no mesmo diretório/namespace, provavelmente são da mesma feature:',
+      '- backend/src/skills/n8n/* → card "Skills n8n" → macroCategory: "' + MacroCategory.TOOLS + '"',
+      '- frontend/components/ui/* → card "Componentes UI" → macroCategory: "' + MacroCategory.FRONTEND + '"',
+      '- backend/src/auth/* → card "Sistema de Autenticação" → macroCategory: "' + MacroCategory.FULLSTACK + '"',
+      '- backend/src/api/* → card "APIs REST" → macroCategory: "' + MacroCategory.APIS + '"',
       '',
       '## Formato de Saída',
       '- title: Nome descritivo em português (ex: "Sistema de Autenticação")',
       '- description: O que a funcionalidade FAZ (não liste arquivos)',
-      '- screens[].name: Nome da camada (ex: "Backend - Controller")',
+      '- tech: Tecnologia principal (ex: "React", "Node.js")',
+      '- tags: Array de 3-5 tags principais (OBRIGATÓRIO)',
+      '- screens[].name: Nome da camada (ex: "Backend - Controller", "Frontend - Component")',
       '- screens[].files: Paths EXATOS dos arquivos da lista fornecida',
       '',
-      '## Exemplos de Bons Títulos',
-      '- "Sistema de Autenticação" (não "Auth")',
-      '- "Gerenciamento de Usuários" (não "User")',
-      '- "Processamento de Pagamentos" (não "Payment")',
+      '## Exemplos de Bons Cards com Tags Coerentes',
+      '✅ {',
+      '   "title": "Sistema de Autenticação",',
+      '   "tech": "Node.js + React",',
+      '   "tags": ["Fullstack", "Autenticação", "JWT", "OAuth"]',
+      ' }',
+      '✅ {',
+      '   "title": "Componentes UI",',
+      '   "tech": "React + Tailwind",',
+      '   "tags": ["Frontend", "UI", "Componentes", "React"]',
+      ' }',
+      '✅ {',
+      '   "title": "APIs REST",',
+      '   "tech": "Express.js",',
+      '   "tags": ["Backend", "APIs", "REST", "Controllers"]',
+      ' }',
+      '',
+      '## Regras FINAIS para QUALIDADE',
+      '✅ BOM agrupamento tem:',
+      '- 10-20 cards no total (consolidado)',
+      '- Cada card com 5-20 screens bem organizadas',
+      '- Primeira tag SEMPRE é uma das 7 macro-categorias',
+      '- Títulos descritivos e em português',
+      '- Features completas (backend + frontend juntos)',
+      '',
+      '❌ RUIM agrupamento tem:',
+      '- 30+ cards (fragmentado)',
+      '- Cards com 1-3 screens apenas',
+      '- Categorias específicas como "Buttons", "Auth Controller"',
+      '- Tags sem macro-categoria principal',
       '',
       '## Saída',
       'Retorne APENAS JSON válido com a chave "cards".'
     ].join('\n')
 
     const user = [
+      '## ⚠️ REGRA #1 OBRIGATÓRIA: Overview na Primeira Screen',
+      '',
+      '**CRÍTICO**: TODO card DEVE ter como primeira screen um "Overview" com descrição detalhada.',
+      '',
+      '**Estrutura OBRIGATÓRIA da primeira screen:**',
+      '```json',
+      '{',
+      '  "name": "Overview",',
+      '  "description": "Descrição COMPLETA em 3-5 parágrafos: (1) O que é, (2) Problema que resolve, (3) Componentes principais, (4) Como funciona",',
+      '  "files": []',
+      '}',
+      '```',
+      '',
+      '**A descrição do Overview DEVE ter NO MÍNIMO 200 caracteres.**',
+      '',
+      '## ⚠️ ATENÇÃO: Consolidação por Namespace',
+      '',
+      'IMPORTANTE: Os grupos sugeridos abaixo JÁ foram consolidados semanticamente.',
+      'Cada grupo representa UMA feature coesa que agrupa múltiplos arquivos relacionados.',
+      '',
+      '### Regras de Consolidação (OBRIGATÓRIO seguir):',
+      '',
+      '1. **Features Consolidadas (NÃO dividir)**:',
+      '   - "ui" = TODOS os componentes de interface (button, input, dialog, badge, etc)',
+      '     → Crie 1 card "Componentes UI" com screens organizadas por tipo',
+      '   - "hook" = TODOS os hooks customizados (useAuth, useApi, useForm, etc)',
+      '     → Crie 1 card "Hooks Customizados" com screens por hook',
+      '   - "docs" = TODA a documentação (README, guides, API docs, etc)',
+      '     → Crie 1 card "Documentação" com screens por tópico',
+      '   - "skill" = TODAS as skills n8n',
+      '     → Crie 1 card "Skills n8n" com screens por skill',
+      '   - "utils" = TODOS os utilitários',
+      '     → Crie 1 card "Utilitários" com screens por categoria',
+      '   - "config" = TODAS as configurações',
+      '     → Crie 1 card "Configurações" com screens por tipo',
+      '',
+      '2. **Limite de Fragmentação**:',
+      '   - Se feature tem <50 arquivos: SEMPRE criar 1 card único',
+      '   - Se feature tem >50 arquivos: máximo 2 sub-cards (ex: "Sistema X Backend", "Sistema X Frontend")',
+      '   - NUNCA criar 1 card por componente/arquivo (ex: "Componente de Botão", "Hook useAuth")',
+      '',
+      '3. **Organização das Screens**:',
+      '   - Agrupe arquivos relacionados em screens temáticas',
+      '   - Exemplos de boas screens:',
+      '     - Card "Componentes UI": screens "Buttons & Badges", "Form Inputs", "Dialogs & Modals"',
+      '     - Card "Hooks Customizados": screens "Auth Hooks", "Data Hooks", "UI Hooks"',
+      '     - Card "Documentação": screens "Getting Started", "API Reference", "Architecture"',
+      '',
+      '4. **Critério de Qualidade**:',
+      '   - ✅ BOM: 10-20 cards no total (features consolidadas)',
+      '   - ❌ RUIM: 50+ cards (sobre-fragmentação)',
+      '   - ✅ BOM: Cada card com 5-20 screens bem organizadas',
+      '   - ❌ RUIM: Muitos cards com 1-2 screens apenas',
+      '',
+      '5. **Re-consolidação de Backend/Frontend**:',
+      '   - Se você receber features como "X-backend" e "X-frontend" da MESMA funcionalidade:',
+      '     → Crie 1 ÚNICO card "Sistema de X" com screens organizadas por camada',
+      '   - Exemplos:',
+      '     - "auth-backend" + "auth-frontend" → 1 card "Sistema de Autenticação"',
+      '     - "card-backend" + "card-frontend" → 1 card "Sistema de CardFeatures"',
+      '   - Organize as screens por camada: "Backend - Controllers", "Frontend - Components", etc',
+      '',
+      '### Exemplos de Consolidação CORRETA:',
+      '',
+      '**Exemplo 1: Feature "ui" com 40 arquivos**',
+      '```json',
+      '{',
+      '  "title": "Componentes UI",',
+      '  "description": "Biblioteca completa de componentes reutilizáveis incluindo botões, inputs, dialogs e utilitários de interface.",',
+      '  "screens": [',
+      '    { ',
+      '      "name": "Overview", ',
+      '      "description": "Biblioteca de componentes reutilizáveis para construção de interfaces. Inclui elementos básicos (botões, badges), controles de formulário (inputs, selects, checkboxes) e overlays (dialogs, modals, sheets). Todos os componentes seguem padrões de acessibilidade e design system.\\n\\nFluxo: Componentes são importados individualmente → Customizados via props → Integrados na UI da aplicação.",',
+      '      "files": []',
+      '    },',
+      '    { "name": "Buttons & Badges", "files": ["button.tsx", "badge.tsx", "toggle.tsx"] },',
+      '    { "name": "Form Controls", "files": ["input.tsx", "select.tsx", "checkbox.tsx"] },',
+      '    { "name": "Dialogs & Overlays", "files": ["dialog.tsx", "modal.tsx", "sheet.tsx"] }',
+      '  ]',
+      '}',
+      '```',
+      '',
+      '**Exemplo 2: Feature "hook" com 12 arquivos**',
+      '```json',
+      '{',
+      '  "title": "Hooks Customizados",',
+      '  "description": "Hooks React reutilizáveis para autenticação, gerenciamento de estado e integração com APIs.",',
+      '  "screens": [',
+      '    { ',
+      '      "name": "Overview", ',
+      '      "description": "Coleção de hooks React customizados que encapsulam lógica reutilizável. Inclui hooks de autenticação (useAuth, useUser), gerenciamento de dados (useApi, useCardFeatures) e interface (useTheme, useToast).\\n\\nFluxo: Hook é importado no componente → Retorna estado e funções → Componente usa os valores retornados.",',
+      '      "files": []',
+      '    },',
+      '    { "name": "Authentication Hooks", "files": ["useAuth.ts", "useUser.ts"] },',
+      '    { "name": "Data Management Hooks", "files": ["useApi.ts", "useCardFeatures.ts"] },',
+      '    { "name": "UI Hooks", "files": ["useTheme.ts", "useToast.ts"] }',
+      '  ]',
+      '}',
+      '```',
+      '',
+      '### Exemplos de Fragmentação INCORRETA (EVITAR):',
+      '',
+      '❌ **ERRADO** (sobre-fragmentação):',
+      '```json',
+      '[',
+      '  { "title": "Componente de Botão UI", "screens": [...] },',
+      '  { "title": "Componente de Input UI", "screens": [...] },',
+      '  { "title": "Componente de Dialog UI", "screens": [...] }',
+      '  // ... 20 cards separados ❌',
+      ']',
+      '```',
+      '',
+      '✅ **CORRETO** (consolidado):',
+      '```json',
+      '[',
+      '  { "title": "Componentes UI", "screens": [',
+      '      { "name": "Buttons", ... },',
+      '      { "name": "Inputs", ... },',
+      '      { "name": "Dialogs", ... }',
+      '    ]',
+      '  }',
+      ']',
+      '```',
+      '',
       '## Repositório',
       `URL: ${params.repoUrl}`,
       `Tech: ${params.detectedTech}`,
@@ -286,5 +498,70 @@ export class AiCardGroupingService {
       throw err
     }
   }
-}
 
+  static async generateCardSummary(params: {
+    cardTitle: string
+    screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string }> }>
+    tech?: string
+    language?: string
+  }): Promise<{ summary: string }> {
+    console.log('[generateCardSummary] Iniciando...')
+    const apiKey = this.resolveApiKey()
+    console.log('[generateCardSummary] API Key presente:', Boolean(apiKey))
+    
+    if (!apiKey) {
+      console.error('[generateCardSummary] ERRO: API key não configurada')
+      throw new Error('API key não configurada')
+    }
+    
+    const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
+    const endpoint = this.resolveChatCompletionsUrl()
+    console.log('[generateCardSummary] Model:', model)
+    console.log('[generateCardSummary] Endpoint:', endpoint)
+    
+    const screensContext = params.screens.slice(0, 10).map((screen) => {
+      const files = screen.blocks
+        .filter(b => b.type === ContentType.CODE)
+        .map(b => `\`${b.language || 'code'}\`: ${b.title || 'arquivo'}`)
+        .join(', ')
+      return `### ${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
+    }).join('\n\n')
+    
+    const system = [
+      'Você gera resumos claros sobre features de software.',
+      'Regras: português brasileiro, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
+    ].join('\n')
+    
+    const user = [
+      `Card: ${params.cardTitle}`,
+      `Tech: ${params.tech || 'N/A'}`,
+      '',
+      'Screens:',
+      screensContext,
+      '',
+      'Gere um parágrafo resumindo o que esta feature faz e qual problema ela resolve. Responda apenas com o resumo, sem markdown:'
+    ].join('\n')
+    
+    console.log('[generateCardSummary] Chamando API de IA...')
+    const { content } = await this.callChatCompletions({
+      endpoint,
+      apiKey,
+      body: { model, temperature: 0.3, max_tokens: 400, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }
+    })
+    
+    console.log('[generateCardSummary] Resposta recebida da IA, processando...')
+    const summary = content
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    
+    console.log('[generateCardSummary] Resumo processado:', summary?.substring(0, 100) + '...')
+    return { summary }
+  }
+}

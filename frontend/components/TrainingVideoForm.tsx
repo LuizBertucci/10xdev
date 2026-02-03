@@ -17,7 +17,7 @@ interface TrainingVideoFormProps {
   onSubmit: (data: CreateTrainingVideoData) => Promise<void>
 }
 
-const DEFAULT_FORM_DATA = {
+const DEFAULT_FORM_DATA: CreateTrainingVideoData = {
   title: '',
   description: '',
   youtubeUrl: '',
@@ -42,12 +42,13 @@ export default function TrainingVideoForm({
     if (mode === 'edit' && initialData) {
       setFormData({
         title: initialData.title,
-        description: initialData.description,
-        youtubeUrl: initialData.youtubeUrl,
+        description: initialData.description || '',
+        youtubeUrl: initialData.youtubeUrl || '',
         category: initialData.category || '',
         tags: initialData.tags || []
       })
-      setPreviewThumbnail(initialData.thumbnail)
+      setPreviewThumbnail(initialData.thumbnail || null)
+      setUrlError(null)
     } else if (mode === 'create') {
       setFormData(DEFAULT_FORM_DATA)
       setPreviewThumbnail(null)
@@ -86,7 +87,7 @@ export default function TrainingVideoForm({
       return
     }
 
-    if (!isValidYouTubeUrl(formData.youtubeUrl)) {
+    if (!isValidYouTubeUrl(formData.youtubeUrl || '')) {
       setUrlError('URL do YouTube inválida')
       return
     }
@@ -206,7 +207,7 @@ export default function TrainingVideoForm({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !formData.title.trim() || !isValidYouTubeUrl(formData.youtubeUrl)}
+              disabled={isLoading || !formData.title.trim() || !isValidYouTubeUrl(formData.youtubeUrl || '')}
               className="bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? (

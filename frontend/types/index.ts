@@ -25,7 +25,8 @@ export type {
   ImportConfig,
   CardFeatureMetadata,
   FilterConfig,
-  PaginationConfig
+  PaginationConfig,
+  GenerateSummaryResponse
 } from './cardfeature'
 
 // API types
@@ -63,7 +64,7 @@ export type {
 
 // Pagination types
 export type {
-  PaginationConfig,
+  PaginationConfig as PaginationHookConfig,
   FetchParams,
   UsePaginationReturn
 } from '../hooks/usePagination'

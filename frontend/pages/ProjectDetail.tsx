@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -24,9 +24,12 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { ProjectSummary } from "@/components/ProjectSummary"
+import { ProjectCategories } from "@/components/ProjectCategories"
 import { usePlatform } from "@/hooks/use-platform"
+import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -53,6 +56,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [hasMoreCards, setHasMoreCards] = useState(false)
   const [totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
+  const ALL_CATEGORIES_VALUE = "__all__"
+  const ALL_CATEGORIES_LABEL = "Todas"
+  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES_VALUE)
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false)
   
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
@@ -63,6 +70,30 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [nameDraft, setNameDraft] = useState("")
   const [savingName, setSavingName] = useState(false)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
+  const [showCategories, setShowCategories] = useState(true)
+  const [activeTab, setActiveTab] = useState('codes')
+
+  // Share project state
+  const [projectLinkCopied, setProjectLinkCopied] = useState(false)
+
+  // URL compartilhável do projeto
+  const shareableProjectUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !project) return ''
+    const baseUrl = window.location.origin
+    return `${baseUrl}/?tab=projects&id=${project.id}`
+  }, [project])
+
+  // Função para copiar URL do projeto
+  const handleCopyProjectUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareableProjectUrl)
+      setProjectLinkCopied(true)
+      toast.success("Link do projeto copiado!")
+      setTimeout(() => setProjectLinkCopied(false), 2000)
+    } catch (err) {
+      toast.error("Erro ao copiar link do projeto")
+    }
+  }
 
   // User Search State
   const [userSearchQuery, setUserSearchQuery] = useState("")
@@ -276,7 +307,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       } else if (!incremental) {
         setLoadingCards(true)
       }
-      const response = await projectService.getCardsAll(projectId)
+      const response = await projectService.getCards(projectId)
       if (response?.success && response?.data) {
         const newCards = response.data
         const totalCount = response.count ?? newCards.length
@@ -560,6 +591,35 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     new Map(cardFeatures.map(f => [f.id, f])).values()
   )
 
+  const categoryGroups = useMemo(() => {
+    return buildCategoryGroups(uniqueCardFeatures)
+  }, [uniqueCardFeatures])
+
+  const allCategories = useMemo(() => {
+    return getAllCategories(categoryGroups)
+  }, [categoryGroups])
+
+  const orderedCategories = useMemo(() => {
+    return orderCategories(allCategories, project?.categoryOrder || [])
+  }, [allCategories, project?.categoryOrder])
+
+  const categoryFilterIds = useMemo(() => {
+    if (selectedCategory === ALL_CATEGORIES_VALUE) {
+      return null
+    }
+    const cardsInCategory = categoryGroups.get(selectedCategory) || []
+    return new Set(cardsInCategory.map((card) => card.id))
+  }, [categoryGroups, selectedCategory])
+
+  useEffect(() => {
+    if (selectedCategory === ALL_CATEGORIES_VALUE) {
+      return
+    }
+    if (!orderedCategories.includes(selectedCategory)) {
+      setSelectedCategory(ALL_CATEGORIES_VALUE)
+    }
+  }, [orderedCategories, selectedCategory])
+
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
@@ -567,9 +627,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
     .filter(({ cardFeature }) => 
-      !searchTerm || 
-      (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+      (!searchTerm || 
+        (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+      ) &&
+      (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
   const canManageMembers = project?.userRole === 'owner' || project?.userRole === 'admin'
@@ -705,19 +767,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           )}
         </div>
 
-        {/* Busca inline no desktop */}
-        <div className="hidden lg:flex flex-1 justify-center px-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Buscar cards..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 w-full pl-9 text-sm"
-            />
-          </div>
-        </div>
-
         {/* Ações */}
         <div className="flex items-center gap-2 flex-row-reverse">
           <Button
@@ -728,6 +777,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Adicionar Card</span>
           </Button>
+
           {project.userRole && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -736,10 +786,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsMembersDialogOpen(true)}>
-                  <Users className="h-4 w-4 mr-2" />
-                  Editar membros
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setIsEditMode(!isEditMode)}>
                   <Pencil className="h-4 w-4 mr-2" />
                   {isEditMode ? "Sair do modo de edição" : "Editar lista"}
@@ -834,118 +880,352 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Cards do Projeto */}
-      <div className="space-y-3">
-        {/* Busca em linha separada (melhor no mobile) */}
-        <div className="relative mb-4 lg:hidden">
-          <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            placeholder="Buscar cards..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9"
-          />
+      {/* Tabs de navegação */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <TabsList>
+            <TabsTrigger value="codes">Códigos</TabsTrigger>
+            <TabsTrigger value="settings">Configurações</TabsTrigger>
+          </TabsList>
+
+          {/* Botão toggle do Sumário - visível apenas na tab Códigos */}
+          {activeTab === 'codes' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSummaryOpen(true)}
+              className="w-full md:w-auto"
+            >
+              <List className="h-4 w-4 mr-2" />
+              Ver Sumário
+            </Button>
+          )}
         </div>
 
-        <ProjectSummary projectId={projectId} cardFeatures={uniqueCardFeatures} />
+        <TabsContent value="codes" className="space-y-3">
 
-        {loadingCards ? (
-          <p className="text-gray-500 text-center py-8">Carregando...</p>
-        ) : filteredCards.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
-        ) : (
-          <div className="space-y-4">
-            {filteredCards.map(({ cardFeature, projectCard }, index) => {
-              const isFirst = index === 0
-              const isLast = index === filteredCards.length - 1
+          {/* Grid dinâmico: 1 coluna quando escondido, 2 colunas quando visível */}
+          <div className={`gap-4 ${showCategories ? 'grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]' : 'grid grid-cols-1'}`}>
+            {/* ProjectCategories - aparece apenas quando showCategories é true */}
+            {showCategories && (
+              <ProjectCategories
+                categories={orderedCategories}
+                counts={categoryGroups}
+                selectedCategory={selectedCategory}
+                onSelect={setSelectedCategory}
+                allLabel={ALL_CATEGORIES_LABEL}
+                allValue={ALL_CATEGORIES_VALUE}
+                allCount={uniqueCardFeatures.length}
+                loading={loadingCards}
+                loadingText="Carregando categorias..."
+                emptyText="Sem categorias"
+                className="md:h-[520px] md:overflow-y-auto"
+              />
+            )}
 
-              return (
-                <div key={cardFeature.id} className="relative group">
-                  <CardFeatureCompact
-                    snippet={cardFeature}
-                    onEdit={() => {}} // Não permitir editar aqui
-                    onDelete={() => {}} // Não permitir deletar aqui
-                  />
+            <div className="space-y-3">
+              {/* Barra de busca acima dos cards */}
+              <div className="relative">
+                <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input
+                  placeholder="Buscar cards..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9"
+                />
+              </div>
 
-                  {/* Painel flutuante de ações (apenas no modo de edição) */}
-                  {isEditMode && (
-                    <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleReorderCard(cardFeature.id, "up")
-                        }}
-                        disabled={isFirst}
-                        className="h-7 w-7 p-0"
-                        title="Mover para cima"
-                      >
-                        <ChevronUp
-                          className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
+              <ProjectSummary
+                projectId={projectId}
+                cardFeatures={uniqueCardFeatures}
+                isOpen={isSummaryOpen}
+                onOpenChange={setIsSummaryOpen}
+                showTrigger={false}
+              />
+
+              {loadingCards ? (
+                <p className="text-gray-500 text-center py-8">Carregando...</p>
+              ) : filteredCards.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredCards.map(({ cardFeature, projectCard }, index) => {
+                    const isFirst = index === 0
+                    const isLast = index === filteredCards.length - 1
+
+                    return (
+                      <div key={cardFeature.id} className="relative group min-w-0 overflow-hidden">
+                        <CardFeatureCompact
+                          snippet={cardFeature}
+                          onEdit={() => {}} // Não permitir editar aqui
+                          onDelete={() => {}} // Não permitir deletar aqui
+                          expandOnClick
                         />
-                      </Button>
+
+                        {/* Painel flutuante de ações (apenas no modo de edição) */}
+                        {isEditMode && (
+                          <div className="absolute top-1/2 -translate-y-1/2 right-2 flex flex-col gap-1 rounded-lg shadow-md border bg-white p-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleReorderCard(cardFeature.id, "up")
+                              }}
+                              disabled={isFirst}
+                              className="h-7 w-7 p-0"
+                              title="Mover para cima"
+                            >
+                              <ChevronUp
+                                className={`h-4 w-4 ${isFirst ? "text-gray-300" : "text-gray-600"}`}
+                              />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleReorderCard(cardFeature.id, "down")
+                              }}
+                              disabled={isLast}
+                              className="h-7 w-7 p-0"
+                              title="Mover para baixo"
+                            >
+                              <ChevronDown
+                                className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
+                              />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (projectCard) {
+                                  handleRemoveCard(projectCard.cardFeatureId)
+                                }
+                              }}
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                              title="Remover do projeto"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  
+                  {/* Botão "Carregar mais cards" */}
+                  {hasMoreCards && (
+                    <div className="flex justify-center pt-4">
                       <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleReorderCard(cardFeature.id, "down")
-                        }}
-                        disabled={isLast}
-                        className="h-7 w-7 p-0"
-                        title="Mover para baixo"
+                        variant="outline"
+                        onClick={loadMoreCards}
+                        disabled={loadingMoreCards}
+                        className="min-w-[200px]"
                       >
-                        <ChevronDown
-                          className={`h-4 w-4 ${isLast ? "text-gray-300" : "text-gray-600"}`}
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (projectCard) {
-                            handleRemoveCard(projectCard.cardFeatureId)
-                          }
-                        }}
-                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        title="Remover do projeto"
-                      >
-                        <Trash2 className="h-3 w-3" />
+                        {loadingMoreCards ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Carregando...
+                          </>
+                        ) : (
+                          <>
+                            Carregar mais cards
+                            <ChevronRight className="h-4 w-4 ml-2" />
+                          </>
+                        )}
                       </Button>
                     </div>
                   )}
                 </div>
-              )
-            })}
-            
-            {/* Botão "Carregar mais cards" */}
-            {hasMoreCards && (
-              <div className="flex justify-center pt-4">
-                <Button
-                  variant="outline"
-                  onClick={loadMoreCards}
-                  disabled={loadingMoreCards}
-                  className="min-w-[200px]"
-                >
-                  {loadingMoreCards ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Carregando...
-                    </>
-                  ) : (
-                    <>
-                      Carregar mais cards
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
+            {/* Sidebar - Menu de Configurações (apenas desktop) */}
+            <div className="hidden md:block">
+              <div className="w-full text-left px-3 py-2 rounded-md bg-blue-50 text-blue-700 font-medium text-sm border border-blue-200">
+                Geral
               </div>
+            </div>
+            
+            {/* Conteúdo - Todos os cards empilhados */}
+            <div className="max-w-2xl space-y-4">
+            {/* Card: Compartilhar Projeto com Input */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Link2 className="h-5 w-5" />
+                  Compartilhar
+                </CardTitle>
+                <CardDescription>
+                  Copie o link para convidar outras pessoas
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Input
+                    value={shareableProjectUrl}
+                    readOnly
+                    className="flex-1 bg-gray-50 text-sm"
+                  />
+                  <Button 
+                    variant={projectLinkCopied ? 'default' : 'outline'}
+                    onClick={handleCopyProjectUrl}
+                    size="icon"
+                    className={projectLinkCopied ? 'bg-green-600 hover:bg-green-700 text-white' : 'shrink-0'}
+                  >
+                    {projectLinkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {projectLinkCopied && (
+                  <p className="text-sm text-green-600 mt-2">Link copiado!</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Card: Membros do Projeto - Lista Expandida */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Users className="h-5 w-5" />
+                      Membros do Projeto
+                    </CardTitle>
+                    <CardDescription>
+                      {members.length} {members.length === 1 ? 'pessoa participa' : 'pessoas participam'}
+                    </CardDescription>
+                  </div>
+                  {/* Botão Adicionar - visível para todos */}
+                  <Button 
+                    size="sm" 
+                    onClick={() => setIsAddMemberDialogOpen(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    <span className="hidden sm:inline">Adicionar</span>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="max-h-[400px] overflow-y-auto">
+                {loadingMembers ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-gray-400 mr-2" />
+                    <span className="text-gray-500">Carregando membros...</span>
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500">Nenhum membro adicionado</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Clique em "Adicionar" para convidar pessoas
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-3 bg-white border rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          {member.user?.avatarUrl ? (
+                            <img
+                              src={member.user.avatarUrl}
+                              alt={member.user.name || member.user.email}
+                              className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                              <UserIcon className="h-4 w-4 text-gray-500" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {member.user?.name || member.user?.email}
+                            </p>
+                            {member.user?.name && (
+                              <p className="text-xs text-gray-500 truncate">
+                                {member.user.email}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={member.role === "owner" ? "default" : "secondary"}
+                          className="flex-shrink-0 text-xs"
+                        >
+                          {member.role === "owner"
+                            ? "Owner"
+                            : member.role === "admin"
+                              ? "Admin"
+                              : "Member"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Card: Editar Lista */}
+            {canManageMembers && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Pencil className="h-5 w-5" />
+                    Organização
+                  </CardTitle>
+                  <CardDescription>
+                    Reordene e gerencie os cards do projeto
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className="w-full sm:w-auto"
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {isEditMode ? 'Sair do modo de edição' : 'Editar lista de cards'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Card: Deletar Projeto (separado e destacado) */}
+            {project.userRole === "owner" && (
+              <Card className="border-red-200 bg-red-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base text-red-700">
+                    <Trash2 className="h-5 w-5" />
+                    Zona de Perigo
+                  </CardTitle>
+                  <CardDescription className="text-red-600/80">
+                    Ações irreversíveis para o projeto
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleDeleteProject}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar Projeto
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </TabsContent>
+      </Tabs>
 
       {/* Dialog Adicionar Card */}
       <Dialog open={isAddCardDialogOpen} onOpenChange={setIsAddCardDialogOpen}>

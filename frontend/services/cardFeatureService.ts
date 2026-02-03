@@ -1,5 +1,5 @@
 import { apiClient, ApiResponse } from './apiClient'
-import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats } from '@/types'
+import type { CardFeature, CardFeatureScreen, CreateCardFeatureData, UpdateCardFeatureData, QueryParams, CardFeatureListResponse, CardFeatureStats, GenerateSummaryResponse } from '@/types'
 
 class CardFeatureService {
   private readonly endpoint = '/card-features'
@@ -66,7 +66,7 @@ class CardFeatureService {
   }
 
   async bulkDelete(ids: string[]): Promise<ApiResponse<{ deletedCount: number }> | undefined> {
-    return apiClient.deleteWithBody<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
+    return apiClient.delete<{ deletedCount: number }>(`${this.endpoint}/bulk`, { ids })
   }
 
   // ================================================
@@ -161,6 +161,27 @@ class CardFeatureService {
     return uniqueCardFeatures
   }
 
+  async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
+    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force })
+
+    if (response?.success && response.data) {
+      return {
+        success: true,
+        summary: response.data.summary || '',
+        message: response.data.message
+      }
+    }
+
+    throw new Error(response?.error || 'Erro ao gerar resumo')
+  }
+
+  async checkAccess(cardId: string): Promise<{ success: boolean; data?: { canGenerate: boolean; isOwner: boolean; isAdmin: boolean }; error?: string }> {
+    const response = await apiClient.get(`${this.endpoint}/${cardId}/access`)
+    if (!response) {
+      return { success: false, error: 'Erro ao verificar acesso' }
+    }
+    return response as { success: boolean; data?: { canGenerate: boolean; isOwner: boolean; isAdmin: boolean }; error?: string }
+  }
 
   /**
    * Formata CardFeature para exibição
@@ -176,6 +197,14 @@ class CardFeatureService {
       formattedUpdatedAt: new Date(cardFeature.updatedAt).toLocaleDateString('pt-BR'),
       screenCount: cardFeature.screens.length
     }
+  }
+
+  generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
   }
 }
 

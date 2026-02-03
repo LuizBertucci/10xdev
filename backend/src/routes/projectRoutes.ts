@@ -9,10 +9,9 @@ router.use(supabaseMiddleware)
 router.use(authenticate)
 
 // ================================================
-// PROJECTS ROUTES
-// ================================================
-
 // GITHUB INTEGRATION (must be before /:id routes)
+// ================================================
+router.post('/validate-token', ProjectController.validateGithubToken)
 router.post('/github-info', ProjectController.getGithubInfo)
 router.post('/import-from-github', ProjectController.importFromGithub)
 

@@ -22,11 +22,17 @@ export interface ApiError {
 }
 
 const TOKEN_REFRESH_SAFETY_WINDOW_MS = 30_000
-const SESSION_CHECK_COOLDOWN_MS = 5_000 // Aumentado para 5s para evitar bursts
+const SESSION_CHECK_COOLDOWN_MS = 5_000
 let cachedAccessToken: string | null = null
 let cachedAccessTokenExpiresAtMs = 0
 let lastSessionCheckAtMs = 0
-let sessionCheckInProgress: Promise<void> | null = null // Mutex para evitar race condition
+let sessionCheckInProgress: Promise<void> | null = null
+
+function clearTokenCache(): void {
+  cachedAccessToken = null
+  cachedAccessTokenExpiresAtMs = 0
+  lastSessionCheckAtMs = 0
+}
 
 class ApiClient {
   private baseURL: string
@@ -34,9 +40,7 @@ class ApiClient {
   private requestTimeoutMs: number
 
   constructor() {
-    // Configuração automática da URL da API baseada no ambiente
     const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-
     this.baseURL = isLocalhost
       ? 'http://localhost:3001/api'
       : 'https://api.10xdev.com.br/api'
@@ -46,49 +50,20 @@ class ApiClient {
       'Accept': 'application/json'
     }
 
-    // Timeout padrão para evitar requests pendurados indefinidamente (ms)
-    // Pode ser sobrescrito via env pública do Next.
     const envTimeout = typeof process !== 'undefined'
       ? Number((process.env as any)?.NEXT_PUBLIC_API_TIMEOUT_MS)
       : NaN
     this.requestTimeoutMs = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 15000
   }
 
-  private async fetchWithTimeout(
-    url: string,
-    init: RequestInit,
-    timeoutMs: number
-  ): Promise<Response> {
-    // Se não existir timeout, delega direto para fetch
-    if (!timeoutMs || timeoutMs <= 0) {
-      return fetch(url, init)
-    }
-
+  private async fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
     const controller = new AbortController()
-    let timedOut = false
-
-    // Se veio um signal externo, propagar abort para o nosso controller
-    const externalSignal = init.signal
-    const onAbort = () => controller.abort()
-    if (externalSignal) {
-      if (externalSignal.aborted) {
-        controller.abort()
-      } else {
-        externalSignal.addEventListener('abort', onAbort, { once: true })
-      }
-    }
-
-    const timeoutId = setTimeout(() => {
-      timedOut = true
-      controller.abort()
-    }, timeoutMs)
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
     try {
-      const response = await fetch(url, { ...init, signal: controller.signal })
-      return response
+      return await fetch(url, { ...init, signal: controller.signal })
     } catch (error: any) {
-      // Normalizar timeout para um ApiError consistente
-      if (error?.name === 'AbortError' && timedOut) {
+      if (error?.name === 'AbortError') {
         throw {
           success: false,
           error: `Timeout: API não respondeu em ${Math.round(timeoutMs / 1000)}s`,
@@ -98,57 +73,33 @@ class ApiClient {
       throw error
     } finally {
       clearTimeout(timeoutId)
-      if (externalSignal) {
-        externalSignal.removeEventListener('abort', onAbort as any)
-      }
     }
   }
 
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T> | undefined> {
-    const contentType = response.headers.get('content-type')
-
+  private async handleResponse<T>(response: Response, silent = false): Promise<ApiResponse<T> | undefined> {
     let data: ApiResponse<T> | undefined
+    
     try {
-      const textData = await response.text()
-
-      if (textData) {
-        if (contentType && contentType.includes('application/json')) {
-          try {
-            data = JSON.parse(textData) as ApiResponse<T>
-          } catch (parseError) {
-            console.error('Erro ao fazer parse do JSON:', parseError)
-            data = { success: false, error: textData || `HTTP ${response.status}` }
-          }
-        } else {
-          data = { success: false, error: textData || `HTTP ${response.status}` }
-        }
+      const text = await response.text()
+      if (text) {
+        const contentType = response.headers.get('content-type')
+        data = contentType?.includes('application/json')
+          ? JSON.parse(text) as ApiResponse<T>
+          : { success: false, error: text }
       }
-    } catch (error) {
-      console.error('Erro ao processar resposta:', error)
+    } catch {
       data = { success: false, error: 'Erro ao processar resposta do servidor' }
     }
 
     if (!response.ok) {
-      // Tentar extrair mensagem de erro de diferentes formatos
-      const errorMessage = 
-        data?.error || 
-        data?.message || 
-        (typeof data === 'string' ? data : null) ||
-        `HTTP ${response.status}: ${response.statusText || 'Erro desconhecido'}`
+      if (response.status === 401) clearTokenCache()
       
-      console.error('Erro na resposta HTTP:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        data: data,
-        errorMessage
-      })
-      
+      const errorMessage = data?.error || data?.message || `HTTP ${response.status}: ${response.statusText || 'Erro desconhecido'}`
       throw {
         success: false,
         error: errorMessage,
         statusCode: response.status,
-        details: data
+        details: data || { status: response.status, statusText: response.statusText }
       } as ApiError
     }
 
@@ -180,30 +131,22 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       const nowMs = Date.now()
       
-      // 1. Se token cacheado ainda é válido, usa direto
       if (cachedAccessToken && cachedAccessTokenExpiresAtMs - nowMs > TOKEN_REFRESH_SAFETY_WINDOW_MS) {
         headers['Authorization'] = `Bearer ${cachedAccessToken}`
         return headers
       }
 
-      // 2. Se está em cooldown, usa token cacheado (mesmo perto de expirar) ou retorna sem
       if (nowMs - lastSessionCheckAtMs < SESSION_CHECK_COOLDOWN_MS) {
-        if (cachedAccessToken) {
-          headers['Authorization'] = `Bearer ${cachedAccessToken}`
-        }
+        if (cachedAccessToken) headers['Authorization'] = `Bearer ${cachedAccessToken}`
         return headers
       }
 
-      // 3. Se já tem uma verificação em andamento, aguarda ela (evita race condition)
       if (sessionCheckInProgress) {
         await sessionCheckInProgress
-        if (cachedAccessToken) {
-          headers['Authorization'] = `Bearer ${cachedAccessToken}`
-        }
+        if (cachedAccessToken) headers['Authorization'] = `Bearer ${cachedAccessToken}`
         return headers
       }
 
-      // 4. Inicia nova verificação de sessão com mutex
       lastSessionCheckAtMs = nowMs
       sessionCheckInProgress = (async () => {
         try {
@@ -211,21 +154,14 @@ class ApiClient {
           const supabase = createClient()
           const { data: { session }, error } = await supabase.auth.getSession()
           
-          // Se houve erro (rate limit, etc), mantém token atual se existir
-          if (error) {
-            console.warn('[apiClient] getSession error:', error.message)
-            return
-          }
-          
-          if (session?.access_token) {
-            cachedAccessToken = session.access_token
-            cachedAccessTokenExpiresAtMs = (session.expires_at ?? 0) * 1000
-          } else {
+          if (error || !session?.access_token) {
             cachedAccessToken = null
             cachedAccessTokenExpiresAtMs = 0
+          } else {
+            cachedAccessToken = session.access_token
+            cachedAccessTokenExpiresAtMs = (session.expires_at ?? 0) * 1000
           }
-        } catch (err) {
-          console.warn('[apiClient] getSession exception:', err)
+        } catch {
           // Mantém token atual em caso de erro
         } finally {
           sessionCheckInProgress = null
@@ -233,249 +169,93 @@ class ApiClient {
       })()
 
       await sessionCheckInProgress
-      
-      if (cachedAccessToken) {
-        headers['Authorization'] = `Bearer ${cachedAccessToken}`
-      }
+      if (cachedAccessToken) headers['Authorization'] = `Bearer ${cachedAccessToken}`
     }
 
     return headers
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T> | undefined> {
+  private async request<T>(
+    method: string,
+    endpoint: string,
+    options?: { data?: any; params?: Record<string, any>; silent?: boolean; isUpload?: boolean }
+  ): Promise<ApiResponse<T> | undefined> {
     try {
-      const url = this.buildURL(endpoint, params)
-      const headers = await this.getHeaders()
+      const url = this.buildURL(endpoint, options?.params)
+      let headers = await this.getHeaders()
+      
+      if (options?.isUpload) {
+        delete headers['Content-Type']
+      }
 
       const response = await this.fetchWithTimeout(url, {
-        method: 'GET',
+        method,
         headers,
+        ...(options?.data && !options?.isUpload ? { body: JSON.stringify(options.data) } : {}),
+        ...(options?.data && options?.isUpload ? { body: options.data } : {}),
         credentials: 'include'
-      }, this.requestTimeoutMs)
+      }, this.requestTimeoutMs * (options?.isUpload ? 2 : 1))
 
-      return await this.handleResponse<T>(response)
+      return await this.handleResponse<T>(response, options?.silent)
     } catch (error) {
       if (error && typeof error === 'object' && 'success' in error) {
         throw error
       }
       throw {
         success: false,
-        error: error instanceof Error ? error.message : 'Erro na requisição GET',
-        statusCode: 0
+        error: error instanceof Error ? error.message : `Erro na requisição ${method}`,
+        statusCode: (error as any)?.statusCode || 0
       } as ApiError
     }
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
-    try {
-      const url = this.buildURL(endpoint)
-      console.log('POST request URL:', url)
-      console.log('POST request data:', data)
+  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T> | undefined> {
+    return this.request<T>('GET', endpoint, { params })
+  }
 
-      const headers = await this.getHeaders()
-
-      console.log('POST request headers:', { ...headers, Authorization: headers['Authorization'] ? 'Bearer ***' : 'none' })
-      
-      const response = await this.fetchWithTimeout(url, {
-        method: 'POST',
-        headers,
-        body: data ? JSON.stringify(data) : undefined,
-        credentials: 'include'
-      }, this.requestTimeoutMs)
-
-      console.log('POST response status:', response.status)
-      console.log('POST response ok:', response.ok)
-
-      return await this.handleResponse<T>(response)
-    } catch (error) {
-      console.error('POST request error:', error)
-      if (error && typeof error === 'object' && 'success' in error) {
-        throw error
-      }
-      const errorMessage = error instanceof Error ? error.message : 
-                          (error && typeof error === 'object' && 'error' in error) ? (error as any).error :
-                          'Erro na requisição POST'
-      throw {
-        success: false,
-        error: errorMessage,
-        statusCode: (error && typeof error === 'object' && 'statusCode' in error) ? (error as any).statusCode : 0
-      } as ApiError
-    }
+  async post<T>(endpoint: string, data?: any, silent = false): Promise<ApiResponse<T> | undefined> {
+    return this.request<T>('POST', endpoint, { data, silent })
   }
 
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
-    try {
-      const url = this.buildURL(endpoint)
-      console.log('PUT request URL:', url)
-      console.log('PUT request data:', data)
-
-      const headers = await this.getHeaders()
-
-      const response = await this.fetchWithTimeout(url, {
-        method: 'PUT',
-        headers,
-        body: data ? JSON.stringify(data) : undefined,
-        credentials: 'include'
-      }, this.requestTimeoutMs)
-
-      console.log('PUT response status:', response.status)
-      console.log('PUT response ok:', response.ok)
-      return await this.handleResponse<T>(response)
-    } catch (error) {
-      console.error('PUT request error:', error)
-      if (error && typeof error === 'object' && 'success' in error) {
-        throw error
-      }
-      throw {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro na requisição PUT',
-        statusCode: 0
-      } as ApiError
-    }
+    return this.request<T>('PUT', endpoint, { data })
   }
 
   async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
-    try {
-      const url = this.buildURL(endpoint)
-
-      const headers = await this.getHeaders()
-
-      const response = await this.fetchWithTimeout(url, {
-        method: 'PATCH',
-        headers,
-        body: data ? JSON.stringify(data) : undefined,
-        credentials: 'include'
-      }, this.requestTimeoutMs)
-
-      return await this.handleResponse<T>(response)
-    } catch (error) {
-      if (error && typeof error === 'object' && 'success' in error) {
-        throw error
-      }
-      throw {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro na requisição PATCH',
-        statusCode: 0
-      } as ApiError
-    }
+    return this.request<T>('PATCH', endpoint, { data })
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T> | undefined> {
-    try {
-      const url = this.buildURL(endpoint)
-
-      const headers = await this.getHeaders()
-
-      const response = await this.fetchWithTimeout(url, {
-        method: 'DELETE',
-        headers,
-        credentials: 'include'
-      }, this.requestTimeoutMs)
-
-      return await this.handleResponse<T>(response)
-    } catch (error) {
-      if (error && typeof error === 'object' && 'success' in error) {
-        throw error
-      }
-      throw {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro na requisição DELETE',
-        statusCode: 0
-      } as ApiError
-    }
+  async delete<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
+    return this.request<T>('DELETE', endpoint, { data })
   }
 
-  async deleteWithBody<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
-    try {
-      const url = this.buildURL(endpoint)
-
-      const headers = await this.getHeaders()
-
-      const response = await this.fetchWithTimeout(url, {
-        method: 'DELETE',
-        headers,
-        body: data ? JSON.stringify(data) : undefined,
-        credentials: 'include'
-      }, this.requestTimeoutMs)
-
-      return await this.handleResponse<T>(response)
-    } catch (error) {
-      if (error && typeof error === 'object' && 'success' in error) {
-        throw error
-      }
-      throw {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro na requisição DELETE',
-        statusCode: 0
-      } as ApiError
-    }
-  }
-
-  // Método para atualizar headers (ex: autenticação)
   setHeader(key: string, value: string): void {
     this.defaultHeaders[key] = value
   }
 
-  // Método para remover header
   removeHeader(key: string): void {
     delete this.defaultHeaders[key]
   }
 
-  // Método para definir base URL
   setBaseURL(url: string): void {
     this.baseURL = url
   }
 
-  // Método para definir timeout de request (ms)
   setTimeoutMs(timeoutMs: number): void {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return
     this.requestTimeoutMs = timeoutMs
   }
 
-  // Health check
   async healthCheck(): Promise<ApiResponse<{ message: string; timestamp: string }> | undefined> {
     return this.get('/health')
   }
 
-  // Upload de arquivo (FormData)
   async uploadFile<T>(endpoint: string, file: File, fieldName: string = 'file'): Promise<ApiResponse<T> | undefined> {
-    try {
-      const url = this.buildURL(endpoint)
-      console.log('UPLOAD request URL:', url)
-
-      // Criar FormData
-      const formData = new FormData()
-      formData.append(fieldName, file)
-
-      // Headers sem Content-Type (browser define automaticamente com boundary)
-      const headers = await this.getHeaders()
-      delete headers['Content-Type']
-
-      const response = await this.fetchWithTimeout(url, {
-        method: 'POST',
-        headers,
-        body: formData,
-        credentials: 'include'
-      }, this.requestTimeoutMs * 2) // Timeout maior para upload
-
-      console.log('UPLOAD response status:', response.status)
-      return await this.handleResponse<T>(response)
-    } catch (error) {
-      console.error('UPLOAD request error:', error)
-      if (error && typeof error === 'object' && 'success' in error) {
-        throw error
-      }
-      throw {
-        success: false,
-        error: error instanceof Error ? error.message : 'Erro no upload do arquivo',
-        statusCode: 0
-      } as ApiError
-    }
+    const formData = new FormData()
+    formData.append(fieldName, file)
+    return this.request<T>('POST', endpoint, { data: formData, isUpload: true })
   }
 }
 
-// Instância singleton
 export const apiClient = new ApiClient()
-
-// Export do tipo para uso externo
 export type { ApiClient }

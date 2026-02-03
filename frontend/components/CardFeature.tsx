@@ -1,14 +1,16 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Expand, Edit, Trash2, Lock, Link2 } from "lucide-react"
+import { Expand, Edit, Trash2, Lock, Link2, Sparkles, Loader2 } from "lucide-react"
+import { cardFeatureService } from '@/services/cardFeatureService'
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
-import { Visibility } from "@/types"
+import { Visibility, ContentType } from "@/types"
+import { toast } from "sonner"
 
 interface CardFeatureProps {
   snippet: CardFeatureType
@@ -20,13 +22,65 @@ interface CardFeatureProps {
 export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: CardFeatureProps) {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
   const techValue = snippet.tech ?? "Geral"
   const languageValue = snippet.language ?? "text"
-  
-  // Verificar se o usuário é o criador do card
   const isOwner = user?.id === snippet.createdBy
   const canEdit = isOwner
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!user || !snippet.id) return
+      try {
+        const response = await cardFeatureService.checkAccess(snippet.id)
+        if (response.success && response.data) {
+          setAccessInfo(response.data)
+        }
+      } catch (error) {
+        console.error('Erro ao verificar acesso:', error)
+        setAccessInfo(null)
+      }
+    }
+    checkAccess()
+  }, [user, snippet.id])
+
+  const handleGenerateSummary = useCallback(async () => {
+    if (!accessInfo?.canGenerate || isGeneratingSummary) return
+    setIsGeneratingSummary(true)
+    try {
+      const response = await cardFeatureService.generateSummary(snippet.id, true)
+      if (response.success) {
+        const updatedScreens = response.summary
+          ? [
+              {
+                name: 'Resumo',
+                description: 'Resumo gerado por IA',
+                blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
+                route: ''
+              },
+              ...snippet.screens.filter(s => s.name !== 'Resumo')
+            ]
+          : snippet.screens
+        onEdit({ ...snippet, screens: updatedScreens })
+        toast.success('Resumo gerado com sucesso!')
+      } else if (response.message === 'Resumo já existente') {
+        toast.info('Resumo já existe para este card')
+      } else {
+        toast.error(response.message || 'Erro ao gerar resumo')
+      }
+    } catch (error: any) {
+      if (error.status === 403) {
+        toast.error('Você não tem permissão para gerar resumo deste card')
+      } else {
+        console.error('Erro ao gerar resumo:', error)
+        toast.error('Erro ao gerar resumo')
+      }
+    } finally {
+      setIsGeneratingSummary(false)
+    }
+  }, [accessInfo, isGeneratingSummary, snippet])
 
   return (
     <TooltipProvider>
@@ -57,7 +111,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 )}
               </div>
               <CardDescription className="text-sm h-10 leading-5 overflow-hidden">
-                {snippet.description}
+                {snippet.description || ''}
               </CardDescription>
               {snippet.createdBy && (
                 <p className="text-xs text-gray-500 mt-1">
@@ -82,23 +136,42 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                   <p>{canEdit ? 'Editar CardFeature' : 'Apenas o criador pode editar'}</p>
                 </TooltipContent>
               </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDelete(snippet.id)}
-                    disabled={!canEdit}
-                    className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{canEdit ? 'Excluir CardFeature' : 'Apenas o criador pode excluir'}</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDelete(snippet.id)}
+                      disabled={!canEdit}
+                      className="text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 p-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{canEdit ? 'Excluir CardFeature' : 'Apenas o criador pode excluir'}</p>
+                  </TooltipContent>
+                </Tooltip>
+                {/* Botão Gerar Resumo - apenas para usuários com acesso */}
+{accessInfo?.canGenerate && (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleGenerateSummary}
+        disabled={!accessInfo?.canGenerate || isGeneratingSummary}
+        className={`text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200 p-2 ${isGeneratingSummary ? 'animate-pulse' : ''}`}
+      >
+        {isGeneratingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>
+      <p>{isGeneratingSummary ? 'Gerando resumo...' : 'Gerar Resumo com IA'}</p>
+    </TooltipContent>
+  </Tooltip>
+)}
+              </div>
           </div>
         </CardHeader>
       <CardContent className="pt-0">

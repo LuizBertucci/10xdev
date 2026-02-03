@@ -146,6 +146,12 @@ export interface CreateCardFeatureData {
  */
 export interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
 
+export interface GenerateSummaryResponse {
+  success: boolean
+  summary: string
+  message?: string
+}
+
 /**
  * Dados mínimos para criar um novo bloco
  */

@@ -1,5 +1,6 @@
 "use client"
 
+import React, { useMemo } from 'react'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
@@ -10,28 +11,31 @@ interface AppSidebarProps {
   platformState: any
 }
 
-export default function AppSidebar({ platformState }: AppSidebarProps) {
-  const { user, logout } = useAuth()
+function AppSidebar({ platformState }: AppSidebarProps) {
+  const { user, logout, isProfileLoaded } = useAuth()
   const { setOpenMobile, isMobile } = useSidebar()
-  const isAdmin = user?.role === 'admin'
+  
+  // Memoiza o cálculo de isAdmin para evitar re-computação
+  const isAdmin = useMemo(() => user?.role === 'admin', [user?.role])
 
-  const navItems = [
+  // Memoiza navItems - só recalcula quando isAdmin muda
+  const navItems = useMemo(() => [
     { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
     { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
     { key: "contents", title: "Conteúdos", icon: "🎓", tooltip: "Conteúdos" },
     { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
     ...(isAdmin ? [{ key: "admin", title: "Painel de Controle", icon: "🛠️", tooltip: "Painel de Controle" }] : [])
-  ]
+  ], [isAdmin])
 
-  const handleNavClick = (key: string) => {
+  const handleNavClick = React.useCallback((key: string) => {
     platformState.setActiveTab(key)
     // Fecha a sidebar no mobile após clicar
     if (isMobile) {
       setOpenMobile(false)
     }
-  }
+  }, [platformState, isMobile, setOpenMobile])
 
-  const handleLogout = async () => {
+  const handleLogout = React.useCallback(async () => {
     try {
       await logout()
       // Aguardar um pouco para garantir que o estado foi atualizado
@@ -44,9 +48,10 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       console.error('Erro no logout:', error)
       toast.error('Erro ao fazer logout')
     }
-  }
+  }, [logout])
 
-  const getUserInitials = () => {
+  // Memoiza as iniciais do usuário
+  const userInitials = useMemo(() => {
     if (user?.name) {
       return user.name
         .split(' ')
@@ -59,7 +64,10 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
       return user.email[0].toUpperCase()
     }
     return 'DV'
-  }
+  }, [user?.name, user?.email])
+
+  // Memoiza as informações do usuário para evitar re-render desnecessária
+  const userDisplayName = useMemo(() => user?.name || 'Usuário', [user?.name])
 
   return (
     <Sidebar collapsible="icon">
@@ -70,14 +78,14 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center">
+              <div className="flex w-9 shrink-0 items-center justify-start rounded-md bg-slate-400 px-1 py-0.5">
                 <img
-                  src="/brand/10xDev-logo-fundo-preto.png"
+                  src="/brand/10xdev-logo-sem-fundo.png"
                   alt="10xDev"
-                  className="h-7 w-auto"
+                  className="h-5 w-auto max-w-full object-contain object-left"
                 />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">10xDev</span>
                 <span className="truncate text-xs">Plataforma Dev</span>
               </div>
@@ -113,12 +121,12 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
             <SidebarMenuButton>
               <Avatar className="size-6">
                 <AvatarImage src={user?.avatarUrl || ""} />
-                <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
-              <div className="flex flex-col flex-1 text-left text-sm">
+              <div className="flex flex-col flex-1 text-left text-sm" key={user?.id || 'no-user'}>
                 <span className="truncate font-medium flex items-center gap-1">
-                  {user?.name || 'Usuário'}
-                  {isAdmin ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : null}
+                  {userDisplayName}
+                  {isAdmin && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
               </div>
@@ -136,3 +144,12 @@ export default function AppSidebar({ platformState }: AppSidebarProps) {
     </Sidebar>
   )
 }
+
+// Memoiza o componente para evitar re-renders desnecessários quando o pai re-renderiza
+export default React.memo(AppSidebar, (prevProps, nextProps) => {
+  // Only re-render if platformState.activeTab changes
+  const prevActiveTab = prevProps.platformState?.activeTab
+  const nextActiveTab = nextProps.platformState?.activeTab
+  if (prevActiveTab !== nextActiveTab) return false
+  return true
+})
