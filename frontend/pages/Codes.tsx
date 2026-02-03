@@ -35,6 +35,7 @@ interface CodesProps {
 // Memoized CreateCardButton component - prevents flickering when parent re-renders
 interface CreateCardButtonProps {
   onClick: () => void
+  onCreateJson: () => void
   disabled: boolean
   loading: boolean
   creating: boolean
@@ -44,6 +45,7 @@ interface CreateCardButtonProps {
 
 const CreateCardButton = React.memo(function CreateCardButton({
   onClick,
+  onCreateJson,
   disabled,
   loading,
   creating,
@@ -76,7 +78,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={onCreateJson}>
             <FileJson className="h-4 w-4 mr-2" />
             Criar via JSON
           </DropdownMenuItem>
@@ -98,6 +100,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
   if (prevProps.loading !== nextProps.loading) return false
   if (prevProps.creating !== nextProps.creating) return false
   if (prevProps.isSelectionMode !== nextProps.isSelectionMode) return false
+  if (prevProps.onCreateJson !== nextProps.onCreateJson) return false
 
   // Re-render if isVisible changed from true to false (but we still render, just hidden)
   if (isVisibleChanged) return false
@@ -416,6 +419,7 @@ export default function Codes({ platformState }: CodesProps) {
           {/* Create Button with Dropdown (admin only) */}
           <CreateCardButton
             onClick={handleStartCreating}
+            onCreateJson={() => setIsCreatingJSON(true)}
             disabled={false}
             loading={cardFeatures.loading}
             creating={cardFeatures.creating}
