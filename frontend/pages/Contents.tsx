@@ -62,8 +62,9 @@ const AddPostButton = React.memo(function AddPostButton({ onClick, disabled, isA
     </Button>
   )
 }, (prevProps, nextProps) => {
-  // Only re-render if disabled changes
   if (prevProps.disabled !== nextProps.disabled) return false
+  if (prevProps.isAdmin !== nextProps.isAdmin) return false
+  if (prevProps.onClick !== nextProps.onClick) return false
   return true
 })
 
@@ -90,8 +91,9 @@ const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disab
     </Button>
   )
 }, (prevProps, nextProps) => {
-  // Only re-render if disabled changes
   if (prevProps.disabled !== nextProps.disabled) return false
+  if (prevProps.isAdmin !== nextProps.isAdmin) return false
+  if (prevProps.onClick !== nextProps.onClick) return false
   return true
 })
 
