@@ -79,9 +79,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   // URL compartilhável do projeto
   const shareableProjectUrl = useMemo(() => {
     if (typeof window === 'undefined' || !project) return ''
-    const baseUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3000'
-      : 'https://10xdev.com.br'
+    const baseUrl = window.location.origin
     return `${baseUrl}/?tab=projects&id=${project.id}`
   }, [project])
 
