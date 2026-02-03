@@ -195,7 +195,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           await onUpdate(snippet.id, { screens: updatedScreens })
           toast.success('Resumo gerado com sucesso!')
           if (currentCardIdFromUrl !== snippet.id) {
-            const tab = (snippet as any).card_type === 'conteudos' ? 'contents' : 'codes'
+            const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
             setTimeout(() => {
               router.push(`/?tab=${tab}&id=${snippet.id}&refresh=${Date.now()}`)
             }, 150)
