@@ -1,6 +1,5 @@
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { randomUUID } from 'crypto'
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,6 +17,14 @@ import { cardFeatureService } from "@/services/cardFeatureService"
 import type { CardFeature as CardFeatureType } from "@/types"
 import { ContentType, Visibility, CardType } from "@/types"
 
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 interface CardFeatureCompactProps {
   snippet: CardFeatureType
   onEdit: (snippet: CardFeatureType) => void
@@ -32,6 +39,8 @@ interface CardFeatureCompactProps {
 
 export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const currentCardIdFromUrl = searchParams?.get('id')
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(false)
@@ -42,6 +51,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
@@ -57,6 +67,25 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3000'
     : 'https://10xdev.com.br'
   const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
+
+  // Verificar acesso para mostrar botão de gerar resumo
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!user || !snippet.id) return
+      
+      try {
+        const response = await cardFeatureService.checkAccess(snippet.id)
+        if (response.success && response.data) {
+          setAccessInfo(response.data)
+        }
+      } catch (error) {
+        console.error('Erro ao verificar acesso:', error)
+        setAccessInfo(null)
+      }
+    }
+    
+    checkAccess()
+  }, [user, snippet.id])
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -154,7 +183,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   }
 
   const handleGenerateSummary = async () => {
-    if (!canEdit || isGeneratingSummary) return
+    if (!accessInfo?.canGenerate || isGeneratingSummary) return
     
     setIsGeneratingSummary(true)
     try {
@@ -166,7 +195,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
               {
                 name: 'Resumo',
                 description: 'Resumo gerado por IA',
-                blocks: [{ id: randomUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
+                blocks: [{ id: generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
               ...snippet.screens.filter(s => s.name !== 'Resumo')
@@ -176,13 +205,23 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         if (onUpdate) {
           await onUpdate(snippet.id, { screens: updatedScreens })
           toast.success('Resumo gerado com sucesso!')
+          
+          const shouldRedirect = currentCardIdFromUrl !== snippet.id
+          
+          if (shouldRedirect) {
+            const tab = (snippet as any).card_type === 'conteudos' ? 'contents' : 'codes'
+            router.push(`/?tab=${tab}&id=${snippet.id}&refresh=${Date.now()}`)
+          }
         }
       } else {
         toast.error(response.message || 'Erro ao gerar resumo')
       }
-    } catch (error) {
-      console.error('Erro ao gerar resumo:', error)
-      toast.error('Erro ao gerar resumo')
+    } catch (error: any) {
+      if (error.message) {
+        toast.error(error.message)
+      } else {
+        toast.error('Erro ao gerar resumo')
+      }
     } finally {
       setIsGeneratingSummary(false)
     }
@@ -260,7 +299,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem 
                         onClick={handleGenerateSummary}
-                        disabled={!canEdit || isGeneratingSummary}
+                        disabled={!accessInfo?.canGenerate || isGeneratingSummary}
                       >
                         {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
                         {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
