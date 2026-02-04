@@ -965,6 +965,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 isOpen={isSummaryOpen}
                 onOpenChange={setIsSummaryOpen}
                 showTrigger={false}
+                selectedCategory={selectedCategory}
+                onCategorySelect={setSelectedCategory}
               />
 
               {loadingCards ? (
