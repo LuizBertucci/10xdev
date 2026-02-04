@@ -15,9 +15,11 @@ interface ProjectSummaryProps {
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
   showTrigger?: boolean
+  selectedCategory?: string
+  onCategorySelect?: (category: string) => void
 }
 
-export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, showTrigger = true }: ProjectSummaryProps) {
+export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, showTrigger = true, selectedCategory: selectedCategoryProp, onCategorySelect }: ProjectSummaryProps) {
   const [isOpenInternal, setIsOpenInternal] = useState(false)
   const resolvedOpen = isOpen ?? isOpenInternal
   const handleOpenChange = (open: boolean) => {
@@ -29,7 +31,15 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
   }
   const ALL_CATEGORIES_VALUE = "__all__"
   const ALL_CATEGORIES_LABEL = "Todas"
-  const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES_VALUE)
+  const [selectedCategoryInternal, setSelectedCategoryInternal] = useState(ALL_CATEGORIES_VALUE)
+  const selectedCategory = selectedCategoryProp ?? selectedCategoryInternal
+  const setSelectedCategory = (category: string) => {
+    if (onCategorySelect) {
+      onCategorySelect(category)
+    } else {
+      setSelectedCategoryInternal(category)
+    }
+  }
   const [summaryCardFeatures, setSummaryCardFeatures] = useState<CardFeature[]>([])
   const [loading, setLoading] = useState(false)
   const [editingCardId, setEditingCardId] = useState<string | null>(null)

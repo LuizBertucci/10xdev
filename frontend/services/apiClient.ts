@@ -43,7 +43,7 @@ class ApiClient {
     const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
     this.baseURL = isLocalhost
       ? 'http://localhost:3001/api'
-      : 'https://api.10xdev.com.br/api'
+      : (process.env.NEXT_PUBLIC_API_URL || 'https://web-backend-10xdev.azurewebsites.net/api')
 
     this.defaultHeaders = {
       'Content-Type': 'application/json',

@@ -653,11 +653,11 @@ export class GithubService {
     const summaryBlock: ContentBlock = {
       id: randomUUID(),
       type: ContentType.TEXT,
-      content: `${card.title}\n\n${card.description}\n\nArquivos (${allFiles.length}):\n${allFiles.map(f => f.split('/').pop()).join(', ')}`,
+      content: `${card.title}\n\n${card.description}\n\nArquivos (${allFiles.length}): ${allFiles.map(f => f.split('/').pop()).join(', ')}`,
       order: 0
     }
     const summaryScreen: CardFeatureScreen = {
-      name: 'Sumário',
+      name: 'Resumo',
       description: card.description,
       route: '',
       blocks: [summaryBlock]
