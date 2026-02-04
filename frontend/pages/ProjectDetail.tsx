@@ -85,13 +85,17 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
   // Função para copiar URL do projeto
   const handleCopyProjectUrl = async () => {
+    if (!shareableProjectUrl) {
+      toast.error('Link não disponível')
+      return
+    }
     try {
       await navigator.clipboard.writeText(shareableProjectUrl)
       setProjectLinkCopied(true)
-      toast.success("Link do projeto copiado!")
+      toast.success('Link do projeto copiado!')
       setTimeout(() => setProjectLinkCopied(false), 2000)
     } catch (err) {
-      toast.error("Erro ao copiar link do projeto")
+      toast.error('Erro ao copiar link do projeto')
     }
   }
 
@@ -1077,6 +1081,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                     variant={projectLinkCopied ? 'default' : 'outline'}
                     onClick={handleCopyProjectUrl}
                     size="icon"
+                    disabled={!shareableProjectUrl || !project}
                     className={projectLinkCopied ? 'bg-green-600 hover:bg-green-700 text-white' : 'shrink-0'}
                   >
                     {projectLinkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
@@ -1101,15 +1106,16 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                       {members.length} {members.length === 1 ? 'pessoa participa' : 'pessoas participam'}
                     </CardDescription>
                   </div>
-                  {/* Botão Adicionar - visível para todos */}
-                  <Button 
-                    size="sm" 
-                    onClick={() => setIsAddMemberDialogOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Adicionar</span>
-                  </Button>
+                  {canManageMembers && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => setIsAddMemberDialogOpen(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      <span className="hidden sm:inline">Adicionar</span>
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="max-h-[400px] overflow-y-auto">

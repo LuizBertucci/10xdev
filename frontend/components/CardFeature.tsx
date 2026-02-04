@@ -60,7 +60,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                 blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
-              ...snippet.screens.filter(s => s.name !== 'Resumo')
+              ...snippet.screens.filter(s => !/^(resumo|overview)$/i.test(s.name.trim()))
             ]
           : snippet.screens
         onEdit({ ...snippet, screens: updatedScreens })

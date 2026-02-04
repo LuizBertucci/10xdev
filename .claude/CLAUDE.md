@@ -25,7 +25,7 @@ npm run lint         # ESLint checks
 
 ### Backend (from /backend)
 ```bash
-npm run dev          # Start development server with ts-node-dev
+npm run dev          # Start development server with nodemon
 npm run build        # TypeScript compilation to /dist
 npm run start        # Start production server from dist/
 npm test             # Run Jest tests
