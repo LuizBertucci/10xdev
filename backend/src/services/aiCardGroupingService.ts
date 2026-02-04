@@ -496,7 +496,7 @@ export class AiCardGroupingService {
 
   static async generateCardSummary(params: {
     cardTitle: string
-    screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string }> }>
+    screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>
     tech?: string
     language?: string
   }): Promise<{ summary: string }> {
@@ -517,24 +517,47 @@ export class AiCardGroupingService {
     const screensContext = params.screens.slice(0, 10).map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
-        .map(b => `${b.language || 'code'}: ${b.title || 'arquivo'}`)
-        .join(', ')
-      return `${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
+        .map(b => `- ${b.route || b.title || 'arquivo'}`)
+        .join('\n\n')
+      return `${screen.name}\n${screen.description}\n\nArquivos:\n${files}`
     }).join('\n\n')
-    
+
     const system = [
-      'Você gera resumos claros sobre features de software.',
-      'Regras: português brasileiro, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
+      'Gere um resumo para um card de sistema.',
+      '',
+      'Formato OBRIGATORIO (copie e cole exatamente):',
+      '',
+      'Sistema para [função].',
+      'Permite [ações].',
+      'Utiliza [tecnologias].',
+      'Estrutura organizada para facilitar manutenção e evolução.',
+      '',
+      'Arquivos (X):',
+      '',
+      '- caminho/do/arquivo1',
+      '',
+      '- caminho/do/arquivo2',
+      '',
+      '- caminho/do/arquivo3',
+      '',
+      '...',
+      '',
+      'Restrições:',
+      '- NAO use emojis',
+      '- NAO use linguagem comercial',
+      '- Use - no início de cada arquivo',
+      '- X deve ser o número exato de arquivos',
+      '- Liste APENOS os arquivos que estão neste card',
+      '- NAO invente arquivos'
     ].join('\n')
-    
+
     const user = [
       `Card: ${params.cardTitle}`,
-      `Tech: ${params.tech || 'N/A'}`,
       '',
       'Screens:',
       screensContext,
       '',
-      'Gere um parágrafo resumindo o que esta feature faz e qual problema ela resolve. Responda apenas com o resumo, sem markdown:'
+      'Gere o resumo no formato EXATO especificado acima, liste APENAS os arquivos deste card.'
     ].join('\n')
     
     console.log('[generateCardSummary] Chamando API de IA...')
@@ -555,8 +578,31 @@ export class AiCardGroupingService {
       .replace(/^\s*[-*+]\s+/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
-    
-    console.log('[generateCardSummary] Resumo processado:', summary?.substring(0, 100) + '...')
-    return { summary }
+
+    // Validar e corrigir formato do resumo
+    let finalSummary = summary
+
+    // Garantir que começa com "Sistema para"
+    if (!summary.match(/^Sistema para/i)) {
+      finalSummary = 'Sistema para ' + params.cardTitle + '.\n' + summary
+    }
+
+    // Garantir que inclui "Arquivos (X):" com formato correto
+    if (!summary.match(/Arquivos\s*\(\d+\):/)) {
+      const files = params.screens
+        .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
+        .map(b => `- ${b.route || b.title || 'arquivo'}`)
+        .join('\n\n')
+
+      if (files) {
+        const fileCount = params.screens
+          .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
+          .length
+        finalSummary += `\n\nArquivos (${fileCount}):\n\n${files}`
+      }
+    }
+
+    console.log('[generateCardSummary] Resumo processado:', finalSummary?.substring(0, 100) + '...')
+    return { summary: finalSummary }
   }
 }
