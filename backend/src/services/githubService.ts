@@ -641,12 +641,19 @@ export class GithubService {
 
   private static addSummaryScreen(card: CreateCardFeatureRequest): CreateCardFeatureRequest {
     const allFiles = card.screens
-      .flatMap(s => s.blocks.filter(b => b.route).map(b => b.route!))
+      .flatMap(s => s.blocks
+        .filter(b => b.route && b.type === ContentType.CODE)
+        .map(b => b.route!)
+      )
       .filter(Boolean)
+      .filter(f => {
+        const excludePatterns = ['.md', '.claude/', '.clinerules/', '.cursor/', '.github/']
+        return !excludePatterns.some(p => f.includes(p))
+      })
     const summaryBlock: ContentBlock = {
       id: randomUUID(),
       type: ContentType.TEXT,
-      content: `## ${card.title}\n\n${card.description}\n\n### Arquivos (${allFiles.length})\n${allFiles.map(f => `- \`${f}\``).join('\n')}`,
+      content: `${card.title}\n\n${card.description}\n\nArquivos (${allFiles.length}):\n${allFiles.map(f => f.split('/').pop()).join(', ')}`,
       order: 0
     }
     const summaryScreen: CardFeatureScreen = {

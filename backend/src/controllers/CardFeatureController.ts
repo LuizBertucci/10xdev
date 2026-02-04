@@ -864,7 +864,7 @@ export class CardFeatureController {
       res.status(200).json({
         success: true,
         data: {
-          canGenerate: isAdmin || isOwner || isShared,
+          canGenerate: isAdmin,
           isOwner,
           isAdmin
         }

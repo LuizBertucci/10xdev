@@ -517,9 +517,9 @@ export class AiCardGroupingService {
     const screensContext = params.screens.slice(0, 10).map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
-        .map(b => `\`${b.language || 'code'}\`: ${b.title || 'arquivo'}`)
+        .map(b => `${b.language || 'code'}: ${b.title || 'arquivo'}`)
         .join(', ')
-      return `### ${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
+      return `${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
     }).join('\n\n')
     
     const system = [

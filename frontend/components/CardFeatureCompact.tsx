@@ -288,13 +288,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={handleGenerateSummary}
-                        disabled={!accessInfo?.canGenerate || isGeneratingSummary}
-                      >
-                        {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                        {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
-                      </DropdownMenuItem>
+                      {accessInfo?.canGenerate && (
+                        <DropdownMenuItem 
+                          onClick={handleGenerateSummary}
+                          disabled={isGeneratingSummary}
+                        >
+                          {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                          {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
+                        </DropdownMenuItem>
+                      )}
 <DropdownMenuItem 
                           onClick={(e) => {
                             e.stopPropagation()
