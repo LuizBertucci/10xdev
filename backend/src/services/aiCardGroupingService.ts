@@ -201,14 +201,10 @@ export class AiCardGroupingService {
 
     const MAX_FILES = Number(process.env.GITHUB_IMPORT_AI_MAX_FILES || (mode === 'full' ? 400 : 200))
     const MAX_CHARS_PER_FILE = Number(process.env.GITHUB_IMPORT_AI_MAX_CHARS_PER_FILE || (mode === 'full' ? 20000 : 1200))
-    const MAX_TOTAL_CHARS = Number(process.env.GITHUB_IMPORT_AI_MAX_TOTAL_CHARS || (mode === 'full' ? 250000 : 120000))
 
     const filesTrimmed: FileMeta[] = []
-    let totalChars = 0
     for (const f of params.files.slice(0, MAX_FILES)) {
       const trimmed = (f.snippet || '').slice(0, MAX_CHARS_PER_FILE)
-      if (totalChars + trimmed.length > MAX_TOTAL_CHARS) break
-      totalChars += trimmed.length
       filesTrimmed.push({ path: f.path, layer: f.layer, featureName: f.featureName, size: f.size, snippet: trimmed })
     }
 
@@ -449,7 +445,6 @@ export class AiCardGroupingService {
       endpoint,
       model,
       filesCount: filesTrimmed.length,
-      totalChars,
       mode
     })
 

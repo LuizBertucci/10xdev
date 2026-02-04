@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -169,6 +168,57 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
     }
   }, [open])
 
+  const handleAnalyzeGithub = useCallback(async (showToasts = true) => {
+    if (!githubUrl.trim()) {
+      if (showToasts) toast.error('URL do GitHub é obrigatória')
+      return
+    }
+    if (!isValidGithubUrl(githubUrl)) {
+      if (showToasts) toast.error('URL inválida. Use: https://github.com/usuario/repositorio')
+      return
+    }
+
+    try {
+      setLoadingGithub(true)
+      const response = showToasts 
+        ? await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined })
+        : await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined }, true)
+      
+      if (response?.success && response.data) {
+        setGithubRepoInfo(response.data)
+        setNewProjectName(response.data.name)
+        setNewProjectDescription(response.data.description || '')
+        setPossiblePrivateRepo(false)
+        if (showToasts) toast.success(`Repositório${response.data.isPrivate ? ' privado' : ''} encontrado!`)
+      } else if (!response?.success) {
+        if (!githubToken) {
+          setShowTokenField(true)
+          setPossiblePrivateRepo(true)
+        }
+        if (showToasts) {
+          toast.error(githubToken
+            ? 'Token sem permissão para este repositório'
+            : (response?.error || 'Erro ao buscar informações do repositório'))
+        }
+      }
+    } catch (error: any) {
+      const statusCode = error?.statusCode || error?.response?.status
+      const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
+
+      if (isAuthError && !githubToken) {
+        setShowTokenField(true)
+        setPossiblePrivateRepo(true)
+        if (showToasts) toast.info('Repositório privado detectado. Adicione um token de acesso.')
+      } else if (isAuthError && githubToken) {
+        if (showToasts) toast.error('Token sem permissão para este repositório')
+      } else if (showToasts) {
+        toast.error(error?.message || 'Erro ao buscar informações do repositório')
+      }
+    } finally {
+      setLoadingGithub(false)
+    }
+  }, [githubUrl, githubToken])
+
   // Validar token em tempo real (com debounce)
   useEffect(() => {
     if (!githubToken.trim()) {
@@ -183,7 +233,6 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
         if (response?.success && response.data?.valid) {
           setTokenStatus('valid')
           setPossiblePrivateRepo(false)
-          // Token validado: buscar metadata do repo automaticamente (preenche nome/descricao)
           if (githubUrl.trim() && isValidGithubUrl(githubUrl)) {
             handleAnalyzeGithub(false)
           }
@@ -211,7 +260,6 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       return
     }
 
-    // Se já sabemos que é privado e não tem token, não tentar buscar automaticamente
     if (possiblePrivateRepo && !githubToken) return
 
     const timeoutId = setTimeout(() => handleAnalyzeGithub(false), 500)
@@ -234,7 +282,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
-      toast.error("Nome do projeto é obrigatório")
+      toast.error('Nome do projeto é obrigatório')
       return
     }
 
@@ -246,75 +294,24 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       })
 
       if (!response) {
-        toast.error("Nenhuma resposta do servidor ao criar o projeto.")
+        toast.error('Nenhuma resposta do servidor ao criar o projeto.')
         return
       }
 
       if (response.success && response.data) {
         await shareWithMembers(response.data.id, false)
-        toast.success("Projeto criado com sucesso!")
+        toast.success('Projeto criado com sucesso!')
         onSaved()
         handleOpenChange(false)
       } else {
-        toast.error(response.error || "Erro ao criar projeto")
+        toast.error(response.error || 'Erro ao criar projeto')
       }
     } catch (error: any) {
-      toast.error(error.message || "Erro ao criar projeto")
+      toast.error(error.message || 'Erro ao criar projeto')
     } finally {
       setCreating(false)
     }
   }
-
-  const handleAnalyzeGithub = useCallback(async (showToasts = true) => {
-    if (!githubUrl.trim()) {
-      if (showToasts) toast.error("URL do GitHub é obrigatória")
-      return
-    }
-    if (!isValidGithubUrl(githubUrl)) {
-      if (showToasts) toast.error("URL inválida. Use: https://github.com/usuario/repositorio")
-      return
-    }
-
-    try {
-      setLoadingGithub(true)
-      const response = showToasts 
-        ? await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined })
-        : await projectService.getGithubInfo({ url: githubUrl, token: githubToken || undefined }, true)
-      
-      if (response?.success && response.data) {
-        setGithubRepoInfo(response.data)
-        setNewProjectName(response.data.name)
-        setNewProjectDescription(response.data.description || "")
-        setPossiblePrivateRepo(false)
-        if (showToasts) toast.success(`Repositório${response.data.isPrivate ? " privado" : ""} encontrado!`)
-      } else if (!response?.success) {
-        if (!githubToken) {
-          setShowTokenField(true)
-          setPossiblePrivateRepo(true)
-        }
-        if (showToasts) {
-          toast.error(githubToken
-            ? "Token sem permissão para este repositório"
-            : (response?.error || "Erro ao buscar informações do repositório"))
-        }
-      }
-    } catch (error: any) {
-      const statusCode = error?.statusCode || error?.response?.status
-      const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
-
-      if (isAuthError && !githubToken) {
-        setShowTokenField(true)
-        setPossiblePrivateRepo(true)
-        if (showToasts) toast.info("Repositório privado detectado. Adicione um token de acesso.")
-      } else if (isAuthError && githubToken) {
-        if (showToasts) toast.error("Token sem permissão para este repositório")
-      } else if (showToasts) {
-        toast.error(error?.message || "Erro ao buscar informações do repositório")
-      }
-    } finally {
-      setLoadingGithub(false)
-    }
-  }, [githubUrl, githubToken])
 
   const handleGenerateGithubToken = () => {
     if (!githubUrl.trim()) {
