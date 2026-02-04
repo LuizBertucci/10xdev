@@ -25,6 +25,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
@@ -894,15 +895,34 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
 
           {/* Botão toggle do Sumário - visível apenas na tab Códigos */}
           {activeTab === 'codes' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsSummaryOpen(true)}
-              className="w-full md:w-auto"
-            >
-              <List className="h-4 w-4 mr-2" />
-              Ver Sumário
-            </Button>
+            <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full">
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full md:w-auto"
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  <span className="md:hidden">{isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário</span>
+                  <span className="hidden md:inline">Ver Sumário</span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="md:hidden mt-2">
+                <ProjectCategories
+                  categories={orderedCategories}
+                  counts={categoryGroups}
+                  selectedCategory={selectedCategory}
+                  onSelect={setSelectedCategory}
+                  allLabel={ALL_CATEGORIES_LABEL}
+                  allValue={ALL_CATEGORIES_VALUE}
+                  allCount={uniqueCardFeatures.length}
+                  loading={loadingCards}
+                  loadingText="Carregando categorias..."
+                  emptyText="Sem categorias"
+                  className="max-h-[300px] overflow-y-auto"
+                />
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </div>
 
@@ -923,7 +943,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 loading={loadingCards}
                 loadingText="Carregando categorias..."
                 emptyText="Sem categorias"
-                className="md:h-[520px] md:overflow-y-auto"
+                className="hidden md:block md:h-[520px] md:overflow-y-auto"
               />
             )}
 
