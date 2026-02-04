@@ -82,9 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Inicializar sessão ao montar
   useEffect(() => {
     let mounted = true
+    let lastFetchedUserId: string | null = null
 
     const initSession = async () => {
-      // Marca loading durante a checagem inicial de sessão
       if (mounted) setIsLoading(true)
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -99,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           setIsProfileLoaded(false)
-          // Define dados básicos do auth imediatamente
           const basicUserData: User = {
             id: session.user.id,
             email: session.user.email ?? null,
@@ -109,15 +108,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           setUser(basicUserData)
 
-          // Busca perfil completo em background (não pode travar o fluxo de login)
-          fetchUserProfile(session.user.id)
-            .then(profile => {
-              if (mounted && profile) setUser(profile)
-            })
-            .catch(err => console.error('Erro ao buscar perfil completo:', err))
-            .finally(() => {
-              if (mounted) setIsProfileLoaded(true)
-            })
+          if (lastFetchedUserId !== session.user.id) {
+            lastFetchedUserId = session.user.id
+            fetchUserProfile(session.user.id)
+              .then(profile => {
+                if (mounted && profile) setUser(profile)
+              })
+              .catch(err => console.error('Erro ao buscar perfil completo:', err))
+              .finally(() => {
+                if (mounted) setIsProfileLoaded(true)
+              })
+          }
         } else {
           setUser(null)
           setIsProfileLoaded(true)
@@ -135,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initSession()
 
-    // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return
 
@@ -144,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[useAuth] Sessão encerrada, limpando estado')
         setUser(null)
         setIsProfileLoaded(true)
+        lastFetchedUserId = null
         return
       }
 
@@ -152,34 +153,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[useAuth] Token refresh falhou, limpando estado')
         setUser(null)
         setIsProfileLoaded(true)
+        lastFetchedUserId = null
         return
       }
 
-      // TOKEN_REFRESHED: mantém estado atual, não faz nada
-      // O estado do usuário deve permanecer constante até o logout
+      // TOKEN_REFRESHED: mantém estado atual
       if (event === 'TOKEN_REFRESHED') {
         return
       }
 
-      // SIGNED_IN: só processa se ainda não temos perfil carregado
-      // Evita re-renders desnecessários que causam flicker
+      // SIGNED_IN: processa autenticação
       if (event === 'SIGNED_IN' && session?.user) {
-        // Se já temos perfil carregado, mantém o estado atual
-        if (isProfileLoaded && user?.id === session.user.id) {
+        // Evita chamadas duplicadas para o mesmo usuário
+        if (lastFetchedUserId === session.user.id) {
           return
         }
 
-        // Se não temos perfil ainda, busca em background (sem resetar estado)
-        if (!isProfileLoaded) {
-          fetchUserProfile(session.user.id)
-            .then(profile => {
-              if (mounted && profile) {
-                setUser(profile)
-                setIsProfileLoaded(true)
-              }
-            })
-            .catch(err => console.error('Erro ao buscar perfil:', err))
+        lastFetchedUserId = session.user.id
+
+        // Define dados básicos do auth imediatamente
+        const basicUserData: User = {
+          id: session.user.id,
+          email: session.user.email ?? null,
+          name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || null,
+          role: 'user',
+          status: 'active'
         }
+        setUser(basicUserData)
+
+        // Busca perfil completo em background
+        fetchUserProfile(session.user.id)
+          .then(profile => {
+            if (mounted && profile) setUser(profile)
+          })
+          .catch(err => console.error('Erro ao buscar perfil completo:', err))
+          .finally(() => {
+            if (mounted) setIsProfileLoaded(true)
+          })
       }
     })
 
