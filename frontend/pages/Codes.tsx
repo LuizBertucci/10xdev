@@ -563,9 +563,11 @@ export default function Codes({ platformState }: CodesProps) {
                       handleDeleteClick(snippetId)
                     }}
                     onUpdate={cardFeatures.updateCardFeature}
+                    onSummaryGenerated={() => cardFeatures.refreshData()}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedCardIds.includes(snippet.id)}
                     onToggleSelect={handleToggleCardSelection}
+                    expandOnClick
                   />
 
                   {selectedDirectoryTab === 'validating' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (

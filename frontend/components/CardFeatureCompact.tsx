@@ -22,6 +22,7 @@ interface CardFeatureCompactProps {
   onEdit: (snippet: CardFeatureType) => void
   onDelete: (snippetId: string) => void
   onUpdate?: (id: string, data: Partial<CardFeatureType>) => Promise<any>
+  onSummaryGenerated?: () => Promise<void> | void
   className?: string
   isSelectionMode?: boolean
   isSelected?: boolean
@@ -29,7 +30,7 @@ interface CardFeatureCompactProps {
   expandOnClick?: boolean
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, onSummaryGenerated, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
@@ -159,8 +160,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     router.push(`/?tab=${tab}&id=${snippet.id}`)
   }
 
+  const isResumoScreen = (name?: string) =>
+    (name || '').trim().toLowerCase() === 'resumo'
+
   // Screen ativa baseada na tab selecionada
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
+  const isSummaryTab = isResumoScreen(activeScreen?.name)
 
   // Função para mudar visibilidade rapidamente
   const handleVisibilityChange = async (newVisibility: Visibility) => {
@@ -191,12 +196,21 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
-              ...snippet.screens.filter(s => s.name !== 'Resumo')
+              ...snippet.screens.filter(s => !isResumoScreen(s.name))
             ]
           : snippet.screens
         if (onUpdate) {
           await onUpdate(snippet.id, { screens: updatedScreens })
+          const summaryIndex = updatedScreens.findIndex(screen =>
+            isResumoScreen(screen.name)
+          )
+          if (summaryIndex >= 0) {
+            setActiveTab(summaryIndex)
+          }
           toast.success('Resumo gerado com sucesso!')
+          if (onSummaryGenerated) {
+            await onSummaryGenerated()
+          }
           if (currentCardIdFromUrl !== snippet.id) {
             const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
             setTimeout(() => {
@@ -216,7 +230,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     } finally {
       setIsGeneratingSummary(false)
     }
-  }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl])
+  }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl, onUpdate, onSummaryGenerated, router])
 
   const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
     <DropdownMenu>
@@ -290,7 +304,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     <DropdownMenuContent align="end">
                       {accessInfo?.canGenerate && (
                         <DropdownMenuItem 
-                          onClick={handleGenerateSummary}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleGenerateSummary()
+                          }}
                           disabled={isGeneratingSummary}
                         >
                           {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
@@ -507,6 +524,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
               {/* Área do Conteúdo com Containers Específicos */}
               <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white">
+                {isGeneratingSummary && isSummaryTab && (
+                  <div className="mb-2 w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
+                  </div>
+                )}
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
                     height: 8px;

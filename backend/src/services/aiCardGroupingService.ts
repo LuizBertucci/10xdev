@@ -517,47 +517,55 @@ export class AiCardGroupingService {
     const screensContext = params.screens.slice(0, 10).map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
-        .map(b => `- ${b.route || b.title || 'arquivo'}`)
-        .join('\n\n')
+        .map(b => b.route || b.title || '')
+        .filter(Boolean)
+        .map(file => `- ${file}`)
+        .join('\n')
       return `${screen.name}\n${screen.description}\n\nArquivos:\n${files}`
     }).join('\n\n')
 
     const system = [
-      'Gere um resumo para um card de sistema.',
+      'Gere um resumo em português (Brasil) seguindo exatamente este formato:',
       '',
-      'Formato OBRIGATORIO (copie e cole exatamente):',
+      '1) Título (uma linha, só o nome da feature)',
+      '2) Linha em branco',
+      '3) Descrição curta em 1–2 frases (visão geral + capacidades principais)',
+      '4) Linha em branco',
+      '5) Categoria e Tecnologias nesse formato:',
+      '   - *Categoria:* <categoria>',
+      '   - *Tecnologias:* <lista separada por vírgula>',
+      '6) Linha em branco',
+      '7) Seção "Features" (título literal "Features")',
+      '8) Lista de features com bullets (um item por linha, cada linha termina com ponto final)',
+      '9) Linha em branco',
+      '10) Seção de arquivos com esta formatação:',
+      '    ### Arquivos (XX)',
+      '    #### Backend',
+      '    - `caminho/do/arquivo1`',
+      '    ',
+      '    #### Frontend',
+      '    - `caminho/do/arquivo2`',
       '',
-      'Sistema para [função].',
-      'Permite [ações].',
-      'Utiliza [tecnologias].',
-      'Estrutura organizada para facilitar manutenção e evolução.',
-      '',
-      'Arquivos (X):',
-      '',
-      '- caminho/do/arquivo1',
-      '',
-      '- caminho/do/arquivo2',
-      '',
-      '- caminho/do/arquivo3',
-      '',
-      '...',
-      '',
-      'Restrições:',
-      '- NAO use emojis',
-      '- NAO use linguagem comercial',
-      '- Use - no início de cada arquivo',
-      '- X deve ser o número exato de arquivos',
-      '- Liste APENOS os arquivos que estão neste card',
-      '- NAO invente arquivos'
+      'Regras:',
+      '- Pode usar markdown leve (ex: **negrito**, *itálico*)',
+      '- Pode usar bullets nas seções "Features" e "Arquivos"',
+      '- Features devem ser objetivas, sem redundâncias (ex: "CRUD completo" já cobre GET/POST/PUT/DELETE/PATCH)',
+      '- Em "Arquivos", use backticks e o número XX deve ser exato',
+      '- Em "Arquivos", separe Backend e Frontend em subseções e deixe uma linha em branco entre elas',
+      '- Não invente arquivos; use apenas os arquivos do card e que apareçam nas abas',
+      '- Evite textos longos e redundantes',
+      '- Não usar emojis'
     ].join('\n')
 
     const user = [
       `Card: ${params.cardTitle}`,
+      `Tech: ${params.tech || 'Não informado'}`,
+      `Language: ${params.language || 'Não informado'}`,
       '',
       'Screens:',
       screensContext,
       '',
-      'Gere o resumo no formato EXATO especificado acima, liste APENAS os arquivos deste card.'
+      'Gere o resumo no formato EXATO especificado acima.'
     ].join('\n')
     
     console.log('[generateCardSummary] Chamando API de IA...')
@@ -569,36 +577,47 @@ export class AiCardGroupingService {
     
     console.log('[generateCardSummary] Resposta recebida da IA, processando...')
     const summary = content
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/__([^_]+)__/g, '$1')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/^\s*[-*+]\s+/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
 
     // Validar e corrigir formato do resumo
     let finalSummary = summary
 
-    // Garantir que começa com "Sistema para"
-    if (!summary.match(/^Sistema para/i)) {
-      finalSummary = 'Sistema para ' + params.cardTitle + '.\n' + summary
+    // Garantir que começa com o título do card
+    if (!summary.match(new RegExp(`^${params.cardTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'))) {
+      finalSummary = `${params.cardTitle}\n\n${summary}`
     }
 
-    // Garantir que inclui "Arquivos (X):" com formato correto
-    if (!summary.match(/Arquivos\s*\(\d+\):/)) {
-      const files = params.screens
-        .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
-        .map(b => `- ${b.route || b.title || 'arquivo'}`)
-        .join('\n\n')
+    // Garantir seção de arquivos com contagem correta
+    const fileItems = params.screens
+      .filter(s => !/^(resumo|sumário|summary|overview)$/i.test(s.name.trim()))
+      .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
+      .map(b => b.route || b.title || '')
+      .filter(Boolean)
 
-      if (files) {
-        const fileCount = params.screens
-          .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
-          .length
-        finalSummary += `\n\nArquivos (${fileCount}):\n\n${files}`
+    if (fileItems.length) {
+      const uniqueFiles = Array.from(new Set(fileItems))
+      const backendFiles = uniqueFiles.filter(file => file.startsWith('backend/'))
+      const frontendFiles = uniqueFiles.filter(file => file.startsWith('frontend/'))
+      const otherFiles = uniqueFiles.filter(
+        file => !file.startsWith('backend/') && !file.startsWith('frontend/')
+      )
+      const filesSection = [
+        `### Arquivos (${uniqueFiles.length})`,
+        ...(backendFiles.length
+          ? ['#### Backend', ...backendFiles.map(file => `- \`${file}\``)]
+          : []),
+        ...(backendFiles.length && frontendFiles.length ? [''] : []),
+        ...(frontendFiles.length
+          ? ['#### Frontend', ...frontendFiles.map(file => `- \`${file}\``)]
+          : []),
+        ...(otherFiles.length
+          ? ['#### Outros', ...otherFiles.map(file => `- \`${file}\``)]
+          : [])
+      ].join('\n')
+
+      if (!finalSummary.match(/^###\s+Arquivos\s*\(\d+\)/im)) {
+        finalSummary += `\n\n${filesSection}`
       }
     }
 
