@@ -6,6 +6,7 @@ import { projectRoutes } from './projectRoutes'
 import { userRoutes } from './userRoutes'
 import { adminRoutes } from './adminRoutes'
 import { templateRoutes } from './templateRoutes'
+import { gitsyncRoutes } from './gitsyncRoutes'
 
 const router = Router()
 
@@ -43,6 +44,9 @@ router.use('/users', userRoutes)
 
 // Admin routes
 router.use('/admin', adminRoutes)
+
+// GitHub Sync routes
+router.use('/gitsync', gitsyncRoutes)
 
 // API Info endpoint
 router.get('/', (req, res) => {
@@ -101,6 +105,36 @@ router.get('/', (req, res) => {
       },
       users: {
         search: 'GET /api/users/search?q=term'
+      },
+      gitsync: {
+        oauthAuthorize: 'GET /api/gitsync/oauth/authorize?project_id={id}',
+        oauthCallback: 'GET /api/gitsync/oauth/callback',
+        oauthDisconnect: 'POST /api/gitsync/oauth/disconnect',
+        connections: {
+          list: 'GET /api/gitsync/connections?project_id={id}',
+          create: 'POST /api/gitsync/connections',
+          delete: 'DELETE /api/gitsync/connections/:id'
+        },
+        repos: {
+          list: 'GET /api/gitsync/repos'
+        },
+        mappings: {
+          linkFile: 'POST /api/gitsync/card/:cardId/link-file',
+          unlinkFile: 'DELETE /api/gitsync/card/:cardId/link-file/:mappingId',
+          listByCard: 'GET /api/gitsync/card/:cardId/mappings'
+        },
+        sync: {
+          cardToGithub: 'POST /api/gitsync/card/:cardId/sync-to-github'
+        },
+        pullRequests: {
+          list: 'GET /api/gitsync/connections/:connectionId/pull-requests'
+        },
+        logs: {
+          list: 'GET /api/gitsync/connections/:connectionId/sync-logs'
+        },
+        webhook: {
+          github: 'POST /api/gitsync/webhooks/github'
+        }
       }
     },
     documentation: 'https://github.com/10xdev/api-docs'

@@ -22,6 +22,8 @@
   "author": "10xDev Team",
   "license": "MIT",
   "dependencies": {
+    "@octokit/auth-app": "^8.2.0",
+    "@octokit/rest": "^22.0.1",
     "@supabase/supabase-js": "^2.39.0",
     "adm-zip": "^0.5.16",
     "axios": "^1.13.2",
