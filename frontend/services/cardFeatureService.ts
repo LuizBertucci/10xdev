@@ -162,13 +162,14 @@ class CardFeatureService {
   }
 
   async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
-    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force })
+    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force }) as any
 
-    if (response?.success && response.data) {
-      return {
-        success: true,
-        summary: response.data.summary || '',
-        message: response.data.message
+    if (response?.success) {
+      if (response.data) {
+        return { success: true, summary: response.data.summary || '', message: response.data.message }
+      }
+      if (response.summary) {
+        return { success: true, summary: response.summary, message: response.message }
       }
     }
 
