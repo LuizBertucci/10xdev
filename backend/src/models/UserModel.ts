@@ -38,7 +38,47 @@ export class UserModel {
         }
       }
 
-      const users = data.map((row: UserRow) => this.transformToResponse(row))
+      // Enriquecer com avatar/nome do Auth quando a tabela users não tem
+      const users = await Promise.all(
+        data.map(async (row: UserRow) => {
+          const user = this.transformToResponse(row)
+          if (!user.avatarUrl || !user.name) {
+            try {
+              const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(row.id)
+              if (authUser?.user?.user_metadata) {
+                const meta = authUser.user.user_metadata
+                const updates: Record<string, string> = {}
+
+                if (!user.avatarUrl && meta.avatar_url) {
+                  user.avatarUrl = meta.avatar_url
+                  updates.avatar_url = meta.avatar_url
+                }
+                if (!user.name) {
+                  const authName = meta.name || meta.full_name || null
+                  if (authName) {
+                    user.name = authName
+                    updates.name = authName
+                  }
+                }
+
+                // Sincronizar na tabela users para próximas buscas
+                if (Object.keys(updates).length > 0) {
+                  updates.updated_at = new Date().toISOString()
+                  supabaseAdmin
+                    .from('users')
+                    .update(updates)
+                    .eq('id', row.id)
+                    .then(() => {})
+                    .catch(() => {})
+                }
+              }
+            } catch {
+              // Ignorar erro de auth, manter dados da tabela
+            }
+          }
+          return user
+        })
+      )
 
       return {
         success: true,
