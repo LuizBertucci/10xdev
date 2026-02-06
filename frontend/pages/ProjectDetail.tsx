@@ -625,6 +625,25 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }, [orderedCategories, selectedCategory])
 
+  const handleCategoryOrderChange = async (newOrder: string[]) => {
+    // Atualiza localmente de imediato (otimista)
+    setProject((prev) => prev ? { ...prev, categoryOrder: newOrder } : prev)
+
+    if (projectId) {
+      try {
+        const response = await projectService.update(projectId, { categoryOrder: newOrder })
+        if (!response?.success) {
+          toast.error(response?.error || 'Erro ao salvar ordem das categorias')
+          // Reverte em caso de erro
+          setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
+        }
+      } catch (error: any) {
+        toast.error(error?.message || 'Erro ao salvar ordem das categorias')
+        setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
+      }
+    }
+  }
+
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
@@ -919,6 +938,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   loading={loadingCards}
                   loadingText="Carregando categorias..."
                   emptyText="Sem categorias"
+                  sortable
+                  onOrderChange={handleCategoryOrderChange}
                   className="max-h-[300px] overflow-y-auto"
                 />
               </CollapsibleContent>
@@ -943,6 +964,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 loading={loadingCards}
                 loadingText="Carregando categorias..."
                 emptyText="Sem categorias"
+                sortable
+                onOrderChange={handleCategoryOrderChange}
                 className="hidden md:block md:h-[520px] md:overflow-y-auto"
               />
             )}
