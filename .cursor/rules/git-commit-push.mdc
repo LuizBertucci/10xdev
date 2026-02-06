@@ -5,7 +5,8 @@ alwaysApply: true
 
 # Git Commit & Push Workflow
 
-Quando o usuário pedir para commitar/subir alterações, siga este fluxo:
+**Nunca commite automaticamente.** Só commite quando o usuário pedir explicitamente (ex: "commita", "pode subir", "sobe", "commit", "push").
+Quando o usuário pedir, siga este fluxo:
 
 ## 1. Analisar alterações pendentes
 
