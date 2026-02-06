@@ -596,9 +596,9 @@ export class ProjectModel {
 
   static async addMember(projectId: string, memberData: AddProjectMemberRequest, userId: string): Promise<ModelResult<ProjectMemberResponse>> {
     try {
-      // Verificar permissão (owner ou admin)
+      // Qualquer membro do projeto pode adicionar novos membros
       const role = await this.getUserRole(projectId, userId)
-      if (!role || (role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN)) {
+      if (!role) {
         return {
           success: false,
           error: 'Você não tem permissão para adicionar membros',
@@ -650,8 +650,9 @@ export class ProjectModel {
     requesterId: string
   ): Promise<ModelResult<{ insertedIds: string[]; ignoredIds: string[] }>> {
     try {
+      // Qualquer membro do projeto pode adicionar novos membros
       const role = await this.getUserRole(projectId, requesterId)
-      if (!role || (role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN)) {
+      if (!role) {
         return {
           success: false,
           error: 'Você não tem permissão para adicionar membros',
