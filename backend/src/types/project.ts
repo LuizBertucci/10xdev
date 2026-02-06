@@ -235,3 +235,41 @@ export interface ValidateGithubTokenResponse {
   valid: boolean
   message?: string
 }
+
+// ============================================
+// GITHUB API TYPES (moved from gitsync.ts)
+// ============================================
+
+export type GitHubRepo = {
+  id: number
+  name: string
+  full_name: string
+  owner: { login: string }
+  default_branch: string
+  private: boolean
+  html_url: string
+  clone_url: string
+}
+
+export type GitHubBranch = {
+  name: string
+  commit: { sha: string; url: string }
+}
+
+export type GitHubCommit = {
+  sha: string
+  message: string
+  author: { name: string; email: string; date: string }
+  html_url: string
+}
+
+export type GitHubFileContent = {
+  name: string
+  path: string
+  sha: string
+  size: number
+  type: 'file' | 'dir'
+  content?: string
+  encoding?: string
+  download_url: string | null
+}

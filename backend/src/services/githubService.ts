@@ -1,9 +1,12 @@
 import axios from 'axios'
 import AdmZip from 'adm-zip'
+import crypto from 'crypto'
 import { randomUUID } from 'crypto'
+import { Octokit } from '@octokit/rest'
 import type { GithubRepoInfo } from '@/types/project'
 import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
+import type { ModelResult } from '@/types/gitsync'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
 
@@ -898,5 +901,164 @@ export class GithubService {
     }
 
     return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
+  }
+
+  // ================================================
+  // OAUTH METHODS (from GitHubOAuthService)
+  // ================================================
+
+  private static oauthClientId: string = process.env.GITHUB_APP_CLIENT_ID || ''
+  private static oauthClientSecret: string = process.env.GITHUB_APP_CLIENT_SECRET || ''
+  private static oauthRedirectUri: string = process.env.GITHUB_REDIRECT_URI || 'http://localhost:3001/api/gitsync/oauth/callback'
+
+  static getAuthorizationUrl(state: string): string {
+    const params = new URLSearchParams({
+      client_id: this.oauthClientId,
+      redirect_uri: this.oauthRedirectUri,
+      scope: 'repo,user:email',
+      state
+    })
+    return `https://github.com/login/oauth/authorize?${params.toString()}`
+  }
+
+  static async exchangeCodeForToken(code: string): Promise<ModelResult<{ accessToken: string; scope: string }>> {
+    try {
+      const response = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: this.oauthClientId, client_secret: this.oauthClientSecret, code })
+      })
+      const data = await response.json() as any
+      if (data.error) return { success: false, error: data.error_description || data.error, statusCode: 400 }
+      return { success: true, data: { accessToken: data.access_token, scope: data.scope }, statusCode: 200 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao trocar código por token', statusCode: 500 }
+    }
+  }
+
+  static async getUserAccessToken(userId: string): Promise<ModelResult<string | null>> {
+    const { GitHubOAuthTokenModel } = await import('@/models/gitsync')
+    const tokenResult = await GitHubOAuthTokenModel.findByUserId(userId)
+    if (!tokenResult.success) return { success: false, error: tokenResult.error || 'Erro ao buscar token', statusCode: tokenResult.statusCode || 500 }
+    if (!tokenResult.data) return { success: true, data: null, statusCode: 200 }
+    return { success: true, data: tokenResult.data.accessToken, statusCode: 200 }
+  }
+
+  static async saveToken(userId: string, accessToken: string, scope?: string): Promise<ModelResult<any>> {
+    const { GitHubOAuthTokenModel } = await import('@/models/gitsync')
+    return GitHubOAuthTokenModel.upsert(userId, accessToken, scope)
+  }
+
+  static async deleteToken(userId: string): Promise<ModelResult<null>> {
+    const { GitHubOAuthTokenModel } = await import('@/models/gitsync')
+    return GitHubOAuthTokenModel.deleteByUserId(userId)
+  }
+
+  static async createOctokitClient(userId: string): Promise<ModelResult<Octokit | null>> {
+    const tokenResult = await this.getUserAccessToken(userId)
+    if (!tokenResult.success || !tokenResult.data) return { success: false, error: 'Token não encontrado', statusCode: 401 }
+    const octokit = new Octokit({ auth: tokenResult.data })
+    return { success: true, data: octokit, statusCode: 200 }
+  }
+
+  // ================================================
+  // API OPERATIONS (from GitHubOAuthService)
+  // ================================================
+
+  static async getUserRepos(userId: string): Promise<ModelResult<any[]>> {
+    const octokitResult = await this.createOctokitClient(userId)
+    if (!octokitResult.success || !octokitResult.data) return { success: false, error: octokitResult.error || '', statusCode: octokitResult.statusCode || 500 }
+    try {
+      const { data } = await octokitResult.data.repos.listForAuthenticatedUser({ sort: 'updated', per_page: 100 })
+      return { success: true, data: data.map(r => ({ id: r.id, name: r.name, full_name: r.full_name, owner: { login: r.owner.login }, default_branch: r.default_branch || 'main', private: r.private, html_url: r.html_url })), statusCode: 200 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao buscar repositórios', statusCode: 500 }
+    }
+  }
+
+  static async getBranches(userId: string, owner: string, repo: string): Promise<ModelResult<any[]>> {
+    const octokitResult = await this.createOctokitClient(userId)
+    if (!octokitResult.success || !octokitResult.data) return { success: false, error: octokitResult.error || '', statusCode: octokitResult.statusCode || 500 }
+    try {
+      const { data } = await octokitResult.data.repos.listBranches({ owner, repo, per_page: 100 })
+      return { success: true, data: data.map(b => ({ name: b.name, commit: { sha: b.commit.sha, url: b.commit.url } })), statusCode: 200 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao buscar branches', statusCode: 500 }
+    }
+  }
+
+  static async getFileContent(userId: string, owner: string, repo: string, path: string, branch?: string): Promise<ModelResult<any>> {
+    const octokitResult = await this.createOctokitClient(userId)
+    if (!octokitResult.success || !octokitResult.data) return { success: false, error: octokitResult.error || '', statusCode: octokitResult.statusCode || 500 }
+    try {
+      const { data } = await octokitResult.data.repos.getContent({ owner, repo, path, ref: branch || 'main' })
+      if (Array.isArray(data)) return { success: false, error: 'Path é diretório', statusCode: 400 }
+      if (data.type !== 'file') return { success: false, error: 'Path não é um arquivo', statusCode: 400 }
+      return { success: true, data: { name: data.name, path: data.path, sha: data.sha, content: (data as any).content, encoding: (data as any).encoding, size: data.size, type: data.type, download_url: data.download_url }, statusCode: 200 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao buscar arquivo', statusCode: 500 }
+    }
+  }
+
+  static async createBranch(userId: string, owner: string, repo: string, branchName: string, sourceBranch: string): Promise<ModelResult<any>> {
+    const octokitResult = await this.createOctokitClient(userId)
+    if (!octokitResult.success || !octokitResult.data) return { success: false, error: octokitResult.error || '', statusCode: octokitResult.statusCode || 500 }
+    try {
+      const { data: source } = await octokitResult.data.repos.getBranch({ owner, repo, branch: sourceBranch })
+      await octokitResult.data.git.createRef({ owner, repo, ref: `refs/heads/${branchName}`, sha: source.commit.sha })
+      return { success: true, data: { name: branchName, commit: source.commit.sha }, statusCode: 201 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao criar branch', statusCode: 500 }
+    }
+  }
+
+  static async createOrUpdateFile(userId: string, owner: string, repo: string, path: string, content: string, message: string, branch: string, sha?: string): Promise<ModelResult<any>> {
+    const octokitResult = await this.createOctokitClient(userId)
+    if (!octokitResult.success || !octokitResult.data) return { success: false, error: octokitResult.error || '', statusCode: octokitResult.statusCode || 500 }
+    try {
+      const encodedContent = Buffer.from(content).toString('base64')
+      const params: any = { owner, repo, path, message, content: encodedContent, branch }
+      if (sha) params.sha = sha
+      const { data } = await octokitResult.data.repos.createOrUpdateFileContents(params)
+      return { success: true, data: { commitSha: data.commit.sha, url: data.content?.html_url }, statusCode: 201 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao criar/alterar arquivo', statusCode: 500 }
+    }
+  }
+
+  static async createPullRequest(userId: string, owner: string, repo: string, title: string, body: string, head: string, base: string): Promise<ModelResult<any>> {
+    const octokitResult = await this.createOctokitClient(userId)
+    if (!octokitResult.success || !octokitResult.data) return { success: false, error: octokitResult.error || '', statusCode: octokitResult.statusCode || 500 }
+    try {
+      const { data } = await octokitResult.data.pulls.create({ owner, repo, title, body, head, base })
+      return { success: true, data: { number: data.number, html_url: data.html_url, state: data.state }, statusCode: 201 }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Erro ao criar Pull Request', statusCode: 500 }
+    }
+  }
+
+  // ================================================
+  // WEBHOOK METHODS (from GitHubWebhookService)
+  // ================================================
+
+  private static webhookSecret: string = process.env.GITHUB_WEBHOOK_SECRET || ''
+
+  static validateWebhookSignature(payload: string, signature: string | undefined): boolean {
+    if (!signature || !this.webhookSecret) return false
+    const expected = 'sha256=' + crypto.createHmac('sha256', this.webhookSecret).update(payload).digest('hex')
+    try { return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected)) } catch { return false }
+  }
+
+  static async handleWebhook(eventType: string, payload: any): Promise<ModelResult<any>> {
+    const { GitHubConnectionModel } = await import('@/models/gitsync')
+    const isPush = eventType === 'push' && payload.repository
+    const isPR = eventType === 'pull_request' && payload.repository
+    if (!isPush && !isPR) return { success: true, data: { message: `Event ${eventType} ignored` }, statusCode: 200 }
+    const owner = payload.repository.owner.login
+    const repoName = payload.repository.name
+    const connResult = await GitHubConnectionModel.findByOwnerAndRepo(owner, repoName)
+    if (!connResult.success || !connResult.data) return { success: true, data: { message: 'Conexão não encontrada' }, statusCode: 200 }
+    if (!connResult.data.is_active) return { success: true, data: { message: 'Conexão inativa' }, statusCode: 200 }
+    return { success: true, data: { message: 'Webhook processado', connectionId: connResult.data.id }, statusCode: 200 }
   }
 }

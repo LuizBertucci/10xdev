@@ -10,8 +10,7 @@
 // Documentação da API: https://docs.github.com/pt/rest
 
 import { Request, Response } from 'express'
-import { gitHubOAuthService } from '@/services/gitsync/GitHubOAuthService'
-import { gitHubWebhookService } from '@/services/gitsync/GitHubWebhookService'
+import { GithubService } from '@/services/githubService'
 import { GitHubConnectionModel, GitHubFileMappingModel, GitHubPullRequestModel, GitHubSyncLogModel } from '@/models/gitsync'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import type { ModelResult } from '@/types/gitsync'
@@ -42,7 +41,7 @@ export class GitHubSyncController {
       }
 
       const state = Buffer.from(JSON.stringify({ projectId: project_id })).toString('base64')
-      const authUrl = gitHubOAuthService.getAuthorizationUrl(state)
+      const authUrl = GithubService.getAuthorizationUrl(state)
 
       res.status(200).json({
         success: true,
@@ -98,7 +97,7 @@ export class GitHubSyncController {
         return
       }
 
-      const tokenResult = await gitHubOAuthService.exchangeCodeForToken(code)
+      const tokenResult = await GithubService.exchangeCodeForToken(code)
 
       if (!tokenResult.success || !tokenResult.data) {
         res.status(400).json({
@@ -109,40 +108,24 @@ export class GitHubSyncController {
         return
       }
 
-      const userId = (req as any).user?.id || 'demo-user'
+      const userId = req.user?.id
 
-      await gitHubOAuthService.saveToken(userId, tokenResult.data.accessToken, tokenResult.data.scope)
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado',
+          statusCode: 401
+        })
+        return
+      }
+
+      await GithubService.saveToken(userId, tokenResult.data.accessToken, tokenResult.data.scope)
 
       res.redirect(`/projects/${stateData.projectId}?gitsync=connected`)
     } catch (error: any) {
       res.status(500).json({
         success: false,
         error: error.message || 'Erro no callback OAuth',
-        statusCode: 500
-      })
-    }
-  }
-
-  /**
-   * POST /api/gitsync/oauth/disconnect
-   * Desconecta a conta GitHub do usuário
-   * Remove o token OAuth do banco
-   */
-  async disconnect(req: Request, res: Response): Promise<void> {
-    try {
-      const userId = (req as any).user?.id || 'demo-user'
-
-      await gitHubOAuthService.deleteToken(userId)
-
-      res.status(200).json({
-        success: true,
-        data: { message: 'Desconectado com sucesso' },
-        statusCode: 200
-      })
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Erro ao desconectar',
         statusCode: 500
       })
     }
@@ -190,7 +173,17 @@ export class GitHubSyncController {
    */
   async createConnection(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || 'demo-user'
+      const userId = req.user?.id
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado',
+          statusCode: 401
+        })
+        return
+      }
+
       const { projectId, githubOwner, githubRepo } = req.body
 
       if (!projectId || !githubOwner || !githubRepo) {
@@ -218,35 +211,6 @@ export class GitHubSyncController {
     }
   }
 
-  /**
-   * DELETE /api/gitsync/connections/:id
-   * Remove uma conexão
-   */
-  async deleteConnection(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params
-
-      if (!id) {
-        res.status(400).json({
-          success: false,
-          error: 'ID da conexão é obrigatório',
-          statusCode: 400
-        })
-        return
-      }
-
-      const result = await GitHubConnectionModel.delete(id)
-
-      res.status(result.statusCode).json(result)
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Erro ao deletar conexão',
-        statusCode: 500
-      })
-    }
-  }
-
   // ============================================
   // REPO ENDPOINTS
   // Listagem de repositórios do usuário
@@ -259,9 +223,18 @@ export class GitHubSyncController {
    */
   async getUserRepos(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || 'demo-user'
+      const userId = req.user?.id
 
-      const result = await gitHubOAuthService.getUserRepos(userId)
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado',
+          statusCode: 401
+        })
+        return
+      }
+
+      const result = await GithubService.getUserRepos(userId)
 
       res.status(result.statusCode).json(result)
     } catch (error: any) {
@@ -385,7 +358,17 @@ export class GitHubSyncController {
    */
   async syncCardToGitHub(req: Request, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id || 'demo-user'
+      const userId = req.user?.id
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Usuário não autenticado',
+          statusCode: 401
+        })
+        return
+      }
+
       const { cardId } = req.params
       const { newContent, commitMessage } = req.body
 
@@ -437,7 +420,7 @@ export class GitHubSyncController {
       const timestamp = Date.now()
       const branchName = `feature/10xdev-${cardId.slice(0, 8)}-${timestamp}`
 
-      const createBranchResult = await gitHubOAuthService.createBranch(
+      const createBranchResult = await GithubService.createBranch(
         userId,
         connection.githubOwner,
         connection.githubRepo,
@@ -454,7 +437,7 @@ export class GitHubSyncController {
         return
       }
 
-      const fileContentResult = await gitHubOAuthService.getFileContent(
+      const fileContentResult = await GithubService.getFileContent(
         userId,
         connection.githubOwner,
         connection.githubRepo,
@@ -466,7 +449,7 @@ export class GitHubSyncController {
 
       const commitMsg = commitMessage || `[10xDev] Atualiza ${cardData.title}`
 
-      const updateResult = await gitHubOAuthService.createOrUpdateFile(
+      const updateResult = await GithubService.createOrUpdateFile(
         userId,
         connection.githubOwner,
         connection.githubRepo,
@@ -489,7 +472,7 @@ export class GitHubSyncController {
       const prTitle = `[10xDev] ${cardData.title}`
       const prBody = `Atualização automática do card "${cardData.title}" editada na 10xDev.\n\n💡 Este PR foi criado automaticamente pela plataforma 10xDev.`
 
-      const prResult = await gitHubOAuthService.createPullRequest(
+      const prResult = await GithubService.createPullRequest(
         userId,
         connection.githubOwner,
         connection.githubRepo,
@@ -636,7 +619,7 @@ export class GitHubSyncController {
 
       const payload = JSON.stringify(req.body)
 
-      const isValid = gitHubWebhookService.validateSignature(payload, signature)
+      const isValid = GithubService.validateWebhookSignature(payload, signature)
 
       if (!isValid && process.env.NODE_ENV === 'production') {
         res.status(401).json({
@@ -647,7 +630,7 @@ export class GitHubSyncController {
         return
       }
 
-      const result = await gitHubWebhookService.handleWebhook(eventType, req.body)
+      const result = await GithubService.handleWebhook(eventType, req.body)
 
       res.status(result.statusCode).json(result)
     } catch (error: any) {
@@ -658,6 +641,7 @@ export class GitHubSyncController {
       })
     }
   }
+
 }
 
 // Exporta uma instância única do controlador
