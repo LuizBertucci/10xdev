@@ -67,14 +67,14 @@ export function AddMemberInProject({
 
     try {
       let successCount = 0
-      let errorMsg = ''
+      const errors: string[] = []
 
       for (const user of selectedUsers) {
         const response = await projectService.addMember(projectId, { userId: user.id })
         if (response?.success) {
           successCount++
         } else {
-          errorMsg = response?.error || 'Erro ao adicionar membro'
+          errors.push(response?.error || `Falha ao adicionar ${user.name || user.email}`)
         }
       }
 
@@ -82,8 +82,8 @@ export function AddMemberInProject({
         toast.success(`${successCount} membro(s) adicionado(s) com sucesso`)
         onMembersAdded()
       }
-      if (errorMsg) {
-        toast.error(errorMsg)
+      if (errors.length > 0) {
+        toast.error(`${errors.length} erro(s): ${errors[0]}`)
       }
 
       onOpenChange(false)

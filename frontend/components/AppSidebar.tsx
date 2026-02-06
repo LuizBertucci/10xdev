@@ -28,7 +28,7 @@ function AppSidebar({ platformState }: AppSidebarProps) {
   })
 
   // Apply mode only when sidebarMode actually changes (not when setOpen identity changes)
-  const prevModeRef = useRef(sidebarMode)
+  const prevModeRef = useRef<string | null>(null)
 
   useEffect(() => {
     // Guard: skip if sidebarMode hasn't changed (setOpen identity changes on every open/close)

@@ -1310,13 +1310,15 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       </Dialog>
 
       {/* Dialog Adicionar Membro */}
-      <AddMemberInProject
-        open={isAddMemberDialogOpen}
-        onOpenChange={setIsAddMemberDialogOpen}
-        projectId={projectId || ''}
-        members={members}
-        onMembersAdded={loadMembers}
-      />
+      {projectId && (
+        <AddMemberInProject
+          open={isAddMemberDialogOpen}
+          onOpenChange={setIsAddMemberDialogOpen}
+          projectId={projectId}
+          members={members}
+          onMembersAdded={loadMembers}
+        />
+      )}
     </div>
   )
 }

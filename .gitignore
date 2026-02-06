@@ -31,8 +31,6 @@ test-*.js
 # vercel
 .vercel
 
-.cursor/mcp.json
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts

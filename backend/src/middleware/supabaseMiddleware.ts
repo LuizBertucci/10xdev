@@ -169,17 +169,17 @@ export const supabaseMiddleware = async (
     const authAvatarUrl = user.user_metadata?.avatar_url || null
     const authName = user.user_metadata?.name || user.user_metadata?.full_name || null
     const needsSync =
-      (authAvatarUrl && authAvatarUrl !== userProfile.avatar_url) ||
-      (authName && authName !== userProfile.name)
+      (authAvatarUrl !== userProfile.avatar_url) ||
+      (authName !== userProfile.name)
 
     if (needsSync) {
       try {
-        const syncData: Record<string, string> = { updated_at: new Date().toISOString() }
-        if (authAvatarUrl && authAvatarUrl !== userProfile.avatar_url) {
+        const syncData: Record<string, string | null> = { updated_at: new Date().toISOString() }
+        if (authAvatarUrl !== userProfile.avatar_url) {
           syncData.avatar_url = authAvatarUrl
           userProfile.avatar_url = authAvatarUrl
         }
-        if (authName && authName !== userProfile.name) {
+        if (authName !== userProfile.name) {
           syncData.name = authName
           userProfile.name = authName
         }
