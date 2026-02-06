@@ -528,6 +528,7 @@ export class GitHubFileMappingModel {
       branchName: row.branch_name,
       lastCommitSha: row.last_commit_sha,
       lastSyncedAt: row.last_synced_at,
+      cardModifiedAt: row.card_modified_at,
       createdAt: row.created_at
     }
   }
@@ -772,6 +773,31 @@ export class GitHubFileMappingModel {
       }
     }
   }
+
+  /**
+   * Atualiza a data de modificação do card
+   * Chamado quando um card é modificado no 10xDev
+   */
+  static async updateCardModified(id: string, modifiedAt: string): Promise<ModelResult<null>> {
+    try {
+      await executeQuery(
+        supabaseAdmin
+          .from('gitsync_file_mappings')
+          .update({
+            card_modified_at: modifiedAt
+          })
+          .eq('id', id)
+      )
+
+      return { success: true, data: null, statusCode: 200 }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro ao atualizar data de modificação',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
 }
 
 // ============================================
@@ -988,6 +1014,9 @@ export class GitHubSyncLogModel {
       eventType: row.event_type,
       status: row.status,
       errorMessage: row.error_message,
+      conflictDetectedAt: row.conflict_detected_at,
+      aiSuggestion: row.ai_suggestion,
+      resolved: row.resolved,
       createdAt: row.created_at
     }
   }
@@ -1064,6 +1093,111 @@ export class GitHubSyncLogModel {
       return {
         success: false,
         error: error.message || 'Erro ao buscar logs',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  /**
+   * Registra um conflito detectado durante sincronização
+   * Usado quando há modificação tanto no GitHub quanto no 10xDev
+   */
+  static async markConflict(data: {
+    connectionId: string
+    eventType?: string | null
+    errorMessage?: string | null
+    aiSuggestion?: string | null
+  }): Promise<ModelResult<GitHubSyncLogResponse>> {
+    try {
+      const { data: result } = await executeQuery(
+        supabaseAdmin
+          .from('gitsync_sync_logs')
+          .insert({
+            id: randomUUID(),
+            connection_id: data.connectionId,
+            direction: 'inbound',
+            event_type: data.eventType || 'conflict',
+            status: 'conflict',
+            error_message: data.errorMessage || null,
+            conflict_detected_at: new Date().toISOString(),
+            ai_suggestion: data.aiSuggestion || null,
+            resolved: false,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single()
+      )
+
+      return {
+        success: true,
+        data: this.transformToResponse(result),
+        statusCode: 201
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro ao registrar conflito',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  /**
+   * Busca conflitos não resolvidos de uma conexão
+   */
+  static async findUnresolvedConflicts(
+    connectionId: string
+  ): Promise<ModelListResult<GitHubSyncLogResponse>> {
+    try {
+      const { data, count } = await executeQuery(
+        supabaseAdmin
+          .from('gitsync_sync_logs')
+          .select('*', { count: 'exact' })
+          .eq('connection_id', connectionId)
+          .eq('status', 'conflict')
+          .eq('resolved', false)
+          .order('created_at', { ascending: false })
+      )
+
+      if (!data || data.length === 0) {
+        return { success: true, data: [], count: 0, statusCode: 200 }
+      }
+
+      return {
+        success: true,
+        data: data.map((row: GitHubSyncLogRow) => this.transformToResponse(row)),
+        count: count || 0,
+        statusCode: 200
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro ao buscar conflitos',
+        statusCode: error.statusCode || 500
+      }
+    }
+  }
+
+  /**
+   * Marca um conflito como resolvido
+   */
+  static async resolveConflict(logId: string): Promise<ModelResult<null>> {
+    try {
+      await executeQuery(
+        supabaseAdmin
+          .from('gitsync_sync_logs')
+          .update({
+            resolved: true,
+            resolved_at: new Date().toISOString()
+          })
+          .eq('id', logId)
+      )
+
+      return { success: true, data: null, statusCode: 200 }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Erro ao resolver conflito',
         statusCode: error.statusCode || 500
       }
     }

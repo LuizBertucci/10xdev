@@ -85,6 +85,7 @@ export type GitHubFileMappingRow = {
   branch_name: string           // Branch onde o arquivo está (padrão: "main")
   last_commit_sha: string | null // SHA do último commit que sincronizou
   last_synced_at: string | null  // Data da última sincronização
+  card_modified_at: string | null // Data da última modificação do card no 10xDev
   created_at: string            // Data de criação do mapeamento
 }
 
@@ -96,6 +97,7 @@ export type GitHubFileMappingResponse = {
   branchName: string
   lastCommitSha: string | null
   lastSyncedAt: string | null
+  cardModifiedAt: string | null
   createdAt: string
 }
 
@@ -159,9 +161,12 @@ export type GitHubSyncLogRow = {
   id: string                     // UUID do log
   connection_id: string         // ID da conexão
   direction: 'inbound' | 'outbound'  // inbound = GitHub→10xDev, outbound = 10xDev→GitHub
-  event_type: string | null      // Tipo de evento (push, pull_request, sync, merge)
-  status: string                // "success" ou "error"
+  event_type: string | null      // Tipo de evento (push, pull_request, sync, merge, conflict)
+  status: string                // "success", "error" ou "conflict"
   error_message: string | null   // Mensagem de erro (se applicable)
+  conflict_detected_at: string | null // Data quando um conflito foi detectado
+  ai_suggestion: string | null  // Sugestão da IA para resolver o conflito
+  resolved: boolean             // Se o conflito foi resolvido
   created_at: string            // Data do evento
 }
 
@@ -172,6 +177,9 @@ export type GitHubSyncLogResponse = {
   eventType: string | null
   status: string
   errorMessage: string | null
+  conflictDetectedAt: string | null
+  aiSuggestion: string | null
+  resolved: boolean
   createdAt: string
 }
 
@@ -266,46 +274,6 @@ export type SyncFromGitHubResult = {
 }
 
 // ============================================
-// TIPOS DA API DO GITHUB
-// Respostas da API REST do GitHub
-// Documentação: https://docs.github.com/pt/rest
-// ============================================
-
-export type GitHubRepo = {
-  id: number
-  name: string
-  full_name: string
-  owner: { login: string }
-  default_branch: string
-  private: boolean
-  html_url: string
-  clone_url: string
-}
-
-export type GitHubBranch = {
-  name: string
-  commit: { sha: string; url: string }
-}
-
-export type GitHubCommit = {
-  sha: string
-  message: string
-  author: { name: string; email: string; date: string }
-  html_url: string
-}
-
-export type GitHubFileContent = {
-  name: string
-  path: string
-  sha: string
-  size: number
-  type: 'file' | 'dir'
-  content?: string               // Conteúdo do arquivo (quando é file)
-  encoding?: string             // Encoding (ex: "base64")
-  download_url: string | null
-}
-
-// ============================================
 // TIPOS DE RESPOSTA DA API
 // Padrão de resposta usado em todo o backend
 // ============================================
@@ -323,4 +291,41 @@ export type ModelListResult<T> = {
   count?: number               // Total de registros
   error?: string
   statusCode: number
+}
+
+// ============================================
+// ANÁLISE DE CONFLITOS (AI)
+// Usado para detectar e resolver conflitos de sync
+// ============================================
+
+export type ConflictAnalysisRequest = {
+  cardContent: string           // Conteúdo atual do card (JSON screens)
+  githubContent: string         // Conteúdo do arquivo no GitHub
+  filePath: string             // Caminho do arquivo
+  lastSyncAt: string | null    // Data do último sync
+  cardModifiedAt: string | null // Data da última modificação do card
+}
+
+export type ConflictAnalysisResponse = {
+  hasConflict: boolean          // Se há conflito
+  suggestedContent: string | null // Conteúdo sugerido pela IA
+  conflictDescription: string  // Descrição do conflito
+  manualReviewNeeded: boolean  // Se precisa de revisão manual
+  recommendations: string[]    // Recomendações para resolver
+}
+
+// ============================================
+// TIPOS PARA CONFLITOS DE SINCRONIZAÇÃO
+// ============================================
+
+export type SyncConflictLog = {
+  id: string
+  connectionId: string
+  cardFeatureId: string
+  filePath: string
+  detectedAt: string
+  status: 'pending' | 'resolved' | 'skipped'
+  aiSuggestion: string | null
+  resolvedAt: string | null
+  resolvedBy: string | null
 }

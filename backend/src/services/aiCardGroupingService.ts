@@ -621,7 +621,129 @@ export class AiCardGroupingService {
       }
     }
 
-    console.log('[generateCardSummary] Resumo processado:', finalSummary?.substring(0, 100) + '...')
+      console.log('[generateCardSummary] Resumo processado:', finalSummary?.substring(0, 100) + '...')
     return { summary: finalSummary }
+  }
+
+  /**
+   * Analisa conflitos de sincronização entre conteúdo do card e arquivo no GitHub
+   * Detecta quando ambos foram modificados e sugere uma resolução
+   */
+  static async analyzeConflict(params: {
+    cardContent: string
+    githubContent: string
+    filePath: string
+    lastSyncAt: string | null
+    cardModifiedAt: string | null
+  }): Promise<{
+    hasConflict: boolean
+    suggestedContent: string | null
+    conflictDescription: string
+    manualReviewNeeded: boolean
+    recommendations: string[]
+  }> {
+    console.log('[analyzeConflict] Iniciando análise de conflito...')
+
+    const apiKey = this.resolveApiKey()
+    if (!apiKey) {
+      console.error('[analyzeConflict] ERRO: API key não configurada')
+      return {
+        hasConflict: false,
+        suggestedContent: null,
+        conflictDescription: 'API key não configurada para análise de IA',
+        manualReviewNeeded: true,
+        recommendations: ['Configure a API key para análise automática']
+      }
+    }
+
+    const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
+    const endpoint = this.resolveChatCompletionsUrl()
+
+    const lastSync = params.lastSyncAt
+      ? new Date(params.lastSyncAt).toLocaleString('pt-BR')
+      : 'nunca sincronizado'
+    const cardMod = params.cardModifiedAt
+      ? new Date(params.cardModifiedAt).toLocaleString('pt-BR')
+      : 'não modificado'
+
+    const system = [
+      'Você é um especialista em resolver conflitos de código entre duas versões:',
+      '- Conteúdo do card no 10xDev (editado pelo usuário)',
+      '- Conteúdo do arquivo no GitHub (editado por outro desenvolvedor)',
+      '',
+      'Analise e responda APENAS com JSON válido (sem markdown, sem texto extra):',
+      '',
+      '{',
+      '  "hasConflict": true/false,',
+      '  "suggestedContent": "conteúdo mesclado ou null",',
+      '  "conflictDescription": "descrição do conflito em português",',
+      '  "manualReviewNeeded": true/false,',
+      '  "recommendations": ["sugestão 1", "sugestão 2"]',
+      '}',
+      '',
+      'Regras:',
+      '- Se ambas versões têm modificações significativas → hasConflict: true',
+      '- Se só uma versão foi modificada → hasConflict: false (use essa)',
+      '- Sugira um merged que preserve a estrutura do card 10xDev',
+      '- Em caso de dúvida, peça revisão manual'
+    ].join('\n')
+
+    const user = [
+      `Arquivo: ${params.filePath}`,
+      `Último sync: ${lastSync}`,
+      `Card modificado em: ${cardMod}`,
+      '',
+      '=== CONTEÚDO DO CARD (10xDev) ===',
+      params.cardContent,
+      '',
+      '=== CONTEÚDO DO ARQUIVO (GitHub) ===',
+      params.githubContent,
+      '',
+      'Analise e retorne o JSON com a análise.'
+    ].join('\n')
+
+    console.log('[analyzeConflict] Chamando API de IA...')
+    const { content } = await this.callChatCompletions({
+      endpoint,
+      apiKey,
+      body: {
+        model,
+        temperature: 0.2,
+        max_tokens: 2000,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ]
+      }
+    })
+
+    console.log('[analyzeConflict] Processando resposta da IA...')
+
+    let result
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0])
+      } else {
+        throw new Error('JSON não encontrado na resposta')
+      }
+    } catch (err) {
+      console.error('[analyzeConflict] Erro ao fazer parse da resposta:', content)
+      return {
+        hasConflict: true,
+        suggestedContent: null,
+        conflictDescription: 'Não foi possível analisar automaticamente',
+        manualReviewNeeded: true,
+        recommendations: ['Revise manualmente as duas versões']
+      }
+    }
+
+    return {
+      hasConflict: result.hasConflict ?? true,
+      suggestedContent: result.suggestedContent ?? null,
+      conflictDescription: result.conflictDescription ?? 'Conflito detectado',
+      manualReviewNeeded: result.manualReviewNeeded ?? true,
+      recommendations: result.recommendations ?? []
+    }
   }
 }

@@ -3,10 +3,9 @@
 // ============================================
 // Serviço de API para a feature gitsync:
 // - Conexão OAuth
-// - Gerenciamento de conexões
+// - Conexões (projeto ↔ repo)
 // - Mapeamento de arquivos
 // - Sincronização de cards
-// - Listagem de PRs
 
 import { apiClient, type ApiResponse } from './apiClient'
 
@@ -17,6 +16,7 @@ import { apiClient, type ApiResponse } from './apiClient'
 export interface GitHubConnection {
   id: string
   projectId: string
+  userId: string
   githubOwner: string
   githubRepo: string
   fullName: string
@@ -24,16 +24,6 @@ export interface GitHubConnection {
   isActive: boolean
   lastSyncAt: string | null
   createdAt: string
-}
-
-export interface GitHubRepo {
-  id: number
-  name: string
-  full_name: string
-  owner: { login: string }
-  default_branch: string
-  private: boolean
-  html_url: string
 }
 
 export interface FileMapping {
@@ -74,9 +64,6 @@ export interface SyncResult {
 // ============================================
 
 class GitsyncService {
-  /**
-   * URL base da API
-   */
   private baseUrl = '/api/gitsync'
 
   /**
@@ -89,14 +76,6 @@ class GitsyncService {
       throw new Error(response?.error || 'Erro ao gerar URL de autorização')
     }
     return response.data
-  }
-
-  /**
-   * POST /api/gitsync/oauth/disconnect
-   * Desconecta a conta GitHub do usuário
-   */
-  async disconnect(): Promise<void> {
-    await apiClient.post(`${this.baseUrl}/oauth/disconnect`)
   }
 
   /**
@@ -123,26 +102,6 @@ class GitsyncService {
     const response = await apiClient.post<GitHubConnection>(`${this.baseUrl}/connections`, data)
     if (!response?.success || !response?.data) {
       throw new Error(response?.error || 'Erro ao criar conexão')
-    }
-    return response.data
-  }
-
-  /**
-   * DELETE /api/gitsync/connections/:id
-   * Remove uma conexão
-   */
-  async deleteConnection(id: string): Promise<void> {
-    await apiClient.delete(`${this.baseUrl}/connections/${id}`)
-  }
-
-  /**
-   * GET /api/gitsync/repos
-   * Lista os repositórios do usuário
-   */
-  async getUserRepos(): Promise<GitHubRepo[]> {
-    const response = await apiClient.get<GitHubRepo[]>(`${this.baseUrl}/repos`)
-    if (!response?.success || !response?.data) {
-      throw new Error(response?.error || 'Erro ao buscar repositórios')
     }
     return response.data
   }

@@ -29,10 +29,6 @@ router.get('/oauth/authorize', gitHubSyncController.getAuthorizationUrl.bind(git
 // Callback do GitHub após autorização
 router.get('/oauth/callback', gitHubSyncController.handleOAuthCallback.bind(gitHubSyncController))
 
-// POST /api/gitsync/oauth/disconnect
-// Desconecta a conta GitHub do usuário
-router.post('/oauth/disconnect', authenticate, gitHubSyncController.disconnect.bind(gitHubSyncController))
-
 // ============================================
 // CONNECTION ROUTES
 // Gerenciamento de conexões entre projetos e repositórios
@@ -45,10 +41,6 @@ router.get('/connections', gitHubSyncController.getConnections.bind(gitHubSyncCo
 // POST /api/gitsync/connections
 // Cria nova conexão
 router.post('/connections', authenticate, gitHubSyncController.createConnection.bind(gitHubSyncController))
-
-// DELETE /api/gitsync/connections/:id
-// Remove uma conexão
-router.delete('/connections/:id', authenticate, gitHubSyncController.deleteConnection.bind(gitHubSyncController))
 
 // ============================================
 // REPO ROUTES
