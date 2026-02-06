@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2 } from "lucide-react"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { toast } from "sonner"
@@ -868,20 +868,15 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           )}
 
           <div className="flex items-center gap-2 md:ml-auto">
-            {activeTab === 'codes' && (
-              <Button
-                variant={isEditMode ? "default" : "ghost"}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setIsEditMode(!isEditMode)}
-                title={isEditMode ? "Sair do modo de edição" : "Editar lista de cards"}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            )}
-            <TabsList>
-              <TabsTrigger value="settings">Configurações</TabsTrigger>
-              <TabsTrigger value="codes">Códigos</TabsTrigger>
+            <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
+              <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
+                <Settings className="h-3.5 w-3.5" />
+                Configurações
+              </TabsTrigger>
+              <TabsTrigger value="codes" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
+                <Code2 className="h-3.5 w-3.5" />
+                Códigos
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -910,15 +905,26 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             )}
 
             <div className="space-y-3">
-              {/* Barra de busca acima dos cards */}
-              <div className="relative">
-                <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  placeholder="Buscar cards..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9"
-                />
+              {/* Barra de busca + botão de edição */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    placeholder="Buscar cards..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9"
+                  />
+                </div>
+                <Button
+                  variant={isEditMode ? "default" : "ghost"}
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  title={isEditMode ? "Sair do modo de edição" : "Editar lista de cards"}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
               </div>
 
               <ProjectSummary

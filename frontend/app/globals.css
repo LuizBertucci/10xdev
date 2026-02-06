@@ -10,6 +10,33 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  .scrollbar-slim {
+    scrollbar-width: none;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-slim:hover {
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+  }
+  .scrollbar-slim:hover::-webkit-scrollbar {
+    display: block;
+    width: 4px;
+  }
+  .scrollbar-slim:hover::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-slim:hover::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+    border-radius: 9999px;
+  }
+  .scrollbar-slim:hover::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
 }
 
 @layer base {
