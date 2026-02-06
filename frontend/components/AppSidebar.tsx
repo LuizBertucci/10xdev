@@ -1,11 +1,14 @@
 "use client"
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
-import { Crown, LogOut } from "lucide-react"
+import { Crown, LogOut, PanelLeft, Maximize2, Minimize2, MousePointerClick, Check } from "lucide-react"
+
+type SidebarMode = 'expanded' | 'collapsed' | 'hover'
 
 interface AppSidebarProps {
   platformState: any
@@ -13,7 +16,70 @@ interface AppSidebarProps {
 
 function AppSidebar({ platformState }: AppSidebarProps) {
   const { user, logout, isProfileLoaded } = useAuth()
-  const { setOpenMobile, isMobile } = useSidebar()
+  const { setOpenMobile, isMobile, setOpen, open } = useSidebar()
+  const sidebarRef = useRef<HTMLDivElement>(null)
+
+  // Sidebar mode: expanded, collapsed, hover (persisted in localStorage)
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('sidebar-mode') as SidebarMode) || 'expanded'
+    }
+    return 'expanded'
+  })
+
+  // Apply mode only when sidebarMode actually changes (not when setOpen identity changes)
+  const prevModeRef = useRef(sidebarMode)
+
+  useEffect(() => {
+    // Guard: skip if sidebarMode hasn't changed (setOpen identity changes on every open/close)
+    if (prevModeRef.current === sidebarMode) return
+    prevModeRef.current = sidebarMode
+
+    localStorage.setItem('sidebar-mode', sidebarMode)
+    if (isMobile) return
+    if (sidebarMode === 'expanded') {
+      setOpen(true)
+    } else {
+      setOpen(false)
+    }
+  }, [sidebarMode, setOpen, isMobile])
+
+  // Hover mode: debounced mouse handlers (passed as props to Sidebar's fixed inner div)
+  const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownOpenRef = useRef(false)
+
+  const handleSidebarEnter = React.useCallback(() => {
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current)
+      leaveTimeoutRef.current = null
+    }
+    setOpen(true)
+  }, [setOpen])
+
+  const handleSidebarLeave = React.useCallback(() => {
+    // Don't collapse while the mode dropdown is open
+    if (dropdownOpenRef.current) return
+    leaveTimeoutRef.current = setTimeout(() => setOpen(false), 300)
+  }, [setOpen])
+
+  const handleDropdownOpenChange = React.useCallback((isOpen: boolean) => {
+    dropdownOpenRef.current = isOpen
+    // When dropdown closes and we're in hover mode, schedule collapse
+    if (!isOpen && sidebarMode === 'hover' && !isMobile) {
+      leaveTimeoutRef.current = setTimeout(() => setOpen(false), 400)
+    }
+  }, [sidebarMode, isMobile, setOpen])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current)
+    }
+  }, [])
+
+  const handleModeChange = React.useCallback((mode: SidebarMode) => {
+    setSidebarMode(mode)
+  }, [])
   
   // Memoiza o cálculo de isAdmin para evitar re-computação
   const isAdmin = useMemo(() => user?.role === 'admin', [user?.role])
@@ -70,7 +136,12 @@ function AppSidebar({ platformState }: AppSidebarProps) {
   const userDisplayName = useMemo(() => user?.name || 'Usuário', [user?.name])
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar
+      collapsible="icon"
+      ref={sidebarRef}
+      onMouseEnter={sidebarMode === 'hover' && !isMobile ? handleSidebarEnter : undefined}
+      onMouseLeave={sidebarMode === 'hover' && !isMobile ? handleSidebarLeave : undefined}
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -111,6 +182,32 @@ function AppSidebar({ platformState }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
+            <DropdownMenu onOpenChange={handleDropdownOpenChange}>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton className="text-muted-foreground hover:text-foreground">
+                  <PanelLeft className="size-4" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="end" className="w-48">
+                <DropdownMenuItem onClick={() => handleModeChange('expanded')}>
+                  <Maximize2 className="size-4 mr-2" />
+                  Expandido
+                  {sidebarMode === 'expanded' && <Check className="size-4 ml-auto text-blue-600" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleModeChange('collapsed')}>
+                  <Minimize2 className="size-4 mr-2" />
+                  Recolhido
+                  {sidebarMode === 'collapsed' && <Check className="size-4 ml-auto text-blue-600" />}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleModeChange('hover')}>
+                  <MousePointerClick className="size-4 mr-2" />
+                  Expandir ao passar
+                  {sidebarMode === 'hover' && <Check className="size-4 ml-auto text-blue-600" />}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton>
               <Avatar className="size-6">
                 <AvatarImage src={user?.avatarUrl || ""} />
@@ -133,7 +230,7 @@ function AppSidebar({ platformState }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
+      {sidebarMode === 'hover' && <SidebarRail />}
     </Sidebar>
   )
 }
