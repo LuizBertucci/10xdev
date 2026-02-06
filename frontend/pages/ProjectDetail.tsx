@@ -6,11 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus } from "lucide-react"
 import { projectService, type Project, ProjectMemberRole } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
-import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
 import { Progress } from "@/components/ui/progress"
@@ -29,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
+import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { usePlatform } from "@/hooks/use-platform"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 
@@ -74,37 +73,22 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [showCategories, setShowCategories] = useState(true)
   const [activeTab, setActiveTab] = useState('codes')
 
-  // Share project state
+  // Share project state (usado no card Compartilhar da aba Configurações)
   const [projectLinkCopied, setProjectLinkCopied] = useState(false)
-
-  // URL compartilhável do projeto
   const shareableProjectUrl = useMemo(() => {
     if (typeof window === 'undefined' || !project) return ''
-    const baseUrl = window.location.origin
-    return `${baseUrl}/?tab=projects&id=${project.id}`
+    return `${window.location.origin}/?tab=projects&id=${project.id}`
   }, [project])
-
-  // Função para copiar URL do projeto
   const handleCopyProjectUrl = async () => {
-    if (!shareableProjectUrl) {
-      toast.error('Link não disponível')
-      return
-    }
+    if (!shareableProjectUrl) return
     try {
       await navigator.clipboard.writeText(shareableProjectUrl)
       setProjectLinkCopied(true)
       toast.success('Link do projeto copiado!')
       setTimeout(() => setProjectLinkCopied(false), 2000)
-    } catch (err) {
-      toast.error('Erro ao copiar link do projeto')
-    }
+    } catch { toast.error('Erro ao copiar link do projeto') }
   }
 
-  // User Search State
-  const [userSearchQuery, setUserSearchQuery] = useState("")
-  const [userSearchResults, setUserSearchResults] = useState<User[]>([])
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [isSearchingUsers, setIsSearchingUsers] = useState(false)
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
   const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
@@ -459,56 +443,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }
 
-  const handleSearchUsers = async () => {
-    if (!userSearchQuery || userSearchQuery.length < 2) {
-      toast.error("Digite pelo menos 2 caracteres")
-      return
-    }
-    
-    try {
-      setIsSearchingUsers(true)
-      const response = await userService.searchUsers(userSearchQuery)
-      if (response?.success && response?.data) {
-        setUserSearchResults(response.data)
-        if (response.data.length === 0) {
-          toast.info("Nenhum usuário encontrado")
-        }
-      } else {
-        setUserSearchResults([])
-        toast.error(response?.error || "Erro ao buscar usuários")
-      }
-    } catch (error) {
-      toast.error("Erro ao buscar usuários")
-    } finally {
-      setIsSearchingUsers(false)
-    }
-  }
-
-  const handleAddMember = async () => {
-    if (!selectedUser || !projectId) return
-    
-    try {
-      showStatus("info", "Adicionando membro...")
-      const response = await projectService.addMember(projectId, { userId: selectedUser.id })
-      if (response?.success) {
-        toast.success("Membro adicionado com sucesso")
-        setIsAddMemberDialogOpen(false)
-        loadMembers()
-        // Reset states
-        setSelectedUser(null)
-        setUserSearchQuery("")
-        setUserSearchResults([])
-        showStatus("success", "Membro adicionado ao projeto")
-      } else {
-        showStatus("error", response?.error || "Erro ao adicionar membro")
-        toast.error(response?.error || "Erro ao adicionar membro")
-      }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao adicionar membro")
-      toast.error(error.message || "Erro ao adicionar membro")
-    }
-  }
-
   const handleBack = () => {
     const params = new URLSearchParams(searchParams?.toString() || '')
     params.set('tab', 'projects')
@@ -524,7 +458,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   }
 
   const startEditName = () => {
-    if (!canManageMembers) return
+    if (!canEditProject) return
     setNameDraft(project?.name || "")
     setIsEditingName(true)
     requestAnimationFrame(() => {
@@ -581,15 +515,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       loadAvailableCards()
     }
   }, [isAddCardDialogOpen])
-
-  // Reset dialog state when closed
-  useEffect(() => {
-    if (!isAddMemberDialogOpen) {
-      setSelectedUser(null)
-      setUserSearchQuery("")
-      setUserSearchResults([])
-    }
-  }, [isAddMemberDialogOpen])
 
   // Deduplicate cardFeatures by id to avoid duplicate keys
   const uniqueCardFeatures = Array.from(
@@ -658,7 +583,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
-  const canManageMembers = project?.userRole === 'owner' || project?.userRole === 'admin'
+  const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin'
+  const canManageMembers = !!project?.userRole // qualquer membro pode adicionar pessoas
   if (loading || !project) {
     return (
       <div className="text-center py-12">
@@ -769,7 +695,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   <span className="text-gray-900 font-bold">Projeto:</span>{" "}
                   {project.name}
                 </h1>
-                {canManageMembers && (
+                {canEditProject && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -803,28 +729,15 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           </Button>
 
           {project.userRole && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditMode(!isEditMode)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  {isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                </DropdownMenuItem>
-                {project.userRole === "owner" && (
-                  <DropdownMenuItem
-                    onClick={handleDeleteProject}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Deletar Projeto
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsAddMemberDialogOpen(true)}
+              title="Adicionar membro ao projeto"
+            >
+              <UserPlus className="h-5 w-5" />
+            </Button>
           )}
         </div>
       </div>
@@ -907,44 +820,70 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       {/* Tabs de navegação */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <TabsList>
-            <TabsTrigger value="codes">Códigos</TabsTrigger>
-            <TabsTrigger value="settings">Configurações</TabsTrigger>
-          </TabsList>
-
           {/* Botão toggle do Sumário - visível apenas na tab Códigos */}
           {activeTab === 'codes' && (
-            <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full">
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full md:w-auto"
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  <span className="md:hidden">{isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário</span>
-                  <span className="hidden md:inline">Ver Sumário</span>
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="md:hidden mt-2">
-                <ProjectCategories
-                  categories={orderedCategories}
-                  counts={categoryGroups}
-                  selectedCategory={selectedCategory}
-                  onSelect={setSelectedCategory}
-                  allLabel={ALL_CATEGORIES_LABEL}
-                  allValue={ALL_CATEGORIES_VALUE}
-                  allCount={uniqueCardFeatures.length}
-                  loading={loadingCards}
-                  loadingText="Carregando categorias..."
-                  emptyText="Sem categorias"
-                  sortable
-                  onOrderChange={handleCategoryOrderChange}
-                  className="max-h-[300px] overflow-y-auto"
-                />
-              </CollapsibleContent>
-            </Collapsible>
+            <>
+              {/* Desktop: toggle simples do showCategories */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                onClick={() => setShowCategories(prev => !prev)}
+              >
+                <List className="h-4 w-4 mr-2" />
+                {showCategories ? 'Ocultar' : 'Ver'} Sumário
+              </Button>
+
+              {/* Mobile: Collapsible com painel embutido */}
+              <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full md:hidden">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <List className="h-4 w-4 mr-2" />
+                    {isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <ProjectCategories
+                    categories={orderedCategories}
+                    counts={categoryGroups}
+                    selectedCategory={selectedCategory}
+                    onSelect={setSelectedCategory}
+                    allLabel={ALL_CATEGORIES_LABEL}
+                    allValue={ALL_CATEGORIES_VALUE}
+                    allCount={uniqueCardFeatures.length}
+                    loading={loadingCards}
+                    loadingText="Carregando categorias..."
+                    emptyText="Sem categorias"
+                    sortable
+                    onOrderChange={handleCategoryOrderChange}
+                    className="max-h-[300px] overflow-y-auto"
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </>
           )}
+
+          <div className="flex items-center gap-2 md:ml-auto">
+            {activeTab === 'codes' && (
+              <Button
+                variant={isEditMode ? "default" : "ghost"}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setIsEditMode(!isEditMode)}
+                title={isEditMode ? "Sair do modo de edição" : "Editar lista de cards"}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            <TabsList>
+              <TabsTrigger value="settings">Configurações</TabsTrigger>
+              <TabsTrigger value="codes">Códigos</TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         <TabsContent value="codes" className="space-y-3">
@@ -1103,7 +1042,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </div>
             
             {/* Conteúdo - Todos os cards empilhados */}
-            <div className="max-w-2xl space-y-4">
+            <div className="space-y-4">
             {/* Card: Compartilhar Projeto com Input */}
             <Card>
               <CardHeader>
@@ -1223,31 +1162,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 )}
               </CardContent>
             </Card>
-
-            {/* Card: Editar Lista */}
-            {canManageMembers && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Pencil className="h-5 w-5" />
-                    Organização
-                  </CardTitle>
-                  <CardDescription>
-                    Reordene e gerencie os cards do projeto
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {isEditMode ? 'Sair do modo de edição' : 'Editar lista de cards'}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Card: Deletar Projeto (separado e destacado) */}
             {project.userRole === "owner" && (
@@ -1390,75 +1304,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       </Dialog>
 
       {/* Dialog Adicionar Membro */}
-      <Dialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Adicionar Membro</DialogTitle>
-            <DialogDescription>
-              Busque um usuário por email ou nome para adicionar ao projeto.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
-                placeholder="Email ou nome do usuário..."
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-              />
-              <Button onClick={handleSearchUsers} disabled={isSearchingUsers} size="icon">
-                {isSearchingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
-            </div>
-
-            {/* Resultados da Busca */}
-            <div className="max-h-[200px] overflow-y-auto space-y-2">
-              {userSearchResults.map((user) => (
-                <div
-                  key={user.id}
-                  className={`p-3 border rounded-lg cursor-pointer flex items-center gap-3 transition-colors ${
-                    selectedUser?.id === user.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                  onClick={() => setSelectedUser(user)}
-                >
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.name || user.email} className="w-8 h-8 rounded-full" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                      <UserIcon className="h-4 w-4 text-gray-500" />
-                    </div>
-                  )}
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium truncate">{user.name || user.email}</p>
-                    {user.name && <p className="text-xs text-gray-500 truncate">{user.email}</p>}
-                  </div>
-                  {selectedUser?.id === user.id && (
-                    <Check className="h-4 w-4 text-blue-500" />
-                  )}
-                </div>
-              ))}
-              {!isSearchingUsers && userSearchResults.length === 0 && !userSearchQuery && (
-                <p className="text-sm text-gray-500 text-center py-2">
-                  Busque para encontrar usuários
-                </p>
-              )}
-              {userSearchQuery && !isSearchingUsers && userSearchResults.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-2">
-                  Nenhum usuário encontrado
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddMemberDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddMember} disabled={!selectedUser}>
-              Adicionar Membro
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddMemberInProject
+        open={isAddMemberDialogOpen}
+        onOpenChange={setIsAddMemberDialogOpen}
+        projectId={projectId || ''}
+        members={members}
+        onMembersAdded={loadMembers}
+      />
     </div>
   )
 }
