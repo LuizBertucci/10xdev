@@ -44,6 +44,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
+  // Estado local para screens - permite atualização imediata após gerar resumo
+  const [localScreens, setLocalScreens] = useState(snippet.screens)
+  // Force refresh para garantir re-render após gerar resumo
+  const [refreshKey, setRefreshKey] = useState(0)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
@@ -88,12 +92,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   }
 
   const youtubeBlockUrl =
-    snippet.screens
+    localScreens
       ?.flatMap((screen) => screen.blocks || [])
       .find((block) => block.type === ContentType.YOUTUBE && block.content)?.content || ""
 
   const pdfBlockUrl =
-    snippet.screens
+    localScreens
       ?.flatMap((screen) => screen.blocks || [])
       .find((block) => block.type === ContentType.PDF && block.content)?.content || ""
 
@@ -159,8 +163,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     router.push(`/?tab=${tab}&id=${snippet.id}`)
   }
 
+  const isResumoScreen = (name?: string) =>
+    (name || '').trim().toLowerCase() === 'resumo'
+
   // Screen ativa baseada na tab selecionada
-  const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
+  const activeScreen = localScreens[activeTab] || localScreens[0]
+  const isSummaryTab = isResumoScreen(activeScreen?.name)
 
   // Função para mudar visibilidade rapidamente
   const handleVisibilityChange = async (newVisibility: Visibility) => {
@@ -191,18 +199,20 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
-              ...snippet.screens.filter(s => s.name !== 'Resumo')
+              ...localScreens.filter(s => !isResumoScreen(s.name))
             ]
-          : snippet.screens
+          : localScreens
         if (onUpdate) {
           await onUpdate(snippet.id, { screens: updatedScreens })
-          toast.success('Resumo gerado com sucesso!')
-          if (currentCardIdFromUrl !== snippet.id) {
-            const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
-            setTimeout(() => {
-              router.push(`/?tab=${tab}&id=${snippet.id}&refresh=${Date.now()}`)
-            }, 150)
+          setLocalScreens(updatedScreens)
+          setRefreshKey(prev => prev + 1)
+          const summaryIndex = updatedScreens.findIndex(screen =>
+            isResumoScreen(screen.name)
+          )
+          if (summaryIndex >= 0) {
+            setActiveTab(summaryIndex)
           }
+          toast.success('Resumo gerado com sucesso!')
         }
       } else {
         toast.error(response.message || 'Erro ao gerar resumo')
@@ -216,7 +226,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     } finally {
       setIsGeneratingSummary(false)
     }
-  }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl])
+  }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl, onUpdate, router, localScreens])
 
   const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
     <DropdownMenu>
@@ -290,7 +300,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     <DropdownMenuContent align="end">
                       {accessInfo?.canGenerate && (
                         <DropdownMenuItem 
-                          onClick={handleGenerateSummary}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleGenerateSummary()
+                          }}
                           disabled={isGeneratingSummary}
                         >
                           {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
@@ -364,6 +377,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-200 bg-red-50 text-red-700">
                     <Video className="h-3 w-3 mr-1" />
                     Vídeo
+                  </Badge>
+                )}
+                {localScreens.some(s => isResumoScreen(s.name)) && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-200 bg-blue-50 text-blue-700">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Resumo
                   </Badge>
                 )}
               </div>
@@ -488,7 +507,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                {snippet.screens.map((screen, index) => (
+                {localScreens.map((screen, index) => (
                   <button
                     key={index}
                     onClick={() => setActiveTab(index)}
@@ -507,6 +526,11 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
               {/* Área do Conteúdo com Containers Específicos */}
               <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white">
+                {isGeneratingSummary && isSummaryTab && (
+                  <div className="mb-2 w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
+                  </div>
+                )}
                 <style>{`
                   .codeblock-scroll::-webkit-scrollbar {
                     height: 8px;
@@ -536,12 +560,13 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       max-width: 100%;
                     }
                   }
-                `}</style>
+                 `}</style>
 
                 <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
                   <ContentRenderer
                     blocks={activeScreen.blocks || []}
                     className="h-full compact-content w-full"
+                    key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
                   />
                 </div>
               </div>

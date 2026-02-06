@@ -496,7 +496,7 @@ export class AiCardGroupingService {
 
   static async generateCardSummary(params: {
     cardTitle: string
-    screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string }> }>
+    screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>
     tech?: string
     language?: string
   }): Promise<{ summary: string }> {
@@ -517,24 +517,55 @@ export class AiCardGroupingService {
     const screensContext = params.screens.slice(0, 10).map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
-        .map(b => `${b.language || 'code'}: ${b.title || 'arquivo'}`)
-        .join(', ')
-      return `${screen.name}\n${screen.description}\nArquivos: ${files || 'N/A'}`
+        .map(b => b.route || b.title || '')
+        .filter(Boolean)
+        .map(file => `- ${file}`)
+        .join('\n')
+      return `${screen.name}\n${screen.description}\n\nArquivos:\n${files}`
     }).join('\n\n')
-    
+
     const system = [
-      'Você gera resumos claros sobre features de software.',
-      'Regras: português brasileiro, O QUE FAZ e QUAL PROBLEMA resolve, SEM markdown, texto puro.'
+      'Gere um resumo em português (Brasil) seguindo exatamente este formato:',
+      '',
+      '1) Título (uma linha, só o nome da feature)',
+      '2) Linha em branco',
+      '3) Descrição curta em 1–2 frases (visão geral + capacidades principais)',
+      '4) Linha em branco',
+      '5) Categoria e Tecnologias nesse formato:',
+      '   - *Categoria:* <categoria>',
+      '   - *Tecnologias:* <lista separada por vírgula>',
+      '6) Linha em branco',
+      '7) Seção "Features" (título literal "Features")',
+      '8) Lista de features com bullets (um item por linha, cada linha termina com ponto final)',
+      '9) Linha em branco',
+      '10) Seção de arquivos com esta formatação:',
+      '    ### Arquivos (XX)',
+      '    #### Backend',
+      '    - `caminho/do/arquivo1`',
+      '    ',
+      '    #### Frontend',
+      '    - `caminho/do/arquivo2`',
+      '',
+      'Regras:',
+      '- Pode usar markdown leve (ex: **negrito**, *itálico*)',
+      '- Pode usar bullets nas seções "Features" e "Arquivos"',
+      '- Features devem ser objetivas, sem redundâncias (ex: "CRUD completo" já cobre GET/POST/PUT/DELETE/PATCH)',
+      '- Em "Arquivos", use backticks e o número XX deve ser exato',
+      '- Em "Arquivos", separe Backend e Frontend em subseções e deixe uma linha em branco entre elas',
+      '- Não invente arquivos; use apenas os arquivos do card e que apareçam nas abas',
+      '- Evite textos longos e redundantes',
+      '- Não usar emojis'
     ].join('\n')
-    
+
     const user = [
       `Card: ${params.cardTitle}`,
-      `Tech: ${params.tech || 'N/A'}`,
+      `Tech: ${params.tech || 'Não informado'}`,
+      `Language: ${params.language || 'Não informado'}`,
       '',
       'Screens:',
       screensContext,
       '',
-      'Gere um parágrafo resumindo o que esta feature faz e qual problema ela resolve. Responda apenas com o resumo, sem markdown:'
+      'Gere o resumo no formato EXATO especificado acima.'
     ].join('\n')
     
     console.log('[generateCardSummary] Chamando API de IA...')
@@ -546,17 +577,51 @@ export class AiCardGroupingService {
     
     console.log('[generateCardSummary] Resposta recebida da IA, processando...')
     const summary = content
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/__([^_]+)__/g, '$1')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/^\s*[-*+]\s+/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
-    
-    console.log('[generateCardSummary] Resumo processado:', summary?.substring(0, 100) + '...')
-    return { summary }
+
+    // Validar e corrigir formato do resumo
+    let finalSummary = summary
+
+    // Garantir que começa com o título do card
+    if (!summary.match(new RegExp(`^${params.cardTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'))) {
+      finalSummary = `${params.cardTitle}\n\n${summary}`
+    }
+
+    // Garantir seção de arquivos com contagem correta
+    const fileItems = params.screens
+      .filter(s => !/^(resumo|sumário|summary|overview)$/i.test(s.name.trim()))
+      .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
+      .map(b => b.route || b.title || '')
+      .filter(Boolean)
+
+    if (fileItems.length) {
+      const uniqueFiles = Array.from(new Set(fileItems))
+      const backendFiles = uniqueFiles.filter(file => file.startsWith('backend/'))
+      const frontendFiles = uniqueFiles.filter(file => file.startsWith('frontend/'))
+      const otherFiles = uniqueFiles.filter(
+        file => !file.startsWith('backend/') && !file.startsWith('frontend/')
+      )
+      const filesSection = [
+        `### Arquivos (${uniqueFiles.length})`,
+        ...(backendFiles.length
+          ? ['#### Backend', ...backendFiles.map(file => `- \`${file}\``)]
+          : []),
+        ...(backendFiles.length && frontendFiles.length ? [''] : []),
+        ...(frontendFiles.length
+          ? ['#### Frontend', ...frontendFiles.map(file => `- \`${file}\``)]
+          : []),
+        ...(otherFiles.length
+          ? ['#### Outros', ...otherFiles.map(file => `- \`${file}\``)]
+          : [])
+      ].join('\n')
+
+      if (!finalSummary.match(/^###\s+Arquivos\s*\(\d+\)/im)) {
+        finalSummary += `\n\n${filesSection}`
+      }
+    }
+
+    console.log('[generateCardSummary] Resumo processado:', finalSummary?.substring(0, 100) + '...')
+    return { summary: finalSummary }
   }
 }

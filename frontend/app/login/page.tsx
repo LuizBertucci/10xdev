@@ -80,15 +80,6 @@ export default function LoginPage() {
       {/* Coluna Esquerda - Branding */}
       <div className="hidden lg:flex lg:w-[40%] bg-gradient-to-br from-cyan-600 via-cyan-700 to-blue-800 flex-col items-center justify-center p-12 text-white">
         <div className="max-w-md space-y-8">
-          {/* Logo */}
-          <div className="flex justify-center">
-            <img
-              src="/brand/10xdev-logo-sem-fundo.png"
-              alt="10xDev"
-              className="h-20 w-auto rounded-md shadow-sm"
-            />
-          </div>
-
           {/* Título */}
           <h1 className="text-4xl font-bold text-center">10xDev</h1>
 

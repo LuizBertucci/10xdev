@@ -566,6 +566,7 @@ export default function Codes({ platformState }: CodesProps) {
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedCardIds.includes(snippet.id)}
                     onToggleSelect={handleToggleCardSelection}
+                    expandOnClick
                   />
 
                   {selectedDirectoryTab === 'validating' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (

@@ -78,13 +78,6 @@ function AppSidebar({ platformState }: AppSidebarProps) {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex w-9 shrink-0 items-center justify-start rounded-md bg-slate-400 px-1 py-0.5">
-                <img
-                  src="/brand/10xdev-logo-sem-fundo.png"
-                  alt="10xDev"
-                  className="h-5 w-auto max-w-full object-contain object-left"
-                />
-              </div>
               <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">10xDev</span>
                 <span className="truncate text-xs">Plataforma Dev</span>

@@ -783,18 +783,19 @@ export class CardFeatureController {
       }
       
       console.log('[generateSummary] Preparando parâmetros para IA...')
-      const params: { cardTitle: string; screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string }> }>; tech?: string; language?: string } = {
+      const params: { cardTitle: string; screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>; tech?: string; language?: string } = {
         cardTitle: card.title,
         screens: card.screens.map(s => ({
           name: s.name,
           description: s.description,
           blocks: s.blocks.map(b => {
-            const block: { type: ContentType; content: string; language?: string; title?: string } = {
+            const block: { type: ContentType; content: string; language?: string; title?: string; route?: string } = {
               type: b.type,
               content: b.content
             }
             if (b.language) block.language = b.language
             if (b.title) block.title = b.title
+            if (b.route) block.route = b.route
             return block
           })
         }))
