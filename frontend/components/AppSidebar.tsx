@@ -59,6 +59,7 @@ function AppSidebar({ platformState }: AppSidebarProps) {
   const handleSidebarLeave = React.useCallback(() => {
     // Don't collapse while the mode dropdown is open
     if (dropdownOpenRef.current) return
+    if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current)
     leaveTimeoutRef.current = setTimeout(() => setOpen(false), 300)
   }, [setOpen])
 
@@ -66,6 +67,7 @@ function AppSidebar({ platformState }: AppSidebarProps) {
     dropdownOpenRef.current = isOpen
     // When dropdown closes and we're in hover mode, schedule collapse
     if (!isOpen && sidebarMode === 'hover' && !isMobile) {
+      if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current)
       leaveTimeoutRef.current = setTimeout(() => setOpen(false), 400)
     }
   }, [sidebarMode, isMobile, setOpen])

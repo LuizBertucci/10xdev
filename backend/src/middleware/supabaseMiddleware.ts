@@ -168,9 +168,11 @@ export const supabaseMiddleware = async (
     // Sincronizar avatar_url e name do Auth → tabela users (se mudou)
     const authAvatarUrl = user.user_metadata?.avatar_url || null
     const authName = user.user_metadata?.name || user.user_metadata?.full_name || null
+    // Only sync name when Auth actually provides one; skip when authName is null
+    // to avoid overwriting the local fallback (email prefix / 'Usuário').
     const needsSync =
       (authAvatarUrl !== userProfile.avatar_url) ||
-      (authName !== userProfile.name)
+      (authName !== null && authName !== userProfile.name)
 
     if (needsSync) {
       try {
@@ -179,7 +181,7 @@ export const supabaseMiddleware = async (
           syncData.avatar_url = authAvatarUrl
           userProfile.avatar_url = authAvatarUrl
         }
-        if (authName !== userProfile.name) {
+        if (authName !== null && authName !== userProfile.name) {
           syncData.name = authName
           userProfile.name = authName
         }
