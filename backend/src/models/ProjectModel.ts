@@ -7,18 +7,27 @@ import {
   ApprovalStatus,
   Visibility
 } from '@/types/cardfeature'
-import type { CardFeatureResponse } from '@/types/cardfeature'
+import type { CardFeatureResponse, CardFeatureRow } from '@/types/cardfeature'
+import type { UserResponse } from '@/types/user'
+
+interface CardFeatureRowWithUser extends CardFeatureRow {
+  users?: UserResponse | null
+}
+
+interface ProjectCardRowWithFeature extends ProjectCardRow {
+  card_feature?: CardFeatureRowWithUser
+}
 import type {
   ProjectRow,
   ProjectInsert,
   ProjectUpdate,
   ProjectResponse,
+  ProjectMemberRow,
   ProjectQueryParams,
   ModelResult,
   ModelListResult,
   CreateProjectRequest,
   UpdateProjectRequest,
-  ProjectMemberRow,
   ProjectMemberInsert,
   ProjectMemberUpdate,
   ProjectMemberResponse,
@@ -38,7 +47,7 @@ export class ProjectModel {
       id: row.id,
       name: row.name,
       description: row.description,
-      ...(typeof (row as any).repository_url !== 'undefined' ? { repositoryUrl: (row as any).repository_url } : {}),
+      ...(row.repository_url !== undefined ? { repositoryUrl: row.repository_url } : {}),
       ...(row.category_order !== undefined ? { categoryOrder: row.category_order } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -73,7 +82,7 @@ export class ProjectModel {
     return response
   }
 
-  private static transformCardFeatureToResponse(row: any): CardFeatureResponse {
+  private static transformCardFeatureToResponse(row: CardFeatureRowWithUser): CardFeatureResponse {
     const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
     const approvalStatus =
       row.approval_status ??
@@ -122,7 +131,7 @@ export class ProjectModel {
           .select('project_id')
           .eq('user_id', userId)
       )
-      projectIds = members?.map((m: any) => m.project_id).filter((id: any): id is string => id != null) || []
+      projectIds = members?.map((m: { project_id: string }) => m.project_id).filter((id: string | null | undefined): id is string => id != null) || []
       if (projectIds.length === 0) {
         return null // Retornar null se não há projetos
       }
@@ -459,7 +468,7 @@ export class ProjectModel {
         )
 
         if (cards && cards.length > 0) {
-          cardIds = cards.map((c: any) => c.id)
+          cardIds = cards.map((c: { id: string }) => c.id)
         }
       }
 
@@ -491,13 +500,14 @@ export class ProjectModel {
             warning = `Falha parcial ao deletar cards: ${cardsDeleted}/${cardIds.length} cards deletados`
             console.warn(`Projeto ${id} deletado, mas apenas ${cardsDeleted} de ${cardIds.length} cards foram deletados`)
           }
-        } catch (cardDeleteError: any) {
+        } catch (cardDeleteError: unknown) {
           // Log detalhado do erro com contexto completo
+          const errorMessage = cardDeleteError instanceof Error ? cardDeleteError.message : 'Erro desconhecido'
           console.error(
-            `Erro ao deletar cards após deletar projeto ${id}: ${cardDeleteError.message}. ` +
+            `Erro ao deletar cards após deletar projeto ${id}: ${errorMessage}. ` +
             `Esperava deletar ${cardIds.length} cards (IDs: ${cardIds.slice(0, 5).join(', ')}${cardIds.length > 5 ? '...' : ''})`
           )
-          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${cardDeleteError.message}`
+          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${errorMessage}`
         }
       }
 
@@ -548,7 +558,7 @@ export class ProjectModel {
 
       // Buscar informações dos usuários separadamente usando Supabase Auth
       const membersWithUsers = await Promise.all(
-        membersData.map(async (row: any) => {
+        membersData.map(async (row: ProjectMemberRow) => {
           const member = this.transformMemberToResponse(row)
           
           // Buscar dados do usuário do Supabase Auth
@@ -677,7 +687,7 @@ export class ProjectModel {
           .in('user_id', uniqueIds)
       )
 
-      const existingIds = new Set<string>((existingRows || []).map((row: any) => String(row.user_id)))
+      const existingIds = new Set<string>((existingRows || []).map((row: { user_id: string | number }) => String(row.user_id)))
       const toInsert = uniqueIds.filter((userId) => !existingIds.has(userId))
 
       if (toInsert.length === 0) {
@@ -880,7 +890,7 @@ export class ProjectModel {
         }
       }
 
-      const cards = data.map((row: any) => {
+      const cards = data.map((row: ProjectCardRowWithFeature) => {
         const card = this.transformCardToResponse(row)
         if (row.card_feature) {
           card.cardFeature = {
@@ -935,7 +945,7 @@ export class ProjectModel {
         }
       }
 
-      const cards = data.map((row: any) => {
+      const cards = data.map((row: ProjectCardRowWithFeature) => {
         const card = this.transformCardToResponse(row)
         if (row.card_feature) {
           card.cardFeature = this.transformCardFeatureToResponse(row.card_feature)
@@ -1126,7 +1136,7 @@ export class ProjectModel {
       )
 
       if (remainingCards && remainingCards.length > 0) {
-        const updatePromises = remainingCards.map((card: any, index: number) =>
+        const updatePromises = remainingCards.map((card: { id: string; order?: number | null }, index: number) =>
           executeQuery(
             supabaseAdmin
               .from('project_cards')
@@ -1182,7 +1192,7 @@ export class ProjectModel {
       }
 
       // Encontrar o índice do card atual
-      const currentIndex = allCards.findIndex((c: any) => c.card_feature_id === cardFeatureId)
+      const currentIndex = allCards.findIndex((c: { card_feature_id: string }) => c.card_feature_id === cardFeatureId)
       if (currentIndex === -1) {
         return {
           success: false,
