@@ -48,7 +48,7 @@ async function analyzeProjectCards() {
       const result: CreateCardFeatureRequest = {
         title: cf.title,
         description: cf.description || '',
-        screens: [],
+        screens: cf.screens || [],
         tags: cf.tags || [],
         content_type: cf.content_type || ContentType.TEXT,
         card_type: cf.card_type || CardType.CODIGOS

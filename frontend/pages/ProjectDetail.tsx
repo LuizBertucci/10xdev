@@ -567,8 +567,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           // Reverte em caso de erro
           setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
         }
-} catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao salvar ordem das categorias')
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao salvar ordem das categorias')
         setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
       }
     }

@@ -146,8 +146,8 @@ npm run lint       # Check both workspaces
 ```
 
 ESLint rules (both workspaces):
-- `@typescript-eslint/no-explicit-any: off` (allowed for flexibility)
-- `@typescript-eslint/no-unused-vars: off` (development convenience)
+- `@typescript-eslint/no-explicit-any: "error"` (tipar corretamente, evitar `any`)
+- `@typescript-eslint/no-unused-vars: "error"` com `argsIgnorePattern: "^_"` e `varsIgnorePattern: "^_"`
 - `prefer-const: off`
 
 ## Database & Models

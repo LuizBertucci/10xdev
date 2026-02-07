@@ -470,18 +470,18 @@ export class ProjectModel {
       let cardIds: string[] = []
       let warning: string | undefined
 
-      // Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
+// Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
       if (deleteCards) {
-const { data: cards } = await executeQuery<{ id: string }[] | null>(
-        supabaseAdmin
-          .from('card_features')
-          .select('id')
-          .eq('created_in_project_id', id)
-      )
+        const { data: cards } = await executeQuery<{ id: string }[] | null>(
+          supabaseAdmin
+            .from('card_features')
+            .select('id')
+            .eq('created_in_project_id', id)
+        )
 
-      if (cards && cards.length > 0) {
-        cardIds = cards.map((c) => c.id)
-      }
+        if (cards && cards.length > 0) {
+          cardIds = cards.map((c) => c.id)
+        }
       }
 
       // CRÍTICO: Deletar o projeto PRIMEIRO

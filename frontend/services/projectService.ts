@@ -194,7 +194,7 @@ class ProjectService {
     if (limit === undefined && offset === undefined) {
       return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`)
     }
-    const params: Record<string, string | number> = { limit: limit as number, offset: offset as number }
+    const params: Record<string, string | number> = {}
     if (limit !== undefined) params.limit = limit
     if (offset !== undefined) params.offset = offset
     return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, params)

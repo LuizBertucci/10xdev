@@ -271,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error instanceof Error && (error.message?.includes('User already registered') || error.message?.includes('already registered'))) {
           errorMessage = 'Este email já está cadastrado. Tente fazer login ou use outro email.'
         } else if (error instanceof Error && error.message?.includes('Invalid email')) {
-          errorMessage = 'Email inválida. Por favor, verifique o email e tente novamente.'
+          errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
         } else if (error instanceof Error && error.message?.includes('Password')) {
           errorMessage = 'A senha não atende aos requisitos mínimos.'
         } else if (error instanceof Error && (error.message?.includes('Request rate limit') || error.message?.includes('rate limit'))) {

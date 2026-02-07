@@ -413,7 +413,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         search: params?.search,
         tech: params?.tech,
         visibility: params?.visibility || externalFilters?.selectedVisibility,
-        approval_status: (params as { approval_status?: unknown })?.approval_status || externalFilters?.selectedApprovalStatus,
+        approval_status: params?.approval_status || externalFilters?.selectedApprovalStatus,
         card_type: params?.card_type || externalFilters?.selectedCardType
       })
     }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType]),

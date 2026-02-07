@@ -14,7 +14,7 @@ export interface PaginationConfig {
 export interface FetchParams {
   page: number
   limit: number
-  [key: string]: string | number
+  [key: string]: string | number | undefined
 }
 
 /**

@@ -102,7 +102,7 @@ export function useListApi<T = unknown>(options: UseApiOptions<T[]> = {}) {
   const api = useApi<T[]>(options)
 
   const executeList = useCallback(async (
-    apiCall: () => Promise<ApiResponse<T[]>>
+    apiCall: () => Promise<ApiResponse<T[]> | undefined>
   ): Promise<T[] | null> => {
     const response = await api.execute(apiCall)
     
@@ -124,8 +124,8 @@ export function useListApi<T = unknown>(options: UseApiOptions<T[]> = {}) {
       })
       return listResponse.data || null
     }
-    
-    return response
+
+    return response || null
   }, [api])
 
   return {

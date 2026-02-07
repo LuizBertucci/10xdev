@@ -174,12 +174,13 @@ export class AiCardGroupingService {
     if (obj?.cards && Array.isArray(obj.cards)) {
       const normalizedCards = obj.cards
         .map((card: unknown, cardIdx: number) => {
+          if (!card || typeof card !== 'object') return null
           const cardObj = card as AiCard
           // Map name→title with fallbacks
           const title = cleanMarkdown(cardObj?.title || cardObj?.name || cardObj?.featureName || `Card ${cardIdx + 1}`)
 
           // Normalize screens array
-          const screensRaw = Array.isArray(cardObj.screens) ? cardObj.screens : []
+          const screensRaw = Array.isArray(cardObj?.screens) ? cardObj.screens : []
           const screens = screensRaw
             .map((s:unknown, screenIdx: number) => {
               const screen = s as AiCardScreen

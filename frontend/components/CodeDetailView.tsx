@@ -51,7 +51,8 @@ export default function CodeDetailView({ platformState }: CodeDetailViewProps) {
         } else {
           setError(cardRes?.error || "Código não encontrado")
         }
-      } catch {
+      } catch (error) {
+        console.error('Erro ao carregar código:', error)
         setError("Erro ao carregar código")
       } finally {
         setLoading(false)

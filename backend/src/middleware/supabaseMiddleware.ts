@@ -101,8 +101,8 @@ export const supabaseMiddleware = async (
         id: result.data.id,
         email: result.data.email,
         ...(result.data.name !== null ? { name: result.data.name } : {}),
-        ...(result.data.role ? { role: result.data.role } : {}),
-        ...(result.data.status ? { status: result.data.status } : {}),
+        ...(result.data.role !== null ? { role: result.data.role } : {}),
+        ...(result.data.status !== null ? { status: result.data.status } : {}),
         ...(result.data.avatar_url !== null ? { avatar_url: result.data.avatar_url } : {})
       } : null
       if (process.env.NODE_ENV !== 'production') {
@@ -278,7 +278,7 @@ export const optionalAuth = async (
       return
     }
 
-// Buscar perfil do usuário
+    // Buscar perfil do usuário
     let userProfile: { id: string; email: string; name?: string | null; role?: string; status?: string; avatar_url?: string | null } | null = null
 
     try {
@@ -294,8 +294,8 @@ export const optionalAuth = async (
         id: result.data.id,
         email: result.data.email,
         ...(result.data.name !== null ? { name: result.data.name } : {}),
-        ...(result.data.role ? { role: result.data.role } : {}),
-        ...(result.data.status ? { status: result.data.status } : {}),
+        ...(result.data.role !== null ? { role: result.data.role } : {}),
+        ...(result.data.status !== null ? { status: result.data.status } : {}),
         ...(result.data.avatar_url !== null ? { avatar_url: result.data.avatar_url } : {})
       } : null
     } catch {

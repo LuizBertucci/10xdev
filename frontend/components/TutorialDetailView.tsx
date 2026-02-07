@@ -65,7 +65,8 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
         } else {
           setError(res?.error || "Tutorial não encontrado")
         }
-      } catch {
+      } catch (error) {
+        console.error('Erro ao carregar tutorial:', error)
         setError("Erro ao carregar tutorial")
       } finally {
         setLoading(false)
@@ -145,9 +146,10 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
       } else {
         toast.error(res?.error || "Erro ao vincular card")
       }
-    } catch {
-      toast.error("Erro ao vincular card")
-    } finally {
+} catch (error) {
+        console.error('Erro ao vincular card:', error)
+        toast.error("Erro ao vincular card")
+      } finally {
       setLinking(false)
     }
   }
@@ -165,9 +167,10 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
       } else {
         toast.error(res?.error || "Erro ao desvincular card")
       }
-    } catch {
-      toast.error("Erro ao desvincular card")
-    }
+} catch (error) {
+        console.error('Erro ao desvincular card:', error)
+        toast.error("Erro ao desvincular card")
+      }
   }
 
   const formatDate = (iso?: string) => {

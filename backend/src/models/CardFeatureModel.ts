@@ -353,7 +353,7 @@ export class CardFeatureModel {
         }
       }
 
-// Buscar dados do usuário criador
+      // Buscar dados do usuário criador
       let userData = null
       if (data.created_by) {
         const { data: user } = await executeQuery<UserRow | null>(
