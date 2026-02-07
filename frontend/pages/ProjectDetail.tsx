@@ -1135,6 +1135,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                               src={member.user.avatarUrl}
                               alt={member.user.name || member.user.email}
                               className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
@@ -1273,7 +1274,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                         <img
                           src={member.user.avatarUrl}
                           alt={member.user.name || member.user.email}
-                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover"
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
