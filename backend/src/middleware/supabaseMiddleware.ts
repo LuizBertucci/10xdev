@@ -101,8 +101,8 @@ export const supabaseMiddleware = async (
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[supabaseMiddleware] rid=${String(rid ?? '')} authMs=${tAuthMs} profileSelectMs=${tProfileMs} found=${Boolean(userProfile)}`)
       }
-    } catch (err: any) {
-      console.error('Erro ao buscar perfil do usuário:', err.message)
+    } catch (err: unknown) {
+      console.error('Erro ao buscar perfil do usuário:', err instanceof Error ? err.message : String(err))
       console.error(`[supabaseMiddleware] rid=${String(rid ?? '')} authMs=${tAuthMs} profileSelectError`)
       // Continua para criar perfil padrão
     }
@@ -151,8 +151,8 @@ export const supabaseMiddleware = async (
           status: 'active',
           avatar_url: avatarUrl
         }
-      } catch (upsertError: any) {
-        console.error('Erro ao criar perfil padrão:', upsertError.message)
+      } catch (upsertError: unknown) {
+        console.error('Erro ao criar perfil padrão:', upsertError instanceof Error ? upsertError.message : String(upsertError))
         console.error(`[supabaseMiddleware] rid=${String(rid ?? '')} insertProfileError`)
         // Continua mesmo com erro, usando dados do auth user
         userProfile = {
@@ -192,8 +192,8 @@ export const supabaseMiddleware = async (
             .update(syncData)
             .eq('id', userProfile.id)
         )
-      } catch (err: any) {
-        console.error('Erro ao sincronizar perfil do Auth:', err.message)
+      } catch (err: unknown) {
+        console.error('Erro ao sincronizar perfil do Auth:', err instanceof Error ? err.message : String(err))
       }
     }
 
@@ -208,8 +208,8 @@ export const supabaseMiddleware = async (
             .eq('id', userProfile.id)
         )
         userProfile.role = 'admin'
-      } catch (err: any) {
-        console.error('Erro ao promover usuário para admin:', err.message)
+      } catch (err: unknown) {
+        console.error('Erro ao promover usuário para admin:', err instanceof Error ? err.message : String(err))
       }
     }
 
