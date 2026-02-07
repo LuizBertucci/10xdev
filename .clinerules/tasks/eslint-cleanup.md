@@ -59,7 +59,7 @@ Arquivos mais afetados:
 
 ---
 
-## Bloco 3 — `no-explicit-any` (190 erros) 🔄 EM ANDAMENTO
+## Bloco 3 — `no-explicit-any` (186 erros) 🔄 EM ANDAMENTO
 
 O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 
@@ -69,7 +69,7 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 2. **Codigo novo nunca usa `any`** — regra para o Claude/devs
 3. **Resolver por arquivo** em sessoes dedicadas, priorizando por impacto
 
-### 3.2 — Backend (64 erros) — Maior concentracao
+### 3.2 — Backend (60 erros) — Maior concentracao
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
@@ -80,7 +80,8 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 | `services/githubService.ts` | ~8 | media | ✅ CONCLUIDO (5/5 corrigidos) |
 | `middleware/controllerHelpers.ts` | 5 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
 | `middleware/supabaseMiddleware.ts` | 5 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
-| `middleware/errorHandler.ts` | 4 | baixa | 🔄 EM ANDAMENTO |
+| `middleware/errorHandler.ts` | 4 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
+| `database/supabase.ts` | 3 | baixa | 🔄 EM ANDAMENTO |
 | `models/UserModel.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/aiCardGroupingService.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/githubService.ts` | ~8 | media | ⏳ PENDENTE |
@@ -121,7 +122,8 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 - [x] Tipar `services/githubService.ts` (backend) — ✅ **CONCLUIDO (5/5 corrigidos)**
 - [x] Tipar `middleware/controllerHelpers.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
 - [x] Tipar `middleware/supabaseMiddleware.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
-- [ ] Tipar `middleware/errorHandler.ts` (backend)
+- [x] Tipar `middleware/errorHandler.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
+- [ ] Tipar `database/supabase.ts` (backend)
 - [ ] Tipar `models/UserModel.ts` (backend)
 - [ ] Tipar `services/aiCardGroupingService.ts` (backend)
 - [ ] Tipar `services/githubService.ts` (backend)

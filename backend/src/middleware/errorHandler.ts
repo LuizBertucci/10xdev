@@ -110,7 +110,7 @@ export const uncaughtErrorHandler = (): void => {
   })
 
   // Captura promises rejeitadas não tratadas
-  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
     console.error('UNHANDLED REJECTION! 💥 Shutting down...', {
       reason,
       promise,
@@ -138,7 +138,7 @@ export const validateContentType = (req: Request, res: Response, next: NextFunct
 // Middleware para sanitização básica de input
 export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
   // Remove propriedades potencialmente perigosas
-  const sanitizeObject = (obj: any): any => {
+  const sanitizeObject = (obj: unknown): unknown => {
     if (typeof obj !== 'object' || obj === null) return obj
     
     // Preservar arrays
@@ -146,7 +146,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
       return obj.map(item => sanitizeObject(item))
     }
     
-    const sanitized = { ...obj }
+    const sanitized = { ...(obj as Record<string, unknown>) }
     
     // Remove propriedades que começam com $ ou contêm __proto__
     Object.keys(sanitized).forEach(key => {
@@ -161,11 +161,11 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
   }
 
   if (req.body) {
-    req.body = sanitizeObject(req.body)
+    req.body = sanitizeObject(req.body) as Record<string, unknown>
   }
   
   if (req.query) {
-    req.query = sanitizeObject(req.query)
+    req.query = sanitizeObject(req.query) as Record<string, unknown>
   }
   
   next()
