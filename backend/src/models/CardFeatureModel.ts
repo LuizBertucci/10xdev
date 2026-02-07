@@ -4,6 +4,7 @@ import {
   ApprovalStatus,
   Visibility
 } from '@/types/cardfeature'
+import type { UserRow } from '@/types/user'
 import type {
   CardFeatureRow,
   CardFeatureInsert,
@@ -29,7 +30,7 @@ export class CardFeatureModel {
     return (error as { statusCode?: number }).statusCode || 500
   }
 
-  private static transformToResponse(row: CardFeatureRow & { users?: { name: string } | null }): CardFeatureResponse {
+  private static transformToResponse(row: CardFeatureRow & { users?: { name: string | null } | null }): CardFeatureResponse {
     // Extrair dados do usuário
     const userData = row.users || null
 
@@ -42,28 +43,32 @@ export class CardFeatureModel {
       row.approval_status ??
       (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
 
-    return {
+    const response: CardFeatureResponse = {
       id: row.id,
       title: row.title,
-      tech: row.tech,
-      language: row.language,
       description: row.description,
-      tags: row.tags || [],
       content_type: row.content_type,
       card_type: row.card_type,
       screens: row.screens,
       createdBy: row.created_by,
-      author: userData?.name || null,
+      author: userData?.name ?? null,
       isPrivate: row.is_private ?? false, // LEGADO: mantido para compatibilidade
       visibility: visibility as Visibility, // NOVO: controle de visibilidade
       approvalStatus: approvalStatus,
-      approvalRequestedAt: row.approval_requested_at || null,
-      approvedAt: row.approved_at || null,
-      approvedBy: row.approved_by || null,
-      createdInProjectId: row.created_in_project_id || null,
+      approvalRequestedAt: row.approval_requested_at ?? null,
+      approvedAt: row.approved_at ?? null,
+      approvedBy: row.approved_by ?? null,
+      createdInProjectId: row.created_in_project_id ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     }
+
+    // Campos opcionais só adicionados se tiverem valor (para exactOptionalPropertyTypes)
+    if (row.tech !== undefined) response.tech = row.tech
+    if (row.language !== undefined) response.language = row.language
+    if (row.tags) response.tags = row.tags
+
+    return response
   }
 
   private static buildQuery(params: CardFeatureQueryParams = {}, userId?: string, userRole?: string, head: boolean = false, matchedUserIds: string[] = [], sharedCardIds: string[] = []) {
@@ -245,7 +250,7 @@ export class CardFeatureModel {
         updated_at: now
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<CardFeatureRow | null>(
         supabaseAdmin
           .from('card_features')
           .insert(insertData)
@@ -253,10 +258,15 @@ export class CardFeatureModel {
           .single()
       )
 
+      if (!result) {
+        // Should never reach here if insert succeeds
+        return { success: false, error: 'Falha ao criar card', statusCode: 500 }
+      }
+
       // Buscar dados do usuário criador
       let userData = null
       if (result.created_by) {
-        const { data: user } = await executeQuery(
+        const { data: user } = await executeQuery<UserRow | null>(
           supabaseAdmin
             .from('users')
             .select('id, name, email')
@@ -268,7 +278,7 @@ export class CardFeatureModel {
 
       return {
         success: true,
-        data: this.transformToResponse({ ...result, users: userData }),
+        data: this.transformToResponse({ ...result, users: userData } as CardFeatureRow & { users: UserRow | null }),
         statusCode: 201
       }
     } catch (error: unknown) {
@@ -298,7 +308,7 @@ export class CardFeatureModel {
         .select('*')
         .eq('id', id)
 
-      const { data } = await executeQuery(query.single())
+      const { data } = await executeQuery<CardFeatureRow | null>(query.single())
 
       // Verificar se card existe
       if (!data) {
@@ -343,10 +353,10 @@ export class CardFeatureModel {
         }
       }
 
-      // Buscar dados do usuário criador
+// Buscar dados do usuário criador
       let userData = null
       if (data.created_by) {
-        const { data: user } = await executeQuery(
+        const { data: user } = await executeQuery<UserRow | null>(
           supabaseAdmin
             .from('users')
             .select('id, name, email')
@@ -375,7 +385,7 @@ export class CardFeatureModel {
       // 1. Se houver busca, primeiro encontrar IDs de usuários que batem com o nome
       let matchedUserIds: string[] = []
       if (params.search) {
-        const { data: users } = await executeQuery(
+        const { data: users } = await executeQuery<UserRow[] | null>(
           supabaseAdmin
             .from('users')
             .select('id')
@@ -388,7 +398,7 @@ export class CardFeatureModel {
       let sharedCardIds: string[] = []
       if (userId && userRole !== 'admin') {
         try {
-          const { data: shares } = await executeQuery(
+          const { data: shares } = await executeQuery<{ card_feature_id: string }[] | null>(
             supabaseAdmin
               .from('card_shares')
               .select('card_feature_id')
@@ -403,7 +413,7 @@ export class CardFeatureModel {
 
       // 3. Query principal para os dados (com range/ordenação)
       const query = this.buildQuery(params, userId, userRole, false, matchedUserIds, sharedCardIds)
-      const { data: _data, error: _dataError } = await executeQuery(query)
+      const { data: _data, error: _dataError } = await executeQuery<CardFeatureRow[] | null>(query)
 
       // 4. Query para o COUNT (sem range, para pegar o total filtrado)
       const countParams = { ...params }
@@ -411,9 +421,9 @@ export class CardFeatureModel {
       delete countParams.limit
       
       const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds, sharedCardIds)
-      const { count, error: _countError } = await executeQuery(countQuery)
+      const { count, error: _countError } = await executeQuery<{ count: number | null } | null>(countQuery)
 
-      if (!data || data.length === 0) {
+      if (!_data || _data.length === 0) {
         return {
           success: true,
           data: [],
@@ -423,10 +433,10 @@ export class CardFeatureModel {
       }
 
       // 4. Buscar IDs únicos de criadores para enriquecer os dados
-      const creatorIds = [...new Set(data.map((card: { created_by: string | null }) => card.created_by).filter(Boolean))]
+      const creatorIds = [...new Set(_data.map((card: { created_by: string | null }) => card.created_by).filter(Boolean))]
 
       // Buscar dados dos usuários
-      const { data: users } = await executeQuery(
+      const { data: users } = await executeQuery<UserRow[] | null>(
         supabaseAdmin
           .from('users')
           .select('id, name, email')
@@ -434,13 +444,13 @@ export class CardFeatureModel {
       )
 
       // Criar mapa de usuários por ID
-      const usersMap = new Map(users?.map((u: { id: string }) => [u.id, u]) || [])
+      const usersMap = new Map(users?.map((u) => [u.id, u]) || [])
 
       // Transformar cards adicionando dados do autor
-      const transformedData = data?.map((row: CardFeatureRow) => {
-        const userData = row.created_by ? usersMap.get(row.created_by) : null
+      const transformedData = _data.map((row: CardFeatureRow) => {
+        const userData = row.created_by ? (usersMap.get(row.created_by) ?? null) : null
         return this.transformToResponse({ ...row, users: userData })
-      }) || []
+      })
 
       return {
         success: true,
@@ -558,7 +568,7 @@ export class CardFeatureModel {
         }
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<CardFeatureRow | null>(
         supabaseAdmin
           .from('card_features')
           .update(updateData)
@@ -569,8 +579,8 @@ export class CardFeatureModel {
 
       // Buscar dados do usuário criador
       let userData = null
-      if (result.created_by) {
-        const { data: user } = await executeQuery(
+      if (result?.created_by) {
+        const { data: user } = await executeQuery<UserRow | null>(
           supabaseAdmin
             .from('users')
             .select('id, name, email')
@@ -578,6 +588,10 @@ export class CardFeatureModel {
             .single()
         )
         userData = user
+      }
+
+      if (!result) {
+        return { success: false, error: 'Card não encontrado', statusCode: 404 }
       }
 
       return {
@@ -654,7 +668,7 @@ export class CardFeatureModel {
       const existing = await this.findById(id, adminId, 'admin')
       if (!existing.success || !existing.data) return existing
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<CardFeatureRow | null>(
         supabaseAdmin
           .from('card_features')
           .update({
@@ -671,8 +685,8 @@ export class CardFeatureModel {
 
       // Buscar dados do usuário criador
       let userData = null
-      if (result.created_by) {
-        const { data: user } = await executeQuery(
+      if (result?.created_by) {
+        const { data: user } = await executeQuery<UserRow | null>(
           supabaseAdmin
             .from('users')
             .select('id, name, email')
@@ -682,7 +696,7 @@ export class CardFeatureModel {
         userData = user
       }
 
-      return { success: true, data: this.transformToResponse({ ...result, users: userData }), statusCode: 200 }
+      return { success: true, data: this.transformToResponse({ ...result!, users: userData } as CardFeatureRow & { users: UserRow | null }), statusCode: 200 }
     } catch (error: unknown) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro interno do servidor', statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500 }
     }
@@ -696,7 +710,7 @@ export class CardFeatureModel {
       const existing = await this.findById(id, adminId, 'admin')
       if (!existing.success || !existing.data) return existing
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<CardFeatureRow | null>(
         supabaseAdmin
           .from('card_features')
           .update({
@@ -714,8 +728,8 @@ export class CardFeatureModel {
 
       // Buscar dados do usuário criador
       let userData = null
-      if (result.created_by) {
-        const { data: user } = await executeQuery(
+      if (result?.created_by) {
+        const { data: user } = await executeQuery<UserRow | null>(
           supabaseAdmin
             .from('users')
             .select('id, name, email')
@@ -725,7 +739,11 @@ export class CardFeatureModel {
         userData = user
       }
 
-      return { success: true, data: this.transformToResponse({ ...result, users: userData }), statusCode: 200 }
+      if (!result) {
+        return { success: false, error: 'Card não encontrado', statusCode: 404 }
+      }
+
+      return { success: true, data: this.transformToResponse({ ...result, users: userData } as CardFeatureRow & { users: UserRow | null }), statusCode: 200 }
     } catch (error: unknown) {
       return { success: false, error: error instanceof Error ? error.message : 'Erro interno do servidor', statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500 }
     }
@@ -888,7 +906,7 @@ export class CardFeatureModel {
         }
       })
 
-      const { data } = await executeQuery(
+      const { data } = await executeQuery<CardFeatureRow[] | null>(
         supabaseAdmin
           .from('card_features')
           .insert(insertData)
@@ -938,7 +956,7 @@ export class CardFeatureModel {
   static async bulkDeleteByUser(ids: string[], userId: string): Promise<ModelResult<{ deletedCount: number }>> {
     try {
       // Buscar apenas os cards que pertencem ao usuário
-      const { data: ownedCards } = await executeQuery(
+      const { data: ownedCards } = await executeQuery<{ id: string }[] | null>(
         supabaseAdmin
           .from('card_features')
           .select('id')
@@ -946,7 +964,7 @@ export class CardFeatureModel {
           .eq('created_by', userId)
       )
 
-      const ownedIds = ownedCards?.map((c: { id: string }) => c.id) || []
+      const ownedIds = ownedCards?.map((c) => c.id) || []
 
       if (ownedIds.length === 0) {
         return {
@@ -993,7 +1011,7 @@ export class CardFeatureModel {
   ): Promise<ModelResult<Record<string, unknown>>> {
     try {
       // 1. Verificar se o card existe e é privado
-      const { data: card, error: cardError } = await executeQuery(
+      const { data: card, error: cardError } = await executeQuery<{ id: string; visibility: string; created_by: string } | null>(
         supabaseAdmin
           .from('card_features')
           .select('id, visibility, created_by')
@@ -1028,7 +1046,7 @@ export class CardFeatureModel {
       }
 
       // 4. Verificar se os usuários existem
-      const { data: users, error: usersError } = await executeQuery(
+      const { data: users, error: usersError } = await executeQuery<{ id: string }[] | null>(
         supabaseAdmin
           .from('users')
           .select('id')
@@ -1051,7 +1069,7 @@ export class CardFeatureModel {
         created_at: new Date().toISOString()
       }))
 
-      const { data: insertedShares, error: insertError } = await executeQuery(
+      const { data: insertedShares, error: insertError } = await executeQuery<{ id: string }[] | null>(
         supabaseAdmin
           .from('card_shares')
           .upsert(shares, {
@@ -1096,7 +1114,7 @@ export class CardFeatureModel {
   ): Promise<ModelResult<null>> {
     try {
       // 1. Verificar se o card existe e pertence ao owner
-      const { data: card, error: cardError } = await executeQuery(
+      const { data: card, error: cardError } = await executeQuery<{ id: string; created_by: string } | null>(
         supabaseAdmin
           .from('card_features')
           .select('id, created_by')
@@ -1159,7 +1177,7 @@ export class CardFeatureModel {
   static async getSharedUsers(cardId: string, ownerId: string): Promise<ModelResult<Record<string, unknown>[]>> {
     try {
       // 1. Verificar se o card existe e pertence ao owner
-      const { data: card, error: cardError } = await executeQuery(
+      const { data: card, error: cardError } = await executeQuery<{ id: string; created_by: string } | null>(
         supabaseAdmin
           .from('card_features')
           .select('id, created_by')
@@ -1184,7 +1202,12 @@ export class CardFeatureModel {
       }
 
       // 2. Buscar usuários compartilhados (JOIN com users)
-      const { data: shares, error: sharesError } = await executeQuery(
+      type ShareWithUser = {
+        id: string
+        created_at: string
+        users: { id: string; email: string; name: string | null; avatar_url: string | null } | null
+      }
+      const { data: shares, error: sharesError } = await executeQuery<ShareWithUser[] | null>(
         supabaseAdmin
           .from('card_shares')
           .select(`

@@ -173,7 +173,7 @@ export class ProjectController {
         if (progressInterval) clearInterval(progressInterval)
         await ImportJobModel.update(job.id, {
           status: 'error', step: 'error', progress: 100,
-          message: 'Falha ao importar.', error: e?.message || 'Erro desconhecido'
+          message: 'Falha ao importar.', error: e instanceof Error ? e.message : 'Erro desconhecido'
         })
       }
     })
@@ -293,7 +293,7 @@ export class ProjectController {
     // Resolver emails → user IDs
     const resolvedEmailIds: string[] = []
     if (normalizedEmails.length > 0) {
-      const { data: emailUsers } = await executeQuery(
+      const { data: emailUsers } = await executeQuery<{ id: string; email: string }[] | null>(
         supabaseAdmin.from('users').select('id, email').in('email', normalizedEmails)
       )
       const emailMap = new Map<string, string>()
@@ -311,7 +311,7 @@ export class ProjectController {
     const normalizedUserIds = Array.from(new Set(rawUserIds.map(String))).filter(Boolean)
     let validUserIds: string[] = []
     if (normalizedUserIds.length > 0) {
-      const { data: userRows } = await executeQuery(
+      const { data: userRows } = await executeQuery<{ id: string }[] | null>(
         supabaseAdmin.from('users').select('id').in('id', normalizedUserIds)
       )
       const validIdSet = new Set((userRows || []).map((r) => String(r.id)))

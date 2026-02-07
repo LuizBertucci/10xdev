@@ -88,7 +88,7 @@ export const supabaseMiddleware = async (
 
     try {
       const tProfile0 = Date.now()
-      const result = await executeQuery(
+      const result = await executeQuery<{ id: string; email: string; name: string | null; role: string; status: string; avatar_url: string | null } | null>(
         supabaseAdmin
           .from('users')
           .select('id, email, name, role, status, avatar_url')
@@ -97,7 +97,14 @@ export const supabaseMiddleware = async (
       )
       const tProfileMs = Date.now() - tProfile0
 
-      userProfile = result.data
+      userProfile = result.data ? {
+        id: result.data.id,
+        email: result.data.email,
+        ...(result.data.name !== null ? { name: result.data.name } : {}),
+        ...(result.data.role ? { role: result.data.role } : {}),
+        ...(result.data.status ? { status: result.data.status } : {}),
+        ...(result.data.avatar_url !== null ? { avatar_url: result.data.avatar_url } : {})
+      } : null
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[supabaseMiddleware] rid=${String(rid ?? '')} authMs=${tAuthMs} profileSelectMs=${tProfileMs} found=${Boolean(userProfile)}`)
       }
@@ -234,7 +241,7 @@ export const supabaseMiddleware = async (
     }
     next()
   } catch (error: unknown) {
-    console.error('Erro no middleware Supabase:', error?.message || error)
+    console.error('Erro no middleware Supabase:', error instanceof Error ? error.message : String(error))
     res.status(401).json({ error: 'Erro ao validar autenticação' })
   }
 }
@@ -271,18 +278,26 @@ export const optionalAuth = async (
       return
     }
 
-    // Buscar perfil do usuário
+// Buscar perfil do usuário
     let userProfile: { id: string; email: string; name?: string | null; role?: string; status?: string; avatar_url?: string | null } | null = null
 
     try {
-      const result = await executeQuery(
+      const result = await executeQuery<{ id: string; email: string; name: string | null; role: string; status: string; avatar_url: string | null } | null>(
         supabaseAdmin
           .from('users')
           .select('id, email, name, role, status, avatar_url')
           .eq('id', user.id)
           .maybeSingle()
       )
-      userProfile = result.data
+
+      userProfile = result.data ? {
+        id: result.data.id,
+        email: result.data.email,
+        ...(result.data.name !== null ? { name: result.data.name } : {}),
+        ...(result.data.role ? { role: result.data.role } : {}),
+        ...(result.data.status ? { status: result.data.status } : {}),
+        ...(result.data.avatar_url !== null ? { avatar_url: result.data.avatar_url } : {})
+      } : null
     } catch {
       // Erro ao buscar perfil, continua sem autenticação
       next()

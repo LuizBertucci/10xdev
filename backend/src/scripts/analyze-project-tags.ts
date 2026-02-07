@@ -14,6 +14,7 @@ async function main() {
   console.log(`\nAnalisando tags do projeto: ${PROJECT_ID}\n`)
 
   // Buscar via created_in_project_id
+  // eslint-disable-next-line prefer-const
   let { data: cards, error } = await supabaseAdmin
     .from('card_features')
     .select('id, title, tags, category')

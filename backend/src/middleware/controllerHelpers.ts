@@ -33,8 +33,11 @@ export const safeHandler = (fn: AsyncHandler) => async (req: Request, res: Respo
   try {
     await fn(req, res)
   } catch (error: unknown) {
-    const statusCode = error?.statusCode || mapErrorStatus(error?.message)
-    res.status(statusCode).json({ success: false, error: error?.message || 'Erro interno' })
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno'
+    const statusCode = typeof error === 'object' && error !== null && 'statusCode' in error && typeof error.statusCode === 'number'
+      ? error.statusCode
+      : mapErrorStatus(error instanceof Error ? error.message : undefined)
+    res.status(statusCode).json({ success: false, error: errorMessage })
   }
 }
 

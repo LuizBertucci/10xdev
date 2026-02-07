@@ -161,11 +161,11 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
   }
 
   if (req.body) {
-    req.body = sanitizeObject(req.body) as Record<string, unknown>
+    req.body = sanitizeObject(req.body)
   }
   
   if (req.query) {
-    req.query = sanitizeObject(req.query) as Record<string, unknown>
+    req.query = sanitizeObject(req.query) as typeof req.query
   }
   
   next()
