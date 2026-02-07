@@ -64,8 +64,8 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
       }
 
       const ordered = [...cardsResponse.data]
-        .sort((a: any, b: any) => (a.order ?? 999) - (b.order ?? 999))
-        .map((card: any) => card.cardFeature)
+        .sort((a, b) => ((a as { order?: number })?.order ?? 999) - ((b as { order?: number })?.order ?? 999))
+        .map((card) => (card as { cardFeature: CardFeature }).cardFeature)
         .filter(Boolean) as CardFeature[]
 
       setSummaryCardFeatures(ordered)
@@ -138,8 +138,8 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
       )
       setEditingCardId(null)
       toast.success("Tags atualizadas")
-    } catch (error: any) {
-      toast.error(error?.message || "Erro ao atualizar tags")
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao atualizar tags")
     } finally {
       setSavingTags(false)
     }
@@ -213,8 +213,8 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
         } else {
           toast.success("Ordem das categorias salva")
         }
-      } catch (error: any) {
-        toast.error(error?.message || "Erro ao salvar ordem das categorias")
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Erro ao salvar ordem das categorias")
         setOrderedCategories(previousOrder)
       } finally {
         setSavingOrder(false)

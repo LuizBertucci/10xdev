@@ -273,7 +273,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         return false
       }
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error instanceof Error ? error.message : 'Erro ao carregar projeto')
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar projeto')
       handleBack()
       return false
     } finally {
@@ -291,7 +291,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         setMembers(response.data)
       }
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message || 'Erro ao carregar membros')
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar membros')
     } finally {
       setLoadingMembers(false)
     }
@@ -322,7 +322,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       }
     } catch (error: unknown) {
       if (!incremental && !loadMore) {
-        toast.error(error instanceof Error ? error instanceof Error ? error.message : 'Erro ao carregar cards')
+        toast.error(error instanceof Error ? error.message : 'Erro ao carregar cards')
       } else if (loadMore) {
         toast.error('Erro ao carregar mais cards')
       }
@@ -349,7 +349,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         setAvailableCards(filtered)
       }
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message || 'Erro ao carregar cards disponíveis')
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar cards disponíveis')
     }
   }
 
@@ -374,8 +374,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         toast.error(response?.error || 'Erro ao adicionar card')
       }
     } catch (error: unknown) {
-      showStatus("error", error instanceof Error ? error.message || "Erro ao adicionar card")
-      toast.error(error instanceof Error ? error.message || 'Erro ao adicionar card')
+      showStatus("error", error instanceof Error ? error.message : "Erro ao adicionar card")
+      toast.error(error instanceof Error ? error.message : 'Erro ao adicionar card')
     }
   }
 
@@ -397,8 +397,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         toast.error(response?.error || 'Erro ao remover card')
       }
     } catch (error: unknown) {
-      showStatus("error", error instanceof Error ? error.message || "Erro ao remover card")
-      toast.error(error instanceof Error ? error.message || 'Erro ao remover card')
+      showStatus("error", error instanceof Error ? error.message : "Erro ao remover card")
+      toast.error(error instanceof Error ? error.message : 'Erro ao remover card')
     }
   }
 
@@ -417,8 +417,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         toast.error(response?.error || 'Erro ao reordenar card')
       }
     } catch (error: unknown) {
-      showStatus("error", error instanceof Error ? error.message || "Erro ao reordenar card")
-      toast.error(error instanceof Error ? error.message || 'Erro ao reordenar card')
+      showStatus("error", error instanceof Error ? error.message : "Erro ao reordenar card")
+      toast.error(error instanceof Error ? error.message : 'Erro ao reordenar card')
     }
   }
 
@@ -442,12 +442,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       }
     } catch (error: unknown) {
       console.error('Erro ao deletar projeto:', error)
-      let errorMessage = 'Erro ao deletar projeto'
-      if (error?.error) {
-        errorMessage = error.error
-      } else if (error?.message) {
-        errorMessage = error instanceof Error ? error.message
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar projeto'
       toast.error(errorMessage)
       showStatus("error", errorMessage)
     }
@@ -514,7 +509,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         showStatus("error", response?.error || "Erro ao atualizar nome")
       }
     } catch (error: unknown) {
-      showStatus("error", error?.message || "Erro ao atualizar nome")
+      showStatus("error", error instanceof Error ? error.message : "Erro ao atualizar nome")
     } finally {
       setSavingName(false)
     }
@@ -573,7 +568,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
         }
 } catch (error: unknown) {
-      toast.error(error instanceof Error ? error instanceof Error ? error.message : 'Erro ao salvar ordem das categorias')
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar ordem das categorias')
         setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
       }
     }

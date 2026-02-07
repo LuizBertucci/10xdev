@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
+import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import {
   ApprovalStatus,
@@ -403,7 +403,7 @@ export class CardFeatureModel {
 
       // 3. Query principal para os dados (com range/ordenação)
       const query = this.buildQuery(params, userId, userRole, false, matchedUserIds, sharedCardIds)
-      const { data, error: dataError } = await executeQuery(query)
+      const { data: _data, error: _dataError } = await executeQuery(query)
 
       // 4. Query para o COUNT (sem range, para pegar o total filtrado)
       const countParams = { ...params }
@@ -411,7 +411,7 @@ export class CardFeatureModel {
       delete countParams.limit
       
       const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds, sharedCardIds)
-      const { count, error: countError } = await executeQuery(countQuery)
+      const { count, error: _countError } = await executeQuery(countQuery)
 
       if (!data || data.length === 0) {
         return {

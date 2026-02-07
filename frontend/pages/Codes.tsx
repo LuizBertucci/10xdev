@@ -216,9 +216,9 @@ export default function Codes({ platformState }: CodesProps) {
   // ================================================
   
   // Handler para criação de novo CardFeature
-  const handleCreateSubmit = async (formData: any) => {
+  const handleCreateSubmit = async (formData: unknown) => {
     try {
-      const result = await cardFeatures.createCardFeature(formData)
+      const result = await cardFeatures.createCardFeature(formData as CreateCardFeatureData)
       if (result) {
         console.log('CardFeature criado com sucesso:', result)
         // Modal já fechará automaticamente via hook
@@ -233,11 +233,11 @@ export default function Codes({ platformState }: CodesProps) {
   }
 
   // Handler para edição de CardFeature existente
-  const handleEditSubmit = async (formData: any) => {
+  const handleEditSubmit = async (formData: unknown) => {
     try {
       if (cardFeatures.editingItem) {
         console.log('Editando CardFeature:', cardFeatures.editingItem.id, formData)
-        const result = await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, formData)
+        const result = await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, formData as Partial<CreateCardFeatureData>)
         if (result) {
           console.log('CardFeature editado com sucesso:', result)
           // Modal já fechará automaticamente via hook
@@ -561,7 +561,9 @@ export default function Codes({ platformState }: CodesProps) {
                       if (!canEdit) return
                       handleDeleteClick(snippetId)
                     }}
-                    onUpdate={cardFeatures.updateCardFeature}
+                    onUpdate={async (id, data) => {
+                      await cardFeatures.updateCardFeature(id, data)
+                    }}
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedCardIds.includes(snippet.id)}
                     onToggleSelect={handleToggleCardSelection}

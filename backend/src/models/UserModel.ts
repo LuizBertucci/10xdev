@@ -5,7 +5,7 @@ import {
   ModelListResult,
   ModelResult
 } from '@/types/user'
-import type { CardFeatureUpdate, CardFeatureRow } from '@/types/cardfeature'
+import type { CardFeatureRow } from '@/types/cardfeature'
 
 interface UserRowWithStats extends UserRow {
   role?: string | null

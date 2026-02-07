@@ -54,7 +54,7 @@ export function ProjectCard({
       setProjectLinkCopied(true)
       toast.success("Link do projeto copiado!")
       setTimeout(() => setProjectLinkCopied(false), 2000)
-    } catch (_err) {
+    } catch {
       toast.error("Erro ao copiar link do projeto")
     }
   }

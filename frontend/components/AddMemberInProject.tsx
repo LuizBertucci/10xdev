@@ -88,8 +88,8 @@ export function AddMemberInProject({
 
       onOpenChange(false)
       setSelectedUsers([])
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao adicionar membros')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao adicionar membros')
     }
   }
 

@@ -283,7 +283,7 @@ export class ContentController {
       const filePath = `uploads/${fileName}`
 
       // Upload para Supabase Storage
-      const { data, error } = await supabaseAdmin.storage
+      const { data: _data, error } = await supabaseAdmin.storage
         .from('contents')
         .upload(filePath, file.buffer, {
           contentType: file.mimetype,

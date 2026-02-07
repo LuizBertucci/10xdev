@@ -188,7 +188,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       let errorMessage = 'Erro ao criar CardFeature'
       
       if (error && typeof error === 'object' && 'error' in error) {
-        errorMessage = (error as any).error || errorMessage
+        errorMessage = (error as { error?: string }).error || errorMessage
       } else if (error instanceof Error) {
         errorMessage = error.message
       }
@@ -227,9 +227,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       return null
     }
   }, [])
-
-  // ✅ UNIFICADO: Uma única função que aceita todos os parâmetros
-  const fetchCardFeatures = fetchCardFeaturesWithPagination
 
   // UPDATE - Atualizar CardFeature existente
   const updateCardFeature = useCallback(async (id: string, data: UpdateCardFeatureData): Promise<CardFeature | null> => {
@@ -291,7 +288,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       let errorMessage = 'Erro ao atualizar CardFeature'
       
       if (error && typeof error === 'object' && 'error' in error) {
-        errorMessage = (error as any).error || errorMessage
+        errorMessage = (error as { error?: string }).error || errorMessage
       } else if (error instanceof Error) {
         errorMessage = error.message
       }
@@ -416,7 +413,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         search: params?.search,
         tech: params?.tech,
         visibility: params?.visibility || externalFilters?.selectedVisibility,
-        approval_status: (params as any)?.approval_status || externalFilters?.selectedApprovalStatus,
+        approval_status: (params as { approval_status?: unknown })?.approval_status || externalFilters?.selectedApprovalStatus,
         card_type: params?.card_type || externalFilters?.selectedCardType
       })
     }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedCardType]),

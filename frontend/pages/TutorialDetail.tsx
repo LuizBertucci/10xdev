@@ -13,7 +13,7 @@ interface TutorialDetailProps {
   id?: string
 }
 
-export default function TutorialDetail({ platformState, id: propId }: TutorialDetailProps) {
+export default function TutorialDetail({ platformState: _platformState, id: propId }: TutorialDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = propId || searchParams?.get('id') || null

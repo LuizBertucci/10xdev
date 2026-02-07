@@ -56,11 +56,11 @@ export default function TrainingVideoForm({
     }
   }, [mode, initialData, isOpen])
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
 
     // Validate YouTube URL and show preview
-    if (field === 'youtubeUrl') {
+    if (field === 'youtubeUrl' && typeof value === 'string') {
       if (!value) {
         setUrlError(null)
         setPreviewThumbnail(null)

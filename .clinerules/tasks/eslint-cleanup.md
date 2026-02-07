@@ -158,25 +158,25 @@ O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 - [x] Tipar `scripts/analyze-project-tags.ts` — ✅ **CONCLUIDO (1/1)**
 - **BACKEND COMPLETO** — ✅ **96/96 erros ESLint corrigidos (0 erros restantes)**
 
-#### Frontend 🔄
+#### Frontend ✅
 - [x] Habilitar `"@typescript-eslint/no-explicit-any": "error"`
 - [x] Tipar `pages/ProjectDetail.tsx` — ✅ **CONCLUIDO (19/19)**
 - [x] Tipar `services/apiClient.ts` — ✅ **CONCLUIDO (13/13)**
 - [x] Tipar `types/api.ts` — ✅ **CONCLUIDO (7/7)**
 - [x] Tipar `hooks/useAuth.tsx` — ✅ **CONCLUIDO (7/7)**
 - [x] Tipar `hooks/useApi.ts` — ✅ **CONCLUIDO (7/7)**
-- [ ] Tipar `utils/macroCategories.ts` — ⏳ **PENDENTE (5 erros)**
-- [ ] Tipar `services/cardFeatureService.ts` — ⏳ **PENDENTE (5 erros)**
-- [ ] Tipar `pages/AdminPanel.tsx` — ⏳ **PENDENTE (5 erros)**
-- [ ] Tipar `components/ProjectSummary.tsx` — ⏳ **PENDENTE (5 erros)**
-- [ ] Tipar `pages/Projects.tsx` — ⏳ **PENDENTE (4 erros)**
-- [ ] Tipar `components/ImportProgressWidget.tsx` — ⏳ **PENDENTE (4 erros)**
-- [ ] Tipar `hooks/useCardFeatures.ts` — ⏳ **PENDENTE (3 erros)**
-- [ ] Tipar `components/ProjectForm.tsx` — ⏳ **PENDENTE (3 erros)**
-- [ ] Tipar `components/CardFeatureCompact.tsx` — ⏳ **PENDENTE (3 erros)**
-- [ ] Tipar demais arquivos (16 arquivos menores) — ⏳ **PENDENTE (21 erros)**
+- [x] Tipar `utils/macroCategories.ts` — ✅ **CONCLUIDO**
+- [x] Tipar `services/cardFeatureService.ts` — ✅ **CONCLUIDO**
+- [x] Tipar `pages/AdminPanel.tsx` — ✅ **CONCLUIDO**
+- [x] Tipar `components/ProjectSummary.tsx` — ✅ **CONCLUIDO**
+- [x] Tipar `pages/Projects.tsx` — ✅ **CONCLUIDO**
+- [x] Tipar `components/ImportProgressWidget.tsx` — ✅ **CONCLUIDO**
+- [x] Tipar `hooks/useCardFeatures.ts` — ✅ **CONCLUIDO**
+- [x] Tipar `components/ProjectForm.tsx` — ✅ **CONCLUIDO**
+- [x] Tipar `components/CardFeatureCompact.tsx` — ✅ **CONCLUIDO**
+- [x] Tipar demais arquivos (14 arquivos: Apps, Contents, Codes, etc.) — ✅ **CONCLUIDO**
 
-**FRONTEND PROGRESSO**: 53/108 **CONCLUIDOS** | 55/108 **PENDENTES (51%)**
+**FRONTEND CONCLUIDO**: 108/108 **CONCLUIDOS (100%)**
 
 ---
 
@@ -188,8 +188,8 @@ O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 |-------|---------|----------|-------|--------|
 | Bloco 1 (triviais) | 43 | 53 | 96 | ✅ CONCLUIDO |
 | Bloco 2 (unused-vars) | 19 | 58 | 77 | ✅ CONCLUIDO |
-| Bloco 3 (no-explicit-any) | 96 | 53/108 | 96/108 | ✅ Backend | 🔄 Frontend |
-| **TOTAL** | **158/158** | **163/254** | **321/434** | **74% CONCLUIDO** |
+| Bloco 3 (no-explicit-any) | 96 | 108/108 | 204/204 | ✅ **CONCLUIDO** |
+| **TOTAL** | **158/158** | **219/219** | **377/434** | **87% CONCLUIDO** |
 
 ---
 
@@ -199,10 +199,11 @@ O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 2. `24e3b16` — "chore: corrigir todos os erros no-explicit-any no backend (96/96)"
 3. `cdd6694` — "chore: corrigir erros no-explicit-any no frontend (ProjectDetail, apiClient) - 32/108"
 4. `ac05b51` — "chore: corrigir erros no-explicit-any no frontend (types, hooks) - 53/108"
+5. `NEW` — "chore: concluir correção no-explicit-any no frontend (55/55 arquivos restantes)"
 
 ## Proximos Passos
 
-Continuar corrigindo os 55 erros restantes no frontend, priorizando arquivos de higher impact (services, hooks, utils).
+🎉 Bloco 3 concluído! Todos os erros `no-explicit-any` foram corrigidos no backend (96) e frontend (108).
 
 ### Frontend `.eslintrc.cjs` — config alvo
 

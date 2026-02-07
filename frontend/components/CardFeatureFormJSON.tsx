@@ -84,7 +84,7 @@ export default function CardFeatureFormJSON({
         resetCopiedTimeoutRef.current = null
       }, 2000)
       toast.success("Exemplo JSON copiado! Cole em sua IA preferida.")
-    } catch (_err) {
+    } catch {
       toast.error("Erro ao copiar exemplo")
     }
   }
@@ -176,7 +176,7 @@ export default function CardFeatureFormJSON({
       // Limpar o formulário após sucesso
       setJsonInput("")
       setError(null)
-    } catch (_err) {
+    } catch {
       setError("Erro ao criar CardFeature. Tente novamente.")
     }
   }
