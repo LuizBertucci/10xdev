@@ -8,6 +8,11 @@ import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
 import { normalizeTag, normalizeTags } from '@/utils/tagNormalization'
 
+interface PackageJson {
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
+
 // ================================================
 // CONFIGURATION
 // ================================================
@@ -304,7 +309,7 @@ export class GithubService {
             ? 'Limite de requisições do GitHub atingido. Aguarde ou use um token.'
             : 'Sem permissão. Se for privado, adicione um token de acesso.')
           : `Erro ao acessar GitHub: ${error.response?.data?.message || error.message}`
-      const err = new Error(msg) as any
+      const err = new Error(msg) as Error & { statusCode?: number }
       err.statusCode = status || 500
       throw err
     }
@@ -407,7 +412,7 @@ export class GithubService {
     return CODE_EXTENSIONS.includes(this.getFileExtension(path))
   }
 
-  private static detectTech(files: FileEntry[], packageJson?: any): string {
+  private static detectTech(files: FileEntry[], packageJson?: PackageJson): string {
     if (packageJson) {
       const deps = { ...packageJson.dependencies, ...packageJson.devDependencies }
       for (const [keyword, tech] of Object.entries(TECH_DETECTION)) {
@@ -726,7 +731,7 @@ export class GithubService {
 
     notify('extracting_files', 10, `Extraindo ${totalFiles} arquivos...`)
 
-    let packageJson: any = null
+    let packageJson: PackageJson | undefined
     const pkg = files.find(f => f.path === 'package.json')
     if (pkg) { try { packageJson = JSON.parse(pkg.content) } catch { /* ignore */ } }
 
@@ -807,7 +812,7 @@ export class GithubService {
             })
           }
           if (screens.length === 0) continue
-          const aiOverrides: any = {
+          const aiOverrides: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined; category?: string; tags?: string[] } = {
             title: aiCard.title,
             description: aiCard.description,
             tech: aiCard.tech,
@@ -846,8 +851,8 @@ export class GithubService {
           : `📁 ${cards.length} cards criados via heurística`
         notify('generating_cards', 90, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
         return { cards, filesProcessed, aiUsed: true, aiCardsCreated }
-      } catch (featureErr: any) {
-        console.error('[GithubService] Erro IA no processamento único:', featureErr?.message)
+      } catch (featureErr: unknown) {
+        console.error('[GithubService] Erro IA no processamento único:', featureErr instanceof Error ? featureErr.message : String(featureErr))
         notify('generating_cards', 60,
           `⚠️ IA falhou, usando heurística`,
           { cardEstimate: estimatedCards })
