@@ -5,6 +5,13 @@ import {
   ModelListResult,
   ModelResult
 } from '@/types/user'
+import type { CardFeatureUpdate, CardFeatureRow } from '@/types/cardfeature'
+
+interface UserRowWithStats extends UserRow {
+  role?: string | null
+  status?: string | null
+  card_count?: number
+}
 
 export class UserModel {
   private static transformToResponse(row: UserRow): UserResponse {
@@ -117,7 +124,7 @@ export class UserModel {
         createdAt: string | null
         updatedAt: string | null
         cardCount: number
-      })> = (users ?? []).map((row: any) => ({
+      })> = (users ?? []).map((row: UserRowWithStats) => ({
         id: row.id,
         email: row.email,
         name: row.name ?? null,
@@ -148,7 +155,7 @@ export class UserModel {
             counts.set(row.user_id, Number(row.card_count) || 0)
           }
         }
-      } catch (rpcError: any) {
+      } catch (rpcError: unknown) {
         // Fallback: contagem client-side se RPC não existir
         console.warn('RPC get_user_card_counts não encontrada, usando fallback client-side')
         const { data: cards } = await executeQuery(
@@ -158,7 +165,7 @@ export class UserModel {
         )
 
         for (const c of cards ?? []) {
-          const creator = (c as any)?.created_by as string | null
+          const creator = (c as { created_by: string | null })?.created_by
           if (!creator) continue
           counts.set(creator, (counts.get(creator) ?? 0) + 1)
         }
@@ -255,7 +262,7 @@ export class UserModel {
       await executeQuery(
         supabaseAdmin
           .from('card_features')
-          .update({ created_by: null, updated_at: new Date().toISOString() } as any)
+          .update({ created_by: null, updated_at: new Date().toISOString() } as Partial<CardFeatureRow>)
           .eq('created_by', userId)
       )
 
@@ -282,9 +289,9 @@ export class UserModel {
             .delete()
             .eq('shared_with_user_id', userId)
         )
-      } catch (err: any) {
-        const code = err?.code
-        const msg = String(err?.message || '')
+      } catch (err: unknown) {
+        const code = err && typeof err === 'object' && 'code' in err ? String(err.code) : undefined
+        const msg = err instanceof Error ? String(err.message) : String(err || '')
         const isMissingRelation = code === '42P01' || msg.includes('card_shares') || msg.includes('relation')
         if (!isMissingRelation) throw err
       }
@@ -325,7 +332,7 @@ export class UserModel {
           .eq('created_by', userId)
       )
 
-      const projectIds: string[] = (projects ?? []).map((p: any) => p.id).filter(Boolean)
+      const projectIds: string[] = (projects ?? []).map((p: { id: string }) => p.id).filter(Boolean)
       if (projectIds.length === 0) {
         return { success: true, data: { deletedProjects: 0 }, statusCode: 200 }
       }
