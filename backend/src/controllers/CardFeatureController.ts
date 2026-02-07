@@ -857,10 +857,10 @@ export class CardFeatureController {
       const card = cardResult.data
       const isOwner = card.createdBy === req.user.id
       const isAdmin = req.user.role === 'admin'
-      let isShared = false
+      let _isShared = false
       if (!isOwner && !isAdmin) {
         const sharedResult = await CardFeatureModel.getSharedUsers(id, req.user!.id)
-        isShared = sharedResult.data?.some((u: any) => u.id === req.user!.id) || false
+        _isShared = sharedResult.data?.some((u: any) => u.id === req.user!.id) || false
       }
       res.status(200).json({
         success: true,

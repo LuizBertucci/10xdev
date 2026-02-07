@@ -184,7 +184,7 @@ export class AdminController {
           deletedProjects: delProjects.data?.deletedProjects ?? 0
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller deleteUser:', error)
       res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }

@@ -102,7 +102,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setApiLinkCopied(true)
       toast.success("Link da API copiado!")
       setTimeout(() => setApiLinkCopied(false), 2000)
-    } catch (err) {
+    } catch (_err) {
       toast.error("Erro ao copiar link")
     }
   }
@@ -115,7 +115,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setShareLinkCopied(true)
       toast.success("Link copiado!")
       setTimeout(() => setShareLinkCopied(false), 2000)
-    } catch (err) {
+    } catch (_err) {
       toast.error("Erro ao copiar link")
     }
   }
@@ -128,7 +128,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setContentLinkCopied(true)
       toast.success("Link do conteúdo copiado!")
       setTimeout(() => setContentLinkCopied(false), 2000)
-    } catch (err) {
+    } catch (_err) {
       toast.error("Erro ao copiar link do conteúdo")
     }
   }
@@ -167,7 +167,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         newVisibility === Visibility.PUBLIC ? 'Validando' :
         newVisibility === Visibility.PRIVATE ? 'Privado' : 'Não Listado'
       }`)
-    } catch (err) {
+    } catch (_err) {
       toast.error("Erro ao alterar visibilidade")
     }
   }

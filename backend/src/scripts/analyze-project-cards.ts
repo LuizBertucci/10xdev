@@ -174,7 +174,7 @@ async function analyzeProjectCards() {
     console.log(`📦 Oportunidades de agrupamento: ${groupingOpportunities}`)
     console.log()
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao analisar cards:', error.message)
     console.error(error.stack)
     process.exit(1)

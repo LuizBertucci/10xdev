@@ -295,7 +295,7 @@ export class GithubService {
         url: `https://github.com/${repoInfo.owner}/${repoInfo.repo}`,
         isPrivate: Boolean(data.private)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const status = error.response?.status
       const msg = status === 404
         ? 'Repositório não encontrado. Verifique a URL.'
@@ -694,8 +694,8 @@ export class GithubService {
 
   private static estimateCardsCount(featureGroups: [string, FeatureFile[]][]): number {
     const byFeature = featureGroups.length
-    const totalFiles = featureGroups.reduce((sum, [_, files]) => sum + files.length, 0)
-    const totalSize = featureGroups.reduce((sum, [_, files]) => sum + files.reduce((s, f) => s + f.size, 0), 0)
+    const totalFiles = featureGroups.reduce((sum, [, files]) => sum + files.length, 0)
+    const totalSize = featureGroups.reduce((sum, [, files]) => sum + files.reduce((s, f) => s + f.size, 0), 0)
     return Math.max(byFeature, Math.ceil(totalFiles / 5), Math.ceil(totalSize / (50 * 1024)), 10)
   }
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MacroCategory, MICRO_TO_MACRO_MAPPING, MACRO_CATEGORY_DESCRIPTIONS } from '@/types/MacroCategory'
+import { MacroCategory } from '@/types/MacroCategory'
 import { ContentType } from '@/types/cardfeature'
 
 /**
@@ -452,12 +452,9 @@ export class AiCardGroupingService {
       mode
     })
 
-    let llmContent: string | undefined
-
     try {
       const { content } = await this.callChatCompletions({ endpoint, apiKey, body })
       console.log('[AiCardGroupingService] Resposta LLM recebida', { contentLength: content.length })
-      llmContent = content
 
       // Normalizar saída do LLM para o schema esperado (fallbacks para Grok)
       let parsed: any

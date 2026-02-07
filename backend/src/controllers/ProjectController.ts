@@ -100,7 +100,7 @@ export class ProjectController {
       let lastProgress = 0
       let totalCardsCreated = 0
       let totalFilesProcessed = 0
-      let isProcessing = true
+      let _isProcessing = true
       const progressInterval: NodeJS.Timeout | null = null
 
       /** Atualiza job garantindo progresso monotônico (nunca decresce). */
@@ -146,7 +146,7 @@ export class ProjectController {
           }
         )
 
-        isProcessing = false
+        _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
 
         if (totalCardsCreated === 0 && cards.length === 0) {
@@ -168,7 +168,7 @@ export class ProjectController {
           ai_cards_created: aiCardsCreated
         })
       } catch (e: any) {
-        isProcessing = false
+        _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
         await ImportJobModel.update(job.id, {
           status: 'error', step: 'error', progress: 100,

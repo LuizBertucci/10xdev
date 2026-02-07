@@ -65,7 +65,7 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
         } else {
           setError(res?.error || "Tutorial não encontrado")
         }
-      } catch (e) {
+      } catch (_e) {
         setError("Erro ao carregar tutorial")
       } finally {
         setLoading(false)
@@ -145,7 +145,7 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
       } else {
         toast.error(res?.error || "Erro ao vincular card")
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error("Erro ao vincular card")
     } finally {
       setLinking(false)
@@ -165,7 +165,7 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
       } else {
         toast.error(res?.error || "Erro ao desvincular card")
       }
-    } catch (e) {
+    } catch (_e) {
       toast.error("Erro ao desvincular card")
     }
   }

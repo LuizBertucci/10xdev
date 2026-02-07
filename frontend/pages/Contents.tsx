@@ -97,7 +97,7 @@ const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disab
   return true
 })
 
-export default function Contents({ platformState }: ContentsProps) {
+export default function Contents({ platformState: _platformState }: ContentsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -150,7 +150,7 @@ export default function Contents({ platformState }: ContentsProps) {
         } else {
           setTutorialsError(res?.error || "Erro ao carregar tutoriais")
         }
-      } catch (e) {
+      } catch (_e) {
         setTutorialsError("Erro ao carregar tutoriais")
       } finally {
         setTutorialsLoading(false)

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2 } from "lucide-react"
-import { projectService, type Project, ProjectMemberRole } from "@/services"
+import { projectService, type Project } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
@@ -28,7 +28,6 @@ import CardFeatureCompact from "@/components/CardFeatureCompact"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
-import { usePlatform } from "@/hooks/use-platform"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 
 interface PlatformState {
@@ -39,7 +38,7 @@ interface ProjectDetailProps {
   platformState?: PlatformState
 }
 
-export default function ProjectDetail({ platformState }: ProjectDetailProps) {
+export default function ProjectDetail({ platformState: _platformState }: ProjectDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams?.get('id') || null
@@ -54,7 +53,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [loadingCards, setLoadingCards] = useState(false)
   const [loadingMoreCards, setLoadingMoreCards] = useState(false)
   const [hasMoreCards, setHasMoreCards] = useState(false)
-  const [totalCardsCount, setTotalCardsCount] = useState(0)
+  const [_totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const ALL_CATEGORIES_VALUE = "__all__"
   const ALL_CATEGORIES_LABEL = "Todas"

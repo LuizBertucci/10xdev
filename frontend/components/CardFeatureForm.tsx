@@ -40,8 +40,6 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   ]
 }
 
-type ScreenData = CreateScreenData
-
 interface CardFeatureFormData {
   title: string
   tech?: string

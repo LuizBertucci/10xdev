@@ -32,7 +32,7 @@ export function mapErrorStatus(msg?: string): number {
 export const safeHandler = (fn: AsyncHandler) => async (req: Request, res: Response) => {
   try {
     await fn(req, res)
-  } catch (error: any) {
+  } catch (error: unknown) {
     const statusCode = error?.statusCode || mapErrorStatus(error?.message)
     res.status(statusCode).json({ success: false, error: error?.message || 'Erro interno' })
   }

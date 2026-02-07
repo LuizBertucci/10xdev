@@ -76,7 +76,7 @@ class ApiClient {
     }
   }
 
-  private async handleResponse<T>(response: Response, silent = false): Promise<ApiResponse<T> | undefined> {
+  private async handleResponse<T>(response: Response, _silent = false): Promise<ApiResponse<T> | undefined> {
     let data: ApiResponse<T> | undefined
     
     try {

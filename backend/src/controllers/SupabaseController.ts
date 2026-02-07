@@ -53,7 +53,7 @@ export class SupabaseController {
           name: name || email.split('@')[0]
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller register:', error)
       res.status(500).json({
         success: false,
@@ -103,7 +103,7 @@ export class SupabaseController {
           name: data.user?.user_metadata?.name || data.user?.user_metadata?.full_name || null
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller login:', error)
       res.status(500).json({
         success: false,
@@ -124,7 +124,7 @@ export class SupabaseController {
         success: true,
         message: 'Logout realizado com sucesso'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller logout:', error)
       res.status(500).json({
         success: false,
@@ -153,7 +153,7 @@ export class SupabaseController {
         message: 'Usuário autenticado',
         data: req.user
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller showProfile:', error)
       res.status(500).json({
         success: false,
@@ -238,7 +238,7 @@ export class SupabaseController {
           name: name || authData.user.user_metadata?.name || null
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller updateProfile:', error)
       res.status(500).json({
         success: false,
@@ -277,7 +277,7 @@ export class SupabaseController {
         success: true,
         message: 'Conta deletada com sucesso'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller deleteAccount:', error)
       res.status(500).json({
         success: false,

@@ -1,4 +1,4 @@
-import type { CreateCardFeatureRequest, CardFeatureScreen } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest } from '@/types/cardfeature'
 import { normalizeTags } from '@/utils/tagNormalization'
 
 export enum QualityIssueType {

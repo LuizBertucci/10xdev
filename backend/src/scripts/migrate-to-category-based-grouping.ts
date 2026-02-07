@@ -18,7 +18,6 @@ dotenv.config({ path: envPath, override: true })
 
 import { supabaseAdmin } from '@/database/supabase'
 import { normalizeTag } from '@/utils/tagNormalization'
-import { normalizeTags } from '@/utils/tagNormalization'
 
 // Mapa de fallback rápido (subset de tagNormalization.ts)
 const TAG_FALLBACK: Record<string, string> = {

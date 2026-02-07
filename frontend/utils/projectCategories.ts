@@ -109,7 +109,7 @@ const TAG_NORMALIZE: Record<string, string> = {
   'skills': 'Skills e Tutoriais',
 }
 
-function normalizeTag(tag: string): string {
+function _normalizeTag(tag: string): string {
   const key = tag.trim().toLowerCase()
   return TAG_NORMALIZE[key] || tag.trim()
 }

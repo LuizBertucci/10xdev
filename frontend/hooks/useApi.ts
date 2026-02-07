@@ -3,7 +3,7 @@
 // ================================================
 
 import { useState, useCallback } from 'react'
-import type { ApiResponse, ApiError } from '@/services'
+import type { ApiResponse } from '@/services'
 
 interface UseApiState<T> {
   data: T | null

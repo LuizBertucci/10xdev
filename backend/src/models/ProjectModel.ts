@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
+import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import {
   ProjectMemberRole
@@ -209,7 +209,7 @@ export class ProjectModel {
         data: this.transformToResponse(result),
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao criar projeto:', error)
       const errorMessage = error?.message || error?.error?.message || 'Erro interno do servidor'
       const statusCode = error?.statusCode || error?.code === '42P17' ? 500 : 500
@@ -286,7 +286,7 @@ export class ProjectModel {
         data: response,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // PostgREST/Supabase: PGRST116 = single() requested but 0 (or many) rows returned
       // In our case for findById, treat as "not found" instead of surfacing the raw message.
       if (error?.code === 'PGRST116' || error?.statusCode === 404) {
@@ -358,7 +358,7 @@ export class ProjectModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -420,7 +420,7 @@ export class ProjectModel {
         data: this.transformToResponse(result),
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -510,7 +510,7 @@ export class ProjectModel {
         },
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -585,7 +585,7 @@ export class ProjectModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -628,7 +628,7 @@ export class ProjectModel {
         data: this.transformMemberToResponse(result),
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error.code === '23505') {
         return {
           success: false,
@@ -709,7 +709,7 @@ export class ProjectModel {
         data: { insertedIds: toInsert, ignoredIds: Array.from(existingIds) },
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error.code === '23505') {
         return {
           success: false,
@@ -767,7 +767,7 @@ export class ProjectModel {
         data: this.transformMemberToResponse(result),
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -815,7 +815,7 @@ export class ProjectModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -900,7 +900,7 @@ export class ProjectModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -949,7 +949,7 @@ export class ProjectModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -1007,7 +1007,7 @@ export class ProjectModel {
         data: this.transformCardToResponse(result),
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error.code === '23505') {
         return {
           success: false,
@@ -1079,7 +1079,7 @@ export class ProjectModel {
         data: { insertedCount: insertData.length },
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error.code === '23505') {
         return {
           success: false,
@@ -1142,7 +1142,7 @@ export class ProjectModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',
@@ -1237,7 +1237,7 @@ export class ProjectModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         error: error.message || 'Erro interno do servidor',

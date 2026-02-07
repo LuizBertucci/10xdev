@@ -233,7 +233,7 @@ export const supabaseMiddleware = async (
       console.log(`[supabaseMiddleware] rid=${String(rid ?? '')} totalMs=${Date.now() - t0} userId=${req.user.id}`)
     }
     next()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro no middleware Supabase:', error?.message || error)
     res.status(401).json({ error: 'Erro ao validar autenticação' })
   }

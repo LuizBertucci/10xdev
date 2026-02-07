@@ -16,8 +16,8 @@ module.exports = {
   plugins: ["@typescript-eslint", "react-hooks"],
   extends: ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   rules: {
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": "warn",
     "react-hooks/exhaustive-deps": "off"
   },
   ignorePatterns: [".next", "out", "node_modules"]

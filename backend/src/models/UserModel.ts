@@ -86,7 +86,7 @@ export class UserModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error searching users:', error)
       return {
         success: false,
@@ -172,7 +172,7 @@ export class UserModel {
         count: count || enriched.length,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error listing users with stats:', error)
       return {
         success: false,
@@ -202,7 +202,7 @@ export class UserModel {
       }
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating user status:', error)
       return {
         success: false,
@@ -232,7 +232,7 @@ export class UserModel {
       }
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating user role:', error)
       return {
         success: false,
@@ -260,7 +260,7 @@ export class UserModel {
       )
 
       return { success: true, data: { updatedCount: count || 0 }, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error anonymizing cards:', error)
       return {
         success: false,
@@ -306,7 +306,7 @@ export class UserModel {
       )
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error cleaning user references:', error)
       return {
         success: false,
@@ -351,7 +351,7 @@ export class UserModel {
       )
 
       return { success: true, data: { deletedProjects: projectIds.length }, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting projects by creator:', error)
       return {
         success: false,
@@ -371,7 +371,7 @@ export class UserModel {
       )
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting user profile row:', error)
       return {
         success: false,
