@@ -53,9 +53,9 @@ export function assertResult(result: { success: boolean; error?: string; statusC
 }
 
 /** Envia ModelResult como resposta JSON padronizada. */
-export function respond(
+export function respond<T = unknown>(
   res: Response,
-  result: { success: boolean; data?: any; error?: string; statusCode?: number },
+  result: { success: boolean; data?: T; error?: string; statusCode?: number },
   msg?: string,
   status = 200
 ): void {
@@ -71,9 +71,9 @@ export function respond(
 }
 
 /** Envia ModelListResult como resposta JSON com count. */
-export function respondList(
+export function respondList<T = unknown>(
   res: Response,
-  result: { success: boolean; data?: any[]; count?: number; error?: string; statusCode?: number }
+  result: { success: boolean; data?: T[]; count?: number; error?: string; statusCode?: number }
 ): void {
   if (!result.success) {
     res.status(result.statusCode || 400).json({ success: false, error: result.error })
@@ -83,7 +83,7 @@ export function respondList(
 }
 
 /** Valida e parseia query params de paginacao (page, limit, sortBy, sortOrder, search). */
-export function parsePagination(query: any): {
+export function parsePagination(query: Record<string, unknown>): {
   page: number
   limit: number
   search?: string
@@ -120,7 +120,7 @@ export function parsePagination(query: any): {
 }
 
 /** Valida e parseia limit/offset opcionais para paginacao de cards. */
-export function parseCardPagination(query: any): { limit?: number; offset?: number } {
+export function parseCardPagination(query: Record<string, unknown>): { limit?: number; offset?: number } {
   const result: { limit?: number; offset?: number } = {}
 
   if (query.limit) {
