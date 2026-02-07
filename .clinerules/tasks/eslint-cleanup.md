@@ -93,8 +93,8 @@ O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
-| `pages/ProjectDetail.tsx` | 19 | alta | ⏳ PENDENTE |
-| `services/apiClient.ts` | 13 | alta — base de todos os services | ⏳ PENDENTE |
+| `pages/ProjectDetail.tsx` | 19 | alta | ✅ CONCLUIDO (19/19 corrigidos) |
+| `services/apiClient.ts` | 13 | alta — base de todos os services | ✅ CONCLUIDO (13/13 corrigidos) |
 | `types/api.ts` | 7 | alta - tipos base | ⏳ PENDENTE |
 | `hooks/useAuth.tsx` | 7 | alta | ⏳ PENDENTE |
 | `hooks/useApi.ts` | 7 | alta | ⏳ PENDENTE |
@@ -102,9 +102,28 @@ O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 | `services/cardFeatureService.ts` | 5 | media | ⏳ PENDENTE |
 | `hooks/useCardFeatures.ts` | 3 | media | ⏳ PENDENTE |
 | `components/CardFeatureForm.tsx` | 1 | baixa | ⏳ PENDENTE |
-| demais arquivos (18 arquivos) | ~44 | baixa | ⏳ PENDENTE |
+| `hooks/useProjectImportJobs.ts` | 1 | baixa | ⏳ PENDENTE |
+| `hooks/usePagination.ts` | 1 | baixa | ⏳ PENDENTE |
+| `components/ImportProgressWidget.tsx` | 4 | baixa | ⏳ PENDENTE |
+| `pages/AdminPanel.tsx` | 5 | baixa | ⏳ PENDENTE |
+| `components/CardFeatureCompact.tsx` | 3 | baixa | ⏳ PENDENTE |
+| `components/CardFeature.tsx` | 1 | baixa | ⏳ PENDENTE |
+| `components/ProjectSummary.tsx` | 5 | baixa | ⏳ PENDENTE |
+| `components/ProjectForm.tsx` | 3 | baixa | ⏳ PENDENTE |
+| `pages/Projects.tsx` | 4 | media | ⏳ PENDENTE |
+| `pages/Contents.tsx` | 2 | baixa | ⏳ PENDENTE |
+| `pages/Codes.tsx` | 2 | baixa | ⏳ PENDENTE |
+| `components/AppSidebar.tsx` | 2 | baixa | ⏳ PENDENTE |
+| `components/AddMemberInProject.tsx` | 1 | baixa | ⏳ PENDENTE |
+| `components/TemplateForm.tsx` | 1 | baixa | ⏳ PENDENTE |
+| `components/TrainingVideoForm.tsx` | 1 | baixa | ⏳ PENDENTE |
+| `services/projectService.ts` | 1 | baixa | ⏳ PENDENTE |
+| `services/contentService.ts` | 1 | baixa | ⏳ PENDENTE |
+| `app/register/page.tsx` | 1 | baixa | ⏳ PENDENTE |
+| `app/login/page.tsx` | 1 | baixa | ⏳ PENDENTE |
+| `app/import-github-token/page.tsx` | 1 | baixa | ⏳ PENDENTE |
 
-**TOTAL FRONTEND**: 108/108 erros pendentes
+**TOTAL FRONTEND**: 32/108 erros CONCLUIDOS (76 pendentes)
 
 ### 3.4 — Padrões de erro mais comuns
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2 } from "lucide-react"
-import { projectService, type Project } from "@/services"
+import { projectService, type Project, type ProjectMember, type ProjectCard } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
@@ -44,10 +44,10 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const projectId = searchParams?.get('id') || null
 
   const [project, setProject] = useState<Project | null>(null)
-  const [members, setMembers] = useState<any[]>([])
-  const [cards, setCards] = useState<any[]>([])
+  const [members, setMembers] = useState<ProjectMember[]>([])
+  const [cards, setCards] = useState<ProjectCard[]>([])
   const [cardFeatures, setCardFeatures] = useState<CardFeature[]>([])
-  const [availableCards, setAvailableCards] = useState<any[]>([])
+  const [availableCards, setAvailableCards] = useState<CardFeature[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [loadingCards, setLoadingCards] = useState(false)
@@ -166,7 +166,18 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           .maybeSingle()
 
         if (mounted && data) {
-          const jobData = data as any
+          const jobData = data as {
+      id: string
+      status: string
+      step: string
+      progress: number
+      message: string | null
+      ai_requested: boolean
+      ai_used: boolean
+      ai_cards_created: number
+      files_processed: number
+      cards_created: number
+    }
           setImportJob(jobData)
           lastCardsCreatedRef.current = jobData.cards_created || 0
         }
@@ -187,7 +198,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           schema: 'public',
           table: 'import_jobs',
           filter: `project_id=eq.${projectId}`
-        }, (payload: any) => {
+        }, (payload: { new: { id: string; status: string; step: string; progress: number; message: string | null; ai_requested: boolean; ai_used: boolean; ai_cards_created: number; files_processed: number; cards_created: number } }) => {
           if (!mounted) return
           const row = payload.new
           if (row) {
@@ -261,8 +272,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         handleBack()
         return false
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar projeto')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error instanceof Error ? error.message : 'Erro ao carregar projeto')
       handleBack()
       return false
     } finally {
@@ -279,8 +290,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       if (response?.success && response?.data) {
         setMembers(response.data)
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar membros')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message || 'Erro ao carregar membros')
     } finally {
       setLoadingMembers(false)
     }
@@ -305,13 +316,13 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         setCards(newCards)
 
         const features = newCards
-          .map((projectCard: any) => projectCard.cardFeature)
-          .filter(Boolean) as CardFeature[]
+          .map((projectCard: ProjectCard) => projectCard.cardFeature)
+          .filter((cardFeature): cardFeature is NonNullable<NonNullable<ProjectCard>['cardFeature']> => cardFeature !== undefined && cardFeature !== null)
         setCardFeatures(features)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!incremental && !loadMore) {
-        toast.error(error.message || 'Erro ao carregar cards')
+        toast.error(error instanceof Error ? error instanceof Error ? error.message : 'Erro ao carregar cards')
       } else if (loadMore) {
         toast.error('Erro ao carregar mais cards')
       }
@@ -333,12 +344,12 @@ export default function ProjectDetail({ platformState: _platformState }: Project
     try {
       const response = await cardFeatureService.getAll({ limit: 100 })
       if (response?.success && response?.data) {
-        const projectCardIds = new Set(cards.map((c: any) => c.cardFeatureId))
-        const filtered = response.data.filter((card: any) => !projectCardIds.has(card.id))
+        const projectCardIds = new Set(cards.map((c) => c.cardFeatureId))
+        const filtered = response.data.filter((card) => !projectCardIds.has(card.id))
         setAvailableCards(filtered)
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar cards disponíveis')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message || 'Erro ao carregar cards disponíveis')
     }
   }
 
@@ -362,9 +373,9 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         showStatus("error", response?.error || "Erro ao adicionar card")
         toast.error(response?.error || 'Erro ao adicionar card')
       }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao adicionar card")
-      toast.error(error.message || 'Erro ao adicionar card')
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message || "Erro ao adicionar card")
+      toast.error(error instanceof Error ? error.message || 'Erro ao adicionar card')
     }
   }
 
@@ -385,9 +396,9 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         showStatus("error", response?.error || "Erro ao remover card")
         toast.error(response?.error || 'Erro ao remover card')
       }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao remover card")
-      toast.error(error.message || 'Erro ao remover card')
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message || "Erro ao remover card")
+      toast.error(error instanceof Error ? error.message || 'Erro ao remover card')
     }
   }
 
@@ -405,9 +416,9 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         showStatus("error", response?.error || "Erro ao reordenar card")
         toast.error(response?.error || 'Erro ao reordenar card')
       }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao reordenar card")
-      toast.error(error.message || 'Erro ao reordenar card')
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message || "Erro ao reordenar card")
+      toast.error(error instanceof Error ? error.message || 'Erro ao reordenar card')
     }
   }
 
@@ -429,13 +440,13 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         showStatus("error", response?.error || "Erro ao deletar projeto")
         toast.error(response?.error || 'Erro ao deletar projeto')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao deletar projeto:', error)
       let errorMessage = 'Erro ao deletar projeto'
       if (error?.error) {
         errorMessage = error.error
       } else if (error?.message) {
-        errorMessage = error.message
+        errorMessage = error instanceof Error ? error.message
       }
       toast.error(errorMessage)
       showStatus("error", errorMessage)
@@ -502,7 +513,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       } else {
         showStatus("error", response?.error || "Erro ao atualizar nome")
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       showStatus("error", error?.message || "Erro ao atualizar nome")
     } finally {
       setSavingName(false)
@@ -561,8 +572,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           // Reverte em caso de erro
           setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
         }
-      } catch (error: any) {
-        toast.error(error?.message || 'Erro ao salvar ordem das categorias')
+} catch (error: unknown) {
+      toast.error(error instanceof Error ? error instanceof Error ? error.message : 'Erro ao salvar ordem das categorias')
         setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
       }
     }
@@ -570,7 +581,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
 
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
-      const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
+      const projectCard = cards.find((c) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
