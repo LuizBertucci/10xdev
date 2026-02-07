@@ -2,6 +2,33 @@ import { z } from 'zod'
 import { MacroCategory } from '@/types/MacroCategory'
 import { ContentType } from '@/types/cardfeature'
 
+interface AiCardFile {
+  path: string
+  content?: string
+}
+
+interface AiCardScreen {
+  name: string
+  description: string
+  files: AiCardFile[]
+}
+
+interface AiCard {
+  title?: string
+  name?: string
+  featureName?: string
+  description?: string
+  category?: string
+  tags?: string[] | string | unknown
+  tech?: string | unknown
+  language?: string | unknown
+  screens?: unknown
+}
+
+interface AiOutput {
+  cards?: AiCard[]
+}
+
 /**
  * Remove formatação Markdown de texto (negrito, itálico, links, etc)
  */
@@ -107,7 +134,7 @@ export class AiCardGroupingService {
     return raw
   }
 
-  private static async callChatCompletions(args: { endpoint: string; apiKey: string; body: any }): Promise<{ content: string }> {
+  private static async callChatCompletions(args: { endpoint: string; apiKey: string; body: Record<string, unknown> }): Promise<{ content: string }> {
     const res = await fetch(args.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
@@ -118,9 +145,17 @@ export class AiCardGroupingService {
       return ''
     })
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}: ${text || res.statusText}`)
-    let json: any
+    let json: unknown
     try { json = JSON.parse(text) } catch { throw new Error('LLM retornou resposta não-JSON') }
-    const content = json?.choices?.[0]?.message?.content
+    
+    if (!json || typeof json !== 'object') throw new Error('LLM retornou resposta inválida')
+    const obj = json as Record<string, unknown>
+    if (!obj.choices || !Array.isArray(obj.choices)) throw new Error('LLM retornou resposta inválida')
+    if (!obj.choices[0] || typeof obj.choices[0] !== 'object') throw new Error('LLM retornou resposta inválida')
+    const choice = obj.choices[0] as Record<string, unknown>
+    if (!choice.message || typeof choice.message !== 'object') throw new Error('LLM retornou resposta inválida')
+    const message = choice.message as Record<string, unknown>
+    const content = message.content
     if (!content || typeof content !== 'string') throw new Error('LLM retornou resposta inválida')
     return { content }
   }
@@ -130,24 +165,27 @@ export class AiCardGroupingService {
    * Handles various LLM response formats by mapping name→title, populating
    * missing descriptions, ensuring proper types, and filtering invalid entries.
    */
-  private static normalizeAiOutput(raw: any): any {
+  private static normalizeAiOutput(raw: unknown): AiOutput {
     if (!raw || typeof raw !== 'object') {
       return { cards: [] }
     }
 
-    if (raw?.cards && Array.isArray(raw.cards)) {
-      const normalizedCards = raw.cards
-        .map((card: any, cardIdx: number) => {
+    const obj = raw as Record<string, unknown>
+    if (obj?.cards && Array.isArray(obj.cards)) {
+      const normalizedCards = obj.cards
+        .map((card: unknown, cardIdx: number) => {
+          const cardObj = card as AiCard
           // Map name→title with fallbacks
-          const title = cleanMarkdown(card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`)
+          const title = cleanMarkdown(cardObj?.title || cardObj?.name || cardObj?.featureName || `Card ${cardIdx + 1}`)
 
           // Normalize screens array
-          const screensRaw = Array.isArray(card?.screens) ? card.screens : []
+          const screensRaw = Array.isArray(cardObj.screens) ? cardObj.screens : []
           const screens = screensRaw
-            .map((s: any, screenIdx: number) => {
-              const name = cleanMarkdown(s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`)
-              const description = cleanMarkdown(s?.description || '')
-              const files = Array.isArray(s?.files) ? s.files : []
+            .map((s:unknown, screenIdx: number) => {
+              const screen = s as AiCardScreen
+              const name = cleanMarkdown(screen?.name || `Screen ${screenIdx + 1}`)
+              const description = cleanMarkdown(screen?.description || '')
+              const files = Array.isArray(screen?.files) ? screen.files : []
               if (!files.length) return null
               return { name, description, files }
             })
@@ -157,29 +195,29 @@ export class AiCardGroupingService {
           if (!title || !screens.length) return null
 
           // Build normalized card with required fields
-          const normalizedCard: any = {
+          const normalizedCard: AiCard = {
             title,
-            description: cleanMarkdown(card?.description || ''),
-            category: cleanMarkdown(card?.category || card?.tags?.[0] || 'Geral'),
-            screens
+            description: cleanMarkdown(cardObj?.description || ''),
+            category: cleanMarkdown(String(cardObj?.category || (Array.isArray(cardObj?.tags) ? cardObj.tags[0] : 'Geral'))),
+            screens: screens as unknown as AiCardScreen[]
           }
 
           // Add optional fields if present
-          if (card?.tech) normalizedCard.tech = String(card.tech)
-          if (card?.language) normalizedCard.language = String(card.language)
+          if (cardObj?.tech) (normalizedCard as { tech?: string }).tech = String(cardObj.tech)
+          if (cardObj?.language) (normalizedCard as { language?: string }).language = String(cardObj.language)
 
           // Handle tags if present (coerce to array)
-          if (card?.tags !== undefined) {
-            if (Array.isArray(card.tags)) {
-              normalizedCard.tags = card.tags.map((t: any) => String(t))
-            } else if (typeof card.tags === 'string') {
-              normalizedCard.tags = [String(card.tags)]
+          if (cardObj?.tags !== undefined) {
+            if (Array.isArray(cardObj.tags)) {
+              (normalizedCard as { tags?: string[] }).tags = cardObj.tags.map((t: unknown) => String(t))
+            } else if (typeof cardObj.tags === 'string') {
+              (normalizedCard as { tags?: string[] }).tags = [String(cardObj.tags)]
             }
           }
 
           return normalizedCard
         })
-        .filter(Boolean)
+        .filter((c): c is AiCard => c !== null)
 
       return { cards: normalizedCards }
     }
@@ -457,11 +495,11 @@ export class AiCardGroupingService {
       console.log('[AiCardGroupingService] Resposta LLM recebida', { contentLength: content.length })
 
       // Normalizar saída do LLM para o schema esperado (fallbacks para Grok)
-      let parsed: any
+      let parsed: unknown
       try {
         parsed = JSON.parse(content)
-      } catch (parseErr: any) {
-        throw new Error(`Resposta LLM não é JSON válido: ${String(parseErr?.message || parseErr)}`)
+      } catch (parseErr: unknown) {
+        throw new Error(`Resposta LLM não é JSON válido: ${String(parseErr instanceof Error ? parseErr.message : parseErr)}`)
       }
 
       // Normalize the parsed output using shared helper
@@ -469,9 +507,9 @@ export class AiCardGroupingService {
       console.log('[AiCardGroupingService] Cards normalizados:', normalized?.cards?.length || 0)
 
       return AiOutputSchema.parse(normalized)
-    } catch (err: any) {
-      console.error('[AiCardGroupingService] Erro LLM:', err?.message)
-      const msg = String(err?.message || err)
+    } catch (err: unknown) {
+      console.error('[AiCardGroupingService] Erro LLM:', err instanceof Error ? err.message : String(err))
+      const msg = String(err instanceof Error ? err.message : err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
         const body2 = {
           model,
@@ -481,11 +519,11 @@ export class AiCardGroupingService {
         const { content } = await this.callChatCompletions({ endpoint, apiKey, body: body2 })
         
         // Parse and normalize the retry response using the same helper
-        let retryParsed: any
+        let retryParsed: unknown
         try {
           retryParsed = JSON.parse(content)
-        } catch (parseErr: any) {
-          throw new Error(`Resposta LLM (retry) não é JSON válido: ${String(parseErr?.message || parseErr)}`)
+        } catch (parseErr: unknown) {
+          throw new Error(`Resposta LLM (retry) não é JSON válido: ${String(parseErr instanceof Error ? parseErr.message : parseErr)}`)
         }
         
         const retryNormalized = this.normalizeAiOutput(retryParsed)
