@@ -64,12 +64,12 @@ export class UserModel {
                 // Sincronizar na tabela users para próximas buscas
                 if (Object.keys(updates).length > 0) {
                   updates.updated_at = new Date().toISOString()
-                  supabaseAdmin
-                    .from('users')
-                    .update(updates)
-                    .eq('id', row.id)
-                    .then(() => {})
-                    .catch(() => {})
+                  void Promise.resolve(
+                    supabaseAdmin
+                      .from('users')
+                      .update(updates)
+                      .eq('id', row.id)
+                  ).catch(() => {})
                 }
               }
             } catch {
