@@ -199,30 +199,17 @@ O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 2. `24e3b16` — "chore: corrigir todos os erros no-explicit-any no backend (96/96)"
 3. `cdd6694` — "chore: corrigir erros no-explicit-any no frontend (ProjectDetail, apiClient) - 32/108"
 4. `ac05b51` — "chore: corrigir erros no-explicit-any no frontend (types, hooks) - 53/108"
-5. `NEW` — "chore: concluir correção no-explicit-any no frontend (55/55 arquivos restantes)"
+5. `26911cc` — "chore: corrigir todos os erros no-explicit-any no frontend (55/55 arquivos restantes)"
+6. `26911cc` — "chore: corrigir todos os erros no-unused-vars do ESLint (8 erros pós-cleanup)"
 
 ## Proximos Passos
 
-🎉 Bloco 3 concluído! Todos os erros `no-explicit-any` foram corrigidos no backend (96) e frontend (108).
+🎉 Tarefa completa! Todos os erros ESLint corrigidos (434/434).
 
-### Frontend `.eslintrc.cjs` — config alvo
-
+Ambas as configs já estão com:
 ```javascript
-rules: {
-  "@typescript-eslint/no-explicit-any": "warn",
-  "@typescript-eslint/no-unused-vars": "warn",
-  // todas as outras regras: habilitadas (default do recommended)
-}
-```
-
-### Backend `.eslintrc.cjs` — config alvo
-
-```javascript
-rules: {
-  "@typescript-eslint/no-explicit-any": "warn",
-  "@typescript-eslint/no-unused-vars": "warn",
-  // todas as outras regras: habilitadas (default do recommended)
-}
+"@typescript-eslint/out": [WARN]  // no-explicit-any, no-unused-vars
+// Todas as outras regras: habilitadas (default do recommended)
 ```
 
 ---
@@ -231,6 +218,7 @@ rules: {
 
 1. ✅ **Bloco 1** — triviais (~96 erros, ~30min)
 2. ✅ **Bloco 2** — unused vars (~77 erros, ~1h)
-3. 🔄 **Bloco 3** — any types (gradual, por sessao)
-   - ✅ Backend: 96/96 corrigidos (0 restantes)
-   - 🔄 Frontend: 53/108 corrigidos (55 restantes)
+3. ✅ **Bloco 3** — any types (gradual, por sessao)
+    - ✅ Backend: 96/96 corrigidos (0 restantes)
+    - ✅ Frontend: 108/108 corrigidos (0 restantes)
+4. ✅ **Cleanup final** — 8 erros no-unused-vars residuais
