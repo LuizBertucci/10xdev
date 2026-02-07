@@ -6,7 +6,7 @@
 // GENERIC API RESPONSE STRUCTURE
 // ================================================
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -24,7 +24,7 @@ export interface ApiError {
   success: false
   error: string
   statusCode?: number
-  details?: any
+  details?: unknown
 }
 
 export interface ApiListResponse<T> {
@@ -57,7 +57,7 @@ export interface ErrorState {
   lastError?: Date
 }
 
-export interface ApiState<T = any> extends LoadingState, ErrorState {
+export interface ApiState<T = unknown> extends LoadingState, ErrorState {
   data: T | null
   lastFetch?: Date
 }
@@ -157,7 +157,7 @@ export interface UiState {
   selectedItems: string[]
 }
 
-export interface FormState<T = any> {
+export interface FormState<T = unknown> {
   data: T
   errors: Record<string, string>
   isValid: boolean
@@ -204,7 +204,7 @@ export interface ValidationRule {
   minLength?: number
   maxLength?: number
   pattern?: RegExp
-  custom?: (value: any) => string | null
+  custom?: (value: unknown) => string | null
 }
 
 export interface ValidationSchema {
@@ -237,8 +237,8 @@ export type ApiMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
 export type RequestConfig = {
   method: ApiMethod
   url: string
-  data?: any
-  params?: any
+  data?: unknown
+  params?: unknown
   headers?: Record<string, string>
 }
 
