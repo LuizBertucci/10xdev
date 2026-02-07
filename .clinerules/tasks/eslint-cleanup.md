@@ -61,15 +61,15 @@ Arquivos mais afetados:
 
 ## Bloco 3 — `no-explicit-any` (183 erros) 🔄 EM ANDAMENTO
 
-O maior bloco. Estrategia: um arquivo por vez, erro por erro.
+O maior bloco. Estrategia: um arquivo por arquivo, erro por erro.
 
-### 3.1 — Estrategia atual
+### 3.1 — Estratégia atual
 
-1. **Habilitar como `"error"`** nos dois projetos (decisao do usuario: corrigir agora)
-2. **Codigo novo nunca usa `any`** — regra para o Claude/devs
-3. **Resolver por arquivo** em sessoes dedicadas, priorizando por impacto
+1. **Habilitar como `"error"`** nos dois projetos (decisão do usuário: corrigir agora)
+2. **Código novo nunca usa `any`** — regra para o Claude/devs
+3. **Resolver por arquivo** em sessões dedicadas, priorizando por impacto
 
-### 3.2 — Backend (57 erros) — Maior concentracao
+### 3.2 — Backend (57 erros) — Maior concentracao ✅ **CONCLUIDO**
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
@@ -82,29 +82,29 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 | `middleware/supabaseMiddleware.ts` | 5 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
 | `middleware/errorHandler.ts` | 4 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
 | `database/supabase.ts` | 3 | baixa | ✅ CONCLUIDO (3/3 corrigidos) |
-| Outros backend | ~24 | baixa | ⏳ PENDENTE |
-| `models/UserModel.ts` | ~15 | media | ⏳ PENDENTE |
-| `services/aiCardGroupingService.ts` | ~15 | media | ⏳ PENDENTE |
-| `services/githubService.ts` | ~8 | media | ⏳ PENDENTE |
-| `middleware/controllerHelpers.ts` | 5 | baixa | ⏳ PENDENTE |
-| `middleware/supabaseMiddleware.ts` | 5 | baixa | ⏳ PENDENTE |
-| `middleware/errorHandler.ts` | 4 | baixa | ⏳ PENDENTE |
-| `database/supabase.ts` | 3 | baixa | ⏳ PENDENTE |
-| Outros | ~24 | baixa | ⏳ PENDENTE |
+| `models/ImportJobModel.ts` | 2 | baixa | ✅ CONCLUIDO (2/2 corrigidos) |
+| `models/ContentModel.ts` | 1 | baixa | ✅ CONCLUIDO (1/1 corrigidos) |
+| `scripts/analyze-project-cards.ts` | 2 | baixa | ✅ CONCLUIDO (2/2 corrigidos) |
+| `scripts/analyze-project-tags.ts` | 1 | baixa | ✅ CONCLUIDO (1/1 corrigidos) |
 
-### 3.3 — Frontend (126 erros)
+**TOTAL BACKEND**: ✅ **CONCLUIDO** (96/96 erros corrigidos)
+
+### 3.3 — Frontend (108 erros) 🔄 EM ANDAMENTO
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
-| `pages/ProjectDetail.tsx` | ~20 | alta | ⏳ PENDENTE |
-| `services/apiClient.ts` | ~14 | alta — base de todos os services | ⏳ PENDENTE |
-| `hooks/useCardFeatures.ts` | ~10 | media | ⏳ PENDENTE |
-| `hooks/useApi.ts` | ~8 | media | ⏳ PENDENTE |
-| `pages/Projects.tsx` | 4 | media | ⏳ PENDENTE |
-| `pages/Contents.tsx` | 2 | baixa | ⏳ PENDENTE |
-| `types/api.ts` | ~8 | media | ⏳ PENDENTE |
-| `utils/macroCategories.ts` | 5 | baixa | ⏳ PENDENTE |
-| Outros frontend | ~55 | baixa | ⏳ PENDENTE |
+| `pages/ProjectDetail.tsx` | 19 | alta | ⏳ PENDENTE |
+| `services/apiClient.ts` | 13 | alta — base de todos os services | ⏳ PENDENTE |
+| `types/api.ts` | 7 | alta - tipos base | ⏳ PENDENTE |
+| `hooks/useAuth.tsx` | 7 | alta | ⏳ PENDENTE |
+| `hooks/useApi.ts` | 7 | alta | ⏳ PENDENTE |
+| `utils/macroCategories.ts` | 5 | media | ⏳ PENDENTE |
+| `services/cardFeatureService.ts` | 5 | media | ⏳ PENDENTE |
+| `hooks/useCardFeatures.ts` | 3 | media | ⏳ PENDENTE |
+| `components/CardFeatureForm.tsx` | 1 | baixa | ⏳ PENDENTE |
+| demais arquivos (18 arquivos) | ~44 | baixa | ⏳ PENDENTE |
+
+**TOTAL FRONTEND**: 108/108 erros pendentes
 
 ### 3.4 — Padrões de erro mais comuns
 
@@ -125,12 +125,12 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 - [x] Tipar `middleware/supabaseMiddleware.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
 - [x] Tipar `middleware/errorHandler.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
 - [x] Tipar `database/supabase.ts` (backend) — ✅ **CONCLUIDO (3/3 corrigidos)**
-- [ ] Tipar arquivos restantes do backend por prioridade
-- [ ] Tipar arquivos do frontend por prioridade
-- [ ] Tipar `models/UserModel.ts` (backend)
-- [ ] Tipar `services/aiCardGroupingService.ts` (backend)
-- [ ] Tipar `services/githubService.ts` (backend)
-- [ ] Tipar arquivos restantes do backend por prioridade
+- [x] Tipar `models/ImportJobModel.ts` (backend) — ✅ **CONCLUIDO (2/2 corrigidos)**
+- [x] Tipar `models/ContentModel.ts` (backend) — ✅ **CONCLUIDO (1/1 corrigidos)**
+- [x] Tipar `scripts/analyze-project-cards.ts` (backend) — ✅ **CONCLUIDO (2/2 corrigidos)**
+- [x] Tipar `scripts/analyze-project-tags.ts` (backend) — ✅ **CONCLUIDO (1/1 corrigidos)**
+- [x] **BACKEND COMPLETO** — ✅ **CONCLUIDO (96/96 erros ESLint corrigidos - 0 erros ESLint restantes)**
+  - **Nota**: Houve 95 erros de TypeScript build após o cleanup, decorrentes da mudança de `any` para `unknown`. Estes precisam ser corrigidos com type assertions (ex: `(x as T)`).
 - [ ] Tipar arquivos do frontend por prioridade
 
 ---

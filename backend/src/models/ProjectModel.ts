@@ -307,8 +307,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -370,8 +370,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -432,8 +432,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -523,8 +523,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -598,8 +598,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -648,8 +648,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -729,8 +729,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -780,8 +780,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -828,8 +828,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -913,8 +913,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -962,8 +962,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1027,8 +1027,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1099,8 +1099,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1155,8 +1155,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1250,8 +1250,8 @@ export class ProjectModel {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }

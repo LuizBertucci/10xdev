@@ -59,7 +59,7 @@ export class AdminController {
         ? { banned_until: farFuture.toISOString() }
         : { banned_until: null }
 
-      const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(id, update as any)
+      const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(id, update as Record<string, unknown>)
       if (banError) {
         // Não falha a request inteira: status já foi atualizado, mas avisamos.
         res.status(200).json({

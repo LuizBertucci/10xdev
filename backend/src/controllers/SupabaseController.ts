@@ -179,7 +179,7 @@ export class SupabaseController {
       const { name, email } = req.body || {}
 
       // Atualizar no Supabase Auth
-      const updateData: any = {}
+      const updateData: { email?: string; data?: { name?: string; full_name?: string } } = {}
       if (email) updateData.email = email
       if (name) {
         updateData.data = {
@@ -211,7 +211,7 @@ export class SupabaseController {
       }
 
       // Atualizar também na tabela users
-      const userUpdateData: any = {
+      const userUpdateData: { updated_at: string; name?: string; email?: string } = {
         updated_at: new Date().toISOString()
       }
       if (name) userUpdateData.name = name
@@ -224,8 +224,8 @@ export class SupabaseController {
             .update(userUpdateData)
             .eq('id', req.user.id)
         )
-      } catch (dbError: any) {
-        console.error('Erro ao atualizar perfil na tabela users:', dbError.message)
+      } catch (dbError: unknown) {
+        console.error('Erro ao atualizar perfil na tabela users:', dbError instanceof Error ? dbError.message : String(dbError))
         // Continua mesmo com erro - auth já foi atualizado
       }
 

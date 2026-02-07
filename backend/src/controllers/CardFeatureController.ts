@@ -74,8 +74,8 @@ export class CardFeatureController {
         search: req.query.search as string,
         visibility: req.query.visibility as string,
         approval_status: req.query.approval_status as string,
-        sortBy: req.query.sortBy as any,
-        sortOrder: req.query.sortOrder as any
+        sortBy: req.query.sortBy as 'tech' | 'language' | 'created_at' | 'updated_at' | 'title',
+        sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
 
       const result = await CardFeatureModel.findAll(params, userId, userRole)
@@ -178,8 +178,8 @@ export class CardFeatureController {
         tech: req.query.tech as string,
         language: req.query.language as string,
         content_type: req.query.content_type as string,
-        sortBy: req.query.sortBy as any,
-        sortOrder: req.query.sortOrder as any
+        sortBy: req.query.sortBy as 'tech' | 'language' | 'created_at' | 'updated_at' | 'title',
+        sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
 
       const result = await CardFeatureModel.search(searchTerm, params, userId, userRole)
@@ -241,8 +241,8 @@ export class CardFeatureController {
         language: req.query.language as string,
         content_type: req.query.content_type as string,
         search: req.query.search as string,
-        sortBy: req.query.sortBy as any,
-        sortOrder: req.query.sortOrder as any
+        sortBy: req.query.sortBy as 'tech' | 'language' | 'created_at' | 'updated_at' | 'title',
+        sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
 
       const result = await CardFeatureModel.findByTech(tech, params, userId, userRole)
@@ -757,7 +757,7 @@ export class CardFeatureController {
       
       if (!isOwner && !isAdmin) {
         const sharedResult = await CardFeatureModel.getSharedUsers(id, req.user!.id)
-        const isShared = sharedResult.data?.some((u: any) => u.id === req.user!.id) || false
+        const isShared = sharedResult.data?.some((u) => u.id === req.user!.id) || false
         console.log('[generateSummary] Is Shared:', isShared)
         
         if (!isShared) {
@@ -860,7 +860,7 @@ export class CardFeatureController {
       let _isShared = false
       if (!isOwner && !isAdmin) {
         const sharedResult = await CardFeatureModel.getSharedUsers(id, req.user!.id)
-        _isShared = sharedResult.data?.some((u: any) => u.id === req.user!.id) || false
+        _isShared = sharedResult.data?.some((u) => u.id === req.user!.id) || false
       }
       res.status(200).json({
         success: true,

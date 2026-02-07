@@ -14,7 +14,7 @@ async function main() {
   console.log(`\nAnalisando tags do projeto: ${PROJECT_ID}\n`)
 
   // Buscar via created_in_project_id
-  const { data: cards, error } = await supabaseAdmin
+  let { data: cards, error } = await supabaseAdmin
     .from('card_features')
     .select('id, title, tags, category')
     .eq('created_in_project_id', PROJECT_ID)
@@ -36,7 +36,7 @@ async function main() {
       return
     }
 
-    const ids = pc.map((r: any) => r.card_feature_id)
+    const ids = pc.map((r) => r.card_feature_id)
     const result = await supabaseAdmin
       .from('card_features')
       .select('id, title, tags, category')

@@ -301,14 +301,15 @@ export class GithubService {
         isPrivate: Boolean(data.private)
       }
     } catch (error: unknown) {
-      const status = error.response?.status
+      const axiosError = error as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string } }, message?: string }
+      const status = axiosError.response?.status
       const msg = status === 404
         ? 'Repositório não encontrado. Verifique a URL.'
         : (status === 401 || status === 403)
-          ? (error.response?.headers?.['x-ratelimit-remaining'] === '0'
+          ? (axiosError.response?.headers?.['x-ratelimit-remaining'] === '0'
             ? 'Limite de requisições do GitHub atingido. Aguarde ou use um token.'
             : 'Sem permissão. Se for privado, adicione um token de acesso.')
-          : `Erro ao acessar GitHub: ${error.response?.data?.message || error.message}`
+          : `Erro ao acessar GitHub: ${axiosError.response?.data?.message || axiosError.message || String(error)}`
       const err = new Error(msg) as Error & { statusCode?: number }
       err.statusCode = status || 500
       throw err

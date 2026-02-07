@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { randomUUID } from 'crypto'
 import { ContentModel } from '@/models/ContentModel'
 import { supabaseAdmin } from '@/database/supabase'
-import type { CreateContentRequest, ContentQueryParams } from '@/types/content'
+import type { CreateContentRequest, ContentQueryParams, ContentType } from '@/types/content'
 
 export class ContentController {
   
@@ -61,11 +61,11 @@ export class ContentController {
       const params: ContentQueryParams = {
         page: req.query.page ? parseInt(req.query.page as string) : undefined,
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-        contentType: req.query.type as any,
+        contentType: req.query.type as ContentType,
         category: req.query.category as string,
         search: req.query.search as string,
-        sortBy: req.query.sortBy as any,
-        sortOrder: req.query.sortOrder as any
+        sortBy: req.query.sortBy as 'created_at' | 'updated_at' | 'title',
+        sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
 
       const result = await ContentModel.list(params)

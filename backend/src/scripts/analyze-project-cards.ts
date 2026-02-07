@@ -14,7 +14,8 @@ dotenv.config({ path: envPath, override: true })
 
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardQualitySupervisor, type QualityIssue } from '@/services/cardQualitySupervisor'
-import type { CreateCardFeatureRequest } from '@/types/cardfeature'
+import { ContentType, CardType } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest, CardFeatureRow } from '@/types/cardfeature'
 
 const PROJECT_ID = process.argv[2] || '6a7a8fe9-0558-406d-bdeb-d00decc95df6'
 
@@ -31,9 +32,9 @@ async function analyzeProjectCards() {
     }
 
     const projectCards = result.data || []
-    const cardFeatures = projectCards
-      .map((pc: any) => pc.cardFeature)
-      .filter(Boolean)
+    const cardFeatures: CardFeatureRow[] = projectCards
+      .map((pc) => pc.cardFeature)
+      .filter((cf): cf is CardFeatureRow => cf !== null && cf !== undefined)
 
     console.log(`📊 Total de cards encontrados: ${cardFeatures.length}\n`)
 
@@ -43,16 +44,21 @@ async function analyzeProjectCards() {
     }
 
     // Converter para formato CreateCardFeatureRequest para análise
-    const cardsForAnalysis: CreateCardFeatureRequest[] = cardFeatures.map((cf: any) => ({
-      title: cf.title,
-      tech: cf.tech,
-      language: cf.language,
-      description: cf.description || '',
-      screens: cf.screens || [],
-      tags: cf.tags || [],
-      content_type: cf.content_type || 'text',
-      card_type: cf.card_type || 'code'
-    }))
+    const cardsForAnalysis: CreateCardFeatureRequest[] = cardFeatures.map((cf) => {
+      const result: CreateCardFeatureRequest = {
+        title: cf.title,
+        description: cf.description || '',
+        screens: [],
+        tags: cf.tags || [],
+        content_type: cf.content_type || ContentType.TEXT,
+        card_type: cf.card_type || CardType.CODIGOS
+      }
+
+      if (cf.tech) result.tech = cf.tech
+      if (cf.language) result.language = cf.language
+
+      return result
+    })
 
     // Analisar qualidade usando o supervisor
     const report = CardQualitySupervisor.analyzeQuality(cardsForAnalysis)
@@ -175,8 +181,8 @@ async function analyzeProjectCards() {
     console.log()
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao analisar cards:', error.message)
-    console.error(error.stack)
+    console.error('❌ Erro ao analisar cards:', error instanceof Error ? error.message : String(error))
+    console.error(error instanceof Error ? error.stack : undefined)
     process.exit(1)
   }
 }

@@ -4,6 +4,7 @@ import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/mode
 import { GithubService } from '@/services/githubService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest } from '@/types/cardfeature'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
@@ -128,12 +129,12 @@ export class ProjectController {
               })
             },
             onCardReady: async (card) => {
-              const normalizedCard = {
+              const normalizedCard: CreateCardFeatureRequest = {
                 ...card,
                 visibility: Visibility.UNLISTED,
                 created_in_project_id: projectId
               }
-              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
+              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard], userId)
               if (!createdRes.success || !createdRes.data?.length) {
                 throw new Error(createdRes.error || 'Erro ao criar card')
               }
@@ -167,7 +168,7 @@ export class ProjectController {
           ai_used: aiUsed,
           ai_cards_created: aiCardsCreated
         })
-      } catch (e: any) {
+      } catch (e: unknown) {
         _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
         await ImportJobModel.update(job.id, {
@@ -296,7 +297,7 @@ export class ProjectController {
         supabaseAdmin.from('users').select('id, email').in('email', normalizedEmails)
       )
       const emailMap = new Map<string, string>()
-      emailUsers?.forEach((u: any) => {
+      emailUsers?.forEach((u) => {
         if (u?.email && u?.id) emailMap.set(String(u.email).toLowerCase(), String(u.id))
       })
       normalizedEmails.forEach(email => {
@@ -313,7 +314,7 @@ export class ProjectController {
       const { data: userRows } = await executeQuery(
         supabaseAdmin.from('users').select('id').in('id', normalizedUserIds)
       )
-      const validIdSet = new Set((userRows || []).map((r: any) => String(r.id)))
+      const validIdSet = new Set((userRows || []).map((r) => String(r.id)))
       validUserIds = normalizedUserIds.filter(uid => validIdSet.has(uid))
       normalizedUserIds.forEach(uid => {
         if (!validIdSet.has(uid)) failed.push({ userIdOrEmail: uid, error: 'user_not_found' })

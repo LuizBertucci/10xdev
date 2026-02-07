@@ -36,7 +36,7 @@ export class UserModel {
           .order('name', { ascending: true })
       )
 
-      if (!data || data.length === 0) {
+      if (!data || !Array.isArray(data) || data.length === 0) {
         return {
           success: true,
           data: [],
@@ -45,9 +45,8 @@ export class UserModel {
         }
       }
 
-      // Enriquecer com avatar/nome do Auth quando a tabela users não tem
       const users = await Promise.all(
-        data.map(async (row: UserRow) => {
+        (data as UserRow[]).map(async (row: UserRow) => {
           const user = this.transformToResponse(row)
           if (!user.avatarUrl || !user.name) {
             try {
@@ -97,8 +96,8 @@ export class UserModel {
       console.error('Error searching users:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -124,7 +123,7 @@ export class UserModel {
         createdAt: string | null
         updatedAt: string | null
         cardCount: number
-      })> = (users ?? []).map((row: UserRowWithStats) => ({
+      })> = ((users as UserRowWithStats[] | null) ?? []).map((row: UserRowWithStats) => ({
         id: row.id,
         email: row.email,
         name: row.name ?? null,
@@ -164,7 +163,7 @@ export class UserModel {
             .select('created_by')
         )
 
-        for (const c of cards ?? []) {
+        for (const c of (cards as { created_by: string | null }[] | null) ?? []) {
           const creator = (c as { created_by: string | null })?.created_by
           if (!creator) continue
           counts.set(creator, (counts.get(creator) ?? 0) + 1)
@@ -183,8 +182,8 @@ export class UserModel {
       console.error('Error listing users with stats:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -213,8 +212,8 @@ export class UserModel {
       console.error('Error updating user status:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -243,8 +242,8 @@ export class UserModel {
       console.error('Error updating user role:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -271,8 +270,8 @@ export class UserModel {
       console.error('Error anonymizing cards:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -317,8 +316,8 @@ export class UserModel {
       console.error('Error cleaning user references:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -332,7 +331,7 @@ export class UserModel {
           .eq('created_by', userId)
       )
 
-      const projectIds: string[] = (projects ?? []).map((p: { id: string }) => p.id).filter(Boolean)
+      const projectIds: string[] = ((projects as { id: string }[] | null) ?? []).map((p: { id: string }) => p.id).filter(Boolean)
       if (projectIds.length === 0) {
         return { success: true, data: { deletedProjects: 0 }, statusCode: 200 }
       }
@@ -362,8 +361,8 @@ export class UserModel {
       console.error('Error deleting projects by creator:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -382,8 +381,8 @@ export class UserModel {
       console.error('Error deleting user profile row:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }

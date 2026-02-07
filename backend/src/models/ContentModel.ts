@@ -247,7 +247,7 @@ export class ContentModel {
 
   static async update(id: string, payload: Partial<CreateContentRequest>): Promise<ModelResult<ContentResponse>> {
     try {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString()
       }
 
