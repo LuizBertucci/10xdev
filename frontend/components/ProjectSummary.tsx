@@ -165,7 +165,8 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
   const allProjectTags = useMemo(() => {
     const tags = new Map<string, string>()
     summaryCardFeatures.forEach((card) => {
-      ;(card.tags || []).forEach((tag) => {
+      const tags_array = card.tags || []
+      tags_array.forEach((tag) => {
         const value = tag?.trim()
         if (!value) return
         const key = value.toLowerCase()

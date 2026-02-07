@@ -1,50 +1,43 @@
 ---
-description: Padrão para criação de Pull Requests via gh CLI
+description: Padrão para criação de Pull Requests via gh CLI (fluxo automático)
 alwaysApply: true
 ---
 
 # Pull Request Workflow
 
-Quando o usuário pedir para criar um PR, siga este formato:
+Quando o usuário pedir para criar/rodar o PR (ex.: "Rode o PR", "dar pr", "cria o PR"), siga este fluxo **sem pedir ref manual**. A lista "Commits incluídos" deve **bater com o que o GitHub mostra** na aba de commits do PR (commits da branch que não estão na base).
 
-## 1. Analisar commits da branch
+## 1. Atualizar base e listar commits
 
-- Rode `git log --oneline main..HEAD` para listar todos os commits incluídos
-- Rode `git diff main...HEAD --stat` para ver arquivos alterados
+- Rode `git fetch origin main` (ou a base branch) para ter a base atualizada.
+- Rode `git log origin/main..HEAD --oneline` para listar os commits que entram neste PR (o mesmo que o GitHub exibe).
+- Use **sempre** essa lista para a seção **"Commits incluídos"** — não use ref do body do PR anterior, senão a contagem não bate com a interface do GitHub.
+- Opcional: `git diff origin/main..HEAD --stat` para resumo de arquivos alterados.
 
-## 2. Montar o PR com o formato padrão
+## 2. Montar e criar o PR
 
-```bash
-gh pr create --title "título descritivo do PR" --body "$(cat <<'EOF'
-## Summary
+- **Summary:** em português; bullets com o quê, por quê e como; uma alteração lógica por bullet.
+- **Commits incluídos:** apenas os commits do passo 1, no formato ``- `hash` descrição``.
+- **Título:** em português, descritivo, sem ponto final; prefixe com tema se fizer sentido.
+- Sempre faça **push** da branch antes (`git push origin "$BRANCH"`).
+- **Não crie arquivo .md temporário para o body:** não use `--body-file`, não gere um .md para depois apagar. Use **sempre o heredoc** inline no comando (veja abaixo).
+- Crie o PR com heredoc:
+  ```bash
+  gh pr create --base main --title "Título do PR" --body "$(cat <<'BODY'
+  ## Summary
 
-- Ponto 1 descrevendo a alteração principal
-- Ponto 2 descrevendo outra alteração
-- Ponto N...
+  - Ponto 1
+  - Ponto 2
 
-## Commits incluídos
+  ## Commits incluídos
 
-- `hash1` descrição do commit 1
-- `hash2` descrição do commit 2
-- `hashN` descrição do commit N
-
-EOF
-)"
-```
-
-## Regras do Summary
-
-- Cada bullet resume **uma alteração lógica** (não repita o título do commit)
-- Foque no **o quê**, **por quê** e **como** foi feito
-- Em **português**
-
-## Regras do título
-
-- Em português, descritivo, sem ponto final
-- Prefixe com o tema se fizer sentido (ex: "Sidebar, categorias e performance de cards")
+  - `hash1` descrição 1
+  - `hash2` descrição 2
+  BODY
+  )"
+  ```
 
 ## Regras gerais
 
-- Sempre faça push da branch antes de criar o PR
-- Base branch padrão: `main` (a menos que o usuário diga outra)
-- Ofereça criar o PR logo após o push
+- Base branch padrão: **main** (a menos que o usuário diga outra).
+- O usuário só precisa dizer "Rode o PR" (ou equivalente); você descobre o último PR, a ref e os commits novos sozinho.
