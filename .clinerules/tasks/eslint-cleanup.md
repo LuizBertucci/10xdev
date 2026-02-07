@@ -59,7 +59,7 @@ Arquivos mais afetados:
 
 ---
 
-## Bloco 3 — `no-explicit-any` (186 erros) 🔄 EM ANDAMENTO
+## Bloco 3 — `no-explicit-any` (183 erros) 🔄 EM ANDAMENTO
 
 O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 
@@ -69,7 +69,7 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 2. **Codigo novo nunca usa `any`** — regra para o Claude/devs
 3. **Resolver por arquivo** em sessoes dedicadas, priorizando por impacto
 
-### 3.2 — Backend (60 erros) — Maior concentracao
+### 3.2 — Backend (57 erros) — Maior concentracao
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
@@ -81,7 +81,8 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 | `middleware/controllerHelpers.ts` | 5 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
 | `middleware/supabaseMiddleware.ts` | 5 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
 | `middleware/errorHandler.ts` | 4 | baixa | ✅ CONCLUIDO (4/4 corrigidos) |
-| `database/supabase.ts` | 3 | baixa | 🔄 EM ANDAMENTO |
+| `database/supabase.ts` | 3 | baixa | ✅ CONCLUIDO (3/3 corrigidos) |
+| Outros backend | ~24 | baixa | ⏳ PENDENTE |
 | `models/UserModel.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/aiCardGroupingService.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/githubService.ts` | ~8 | media | ⏳ PENDENTE |
@@ -91,7 +92,7 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 | `database/supabase.ts` | 3 | baixa | ⏳ PENDENTE |
 | Outros | ~24 | baixa | ⏳ PENDENTE |
 
-### 3.3 — Frontend (108 erros)
+### 3.3 — Frontend (126 erros)
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
@@ -103,7 +104,7 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 | `pages/Contents.tsx` | 2 | baixa | ⏳ PENDENTE |
 | `types/api.ts` | ~8 | media | ⏳ PENDENTE |
 | `utils/macroCategories.ts` | 5 | baixa | ⏳ PENDENTE |
-| Outros | ~37 | baixa | ⏳ PENDENTE |
+| Outros frontend | ~55 | baixa | ⏳ PENDENTE |
 
 ### 3.4 — Padrões de erro mais comuns
 
@@ -123,7 +124,9 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 - [x] Tipar `middleware/controllerHelpers.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
 - [x] Tipar `middleware/supabaseMiddleware.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
 - [x] Tipar `middleware/errorHandler.ts` (backend) — ✅ **CONCLUIDO (4/4 corrigidos)**
-- [ ] Tipar `database/supabase.ts` (backend)
+- [x] Tipar `database/supabase.ts` (backend) — ✅ **CONCLUIDO (3/3 corrigidos)**
+- [ ] Tipar arquivos restantes do backend por prioridade
+- [ ] Tipar arquivos do frontend por prioridade
 - [ ] Tipar `models/UserModel.ts` (backend)
 - [ ] Tipar `services/aiCardGroupingService.ts` (backend)
 - [ ] Tipar `services/githubService.ts` (backend)
