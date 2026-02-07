@@ -124,7 +124,7 @@ export interface CreateCardFeatureRequest {
   screens: import('./cardfeature').CardFeatureScreen[]
 }
 
-export interface UpdateCardFeatureRequest extends Partial<CreateCardFeatureRequest> {}
+export type UpdateCardFeatureRequest = Partial<CreateCardFeatureRequest>
 
 export interface BulkCreateRequest {
   items: CreateCardFeatureRequest[]

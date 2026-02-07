@@ -18,12 +18,7 @@ module.exports = {
   rules: {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",
-    "@typescript-eslint/no-empty-object-type": "off",
-    "@typescript-eslint/no-require-imports": "off",
-    "no-mixed-spaces-and-tabs": "off",
-    "react-hooks/exhaustive-deps": "off",
-    "no-extra-semi": "off",
-    "prefer-const": "off"
+    "react-hooks/exhaustive-deps": "off"
   },
   ignorePatterns: [".next", "out", "node_modules"]
 }

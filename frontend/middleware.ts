@@ -62,7 +62,7 @@ function applyResponseCookies(target: NextResponse, source: NextResponse) {
 
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
-  let res = NextResponse.next()
+  const res = NextResponse.next()
   const debugAuth = process.env.DEBUG_SUPABASE_AUTH === 'true'
   const debugLocal = process.env.DEBUG_SUPABASE_AUTH_LOCAL === 'true'
   let cookiesSetCount = 0

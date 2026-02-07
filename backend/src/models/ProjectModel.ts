@@ -128,7 +128,7 @@ export class ProjectModel {
       }
     }
 
-    let query = supabaseAdmin
+    const query = supabaseAdmin
       .from('projects')
       .select('*', { count: 'exact' })
 
@@ -231,7 +231,7 @@ export class ProjectModel {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Users can view projects they are members of" verifica project_members,
       // causando recursão quando usamos o cliente público. O backend já valida autenticação.
-      let query = supabaseAdmin
+      const query = supabaseAdmin
         .from('projects')
         .select('*')
         .eq('id', id)
@@ -847,7 +847,7 @@ export class ProjectModel {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
       // recursão quando usamos o cliente público. O backend já valida permissões antes.
-      let query = supabaseAdmin
+      const query = supabaseAdmin
         .from('project_cards')
         .select(`
           *,

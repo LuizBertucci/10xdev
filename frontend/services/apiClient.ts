@@ -182,7 +182,7 @@ class ApiClient {
   ): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint, options?.params)
-      let headers = await this.getHeaders()
+      const headers = await this.getHeaders()
       
       if (options?.isUpload) {
         delete headers['Content-Type']

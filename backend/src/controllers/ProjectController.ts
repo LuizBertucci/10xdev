@@ -101,7 +101,7 @@ export class ProjectController {
       let totalCardsCreated = 0
       let totalFilesProcessed = 0
       let isProcessing = true
-      let progressInterval: NodeJS.Timeout | null = null
+      const progressInterval: NodeJS.Timeout | null = null
 
       /** Atualiza job garantindo progresso monotônico (nunca decresce). */
       const updateJob = async (patch: ImportJobUpdate) => {

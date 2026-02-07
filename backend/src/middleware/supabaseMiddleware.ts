@@ -14,6 +14,7 @@ const isAdminEmail = (email: string | undefined | null): boolean =>
 
 // Estender o tipo Request para incluir user
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: {

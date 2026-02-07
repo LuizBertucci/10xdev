@@ -135,7 +135,7 @@ export class UserModel {
 
       // Usar RPC function para contagem eficiente (escalável até 1M+ cards)
       // Fallback para query client-side se RPC não existir
-      let counts = new Map<string, number>()
+      const counts = new Map<string, number>()
 
       try {
         // Tentar usar RPC function (mais eficiente)

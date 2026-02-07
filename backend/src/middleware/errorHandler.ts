@@ -14,7 +14,7 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
-  let error = { ...err }
+  const error = { ...err }
   error.message = err.message
 
   // Log do erro (em produção, usar um logger profissional como Winston)
@@ -90,7 +90,7 @@ export const notFoundHandler = (req: Request, res: Response): void => {
 }
 
 // Handler para erros assíncronos
-export const asyncErrorHandler = (fn: Function) => {
+export const asyncErrorHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<void> | void) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next)
   }
