@@ -153,16 +153,20 @@ export function AddMemberInProject({
           {members.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-gray-500">Membros atuais ({members.length})</p>
-              <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+              <div className="max-h-[150px] overflow-y-auto overscroll-contain space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
                 {members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded-md border border-gray-200 text-xs text-gray-600">
+                  <div key={m.id} className="p-2 border rounded-md flex items-center gap-2 text-xs border-gray-200 bg-white">
                     {m.user?.avatarUrl ? (
-                      <img src={m.user.avatarUrl} alt={m.user.name || m.user.email} className="w-5 h-5 rounded-full flex-shrink-0" />
+                      <img src={m.user.avatarUrl} alt={m.user.name || m.user.email} className="w-6 h-6 rounded-full flex-shrink-0 object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <UserIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <UserIcon className="h-3 w-3 text-gray-500" />
+                      </div>
                     )}
-                    <span className="font-medium truncate">{m.user?.name || 'Sem nome'}</span>
-                    <span className="text-gray-400 truncate ml-auto">{m.user?.email}</span>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="font-medium truncate">{m.user?.name || 'Sem nome'}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{m.user?.email}</p>
+                    </div>
                   </div>
                 ))}
               </div>

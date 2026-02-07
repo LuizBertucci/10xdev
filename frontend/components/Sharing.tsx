@@ -137,7 +137,7 @@ export function Sharing({
               className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-gray-300 text-xs"
             >
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full" />
+                <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
               ) : (
                 <UserIcon className="h-3 w-3 text-gray-500" />
               )}
@@ -191,7 +191,7 @@ export function Sharing({
                   onClick={() => !isExisting && handleSelectUser(user)}
                 >
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full" />
+                    <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
                       <UserIcon className="h-3 w-3 text-gray-500" />
