@@ -1,4 +1,4 @@
-import { MacroCategory, MICRO_TO_MACRO_MAPPING, MACRO_CATEGORY_DESCRIPTIONS } from '@/types/MacroCategory'
+import { MacroCategory } from '@/types/MacroCategory'
 
 // ================================================
 // DATABASE TYPES - Supabase/PostgreSQL

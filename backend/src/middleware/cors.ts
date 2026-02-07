@@ -1,5 +1,4 @@
 import cors from 'cors'
-import { Request } from 'express'
 
 // CORS configuration
 const corsOptions = {

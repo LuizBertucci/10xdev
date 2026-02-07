@@ -57,7 +57,7 @@ export function Sharing({
         setSearchResults([])
         toast.error(response?.error || "Erro ao buscar usuários")
       }
-    } catch (error) {
+    } catch {
       toast.error("Erro ao buscar usuários")
     } finally {
       setIsSearching(false)

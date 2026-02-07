@@ -11,12 +11,15 @@ import { Crown, LogOut, PanelLeft, Maximize2, Minimize2, MousePointerClick, Chec
 type SidebarMode = 'expanded' | 'collapsed' | 'hover'
 
 interface AppSidebarProps {
-  platformState: any
+  platformState: {
+    setActiveTab: (tab: string) => void
+    activeTab: string
+  }
 }
 
 function AppSidebar({ platformState }: AppSidebarProps) {
-  const { user, logout, isProfileLoaded } = useAuth()
-  const { setOpenMobile, isMobile, setOpen, open } = useSidebar()
+  const { user, logout } = useAuth()
+  const { setOpenMobile, isMobile, setOpen } = useSidebar()
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   // Sidebar mode: expanded, collapsed, hover (persisted in localStorage)
@@ -112,7 +115,7 @@ function AppSidebar({ platformState }: AppSidebarProps) {
         // Usar window.location para garantir redirecionamento mesmo se o router falhar
         window.location.href = '/login'
       }, 200)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no logout:', error)
       toast.error('Erro ao fazer logout')
     }

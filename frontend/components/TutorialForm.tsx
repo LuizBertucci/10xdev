@@ -111,7 +111,7 @@ export default function TutorialForm({ isOpen, onClose, mode, tutorial, onSucces
           toast.error(res?.error || "Erro ao atualizar tutorial")
         }
       }
-    } catch (e) {
+    } catch {
       toast.error(mode === "create" ? "Erro ao criar tutorial" : "Erro ao atualizar tutorial")
     } finally {
       setSaving(false)

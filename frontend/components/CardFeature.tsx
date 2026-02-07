@@ -63,8 +63,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
       } else {
         toast.error(response.message || 'Erro ao gerar resumo')
       }
-    } catch (error: any) {
-      if (error.status === 403) {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'status' in error && (error as { status: number }).status === 403) {
         toast.error('Você não tem permissão para gerar resumo deste card')
       } else {
         console.error('Erro ao gerar resumo:', error)

@@ -3,7 +3,7 @@
 // ================================================
 
 import { useState, useCallback } from 'react'
-import type { ApiResponse, ApiError } from '@/services'
+import type { ApiResponse } from '@/services'
 
 interface UseApiState<T> {
   data: T | null
@@ -11,14 +11,14 @@ interface UseApiState<T> {
   error: string | null
 }
 
-interface UseApiOptions {
-  onSuccess?: (data: any) => void
+interface UseApiOptions<T> {
+  onSuccess?: (data: T | null) => void
   onError?: (error: string) => void
   retryAttempts?: number
   retryDelay?: number
 }
 
-export function useApi<T = any>(options: UseApiOptions = {}) {
+export function useApi<T = unknown>(options: UseApiOptions<T> = {}) {
   const [state, setState] = useState<UseApiState<T>>({
     data: null,
     loading: false,
@@ -90,7 +90,7 @@ export function useApi<T = any>(options: UseApiOptions = {}) {
 }
 
 // Hook especializado para listas
-export function useListApi<T = any>(options: UseApiOptions = {}) {
+export function useListApi<T = unknown>(options: UseApiOptions<T[]> = {}) {
   const [listState, setListState] = useState({
     count: 0,
     totalPages: 0,
@@ -102,13 +102,19 @@ export function useListApi<T = any>(options: UseApiOptions = {}) {
   const api = useApi<T[]>(options)
 
   const executeList = useCallback(async (
-    apiCall: () => Promise<ApiResponse<any>>
+    apiCall: () => Promise<ApiResponse<T[]> | undefined>
   ): Promise<T[] | null> => {
     const response = await api.execute(apiCall)
     
     // Se a resposta contém metadados de paginação
     if (api.data && response && typeof response === 'object' && 'data' in response) {
-      const listResponse = response as any
+      const listResponse = response as unknown as ApiResponse<T[]> & {
+        count?: number
+        totalPages?: number
+        currentPage?: number
+        hasNextPage?: boolean
+        hasPrevPage?: boolean
+      }
       setListState({
         count: listResponse.count || 0,
         totalPages: listResponse.totalPages || 0,
@@ -118,8 +124,8 @@ export function useListApi<T = any>(options: UseApiOptions = {}) {
       })
       return listResponse.data || null
     }
-    
-    return response
+
+    return response || null
   }, [api])
 
   return {
@@ -130,9 +136,9 @@ export function useListApi<T = any>(options: UseApiOptions = {}) {
 }
 
 // Hook para mutações (create, update, delete)
-export function useMutation<TData = any, TVariables = any>(
+export function useMutation<TData = unknown, TVariables = unknown>(
   mutationFn: (variables: TVariables) => Promise<ApiResponse<TData>>,
-  options: UseApiOptions = {}
+  options: UseApiOptions<TData> = {}
 ) {
   const [state, setState] = useState({
     data: null as TData | null,
@@ -154,7 +160,7 @@ export function useMutation<TData = any, TVariables = any>(
           data: response.data || null, 
           loading: false 
         }))
-        onSuccess?.(response.data)
+        onSuccess?.(response.data as TData | null)
         return response.data || null
       } else {
         throw new Error(response.error || 'Erro na mutação')

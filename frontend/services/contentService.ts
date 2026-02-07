@@ -10,7 +10,7 @@ class ContentService {
 
   async getAll(params?: ContentQueryParams): Promise<ApiResponse<Content[]> | undefined> {
     // Converter contentType para 'type' (o que o backend espera)
-    const queryParams: Record<string, any> = {}
+    const queryParams: Record<string, string | number | undefined> = {}
     if (params) {
       if (params.page) queryParams.page = params.page
       if (params.limit) queryParams.limit = params.limit

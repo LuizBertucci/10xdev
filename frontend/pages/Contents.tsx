@@ -25,6 +25,7 @@ import { useCardFeatures } from "@/hooks/useCardFeatures"
 import { contentService } from "@/services"
 import { CardType } from "@/types"
 import type { Content } from "@/types/content"
+import type { CreateCardFeatureData } from "@/types/cardfeature"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 
@@ -97,7 +98,7 @@ const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disab
   return true
 })
 
-export default function Contents({ platformState }: ContentsProps) {
+export default function Contents({ platformState: _platformState }: ContentsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -150,7 +151,7 @@ export default function Contents({ platformState }: ContentsProps) {
         } else {
           setTutorialsError(res?.error || "Erro ao carregar tutoriais")
         }
-      } catch (e) {
+      } catch {
         setTutorialsError("Erro ao carregar tutoriais")
       } finally {
         setTutorialsLoading(false)
@@ -230,15 +231,15 @@ export default function Contents({ platformState }: ContentsProps) {
     }
   }, [cardFeatures.goToPage, contentsTab])
 
-  const handleCreatePost = async (data: any) => {
-    const payload = { ...data, card_type: CardType.POST }
-    return await cardFeatures.createCardFeature(payload)
+  const handleCreatePost = async (data: Record<string, unknown>) => {
+    const payload = { ...data, card_type: CardType.POST as const }
+    return await cardFeatures.createCardFeature(payload as CreateCardFeatureData)
   }
 
-  const handleUpdatePost = async (data: any) => {
+  const handleUpdatePost = async (data: Record<string, unknown>) => {
     if (!cardFeatures.editingItem) return null
-    const payload = { ...data, card_type: CardType.POST }
-    return await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, payload)
+    const payload = { ...data, card_type: CardType.POST as const }
+    return await cardFeatures.updateCardFeature(cardFeatures.editingItem.id, payload as Partial<CreateCardFeatureData>)
   }
 
   const handleDelete = (id: string) => {

@@ -144,7 +144,7 @@ export interface CreateCardFeatureData {
  * Dados para atualizar um CardFeature existente
  * Todos os campos são opcionais para updates parciais
  */
-export interface UpdateCardFeatureData extends Partial<CreateCardFeatureData> {}
+export type UpdateCardFeatureData = Partial<CreateCardFeatureData>
 
 export interface GenerateSummaryResponse {
   success: boolean

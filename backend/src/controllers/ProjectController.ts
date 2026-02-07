@@ -4,6 +4,7 @@ import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/mode
 import { GithubService } from '@/services/githubService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest } from '@/types/cardfeature'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
@@ -100,8 +101,8 @@ export class ProjectController {
       let lastProgress = 0
       let totalCardsCreated = 0
       let totalFilesProcessed = 0
-      let isProcessing = true
-      let progressInterval: NodeJS.Timeout | null = null
+      let _isProcessing = true
+      const progressInterval: NodeJS.Timeout | null = null
 
       /** Atualiza job garantindo progresso monotônico (nunca decresce). */
       const updateJob = async (patch: ImportJobUpdate) => {
@@ -128,12 +129,12 @@ export class ProjectController {
               })
             },
             onCardReady: async (card) => {
-              const normalizedCard = {
+              const normalizedCard: CreateCardFeatureRequest = {
                 ...card,
                 visibility: Visibility.UNLISTED,
                 created_in_project_id: projectId
               }
-              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
+              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard], userId)
               if (!createdRes.success || !createdRes.data?.length) {
                 throw new Error(createdRes.error || 'Erro ao criar card')
               }
@@ -146,7 +147,7 @@ export class ProjectController {
           }
         )
 
-        isProcessing = false
+        _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
 
         if (totalCardsCreated === 0 && cards.length === 0) {
@@ -167,12 +168,12 @@ export class ProjectController {
           ai_used: aiUsed,
           ai_cards_created: aiCardsCreated
         })
-      } catch (e: any) {
-        isProcessing = false
+      } catch (e: unknown) {
+        _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
         await ImportJobModel.update(job.id, {
           status: 'error', step: 'error', progress: 100,
-          message: 'Falha ao importar.', error: e?.message || 'Erro desconhecido'
+          message: 'Falha ao importar.', error: e instanceof Error ? e.message : 'Erro desconhecido'
         })
       }
     })
@@ -292,11 +293,11 @@ export class ProjectController {
     // Resolver emails → user IDs
     const resolvedEmailIds: string[] = []
     if (normalizedEmails.length > 0) {
-      const { data: emailUsers } = await executeQuery(
+      const { data: emailUsers } = await executeQuery<{ id: string; email: string }[] | null>(
         supabaseAdmin.from('users').select('id, email').in('email', normalizedEmails)
       )
       const emailMap = new Map<string, string>()
-      emailUsers?.forEach((u: any) => {
+      emailUsers?.forEach((u) => {
         if (u?.email && u?.id) emailMap.set(String(u.email).toLowerCase(), String(u.id))
       })
       normalizedEmails.forEach(email => {
@@ -310,10 +311,10 @@ export class ProjectController {
     const normalizedUserIds = Array.from(new Set(rawUserIds.map(String))).filter(Boolean)
     let validUserIds: string[] = []
     if (normalizedUserIds.length > 0) {
-      const { data: userRows } = await executeQuery(
+      const { data: userRows } = await executeQuery<{ id: string }[] | null>(
         supabaseAdmin.from('users').select('id').in('id', normalizedUserIds)
       )
-      const validIdSet = new Set((userRows || []).map((r: any) => String(r.id)))
+      const validIdSet = new Set((userRows || []).map((r) => String(r.id)))
       validUserIds = normalizedUserIds.filter(uid => validIdSet.has(uid))
       normalizedUserIds.forEach(uid => {
         if (!validIdSet.has(uid)) failed.push({ userIdOrEmail: uid, error: 'user_not_found' })

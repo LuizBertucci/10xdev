@@ -2,7 +2,7 @@
 // API CLIENT - Base HTTP client configuration
 // ================================================
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -18,7 +18,7 @@ export interface ApiError {
   success: false
   error: string
   statusCode?: number
-  details?: any
+  details?: unknown
 }
 
 const TOKEN_REFRESH_SAFETY_WINDOW_MS = 30_000
@@ -51,7 +51,7 @@ class ApiClient {
     }
 
     const envTimeout = typeof process !== 'undefined'
-      ? Number((process.env as any)?.NEXT_PUBLIC_API_TIMEOUT_MS)
+      ? Number(process.env?.NEXT_PUBLIC_API_TIMEOUT_MS)
       : NaN
     this.requestTimeoutMs = Number.isFinite(envTimeout) && envTimeout > 0 ? envTimeout : 15000
   }
@@ -62,8 +62,8 @@ class ApiClient {
 
     try {
       return await fetch(url, { ...init, signal: controller.signal })
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (error instanceof Error && error?.name === 'AbortError') {
         throw {
           success: false,
           error: `Timeout: API não respondeu em ${Math.round(timeoutMs / 1000)}s`,
@@ -76,7 +76,7 @@ class ApiClient {
     }
   }
 
-  private async handleResponse<T>(response: Response, silent = false): Promise<ApiResponse<T> | undefined> {
+  private async handleResponse<T>(response: Response, _silent = false): Promise<ApiResponse<T> | undefined> {
     let data: ApiResponse<T> | undefined
     
     try {
@@ -106,7 +106,7 @@ class ApiClient {
     return data
   }
 
-  private buildURL(endpoint: string, params?: Record<string, any>): string {
+  private buildURL(endpoint: string, params?: Record<string, unknown>): string {
     const baseUrl = this.baseURL.endsWith('/') ? this.baseURL : this.baseURL + '/'
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
     const url = new URL(cleanEndpoint, baseUrl)
@@ -178,11 +178,11 @@ class ApiClient {
   private async request<T>(
     method: string,
     endpoint: string,
-    options?: { data?: any; params?: Record<string, any>; silent?: boolean; isUpload?: boolean }
+    options?: { data?: unknown; params?: Record<string, unknown>; silent?: boolean; isUpload?: boolean }
   ): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint, options?.params)
-      let headers = await this.getHeaders()
+      const headers = await this.getHeaders()
       
       if (options?.isUpload) {
         delete headers['Content-Type']
@@ -204,28 +204,28 @@ class ApiClient {
       throw {
         success: false,
         error: error instanceof Error ? error.message : `Erro na requisição ${method}`,
-        statusCode: (error as any)?.statusCode || 0
+        statusCode: error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 0
       } as ApiError
     }
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T> | undefined> {
+  async get<T>(endpoint: string, params?: Record<string, unknown>): Promise<ApiResponse<T> | undefined> {
     return this.request<T>('GET', endpoint, { params })
   }
 
-  async post<T>(endpoint: string, data?: any, silent = false): Promise<ApiResponse<T> | undefined> {
+  async post<T>(endpoint: string, data?: unknown, silent = false): Promise<ApiResponse<T> | undefined> {
     return this.request<T>('POST', endpoint, { data, silent })
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
+  async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T> | undefined> {
     return this.request<T>('PUT', endpoint, { data })
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
+  async patch<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T> | undefined> {
     return this.request<T>('PATCH', endpoint, { data })
   }
 
-  async delete<T>(endpoint: string, data?: any): Promise<ApiResponse<T> | undefined> {
+  async delete<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T> | undefined> {
     return this.request<T>('DELETE', endpoint, { data })
   }
 

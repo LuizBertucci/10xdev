@@ -45,4 +45,4 @@ export interface CreateTrainingContentData {
 // Alias para compatibilidade
 export type CreateTrainingVideoData = CreateTrainingContentData
 
-export interface UpdateTrainingContentData extends Partial<CreateTrainingContentData> {}
+export type UpdateTrainingContentData = Partial<CreateTrainingContentData>

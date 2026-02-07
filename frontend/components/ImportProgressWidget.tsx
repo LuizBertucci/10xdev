@@ -56,17 +56,17 @@ export default function ImportProgressWidget() {
     const channel = supabase
       .channel(`import_job_global:${active.jobId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'import_jobs', filter: `id=eq.${active.jobId}` }, (payload) => {
-        if ((payload as any).eventType === 'DELETE') {
+        if ((payload as { eventType?: unknown }).eventType === 'DELETE') {
           clearActiveImport(setActive, setJob)
           return
         }
 
-        const row: any = (payload as any).new || null
+        const row: unknown = (payload as { new?: unknown })?.new || null
         if (!row) return
 
         setJob(row as ImportJob)
 
-        const status = row.status as string | undefined
+        const status = (row as { status?: unknown }).status as string | undefined
         if (status && status !== lastStatusRef.current) {
           lastStatusRef.current = status
           if (status === 'done' || status === 'error') {
@@ -95,7 +95,7 @@ export default function ImportProgressWidget() {
     if (!active?.projectId || !active?.jobId) return
     // Mantém compatível com a navegação já usada no app (tab=projects&id=...)
     const query: Record<string, string> = {
-      ...(router.query as any),
+      ...(router.query as Record<string, string>),
       tab: 'projects',
       id: active.projectId,
       jobId: active.jobId

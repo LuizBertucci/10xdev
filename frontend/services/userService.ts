@@ -11,7 +11,7 @@ export interface User {
   avatarUrl: string | null
 }
 
-interface UserSearchParams {
+interface _UserSearchParams {
   q: string
   limit?: number
 }

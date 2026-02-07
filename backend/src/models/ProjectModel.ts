@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin, executeQuery } from '@/database/supabase'
+import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import {
   ProjectMemberRole
@@ -7,18 +7,27 @@ import {
   ApprovalStatus,
   Visibility
 } from '@/types/cardfeature'
-import type { CardFeatureResponse } from '@/types/cardfeature'
+import type { CardFeatureResponse, CardFeatureRow } from '@/types/cardfeature'
+import type { UserResponse } from '@/types/user'
+
+interface CardFeatureRowWithUser extends CardFeatureRow {
+  users?: UserResponse | null
+}
+
+interface ProjectCardRowWithFeature extends ProjectCardRow {
+  card_feature?: CardFeatureRowWithUser
+}
 import type {
   ProjectRow,
   ProjectInsert,
   ProjectUpdate,
   ProjectResponse,
+  ProjectMemberRow,
   ProjectQueryParams,
   ModelResult,
   ModelListResult,
   CreateProjectRequest,
   UpdateProjectRequest,
-  ProjectMemberRow,
   ProjectMemberInsert,
   ProjectMemberUpdate,
   ProjectMemberResponse,
@@ -38,7 +47,7 @@ export class ProjectModel {
       id: row.id,
       name: row.name,
       description: row.description,
-      ...(typeof (row as any).repository_url !== 'undefined' ? { repositoryUrl: (row as any).repository_url } : {}),
+      ...(row.repository_url !== undefined ? { repositoryUrl: row.repository_url } : {}),
       ...(row.category_order !== undefined ? { categoryOrder: row.category_order } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -73,7 +82,7 @@ export class ProjectModel {
     return response
   }
 
-  private static transformCardFeatureToResponse(row: any): CardFeatureResponse {
+  private static transformCardFeatureToResponse(row: CardFeatureRowWithUser): CardFeatureResponse {
     const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
     const approvalStatus =
       row.approval_status ??
@@ -116,13 +125,13 @@ export class ProjectModel {
     // e permissões via middleware antes de executar operações.
     let projectIds: string[] = []
     if (userId) {
-      const { data: members } = await executeQuery(
+      const { data: members } = await executeQuery<{ project_id: string }[] | null>(
         supabaseAdmin
           .from('project_members')
           .select('project_id')
           .eq('user_id', userId)
       )
-      projectIds = members?.map((m: any) => m.project_id).filter((id: any): id is string => id != null) || []
+      projectIds = members?.map((m) => m.project_id).filter((id): id is string => id != null) || []
       if (projectIds.length === 0) {
         return null // Retornar null se não há projetos
       }
@@ -176,7 +185,7 @@ export class ProjectModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<ProjectRow | null>(
         supabaseAdmin
           .from('projects')
           .insert(insertData)
@@ -204,15 +213,20 @@ export class ProjectModel {
           )
       )
 
+      if (!result) {
+        return { success: false, error: 'Falha ao criar projeto', statusCode: 500 }
+      }
+
       return {
         success: true,
         data: this.transformToResponse(result),
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao criar projeto:', error)
-      const errorMessage = error?.message || error?.error?.message || 'Erro interno do servidor'
-      const statusCode = error?.statusCode || error?.code === '42P17' ? 500 : 500
+      const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor'
+      const customError = error as { code?: string; statusCode?: number }
+      const statusCode = customError.statusCode || (customError.code === '42P17' ? 500 : 500)
       
       return {
         success: false,
@@ -231,7 +245,7 @@ export class ProjectModel {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Users can view projects they are members of" verifica project_members,
       // causando recursão quando usamos o cliente público. O backend já valida autenticação.
-      let query = supabaseAdmin
+      const query = supabaseAdmin
         .from('projects')
         .select('*')
         .eq('id', id)
@@ -257,7 +271,7 @@ export class ProjectModel {
         }
       }
 
-      const { data } = await executeQuery(query)
+      const { data } = await executeQuery<ProjectRow | null>(query)
 
       if (!data) {
         return {
@@ -286,10 +300,11 @@ export class ProjectModel {
         data: response,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // PostgREST/Supabase: PGRST116 = single() requested but 0 (or many) rows returned
       // In our case for findById, treat as "not found" instead of surfacing the raw message.
-      if (error?.code === 'PGRST116' || error?.statusCode === 404) {
+      const customError = error as { code?: string; statusCode?: number }
+      if (customError.code === 'PGRST116' || customError.statusCode === 404) {
         return {
           success: false,
           error: 'Projeto não encontrado',
@@ -298,8 +313,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -317,20 +332,22 @@ export class ProjectModel {
         }
       }
 
-      const { data, count } = await executeQuery(query)
+      const { data, count } = await executeQuery<ProjectRow[] | { count: number | null }>(query)
 
-      if (!data || data.length === 0) {
+      if (!data || ('length' in data && data.length === 0)) {
         return {
           success: true,
           data: [],
-          count: 0,
+          count: count ?? 0,
           statusCode: 200
         }
       }
 
+      const rows = Array.isArray(data) ? data : []
+
       // Buscar informações adicionais para cada projeto
       const projectsWithDetails = await Promise.all(
-        data.map(async (row: ProjectRow) => {
+        rows.map(async (row: ProjectRow) => {
           const project = this.transformToResponse(row)
 
           // Buscar contagens em paralelo para otimizar performance
@@ -358,11 +375,11 @@ export class ProjectModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -406,7 +423,7 @@ export class ProjectModel {
         updateData.category_order = data.categoryOrder
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<ProjectRow | null>(
         supabaseAdmin
           .from('projects')
           .update(updateData)
@@ -415,16 +432,20 @@ export class ProjectModel {
           .single()
       )
 
+      if (!result) {
+        return { success: false, error: 'Projeto não encontrado', statusCode: 404 }
+      }
+
       return {
         success: true,
         data: this.transformToResponse(result),
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -449,9 +470,9 @@ export class ProjectModel {
       let cardIds: string[] = []
       let warning: string | undefined
 
-      // Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
+// Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
       if (deleteCards) {
-        const { data: cards } = await executeQuery(
+        const { data: cards } = await executeQuery<{ id: string }[] | null>(
           supabaseAdmin
             .from('card_features')
             .select('id')
@@ -459,7 +480,7 @@ export class ProjectModel {
         )
 
         if (cards && cards.length > 0) {
-          cardIds = cards.map((c: any) => c.id)
+          cardIds = cards.map((c) => c.id)
         }
       }
 
@@ -491,13 +512,14 @@ export class ProjectModel {
             warning = `Falha parcial ao deletar cards: ${cardsDeleted}/${cardIds.length} cards deletados`
             console.warn(`Projeto ${id} deletado, mas apenas ${cardsDeleted} de ${cardIds.length} cards foram deletados`)
           }
-        } catch (cardDeleteError: any) {
+        } catch (cardDeleteError: unknown) {
           // Log detalhado do erro com contexto completo
+          const errorMessage = cardDeleteError instanceof Error ? cardDeleteError.message : 'Erro desconhecido'
           console.error(
-            `Erro ao deletar cards após deletar projeto ${id}: ${cardDeleteError.message}. ` +
+            `Erro ao deletar cards após deletar projeto ${id}: ${errorMessage}. ` +
             `Esperava deletar ${cardIds.length} cards (IDs: ${cardIds.slice(0, 5).join(', ')}${cardIds.length > 5 ? '...' : ''})`
           )
-          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${cardDeleteError.message}`
+          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${errorMessage}`
         }
       }
 
@@ -510,11 +532,11 @@ export class ProjectModel {
         },
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -529,7 +551,7 @@ export class ProjectModel {
       // A policy "Users can view members of their projects" verifica project_members,
       // causando recursão quando usamos o cliente público. O backend já valida permissões.
       // Buscar membros do projeto
-      const { data: membersData, count } = await executeQuery(
+      const { data: membersData, count } = await executeQuery<ProjectMemberRow[] | { count: number | null }>(
         supabaseAdmin
           .from('project_members')
           .select('*', { count: 'exact' })
@@ -537,18 +559,20 @@ export class ProjectModel {
           .order('created_at', { ascending: true })
       )
 
-      if (!membersData || membersData.length === 0) {
+      const rows = Array.isArray(membersData) ? membersData : []
+      
+      if (rows.length === 0) {
         return {
           success: true,
           data: [],
-          count: 0,
+          count: count ?? 0,
           statusCode: 200
         }
       }
 
       // Buscar informações dos usuários separadamente usando Supabase Auth
       const membersWithUsers = await Promise.all(
-        membersData.map(async (row: any) => {
+        rows.map(async (row: ProjectMemberRow) => {
           const member = this.transformMemberToResponse(row)
           
           // Buscar dados do usuário do Supabase Auth
@@ -585,11 +609,11 @@ export class ProjectModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -615,7 +639,7 @@ export class ProjectModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<ProjectMemberRow | null>(
         supabaseAdmin
           .from('project_members')
           .insert(insertData)
@@ -623,13 +647,18 @@ export class ProjectModel {
           .single()
       )
 
+      if (!result) {
+        return { success: false, error: 'Falha ao adicionar membro', statusCode: 500 }
+      }
+
       return {
         success: true,
         data: this.transformMemberToResponse(result),
         statusCode: 201
       }
-    } catch (error: any) {
-      if (error.code === '23505') {
+    } catch (error: unknown) {
+      const customError = error as { code?: string }
+      if (customError.code === '23505') {
         return {
           success: false,
           error: 'Usuário já é membro deste projeto',
@@ -638,8 +667,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -669,7 +698,7 @@ export class ProjectModel {
       }
 
       const uniqueIds = Array.from(new Set(userIds))
-      const { data: existingRows } = await executeQuery(
+      const { data: existingRows } = await executeQuery<{ user_id: string }[] | null>(
         supabaseAdmin
           .from('project_members')
           .select('user_id')
@@ -677,7 +706,7 @@ export class ProjectModel {
           .in('user_id', uniqueIds)
       )
 
-      const existingIds = new Set<string>((existingRows || []).map((row: any) => String(row.user_id)))
+      const existingIds = new Set<string>((existingRows || []).map((row) => String(row.user_id)))
       const toInsert = uniqueIds.filter((userId) => !existingIds.has(userId))
 
       if (toInsert.length === 0) {
@@ -709,8 +738,9 @@ export class ProjectModel {
         data: { insertedIds: toInsert, ignoredIds: Array.from(existingIds) },
         statusCode: 201
       }
-    } catch (error: any) {
-      if (error.code === '23505') {
+    } catch (error: unknown) {
+      const customError = error as { code?: string }
+      if (customError.code === '23505') {
         return {
           success: false,
           error: 'Um ou mais usuários já são membros deste projeto',
@@ -719,8 +749,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -752,7 +782,7 @@ export class ProjectModel {
         updated_at: new Date().toISOString()
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<ProjectMemberRow | null>(
         supabaseAdmin
           .from('project_members')
           .update(updateData)
@@ -762,16 +792,20 @@ export class ProjectModel {
           .single()
       )
 
+      if (!result) {
+        return { success: false, error: 'Membro não encontrado', statusCode: 404 }
+      }
+
       return {
         success: true,
         data: this.transformMemberToResponse(result),
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -815,11 +849,11 @@ export class ProjectModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -869,7 +903,7 @@ export class ProjectModel {
         query = query.range(offsetValue, offsetValue + limit - 1)
       }
       
-      const { data, count } = await executeQuery(query)
+      const { data, count } = await executeQuery<ProjectCardRowWithFeature[] | { count: number | null }>(query)
 
       if (!data) {
         return {
@@ -880,15 +914,17 @@ export class ProjectModel {
         }
       }
 
-      const cards = data.map((row: any) => {
+      const rows = Array.isArray(data) ? data : []
+
+      const cards = rows.map((row: ProjectCardRowWithFeature) => {
         const card = this.transformCardToResponse(row)
         if (row.card_feature) {
           card.cardFeature = {
             id: row.card_feature.id,
             title: row.card_feature.title,
-            tech: row.card_feature.tech,
-            language: row.card_feature.language,
-            description: row.card_feature.description
+            ...(row.card_feature.tech !== undefined && row.card_feature.tech !== null ? { tech: row.card_feature.tech } : {}),
+            ...(row.card_feature.language !== undefined && row.card_feature.language !== null ? { language: row.card_feature.language } : {}),
+            description: row.card_feature.description || ''
           }
         }
         return card
@@ -897,14 +933,14 @@ export class ProjectModel {
       return {
         success: true,
         data: cards,
-        count: count || 0,
+        count: count ?? 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -924,7 +960,7 @@ export class ProjectModel {
         .order('order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
 
-      const { data, count } = await executeQuery(query)
+      const { data, count } = await executeQuery<ProjectCardRowWithFeature[] | { count: number | null }>(query)
 
       if (!data) {
         return {
@@ -935,7 +971,9 @@ export class ProjectModel {
         }
       }
 
-      const cards = data.map((row: any) => {
+      const rows = Array.isArray(data) ? data : []
+
+      const cards = rows.map((row: ProjectCardRowWithFeature) => {
         const card = this.transformCardToResponse(row)
         if (row.card_feature) {
           card.cardFeature = this.transformCardFeatureToResponse(row.card_feature)
@@ -946,14 +984,14 @@ export class ProjectModel {
       return {
         success: true,
         data: cards,
-        count: count || 0,
+        count: count ?? 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -971,7 +1009,7 @@ export class ProjectModel {
       }
 
       // Buscar o maior order atual para definir o novo order
-      const { data: existingCards } = await executeQuery(
+      const { data: existingCards } = await executeQuery<{ order: number }[] | null>(
         supabaseAdmin
           .from('project_cards')
           .select('order')
@@ -980,8 +1018,8 @@ export class ProjectModel {
           .limit(1)
       )
 
-      const maxOrder = existingCards && existingCards.length > 0 && existingCards[0].order !== null 
-        ? existingCards[0].order 
+      const maxOrder = existingCards && existingCards.length > 0 && existingCards[0] !== undefined && existingCards[0].order !== null
+        ? existingCards[0].order
         : -1
       const newOrder = maxOrder + 1
 
@@ -994,7 +1032,7 @@ export class ProjectModel {
         order: newOrder
       }
 
-      const { data: result } = await executeQuery(
+      const { data: result } = await executeQuery<ProjectCardRow | null>(
         supabaseAdmin
           .from('project_cards')
           .insert(insertData)
@@ -1002,13 +1040,18 @@ export class ProjectModel {
           .single()
       )
 
+      if (!result) {
+        return { success: false, error: 'Falha ao adicionar card ao projeto', statusCode: 500 }
+      }
+
       return {
         success: true,
         data: this.transformCardToResponse(result),
         statusCode: 201
       }
-    } catch (error: any) {
-      if (error.code === '23505') {
+    } catch (error: unknown) {
+      const customError = error as { code?: string }
+      if (customError.code === '23505') {
         return {
           success: false,
           error: 'Card já está associado a este projeto',
@@ -1017,8 +1060,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1044,7 +1087,7 @@ export class ProjectModel {
       }
 
       // Buscar o maior order atual para definir o range de orders
-      const { data: existingCards } = await executeQuery(
+      const { data: existingCards } = await executeQuery<{ order: number }[] | null>(
         supabaseAdmin
           .from('project_cards')
           .select('order')
@@ -1054,7 +1097,7 @@ export class ProjectModel {
       )
 
       const maxOrder =
-        existingCards && existingCards.length > 0 && existingCards[0].order !== null
+        existingCards && existingCards.length > 0 && existingCards[0] !== undefined && existingCards[0].order !== null
           ? existingCards[0].order
           : -1
 
@@ -1079,8 +1122,9 @@ export class ProjectModel {
         data: { insertedCount: insertData.length },
         statusCode: 201
       }
-    } catch (error: any) {
-      if (error.code === '23505') {
+    } catch (error: unknown) {
+      const customError = error as { code?: string }
+      if (customError.code === '23505') {
         return {
           success: false,
           error: 'Um ou mais cards já estão associados a este projeto',
@@ -1089,8 +1133,8 @@ export class ProjectModel {
       }
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1116,7 +1160,7 @@ export class ProjectModel {
       )
 
       // Reordenar os cards restantes para manter ordem sequencial
-      const { data: remainingCards } = await executeQuery(
+      const { data: remainingCards } = await executeQuery<{ id: string; order: number | null }[] | null>(
         supabaseAdmin
           .from('project_cards')
           .select('id, order')
@@ -1126,7 +1170,7 @@ export class ProjectModel {
       )
 
       if (remainingCards && remainingCards.length > 0) {
-        const updatePromises = remainingCards.map((card: any, index: number) =>
+        const updatePromises = remainingCards.map((card, index) =>
           executeQuery(
             supabaseAdmin
               .from('project_cards')
@@ -1142,11 +1186,11 @@ export class ProjectModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1164,7 +1208,7 @@ export class ProjectModel {
       }
 
       // Buscar todos os cards do projeto ordenados
-      const { data: allCards } = await executeQuery(
+      const { data: allCards } = await executeQuery<{ id: string; card_feature_id: string; order: number | null }[] | null>(
         supabaseAdmin
           .from('project_cards')
           .select('id, card_feature_id, order')
@@ -1173,7 +1217,9 @@ export class ProjectModel {
           .order('created_at', { ascending: true })
       )
 
-      if (!allCards || allCards.length < 2) {
+      const rows = allCards || []
+
+      if (rows.length < 2) {
         return {
           success: false,
           error: 'Não é possível reordenar com menos de 2 cards',
@@ -1182,7 +1228,7 @@ export class ProjectModel {
       }
 
       // Encontrar o índice do card atual
-      const currentIndex = allCards.findIndex((c: any) => c.card_feature_id === cardFeatureId)
+      const currentIndex = rows.findIndex((c) => c.card_feature_id === cardFeatureId)
       if (currentIndex === -1) {
         return {
           success: false,
@@ -1203,7 +1249,7 @@ export class ProjectModel {
         }
         newIndex = currentIndex - 1
       } else {
-        if (currentIndex === allCards.length - 1) {
+        if (currentIndex === rows.length - 1) {
           return {
             success: false,
             error: 'Card já está na última posição',
@@ -1214,8 +1260,12 @@ export class ProjectModel {
       }
 
       // Trocar as ordens
-      const currentCard = allCards[currentIndex]
-      const targetCard = allCards[newIndex]
+      const currentCard = rows[currentIndex]
+      const targetCard = rows[newIndex]
+
+      if (!currentCard || !targetCard) {
+        return { success: false, error: 'Erro interno', statusCode: 500 }
+      }
 
       // Atualizar ambos os cards
       await executeQuery(
@@ -1237,11 +1287,11 @@ export class ProjectModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -1280,7 +1330,7 @@ export class ProjectModel {
 
   private static async getUserRole(projectId: string, userId: string): Promise<ProjectMemberRole | undefined> {
     try {
-      const { data } = await executeQuery(
+      const { data } = await executeQuery<{ role: string } | null>(
         supabaseAdmin
           .from('project_members')
           .select('role')

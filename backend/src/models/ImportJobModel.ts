@@ -94,7 +94,7 @@ export class ImportJobModel {
   }
 
   static async update(id: string, patch: ImportJobUpdate): Promise<void> {
-    const clean: Record<string, any> = {}
+    const clean: Record<string, unknown> = {}
     for (const [k, v] of Object.entries({ ...patch, updated_at: new Date().toISOString() })) {
       if (v !== undefined) clean[k] = v
     }
@@ -134,13 +134,13 @@ export class ImportJobModel {
     )
 
     if (!Array.isArray(data) || data.length === 0) return null
-    const row: any = data[0]
+    const row = data[0] as Record<string, unknown>
 
     return {
-      id: row.id,
-      progress: Number(row.progress ?? 0),
-      step: row.step,
-      message: row.message ?? null
+      id: row.id as string,
+      progress: Number((row.progress as number | string) ?? 0),
+      step: row.step as ImportJobStep,
+      message: (row.message as string | null) ?? null
     }
   }
 }

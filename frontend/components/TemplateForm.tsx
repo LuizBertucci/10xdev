@@ -130,8 +130,8 @@ export function TemplateForm({ open, mode, template, isAdmin = true, onOpenChang
         description: "",
         file: null
       })
-    } catch (error: any) {
-      toast.error(error?.message || "Erro ao salvar template")
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar template")
     } finally {
       setSaving(false)
     }

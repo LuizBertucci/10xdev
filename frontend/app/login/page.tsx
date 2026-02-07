@@ -53,7 +53,7 @@ export default function LoginPage() {
         // Redirecionar para home (tela inicial - default após login)
         router.push(getDefaultRoute())
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Log apenas em desenvolvimento
       if (process.env.NODE_ENV === 'development') {
         console.error('Erro no login:', error)
