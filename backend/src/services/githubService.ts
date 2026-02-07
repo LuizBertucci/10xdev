@@ -6,6 +6,7 @@ import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
+import { normalizeTag, normalizeTags } from '@/utils/tagNormalization'
 
 // ================================================
 // CONFIGURATION
@@ -622,9 +623,9 @@ export class GithubService {
     tech: string,
     lang: string,
     featureFiles: FeatureFile[],
-    aiOverrides?: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined }
+    aiOverrides?: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined; category?: string; tags?: string[] }
   ): CreateCardFeatureRequest {
-    const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
+    const category = aiOverrides?.category || FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
     return {
       title: aiOverrides ? cleanMarkdown(aiOverrides.title) : this.generateFeatureTitle(featureName, featureFiles),
       description: cleanMarkdown(aiOverrides?.description || this.generateFeatureDescription(featureName, featureFiles)),
@@ -633,7 +634,7 @@ export class GithubService {
       content_type: ContentType.CODE,
       card_type: CardType.CODIGOS,
       category,
-      tags: this.generateAutoTags(featureName, tech),
+      tags: aiOverrides?.tags || this.generateAutoTags(featureName, tech),
       visibility: Visibility.UNLISTED,
       screens
     }
@@ -668,13 +669,26 @@ export class GithubService {
     }
   }
 
-  /** Gera tags automaticas baseadas na feature e tech. */
+  /** Gera tags automaticas baseadas na feature e tech.
+   *  Usa FEATURE_TITLES (portugues) ao inves de keywords cruas para evitar
+   *  duplicatas como "Project"/"Projeto" ou "Card"/"CardFeature". */
   private static generateAutoTags(featureName: string, tech: string): string[] {
     const tags: string[] = []
-    if (featureName && featureName !== 'misc') tags.push(featureName)
-    const keywords = FEATURE_SEMANTIC_MAP[featureName]
-    if (keywords) tags.push(...keywords.slice(0, 3))
-    if (tech && tech !== 'General') tags.push(tech.toLowerCase().replace(/\./g, ''))
+
+    // 1. Nome da feature em portugues (via FEATURE_TITLES) como tag principal
+    const featureTitle = FEATURE_TITLES[featureName]
+    if (featureTitle) {
+      tags.push(featureTitle)
+    } else if (featureName && featureName !== 'misc') {
+      // Feature desconhecida: normalizar ao inves de usar key crua
+      tags.push(normalizeTag(featureName))
+    }
+
+    // 2. Tech principal (manter case original: "React", "Node.js")
+    if (tech && tech !== 'General') {
+      tags.push(tech)
+    }
+
     return [...new Set(tags)].filter(t => t.length > 2)
   }
 
@@ -793,12 +807,19 @@ export class GithubService {
             })
           }
           if (screens.length === 0) continue
-          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, allFeatureFiles, {
+          const aiOverrides: any = {
             title: aiCard.title,
             description: aiCard.description,
             tech: aiCard.tech,
-            language: aiCard.language
-          })
+            language: aiCard.language,
+            category: aiCard.category
+          }
+          if (aiCard.tags && aiCard.tags.length > 0) aiOverrides.tags = aiCard.tags
+          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, allFeatureFiles, aiOverrides)
+          // Se a IA forneceu tags, normalizar para evitar duplicatas EN/PT
+          if (aiCard.tags && aiCard.tags.length > 0) {
+            newCard.tags = normalizeTags(aiCard.tags)
+          }
           const cardWithSummary = this.addSummaryScreen(newCard)
           await emitCard(cardWithSummary)
           aiCardsCreated++
