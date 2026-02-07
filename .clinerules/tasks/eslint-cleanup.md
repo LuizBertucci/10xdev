@@ -59,7 +59,7 @@ Arquivos mais afetados:
 
 ---
 
-## Bloco 3 — `no-explicit-any` (222 erros) 🔄 EM ANDAMENTO
+## Bloco 3 — `no-explicit-any` (216 erros) 🔄 EM ANDAMENTO
 
 O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 
@@ -69,13 +69,14 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 2. **Codigo novo nunca usa `any`** — regra para o Claude/devs
 3. **Resolver por arquivo** em sessoes dedicadas, priorizando por impacto
 
-### 3.2 — Backend (94 erros) — Maior concentracao
+### 3.2 — Backend (88 erros) — Maior concentracao
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
 | `models/CardFeatureModel.ts` | ~45 | alta — core do sistema | ✅ CONCLUIDO (45/45 corrigidos) |
 | `models/ProjectModel.ts` | ~30 | alta — core do sistema | ✅ CONCLUIDO (13/13 corrigidos) |
-| `models/UserModel.ts` | ~15 | media | 🔄 EM ANDAMENTO |
+| `models/UserModel.ts` | ~15 | media | ✅ CONCLUIDO (6/6 corrigidos) |
+| `services/aiCardGroupingService.ts` | ~15 | media | 🔄 EM ANDAMENTO |
 | `models/UserModel.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/aiCardGroupingService.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/githubService.ts` | ~8 | media | ⏳ PENDENTE |
@@ -111,7 +112,8 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 - [x] Habilitar `"@typescript-eslint/no-explicit-any": "error"` nos dois projetos
 - [x] Tipar `models/CardFeatureModel.ts` (backend) — ✅ **CONCLUIDO (45/45 corrigidos)**
 - [x] Tipar `models/ProjectModel.ts` (backend) — ✅ **CONCLUIDO (13/13 corrigidos)**
-- [ ] Tipar `models/UserModel.ts` (backend)
+- [x] Tipar `models/UserModel.ts` (backend) — ✅ **CONCLUIDO (6/6 corrigidos)**
+- [ ] Tipar `services/aiCardGroupingService.ts` (backend)
 - [ ] Tipar `models/UserModel.ts` (backend)
 - [ ] Tipar `services/aiCardGroupingService.ts` (backend)
 - [ ] Tipar `services/githubService.ts` (backend)
