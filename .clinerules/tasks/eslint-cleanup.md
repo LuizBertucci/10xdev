@@ -15,7 +15,7 @@ Excecao: `no-namespace` mantido `"off"` no backend (necessario para declaration 
 
 ---
 
-## Bloco 2 — `no-unused-vars` (77 erros)
+## ~~Bloco 2 — `no-unused-vars` (77 erros)~~ ✅ CONCLUIDO
 
 Limpeza de imports e variaveis que sobraram de refactors. Medio esforco, zero risco funcional.
 
@@ -35,8 +35,8 @@ Arquivos mais afetados:
 | `utils/projectCategories.ts` | 1 | normalizeTag nao usada |
 | Outros | ~25 | espalhados |
 
-- [ ] Limpar imports/vars nao usados no frontend (arquivo por arquivo)
-- [ ] Habilitar regra `"@typescript-eslint/no-unused-vars": "warn"` no frontend
+- [x] Limpar imports/vars nao usados no frontend (arquivo por arquivo)
+- [x] Habilitar regra `"@typescript-eslint/no-unused-vars": "warn"` no frontend
 
 ### 2.2 — Backend (19 erros)
 
@@ -52,58 +52,69 @@ Arquivos mais afetados:
 | `scripts/migrate-to-category-based-grouping.ts` | 1 | normalizeTags |
 | `types/cardfeature.ts` | 2 | imports nao usados |
 
-- [ ] Limpar imports/vars nao usados no backend (arquivo por arquivo)
-- [ ] Habilitar regra `"@typescript-eslint/no-unused-vars": "warn"` no backend
+- [x] Limpar imports/vars nao usados no backend (arquivo por arquivo)
+- [x] Habilitar regra `"@typescript-eslint/no-unused-vars": "warn"` no backend
+
+**Commit**: `3aa647a` — "chore: cleanup de unused-vars e habilitar regras ESLint"
 
 ---
 
-## Bloco 3 — `no-explicit-any` (262 erros)
+## Bloco 3 — `no-explicit-any` (235 erros) 🔄 EM ANDAMENTO
 
-O maior bloco. Resolver tudo de uma vez e inviavel. Estrategia gradual.
+O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 
-### 3.1 — Estrategia proposta
+### 3.1 — Estrategia atual
 
-1. **Habilitar como `"warn"`** nos dois projetos (nao quebra o lint, mas aparece nos relatorios)
+1. **Habilitar como `"error"`** nos dois projetos (decisao do usuario: corrigir agora)
 2. **Codigo novo nunca usa `any`** — regra para o Claude/devs
 3. **Resolver por arquivo** em sessoes dedicadas, priorizando por impacto
 
-### 3.2 — Backend (154 erros) — Maior concentracao
+### 3.2 — Backend (107 erros) — Maior concentracao
 
-| Arquivo | Erros | Prioridade |
-|---|---|---|
-| `models/CardFeatureModel.ts` | ~45 | alta — core do sistema |
-| `models/ProjectModel.ts` | ~30 | alta — core do sistema |
-| `models/UserModel.ts` | ~15 | media |
-| `services/aiCardGroupingService.ts` | ~15 | media |
-| `services/githubService.ts` | ~8 | media |
-| `middleware/controllerHelpers.ts` | 5 | baixa |
-| `middleware/supabaseMiddleware.ts` | 5 | baixa |
-| `middleware/errorHandler.ts` | 4 | baixa |
-| `database/supabase.ts` | 3 | baixa |
-| Outros | ~24 | baixa |
+| Arquivo | Erros | Prioridade | Status |
+|---|---|---|---|
+| `models/CardFeatureModel.ts` | ~45 | alta — core do sistema | ✅ CONCLUIDO (45/45 corrigidos) |
+| `models/ProjectModel.ts` | ~30 | alta — core do sistema | 🔄 EM ANDAMENTO |
+| `models/UserModel.ts` | ~15 | media | ⏳ PENDENTE |
+| `services/aiCardGroupingService.ts` | ~15 | media | ⏳ PENDENTE |
+| `services/githubService.ts` | ~8 | media | ⏳ PENDENTE |
+| `middleware/controllerHelpers.ts` | 5 | baixa | ⏳ PENDENTE |
+| `middleware/supabaseMiddleware.ts` | 5 | baixa | ⏳ PENDENTE |
+| `middleware/errorHandler.ts` | 4 | baixa | ⏳ PENDENTE |
+| `database/supabase.ts` | 3 | baixa | ⏳ PENDENTE |
+| Outros | ~24 | baixa | ⏳ PENDENTE |
 
 ### 3.3 — Frontend (108 erros)
 
-| Arquivo | Erros | Prioridade |
-|---|---|---|
-| `pages/ProjectDetail.tsx` | ~20 | alta |
-| `services/apiClient.ts` | ~14 | alta — base de todos os services |
-| `hooks/useCardFeatures.ts` | ~10 | media |
-| `hooks/useApi.ts` | ~8 | media |
-| `pages/Projects.tsx` | 4 | media |
-| `pages/Contents.tsx` | 2 | baixa |
-| `types/api.ts` | ~8 | media |
-| `utils/macroCategories.ts` | 5 | baixa |
-| Outros | ~37 | baixa |
+| Arquivo | Erros | Prioridade | Status |
+|---|---|---|---|
+| `pages/ProjectDetail.tsx` | ~20 | alta | ⏳ PENDENTE |
+| `services/apiClient.ts` | ~14 | alta — base de todos os services | ⏳ PENDENTE |
+| `hooks/useCardFeatures.ts` | ~10 | media | ⏳ PENDENTE |
+| `hooks/useApi.ts` | ~8 | media | ⏳ PENDENTE |
+| `pages/Projects.tsx` | 4 | media | ⏳ PENDENTE |
+| `pages/Contents.tsx` | 2 | baixa | ⏳ PENDENTE |
+| `types/api.ts` | ~8 | media | ⏳ PENDENTE |
+| `utils/macroCategories.ts` | 5 | baixa | ⏳ PENDENTE |
+| Outros | ~37 | baixa | ⏳ PENDENTE |
 
-### 3.4 — Tarefas
+### 3.4 — Padrões de erro mais comuns
 
-- [ ] Habilitar `"@typescript-eslint/no-explicit-any": "warn"` nos dois projetos
-- [ ] Tipar `models/CardFeatureModel.ts` (backend)
+1. **`catch (error: any)`** → `catch (error: unknown)` + `error instanceof Error ? error.message : ...`
+2. **`(params as any).campo`** → usar o tipo correto em vez de casting
+3. **`(row: any)` em transformToResponse** → `row: CardFeatureRow` ou tipo apropriado
+4. **`map((u: any) => ...)`** → definir tipo: `map((u: { id: string }) => ...)`
+
+### 3.5 — Tarefas
+
+- [x] Habilitar `"@typescript-eslint/no-explicit-any": "error"` nos dois projetos
+- [x] Tipar `models/CardFeatureModel.ts` (backend) — ✅ **CONCLUIDO (45/45 corrigidos)**
 - [ ] Tipar `models/ProjectModel.ts` (backend)
-- [ ] Tipar `services/apiClient.ts` (frontend)
-- [ ] Tipar `pages/ProjectDetail.tsx` (frontend)
-- [ ] Continuar arquivo por arquivo conforme prioridade
+- [ ] Tipar `models/UserModel.ts` (backend)
+- [ ] Tipar `services/aiCardGroupingService.ts` (backend)
+- [ ] Tipar `services/githubService.ts` (backend)
+- [ ] Tipar arquivos restantes do backend por prioridade
+- [ ] Tipar arquivos do frontend por prioridade
 
 ---
 
