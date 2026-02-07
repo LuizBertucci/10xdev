@@ -12,7 +12,8 @@ import type {
   CardFeatureQueryParams,
   ModelResult,
   ModelListResult,
-  CreateCardFeatureRequest
+  CreateCardFeatureRequest,
+  ContentBlock
 } from '@/types/cardfeature'
 
 export class CardFeatureModel {
@@ -20,7 +21,15 @@ export class CardFeatureModel {
   // PRIVATE HELPERS
   // ================================================
 
-  private static transformToResponse(row: any): CardFeatureResponse {
+  private static formatError(error: unknown) {
+    return error instanceof Error ? error.message : 'Erro interno do servidor'
+  }
+
+  private static formatStatus(error: unknown) {
+    return (error as { statusCode?: number }).statusCode || 500
+  }
+
+  private static transformToResponse(row: CardFeatureRow & { users?: { name: string } | null }): CardFeatureResponse {
     // Extrair dados do usuário
     const userData = row.users || null
 
@@ -106,10 +115,10 @@ export class CardFeatureModel {
     }
 
     // Adicionar filtro por approval_status se fornecido nos params
-    if ((params as any).approval_status && (params as any).approval_status !== 'all') {
-      query = query.eq('approval_status', (params as any).approval_status)
+    if (params.approval_status && params.approval_status !== 'all') {
+      query = query.eq('approval_status', params.approval_status)
       // Segurança extra: não-admin não pode listar pendentes de outros usuários
-      if (userRole !== 'admin' && (params as any).approval_status === ApprovalStatus.PENDING && userId) {
+      if (userRole !== 'admin' && params.approval_status === ApprovalStatus.PENDING && userId) {
         query = query.eq('created_by', userId)
       }
     }
@@ -262,11 +271,11 @@ export class CardFeatureModel {
         data: this.transformToResponse({ ...result, users: userData }),
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: this.formatError(error),
+        statusCode: this.formatStatus(error)
       }
     }
   }
@@ -352,11 +361,11 @@ export class CardFeatureModel {
         data: this.transformToResponse({ ...data, users: userData }),
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: this.formatError(error),
+        statusCode: this.formatStatus(error)
       }
     }
   }
@@ -372,7 +381,7 @@ export class CardFeatureModel {
             .select('id')
             .ilike('name', `%${params.search}%`)
         )
-        matchedUserIds = users?.map((u: any) => u.id) || []
+        matchedUserIds = users?.map((u: { id: string }) => u.id) || []
       }
 
       // 2. Buscar IDs dos cards compartilhados com o usuário (se autenticado e não admin)
@@ -385,7 +394,7 @@ export class CardFeatureModel {
               .select('card_feature_id')
               .eq('shared_with_user_id', userId)
           )
-          sharedCardIds = shares?.map((s: any) => s.card_feature_id).filter(Boolean) || []
+          sharedCardIds = shares?.map((s: { card_feature_id: string }) => s.card_feature_id).filter(Boolean) || []
         } catch (error) {
           console.error('Erro ao buscar cards compartilhados:', error)
           // Continuar sem os cards compartilhados em caso de erro
@@ -414,7 +423,7 @@ export class CardFeatureModel {
       }
 
       // 4. Buscar IDs únicos de criadores para enriquecer os dados
-      const creatorIds = [...new Set(data.map((card: any) => card.created_by).filter(Boolean))]
+      const creatorIds = [...new Set(data.map((card: { created_by: string | null }) => card.created_by).filter(Boolean))]
 
       // Buscar dados dos usuários
       const { data: users } = await executeQuery(
@@ -425,10 +434,10 @@ export class CardFeatureModel {
       )
 
       // Criar mapa de usuários por ID
-      const usersMap = new Map(users?.map((u: any) => [u.id, u]) || [])
+      const usersMap = new Map(users?.map((u: { id: string }) => [u.id, u]) || [])
 
       // Transformar cards adicionando dados do autor
-      const transformedData = data?.map((row: any) => {
+      const transformedData = data?.map((row: CardFeatureRow) => {
         const userData = row.created_by ? usersMap.get(row.created_by) : null
         return this.transformToResponse({ ...row, users: userData })
       }) || []
@@ -439,11 +448,11 @@ export class CardFeatureModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: this.formatError(error),
+        statusCode: this.formatStatus(error)
       }
     }
   }
@@ -516,7 +525,7 @@ export class CardFeatureModel {
       const now = new Date().toISOString()
 
       // Sanitizar campos de aprovação para não-admin (somente endpoints de moderação podem mexer)
-      const sanitized: any = { ...data }
+      const sanitized: Partial<CreateCardFeatureRequest> = { ...data }
       if (!isAdmin) {
         delete sanitized.approval_status
         delete sanitized.approval_requested_at
@@ -576,11 +585,11 @@ export class CardFeatureModel {
         data: this.transformToResponse({ ...result, users: userData }),
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
       }
     }
   }
@@ -624,11 +633,11 @@ export class CardFeatureModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
       }
     }
   }
@@ -643,7 +652,7 @@ export class CardFeatureModel {
 
       // Validar existência
       const existing = await this.findById(id, adminId, 'admin')
-      if (!existing.success || !existing.data) return existing as any
+      if (!existing.success || !existing.data) return existing
 
       const { data: result } = await executeQuery(
         supabaseAdmin
@@ -654,7 +663,7 @@ export class CardFeatureModel {
             approved_at: now,
             approved_by: adminId,
             updated_at: now
-          } as any)
+          })
           .eq('id', id)
           .select()
           .single()
@@ -674,8 +683,8 @@ export class CardFeatureModel {
       }
 
       return { success: true, data: this.transformToResponse({ ...result, users: userData }), statusCode: 200 }
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro interno do servidor', statusCode: error.statusCode || 500 }
+    } catch (error: unknown) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro interno do servidor', statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500 }
     }
   }
 
@@ -685,7 +694,7 @@ export class CardFeatureModel {
 
       // Validar existência
       const existing = await this.findById(id, adminId, 'admin')
-      if (!existing.success || !existing.data) return existing as any
+      if (!existing.success || !existing.data) return existing
 
       const { data: result } = await executeQuery(
         supabaseAdmin
@@ -697,7 +706,7 @@ export class CardFeatureModel {
             approved_at: null,
             approved_by: null,
             updated_at: now
-          } as any)
+          })
           .eq('id', id)
           .select()
           .single()
@@ -717,8 +726,8 @@ export class CardFeatureModel {
       }
 
       return { success: true, data: this.transformToResponse({ ...result, users: userData }), statusCode: 200 }
-    } catch (error: any) {
-      return { success: false, error: error.message || 'Erro interno do servidor', statusCode: error.statusCode || 500 }
+    } catch (error: unknown) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erro interno do servidor', statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500 }
     }
   }
 
@@ -774,15 +783,19 @@ export class CardFeatureModel {
       )
 
       // Process counts
-      const byTech = (techData as any)?.reduce((acc: any, item: any) => {
-        acc[item.tech] = (acc[item.tech] || 0) + 1
+      const byTech = (techData as { tech: string | null }[] | null)?.reduce<Record<string, number>>((acc, item) => {
+        if (item.tech) {
+          acc[item.tech] = (acc[item.tech] || 0) + 1
+        }
         return acc
-      }, {} as Record<string, number>) || {}
+      }, {}) || {}
 
-      const byLanguage = (languageData as any)?.reduce((acc: any, item: any) => {
-        acc[item.language] = (acc[item.language] || 0) + 1
+      const byLanguage = (languageData as { language: string | null }[] | null)?.reduce<Record<string, number>>((acc, item) => {
+        if (item.language) {
+          acc[item.language] = (acc[item.language] || 0) + 1
+        }
         return acc
-      }, {} as Record<string, number>) || {}
+      }, {}) || {}
 
       return {
         success: true,
@@ -794,11 +807,11 @@ export class CardFeatureModel {
         },
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
       }
     }
   }
@@ -816,7 +829,7 @@ export class CardFeatureModel {
         // Processar screens para adicionar IDs e order aos blocos (mesma regra do create)
         const processedScreens = (item.screens || []).map(screen => ({
           ...screen,
-          blocks: (screen.blocks || []).map((block: any, index: number) => ({
+          blocks: (screen.blocks || []).map((block: ContentBlock, index: number) => ({
             ...block,
             id: randomUUID(),
             order: block.order || index
@@ -882,7 +895,7 @@ export class CardFeatureModel {
           .select()
       )
 
-      const transformedData = data?.map((row: any) => this.transformToResponse(row)) || []
+      const transformedData = data?.map((row: CardFeatureRow) => this.transformToResponse(row)) || []
 
       return {
         success: true,
@@ -890,11 +903,11 @@ export class CardFeatureModel {
         count: transformedData.length,
         statusCode: 201
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
       }
     }
   }
@@ -913,11 +926,11 @@ export class CardFeatureModel {
         data: { deletedCount: count || 0 },
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
       }
     }
   }
@@ -933,7 +946,7 @@ export class CardFeatureModel {
           .eq('created_by', userId)
       )
 
-      const ownedIds = ownedCards?.map((c: any) => c.id) || []
+      const ownedIds = ownedCards?.map((c: { id: string }) => c.id) || []
 
       if (ownedIds.length === 0) {
         return {
@@ -956,11 +969,11 @@ export class CardFeatureModel {
         data: { deletedCount: count || 0 },
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: error.message || 'Erro interno do servidor',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
       }
     }
   }
@@ -977,7 +990,7 @@ export class CardFeatureModel {
     cardId: string, 
     userIds: string[], 
     ownerId: string
-  ): Promise<ModelResult<any>> {
+  ): Promise<ModelResult<Record<string, unknown>>> {
     try {
       // 1. Verificar se o card existe e é privado
       const { data: card, error: cardError } = await executeQuery(
@@ -1062,7 +1075,7 @@ export class CardFeatureModel {
         data: { sharedWith: insertedShares?.length ?? 0 },
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no CardFeatureModel.shareWithUsers:', error)
       return {
         success: false,
@@ -1130,7 +1143,7 @@ export class CardFeatureModel {
         data: null,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no CardFeatureModel.unshareWithUser:', error)
       return {
         success: false,
@@ -1143,7 +1156,7 @@ export class CardFeatureModel {
   /**
    * Lista todos os usuários com quem o card está compartilhado
    */
-  static async getSharedUsers(cardId: string, ownerId: string): Promise<ModelResult<any[]>> {
+  static async getSharedUsers(cardId: string, ownerId: string): Promise<ModelResult<Record<string, unknown>[]>> {
     try {
       // 1. Verificar se o card existe e pertence ao owner
       const { data: card, error: cardError } = await executeQuery(
@@ -1217,7 +1230,7 @@ export class CardFeatureModel {
         data: users,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no CardFeatureModel.getSharedUsers:', error)
       return {
         success: false,
