@@ -373,9 +373,17 @@ export class ProjectModel {
 
   static async update(id: string, data: UpdateProjectRequest, userId: string): Promise<ModelResult<ProjectResponse>> {
     try {
-      // Verificar permissão (owner ou admin)
       const role = await this.getUserRole(id, userId)
-      if (!role || (role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN)) {
+      // categoryOrder pode ser atualizado por qualquer membro; name/description exigem owner ou admin
+      const isOnlyCategoryOrder = data.categoryOrder !== undefined && data.name === undefined && data.description === undefined
+      if (!role) {
+        return {
+          success: false,
+          error: 'Você não tem permissão para atualizar este projeto',
+          statusCode: 403
+        }
+      }
+      if (!isOnlyCategoryOrder && role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN) {
         return {
           success: false,
           error: 'Você não tem permissão para atualizar este projeto',
@@ -588,9 +596,9 @@ export class ProjectModel {
 
   static async addMember(projectId: string, memberData: AddProjectMemberRequest, userId: string): Promise<ModelResult<ProjectMemberResponse>> {
     try {
-      // Verificar permissão (owner ou admin)
+      // Qualquer membro do projeto pode adicionar novos membros
       const role = await this.getUserRole(projectId, userId)
-      if (!role || (role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN)) {
+      if (!role) {
         return {
           success: false,
           error: 'Você não tem permissão para adicionar membros',
@@ -642,8 +650,9 @@ export class ProjectModel {
     requesterId: string
   ): Promise<ModelResult<{ insertedIds: string[]; ignoredIds: string[] }>> {
     try {
+      // Qualquer membro do projeto pode adicionar novos membros
       const role = await this.getUserRole(projectId, requesterId)
-      if (!role || (role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN)) {
+      if (!role) {
         return {
           success: false,
           error: 'Você não tem permissão para adicionar membros',

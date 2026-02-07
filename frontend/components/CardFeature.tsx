@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,28 +23,21 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
-  const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
   const techValue = snippet.tech ?? "Geral"
   const languageValue = snippet.language ?? "text"
   const isOwner = user?.id === snippet.createdBy
   const canEdit = isOwner
 
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (!user || !snippet.id) return
-      try {
-        const response = await cardFeatureService.checkAccess(snippet.id)
-        if (response.success && response.data) {
-          setAccessInfo(response.data)
-        }
-      } catch (error) {
-        console.error('Erro ao verificar acesso:', error)
-        setAccessInfo(null)
-      }
+  // Cálculo local de acesso (evita chamada individual GET /access por card)
+  const accessInfo = useMemo(() => {
+    if (!user) return null
+    return {
+      canGenerate: user.role === 'admin',
+      isOwner: user.id === snippet.createdBy,
+      isAdmin: user.role === 'admin'
     }
-    checkAccess()
-  }, [user, snippet.id])
+  }, [user, snippet.createdBy])
 
   const handleGenerateSummary = useCallback(async () => {
     if (!accessInfo?.canGenerate || isGeneratingSummary) return

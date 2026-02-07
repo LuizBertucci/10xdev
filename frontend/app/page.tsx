@@ -1,7 +1,7 @@
 "use client"
 
 
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { usePlatform } from "@/hooks/use-platform"
 import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
@@ -60,17 +60,6 @@ export default function DevPlatform() {
         <AppSidebar platformState={platformState} />
         <SidebarInset>
           <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 overflow-x-hidden">
-            {/* Header */}
-            <header className="bg-white shadow-sm border-b">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                  <div className="flex items-center space-x-4">
-                    <SidebarTrigger />
-                  </div>
-                </div>
-              </div>
-            </header>
-
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
               {/* Só monta abas já visitadas; ocultar com CSS evita piscar ao trocar (sidebar, botões, painel). */}
               {visitedTabs.has("home") && (

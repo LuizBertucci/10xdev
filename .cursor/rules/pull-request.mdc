@@ -1,0 +1,50 @@
+---
+description: Padrão para criação de Pull Requests via gh CLI
+alwaysApply: true
+---
+
+# Pull Request Workflow
+
+Quando o usuário pedir para criar um PR, siga este formato:
+
+## 1. Analisar commits da branch
+
+- Rode `git log --oneline main..HEAD` para listar todos os commits incluídos
+- Rode `git diff main...HEAD --stat` para ver arquivos alterados
+
+## 2. Montar o PR com o formato padrão
+
+```bash
+gh pr create --title "título descritivo do PR" --body "$(cat <<'EOF'
+## Summary
+
+- Ponto 1 descrevendo a alteração principal
+- Ponto 2 descrevendo outra alteração
+- Ponto N...
+
+## Commits incluídos
+
+- `hash1` descrição do commit 1
+- `hash2` descrição do commit 2
+- `hashN` descrição do commit N
+
+EOF
+)"
+```
+
+## Regras do Summary
+
+- Cada bullet resume **uma alteração lógica** (não repita o título do commit)
+- Foque no **o quê**, **por quê** e **como** foi feito
+- Em **português**
+
+## Regras do título
+
+- Em português, descritivo, sem ponto final
+- Prefixe com o tema se fizer sentido (ex: "Sidebar, categorias e performance de cards")
+
+## Regras gerais
+
+- Sempre faça push da branch antes de criar o PR
+- Base branch padrão: `main` (a menos que o usuário diga outra)
+- Ofereça criar o PR logo após o push

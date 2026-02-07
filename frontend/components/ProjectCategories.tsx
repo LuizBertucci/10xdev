@@ -31,19 +31,19 @@ function CategoryItem({ category, count, isActive, onSelect }: CategoryItemProps
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm text-left transition-colors border ${
+      className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm text-left transition-all duration-150 ${
         isActive
-          ? "bg-blue-50 text-blue-700 border-blue-400 shadow-sm"
-          : "border-gray-200 text-gray-700 hover:bg-gray-50"
+          ? "bg-blue-50 text-blue-700 shadow-sm"
+          : "text-gray-600 hover:bg-blue-50/50"
       }`}
     >
       <span className="flex items-center gap-2 min-w-0 flex-1">
-        <Tag className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
-        <span className="truncate">{category}</span>
+        <Tag className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? "text-blue-500" : "text-gray-400"}`} />
+        <span className="truncate capitalize">{category}</span>
       </span>
       <span
-        className={`text-xs rounded-full px-2 py-0.5 border flex-shrink-0 ${
-          isActive ? "border-blue-200 text-blue-700 bg-blue-50" : "border-gray-200 text-gray-500 bg-white"
+        className={`text-xs font-medium tabular-nums flex-shrink-0 ${
+          isActive ? "text-blue-600" : "text-gray-400"
         }`}
       >
         {count}
@@ -74,27 +74,27 @@ function SortableCategoryItem({ category, count, isActive, onSelect }: CategoryI
       style={style}
       type="button"
       onClick={onSelect}
-      className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm text-left transition-colors border ${
+      className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm text-left transition-all duration-150 ${
         isActive
-          ? "bg-blue-50 text-blue-700 border-blue-400 shadow-sm"
-          : "border-gray-200 text-gray-700 hover:bg-gray-50"
-      } ${isDragging ? "cursor-grabbing" : "cursor-pointer"}`}
+          ? "bg-blue-50 text-blue-700 shadow-sm"
+          : "text-gray-600 hover:bg-blue-50/50"
+      } ${isDragging ? "cursor-grabbing shadow-md ring-1 ring-blue-300" : "cursor-pointer"}`}
     >
       <span className="flex items-center gap-2 min-w-0 flex-1">
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1 -mr-1 hover:bg-gray-100 rounded"
+          className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1 -mr-1 hover:bg-blue-100/50 rounded"
           onClick={(event) => event.stopPropagation()}
         >
-          <GripVertical className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
+          <GripVertical className={`h-4 w-4 ${isActive ? "text-blue-500" : "text-gray-400"}`} />
         </div>
-        <Tag className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
-        <span className="truncate">{category}</span>
+        <Tag className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? "text-blue-500" : "text-gray-400"}`} />
+        <span className="truncate capitalize">{category}</span>
       </span>
       <span
-        className={`text-xs rounded-full px-2 py-0.5 border flex-shrink-0 ${
-          isActive ? "border-blue-200 text-blue-700 bg-blue-50" : "border-gray-200 text-gray-500 bg-white"
+        className={`text-xs font-medium tabular-nums flex-shrink-0 ${
+          isActive ? "text-blue-600" : "text-gray-400"
         }`}
       >
         {count}
@@ -118,7 +118,7 @@ export function ProjectCategories({
   onOrderChange,
   className,
 }: ProjectCategoriesProps) {
-  const containerClassName = ["border rounded-lg p-3 space-y-2", className].filter(Boolean).join(" ")
+  const containerClassName = ["border border-blue-200/60 rounded-xl bg-white/80 backdrop-blur-sm p-3 space-y-1.5 shadow-lg overflow-y-auto scrollbar-slim", className].filter(Boolean).join(" ")
   const resolveCount = (value: number | unknown[] | undefined) => {
     if (Array.isArray(value)) return value.length
     if (typeof value === "number") return value

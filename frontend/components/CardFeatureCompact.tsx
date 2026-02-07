@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -43,7 +43,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
-  const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
   // Estado local para screens - permite atualização imediata após gerar resumo
   const [localScreens, setLocalScreens] = useState(snippet.screens)
   // Force refresh para garantir re-render após gerar resumo
@@ -64,27 +63,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     : 'https://10xdev.com.br'
   const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
 
-  // Verificar acesso para mostrar botão de gerar resumo
-  useEffect(() => {
-    const checkAccess = async () => {
-    if (!user || !snippet.id) {
-      setAccessInfo(null)
-      return
+  // Cálculo local de acesso (evita chamada individual GET /access por card)
+  const accessInfo = useMemo(() => {
+    if (!user) return null
+    return {
+      canGenerate: user.role === 'admin',
+      isOwner: snippet.createdBy === user.id,
+      isAdmin: user.role === 'admin'
     }
-      
-      try {
-        const response = await cardFeatureService.checkAccess(snippet.id)
-        if (response.success && response.data) {
-          setAccessInfo(response.data)
-        }
-      } catch (error) {
-        console.error('Erro ao verificar acesso:', error)
-        setAccessInfo(null)
-      }
-    }
-    
-    checkAccess()
-  }, [user, snippet.id])
+  }, [user, snippet.createdBy])
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {

@@ -116,10 +116,13 @@ export const supabaseMiddleware = async (
         'Usuário'
       const role = isAdminEmail(email) ? 'admin' : 'user'
 
+      const avatarUrl = user.user_metadata?.avatar_url || null
+
       const defaultUserData = {
         id: user.id,
         email: email,
         name: name,
+        avatar_url: avatarUrl,
         role,
         status: 'active',
         created_at: new Date().toISOString(),
@@ -145,7 +148,7 @@ export const supabaseMiddleware = async (
           name: name,
           role,
           status: 'active',
-          avatar_url: null
+          avatar_url: avatarUrl
         }
       } catch (upsertError: any) {
         console.error('Erro ao criar perfil padrão:', upsertError.message)
@@ -157,8 +160,39 @@ export const supabaseMiddleware = async (
           name: name,
           role,
           status: 'active',
-          avatar_url: null
+          avatar_url: avatarUrl
         }
+      }
+    }
+
+    // Sincronizar avatar_url e name do Auth → tabela users (se mudou)
+    const authAvatarUrl = user.user_metadata?.avatar_url || null
+    const authName = user.user_metadata?.name || user.user_metadata?.full_name || null
+    // Only sync name when Auth actually provides one; skip when authName is null
+    // to avoid overwriting the local fallback (email prefix / 'Usuário').
+    const needsSync =
+      (authAvatarUrl !== userProfile.avatar_url) ||
+      (authName !== null && authName !== userProfile.name)
+
+    if (needsSync) {
+      try {
+        const syncData: Record<string, string | null> = { updated_at: new Date().toISOString() }
+        if (authAvatarUrl !== userProfile.avatar_url) {
+          syncData.avatar_url = authAvatarUrl
+          userProfile.avatar_url = authAvatarUrl
+        }
+        if (authName !== null && authName !== userProfile.name) {
+          syncData.name = authName
+          userProfile.name = authName
+        }
+        await executeQuery(
+          supabaseAdmin
+            .from('users')
+            .update(syncData)
+            .eq('id', userProfile.id)
+        )
+      } catch (err: any) {
+        console.error('Erro ao sincronizar perfil do Auth:', err.message)
       }
     }
 
