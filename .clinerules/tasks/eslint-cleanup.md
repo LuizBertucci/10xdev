@@ -59,7 +59,7 @@ Arquivos mais afetados:
 
 ---
 
-## Bloco 3 — `no-explicit-any` (203 erros) 🔄 EM ANDAMENTO
+## Bloco 3 — `no-explicit-any` (198 erros) 🔄 EM ANDAMENTO
 
 O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 
@@ -69,7 +69,7 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 2. **Codigo novo nunca usa `any`** — regra para o Claude/devs
 3. **Resolver por arquivo** em sessoes dedicadas, priorizando por impacto
 
-### 3.2 — Backend (75 erros) — Maior concentracao
+### 3.2 — Backend (72 erros) — Maior concentracao
 
 | Arquivo | Erros | Prioridade | Status |
 |---|---|---|---|
@@ -77,7 +77,8 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 | `models/ProjectModel.ts` | ~30 | alta — core do sistema | ✅ CONCLUIDO (13/13 corrigidos) |
 | `models/UserModel.ts` | ~15 | media | ✅ CONCLUIDO (6/6 corrigidos) |
 | `services/aiCardGroupingService.ts` | ~15 | media | ✅ CONCLUIDO (13/13 corrigidos) |
-| `services/githubService.ts` | ~8 | media | 🔄 EM ANDAMENTO |
+| `services/githubService.ts` | ~8 | media | ✅ CONCLUIDO (5/5 corrigidos) |
+| `middleware/controllerHelpers.ts` | 5 | baixa | 🔄 EM ANDAMENTO |
 | `models/UserModel.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/aiCardGroupingService.ts` | ~15 | media | ⏳ PENDENTE |
 | `services/githubService.ts` | ~8 | media | ⏳ PENDENTE |
@@ -115,7 +116,8 @@ O maior bloco. Estrategia: um arquivo por vez, erro por erro.
 - [x] Tipar `models/ProjectModel.ts` (backend) — ✅ **CONCLUIDO (13/13 corrigidos)**
 - [x] Tipar `models/UserModel.ts` (backend) — ✅ **CONCLUIDO (6/6 corrigidos)**
 - [x] Tipar `services/aiCardGroupingService.ts` (backend) — ✅ **CONCLUIDO (13/13 corrigidos)**
-- [ ] Tipar `services/githubService.ts` (backend)
+- [x] Tipar `services/githubService.ts` (backend) — ✅ **CONCLUIDO (5/5 corrigidos)**
+- [ ] Tipar `middleware/controllerHelpers.ts` (backend)
 - [ ] Tipar `models/UserModel.ts` (backend)
 - [ ] Tipar `services/aiCardGroupingService.ts` (backend)
 - [ ] Tipar `services/githubService.ts` (backend)
