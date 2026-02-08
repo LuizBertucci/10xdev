@@ -899,4 +899,268 @@ export class GithubService {
 
     return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
   }
+
+  // ================================================
+  // GITHUB APP - Authentication & API
+  // ================================================
+
+  /** Gera JWT assinado com a private key do GitHub App.
+   *  Valido por 10 minutos. Usado para obter installation tokens. */
+  static generateAppJWT(): string {
+    const jwt = require('jsonwebtoken') as typeof import('jsonwebtoken')
+    const fs = require('fs')
+    const path = require('path')
+
+    const appId = process.env.GITHUB_APP_ID
+    const privateKeyPath = process.env.GITHUB_PRIVATE_KEY_PATH
+
+    if (!appId || !privateKeyPath) {
+      throw new Error('GITHUB_APP_ID e GITHUB_PRIVATE_KEY_PATH devem estar configurados no .env')
+    }
+
+    const resolvedPath = path.resolve(process.cwd(), privateKeyPath)
+    const privateKey = fs.readFileSync(resolvedPath, 'utf8')
+
+    const now = Math.floor(Date.now() / 1000)
+    const payload = {
+      iat: now - 60, // Issued at (60s no passado para clock drift)
+      exp: now + (10 * 60), // Expira em 10 minutos
+      iss: appId
+    }
+
+    return jwt.sign(payload, privateKey, { algorithm: 'RS256' })
+  }
+
+  /** Obtém um installation access token para um installation_id.
+   *  Valido por 1 hora. Permite operacoes no repo. */
+  static async getInstallationToken(installationId: number): Promise<string> {
+    const jwt = this.generateAppJWT()
+
+    const response = await axios.post(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28'
+        }
+      }
+    )
+
+    return response.data.token
+  }
+
+  /** Lista repositorios que o App tem acesso via installation_id */
+  static async listInstallationRepos(installationId: number): Promise<any[]> {
+    const token = await this.getInstallationToken(installationId)
+
+    const repos: any[] = []
+    let page = 1
+    const perPage = 100
+
+    while (true) {
+      const response = await axios.get(
+        'https://api.github.com/installation/repositories',
+        {
+          params: { per_page: perPage, page },
+          headers: {
+            Authorization: `token ${token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28'
+          }
+        }
+      )
+
+      const data = response.data
+      repos.push(...(data.repositories || []))
+
+      if (repos.length >= data.total_count || (data.repositories || []).length < perPage) {
+        break
+      }
+      page++
+    }
+
+    return repos.map(r => ({
+      id: r.id,
+      name: r.name,
+      full_name: r.full_name,
+      description: r.description,
+      private: r.private,
+      language: r.language,
+      default_branch: r.default_branch,
+      html_url: r.html_url,
+      owner: {
+        login: r.owner.login,
+        avatar_url: r.owner.avatar_url
+      }
+    }))
+  }
+
+  /** Obtem SHA do ultimo commit de uma branch */
+  static async getLatestCommitSha(
+    token: string, owner: string, repo: string, branch: string
+  ): Promise<string> {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`,
+      { headers: this.getHeaders(token) }
+    )
+    return response.data.object.sha
+  }
+
+  /** Obtem conteudo de um arquivo do repo */
+  static async getFileContent(
+    token: string, owner: string, repo: string, filePath: string, ref?: string
+  ): Promise<{ content: string; sha: string }> {
+    const params: any = {}
+    if (ref) params.ref = ref
+
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
+      { headers: this.getHeaders(token), params }
+    )
+
+    const content = Buffer.from(response.data.content, 'base64').toString('utf8')
+    return { content, sha: response.data.sha }
+  }
+
+  /** Lista arquivos alterados entre dois commits */
+  static async getCommitDiff(
+    token: string, owner: string, repo: string, baseSha: string, headSha: string
+  ): Promise<Array<{ filename: string; status: string; additions: number; deletions: number }>> {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/compare/${baseSha}...${headSha}`,
+      { headers: this.getHeaders(token) }
+    )
+
+    return (response.data.files || []).map((f: any) => ({
+      filename: f.filename,
+      status: f.status, // added, removed, modified, renamed
+      additions: f.additions,
+      deletions: f.deletions
+    }))
+  }
+
+  /** Cria uma branch a partir de um SHA */
+  static async createBranch(
+    token: string, owner: string, repo: string, branchName: string, fromSha: string
+  ): Promise<void> {
+    await axios.post(
+      `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+      { ref: `refs/heads/${branchName}`, sha: fromSha },
+      { headers: this.getHeaders(token) }
+    )
+  }
+
+  /** Atualiza (ou cria) conteudo de um arquivo no repo */
+  static async updateFileContent(
+    token: string, owner: string, repo: string,
+    filePath: string, content: string, message: string, fileSha: string, branch: string
+  ): Promise<{ sha: string }> {
+    const encoded = Buffer.from(content, 'utf8').toString('base64')
+
+    const response = await axios.put(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
+      { message, content: encoded, sha: fileSha, branch },
+      { headers: this.getHeaders(token) }
+    )
+
+    return { sha: response.data.content.sha }
+  }
+
+  /** Cria um Pull Request */
+  static async createPullRequest(
+    token: string, owner: string, repo: string,
+    options: { title: string; head: string; base: string; body: string }
+  ): Promise<{ number: number; url: string; html_url: string }> {
+    const response = await axios.post(
+      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+      {
+        title: options.title,
+        head: options.head,
+        base: options.base,
+        body: options.body
+      },
+      { headers: this.getHeaders(token) }
+    )
+
+    return {
+      number: response.data.number,
+      url: response.data.url,
+      html_url: response.data.html_url
+    }
+  }
+
+  /** Troca authorization code por user access token (OAuth do GitHub App) */
+  static async exchangeCodeForToken(code: string): Promise<{
+    access_token: string
+    token_type: string
+    scope: string
+  }> {
+    const clientId = process.env.GITHUB_CLIENT_ID
+    const clientSecret = process.env.GITHUB_CLIENT_SECRET
+
+    if (!clientId || !clientSecret) {
+      throw new Error('GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET devem estar configurados no .env')
+    }
+
+    const response = await axios.post(
+      'https://github.com/login/oauth/access_token',
+      {
+        client_id: clientId,
+        client_secret: clientSecret,
+        code
+      },
+      {
+        headers: { Accept: 'application/json' }
+      }
+    )
+
+    if (response.data.error) {
+      throw new Error(`GitHub OAuth error: ${response.data.error_description || response.data.error}`)
+    }
+
+    return response.data
+  }
+
+  /** Busca installations do usuario autenticado via user access token */
+  static async getUserInstallations(userAccessToken: string): Promise<Array<{
+    id: number
+    account: { login: string; avatar_url: string }
+    app_id: number
+  }>> {
+    const response = await axios.get(
+      'https://api.github.com/user/installations',
+      {
+        headers: {
+          Authorization: `token ${userAccessToken}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28'
+        }
+      }
+    )
+
+    return response.data.installations || []
+  }
+
+  /** Verifica assinatura HMAC SHA-256 do webhook do GitHub */
+  static verifyWebhookSignature(payload: Buffer, signature: string): boolean {
+    const crypto = require('crypto')
+    const secret = process.env.GITHUB_WEBHOOK_SECRET
+
+    if (!secret) {
+      console.error('GITHUB_WEBHOOK_SECRET não configurado')
+      return false
+    }
+
+    const expectedSignature = 'sha256=' + crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex')
+
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    )
+  }
 }

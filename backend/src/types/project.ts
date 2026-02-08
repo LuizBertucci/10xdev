@@ -17,6 +17,14 @@ export interface ProjectRow {
   created_at: string
   updated_at: string
   created_by: string
+  // GitSync fields
+  github_installation_id?: number | null
+  github_owner?: string | null
+  github_repo?: string | null
+  default_branch?: string | null
+  gitsync_active?: boolean
+  last_sync_at?: string | null
+  last_sync_sha?: string | null
 }
 
 export interface ProjectInsert {
@@ -107,6 +115,14 @@ export interface ProjectResponse {
   cardCount?: number
   cardsCreatedCount?: number // Número de cards criados neste projeto (para deleção)
   userRole?: ProjectMemberRole
+  // GitSync fields
+  githubInstallationId?: number | null
+  githubOwner?: string | null
+  githubRepo?: string | null
+  defaultBranch?: string | null
+  gitsyncActive?: boolean
+  lastSyncAt?: string | null
+  lastSyncSha?: string | null
 }
 
 export interface ProjectMemberResponse {
@@ -234,4 +250,130 @@ export interface ValidateGithubTokenRequest {
 export interface ValidateGithubTokenResponse {
   valid: boolean
   message?: string
+}
+
+// ================================================
+// GITSYNC TYPES
+// ================================================
+
+export interface GitSyncProjectFields {
+  github_installation_id?: number | null
+  github_owner?: string | null
+  github_repo?: string | null
+  default_branch?: string | null
+  gitsync_active?: boolean
+  last_sync_at?: string | null
+  last_sync_sha?: string | null
+}
+
+export interface GitSyncFileMappingRow {
+  id: string
+  project_id: string
+  card_feature_id: string
+  file_path: string
+  branch_name: string
+  last_commit_sha: string | null
+  last_synced_at: string | null
+  card_modified_at: string | null
+  last_pr_number: number | null
+  last_pr_url: string | null
+  last_pr_state: string | null
+  created_at: string
+}
+
+export interface GitSyncFileMappingInsert {
+  id?: string
+  project_id: string
+  card_feature_id: string
+  file_path: string
+  branch_name?: string
+  last_commit_sha?: string | null
+  last_synced_at?: string | null
+  card_modified_at?: string | null
+}
+
+export interface GitSyncFileMappingUpdate {
+  last_commit_sha?: string | null
+  last_synced_at?: string | null
+  card_modified_at?: string | null
+  last_pr_number?: number | null
+  last_pr_url?: string | null
+  last_pr_state?: string | null
+}
+
+export interface ConnectRepoRequest {
+  installationId: number
+  owner: string
+  repo: string
+  defaultBranch?: string
+}
+
+export interface SyncStatusResponse {
+  active: boolean
+  lastSyncAt: string | null
+  lastSyncSha: string | null
+  githubOwner: string | null
+  githubRepo: string | null
+  defaultBranch: string | null
+  conflicts: number
+  totalMappings: number
+}
+
+export interface ResolveConflictRequest {
+  fileMappingId: string
+  resolution: 'keep_card' | 'keep_github'
+}
+
+export interface GithubAppRepo {
+  id: number
+  name: string
+  full_name: string
+  description: string | null
+  private: boolean
+  language: string | null
+  default_branch: string
+  html_url: string
+  owner: {
+    login: string
+    avatar_url: string
+  }
+}
+
+export interface GithubWebhookPushPayload {
+  ref: string
+  before: string
+  after: string
+  commits: Array<{
+    id: string
+    message: string
+    added: string[]
+    removed: string[]
+    modified: string[]
+  }>
+  repository: {
+    name: string
+    full_name: string
+    owner: {
+      login: string
+      name: string
+    }
+  }
+  installation?: {
+    id: number
+  }
+}
+
+export interface GithubWebhookInstallationPayload {
+  action: 'created' | 'deleted' | 'suspend' | 'unsuspend'
+  installation: {
+    id: number
+    account: {
+      login: string
+    }
+  }
+  repositories?: Array<{
+    id: number
+    name: string
+    full_name: string
+  }>
 }
