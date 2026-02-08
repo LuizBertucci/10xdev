@@ -15,22 +15,66 @@ export default function ImportGithubTokenPage() {
 
   useEffect(() => {
     const token = searchParams?.get('token')
-    const repoUrl = sessionStorage.getItem('pending_github_import_url')
+    const accessToken = searchParams?.get('access_token')
+    const installationId = searchParams?.get('installation_id')
+    const errorParam = searchParams?.get('error')
 
-    if (!token) {
-      setStatus('error')
-      setMessage('Nenhum token foi detectado. Tente novamente.')
+    // GitHub App OAuth callback (access_token + installation_id via backend redirect)
+    if (accessToken || installationId) {
+      handleGitSyncCallback(accessToken, installationId)
       return
     }
 
-    if (!repoUrl) {
+    // Error from backend OAuth callback
+    if (errorParam) {
       setStatus('error')
-      setMessage('URL do repositório não encontrada. Tente novamente.')
+      setMessage(decodeURIComponent(errorParam))
       return
     }
 
-    validateAndPrepare(token, repoUrl)
+    // Legacy PAT token flow
+    if (token) {
+      const repoUrl = sessionStorage.getItem('pending_github_import_url')
+      if (!repoUrl) {
+        setStatus('error')
+        setMessage('URL do repositório não encontrada. Tente novamente.')
+        return
+      }
+      validateAndPrepare(token, repoUrl)
+      return
+    }
+
+    setStatus('error')
+    setMessage('Nenhum token ou código de autorização detectado. Tente novamente.')
   }, [searchParams])
+
+  /** Handles GitHub App OAuth callback (from backend /api/gitsync/callback redirect) */
+  const handleGitSyncCallback = (accessToken: string | null, installationId: string | null) => {
+    setStatus('loading')
+    setMessage('Conexão com GitHub realizada! Preparando...')
+
+    try {
+      // Store installation_id for ProjectForm to use
+      if (installationId) {
+        sessionStorage.setItem('gitsync_installation_id', installationId)
+      }
+      if (accessToken) {
+        sessionStorage.setItem('gitsync_access_token', accessToken)
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    setStatus('success')
+    setMessage('GitHub conectado! Redirecionando...')
+
+    // Redirect back to projects page with gitsync flag
+    setTimeout(() => {
+      const params = new URLSearchParams({ gitsync: 'true' })
+      if (installationId) params.set('installation_id', installationId)
+      router.push(`/?${params.toString()}`)
+    }, 1500)
+  }
 
   const validateAndPrepare = async (token: string, repoUrl: string) => {
     try {

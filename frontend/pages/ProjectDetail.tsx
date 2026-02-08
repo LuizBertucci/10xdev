@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, GitBranch, RefreshCw, ExternalLink, Unplug } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { projectService, type Project, ProjectMemberRole } from "@/services"
+import { projectService, type Project, ProjectMemberRole, type SyncStatusResponse } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
@@ -109,6 +109,10 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
   const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
   
+  // GitSync state
+  const [syncStatus, setSyncStatus] = useState<SyncStatusResponse | null>(null)
+  const [syncing, setSyncing] = useState(false)
+
   // Import job state
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
   const [importJob, setImportJob] = useState<{
@@ -156,6 +160,60 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       showStatus("success", "IA Grok ativada para importação de cards", { durationMs: 12000 })
     }
   }, [grokEnabled])
+
+  // Load GitSync status
+  const loadSyncStatus = async () => {
+    if (!projectId) return
+    try {
+      const res = await projectService.getSyncStatus(projectId)
+      if (res?.success && res.data) {
+        setSyncStatus(res.data)
+      }
+    } catch {
+      // Silently ignore - sync may not be configured
+    }
+  }
+
+  useEffect(() => {
+    if (projectId) {
+      loadSyncStatus()
+    }
+  }, [projectId])
+
+  const handleSync = async () => {
+    if (!projectId || syncing) return
+    try {
+      setSyncing(true)
+      const res = await projectService.syncProject(projectId)
+      if (res?.success) {
+        toast.success(res.message || 'Sincronização concluída')
+        await loadSyncStatus()
+        // Reload cards to show updated content
+        loadCards(true)
+      } else {
+        toast.error(res?.error || 'Erro ao sincronizar')
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Erro ao sincronizar com o GitHub')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const handleDisconnect = async () => {
+    if (!projectId) return
+    try {
+      const res = await projectService.disconnectRepo(projectId)
+      if (res?.success) {
+        toast.success('Repositório desconectado')
+        setSyncStatus(null)
+      } else {
+        toast.error('Erro ao desconectar')
+      }
+    } catch {
+      toast.error('Erro ao desconectar repositório')
+    }
+  }
 
   useEffect(() => {
     if (project?.name && !isEditingName) {
@@ -809,6 +867,67 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           )}
         </div>
       </div>
+
+      {/* GitSync Status Banner */}
+      {syncStatus?.active && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 mb-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <GitBranch className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              <span className="text-sm font-medium text-emerald-900 truncate">
+                {syncStatus.githubOwner}/{syncStatus.githubRepo}
+              </span>
+              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 flex-shrink-0">
+                {syncStatus.defaultBranch}
+              </Badge>
+              {syncStatus.conflicts > 0 && (
+                <Badge variant="destructive" className="text-xs flex-shrink-0">
+                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {syncStatus.lastSyncAt && (
+                <span className="text-xs text-emerald-600 hidden sm:inline">
+                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-7 px-2 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+                title="Sincronizar com GitHub"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              </Button>
+              <a
+                href={`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+                title="Abrir no GitHub"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
+                    <Unplug className="h-4 w-4 mr-2" />
+                    Desconectar do GitHub
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Import Progress Banner - Sticky between Header and Tabs */}
       {importJob && (
