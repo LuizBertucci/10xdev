@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2 } from "lucide-react"
-import { projectService, type Project, type ProjectMember, type ProjectCard } from "@/services"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, MoreVertical } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
@@ -93,7 +94,16 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
   const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
-  
+
+  // GitSync state
+  const [syncStatus, setSyncStatus] = useState<SyncStatusResponse | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [showRepoDialog, setShowRepoDialog] = useState(false)
+  const [availableRepos, setAvailableRepos] = useState<Array<{ owner: string; name: string; full_name: string; default_branch: string }>>([])
+  const [selectedRepo, setSelectedRepo] = useState<string>("")
+  const [loadingRepos, setLoadingRepos] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+
   // Import job state
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
   const [importJob, setImportJob] = useState<{
@@ -141,6 +151,152 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       showStatus("success", "IA Grok ativada para importação de cards", { durationMs: 12000 })
     }
   }, [grokEnabled])
+
+  // Load GitSync status
+  const loadSyncStatus = async () => {
+    if (!projectId) return
+    try {
+      const res = await projectService.getSyncStatus(projectId)
+      if (res?.success && res.data) {
+        setSyncStatus(res.data)
+      }
+    } catch {
+      // Silently ignore - sync may not be configured
+    }
+  }
+
+  useEffect(() => {
+    if (projectId) {
+      loadSyncStatus()
+    }
+  }, [projectId])
+
+  // Detectar retorno do OAuth do GitHub
+  useEffect(() => {
+    if (!searchParams) return
+
+    const gitsyncFlag = searchParams.get('gitsync')
+    const installationId = searchParams.get('installation_id')
+
+    if (gitsyncFlag === 'true' && installationId) {
+      // Check if this is for the current project
+      const storedProjectId = sessionStorage.getItem('gitsync_project_id')
+      if (storedProjectId === projectId) {
+        // Load available repos and show dialog
+        loadAvailableRepos(Number(installationId))
+        sessionStorage.removeItem('gitsync_project_id')
+
+        // Remove query params from URL
+        const params = new URLSearchParams(searchParams.toString())
+        params.delete('gitsync')
+        params.delete('installation_id')
+        router.replace(`${window.location.pathname}?${params.toString()}`)
+      }
+    }
+  }, [searchParams, projectId])
+
+  const loadAvailableRepos = async (installationId: number) => {
+    try {
+      setLoadingRepos(true)
+      setShowRepoDialog(true)
+
+      const response = await projectService.listGithubRepos(installationId)
+      if (response?.success && response.data) {
+        setAvailableRepos(response.data.map((repo: { owner: { login: string }; name: string; full_name: string; default_branch: string }) => ({
+          owner: repo.owner.login,
+          name: repo.name,
+          full_name: repo.full_name,
+          default_branch: repo.default_branch
+        })))
+      } else {
+        toast.error('Erro ao carregar repositórios')
+        setShowRepoDialog(false)
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar repositórios')
+      setShowRepoDialog(false)
+    } finally {
+      setLoadingRepos(false)
+    }
+  }
+
+  const handleConnectRepo = async () => {
+    if (!projectId || !selectedRepo) {
+      toast.error('Selecione um repositório')
+      return
+    }
+
+    const installationId = sessionStorage.getItem('gitsync_installation_id')
+    if (!installationId) {
+      toast.error('Installation ID não encontrado')
+      return
+    }
+
+    const repo = availableRepos.find(r => r.full_name === selectedRepo)
+    if (!repo) {
+      toast.error('Repositório não encontrado')
+      return
+    }
+
+    try {
+      setConnecting(true)
+      const response = await projectService.connectRepo(projectId, {
+        installationId: Number(installationId),
+        owner: repo.owner,
+        repo: repo.name,
+        defaultBranch: repo.default_branch || 'main'
+      })
+
+      if (response?.success) {
+        toast.success('Repositório conectado com sucesso!')
+        setShowRepoDialog(false)
+        setSelectedRepo("")
+        await loadSyncStatus()
+        sessionStorage.removeItem('gitsync_installation_id')
+      } else {
+        toast.error(response?.error || 'Erro ao conectar repositório')
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao conectar repositório')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  const handleSync = async () => {
+    if (!projectId || syncing) return
+    try {
+      setSyncing(true)
+      const res = await projectService.syncProject(projectId)
+      if (res?.success) {
+        toast.success(res.message || 'Sincronização concluída')
+        await loadSyncStatus()
+        // Reload cards to show updated content
+        loadCards(true)
+      } else {
+        toast.error(res?.error || 'Erro ao sincronizar')
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao sincronizar com o GitHub')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const handleDisconnect = async () => {
+    if (!projectId) return
+    try {
+      const res = await projectService.disconnectRepo(projectId)
+      if (res?.success) {
+        toast.success('Repositório desconectado')
+        setSyncStatus(null)
+      } else {
+        toast.error('Erro ao desconectar')
+      }
+    } catch {
+      toast.error('Erro ao desconectar repositório')
+    }
+  }
 
   useEffect(() => {
     if (project?.name && !isEditingName) {
@@ -196,13 +352,13 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       channel = supabase
         .channel(`import_job_project:${projectId}`)
         .on('postgres_changes', {
-          event: '*',
+          event: '*' as const,
           schema: 'public',
           table: 'import_jobs',
           filter: `project_id=eq.${projectId}`
-        }, (payload: { new: { id: string; status: string; step: string; progress: number; message: string | null; ai_requested: boolean; ai_used: boolean; ai_cards_created: number; files_processed: number; cards_created: number } }) => {
+        }, (payload) => {
           if (!mounted) return
-          const row = payload.new
+          const row = payload.new as NonNullable<typeof importJob>
           if (row) {
             setImportJob(row)
             
@@ -749,6 +905,67 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         </div>
       </div>
 
+      {/* GitSync Status Banner */}
+      {syncStatus?.active && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 mb-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <GitBranch className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              <span className="text-sm font-medium text-emerald-900 truncate">
+                {syncStatus.githubOwner}/{syncStatus.githubRepo}
+              </span>
+              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 flex-shrink-0">
+                {syncStatus.defaultBranch}
+              </Badge>
+              {syncStatus.conflicts > 0 && (
+                <Badge variant="destructive" className="text-xs flex-shrink-0">
+                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {syncStatus.lastSyncAt && (
+                <span className="text-xs text-emerald-600 hidden sm:inline">
+                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-7 px-2 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+                title="Sincronizar com GitHub"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
+              </Button>
+              <a
+                href={`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
+                title="Abrir no GitHub"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100">
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
+                    <Unplug className="h-4 w-4 mr-2" />
+                    Desconectar do GitHub
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Import Progress Banner - Sticky between Header and Tabs */}
       {importJob && (
         <div className="sticky top-0 z-50 mb-4 -mx-2 sm:-mx-0 px-2 sm:px-0">
@@ -1091,6 +1308,148 @@ export default function ProjectDetail({ platformState: _platformState }: Project
               </CardContent>
             </Card>
 
+            {/* Card: Sincronização com GitHub */}
+            <Card className={syncStatus?.active ? "border-emerald-200 bg-emerald-50/30" : ""}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <GitBranch className="h-5 w-5" />
+                  Sincronização com GitHub
+                </CardTitle>
+                <CardDescription>
+                  {syncStatus?.active
+                    ? `Conectado a ${syncStatus.githubOwner}/${syncStatus.githubRepo}`
+                    : 'Conecte seu repositório GitHub para sincronização automática'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {syncStatus?.active ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white border border-emerald-200 rounded-lg">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 rounded-full bg-emerald-100">
+                          <GitBranch className="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {syncStatus.githubOwner}/{syncStatus.githubRepo}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Branch: {syncStatus.defaultBranch}
+                          </p>
+                          {syncStatus.lastSyncAt && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Última sincronização: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="flex-shrink-0 border-emerald-300 text-emerald-700 bg-emerald-50">
+                        Ativo
+                      </Badge>
+                    </div>
+
+                    {syncStatus.conflicts > 0 && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-red-900">
+                              {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''} detectado{syncStatus.conflicts > 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-red-700 mt-1">
+                              Resolva os conflitos para continuar sincronizando
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleSync}
+                        disabled={syncing}
+                        className="flex-1"
+                        size="sm"
+                      >
+                        {syncing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Sincronizando...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Sincronizar agora
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Abrir no GitHub
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Unplug className="h-4 w-4 mr-2" />
+                      Desconectar repositório
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                      <GitBranch className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-1">
+                        Nenhum repositório conectado
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Conecte um repositório GitHub para sincronizar automaticamente seus cards com o código
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      size="sm"
+                      onClick={() => {
+                        // Store project ID for post-OAuth redirect
+                        try {
+                          sessionStorage.setItem('gitsync_project_id', projectId || '')
+                        } catch { /* ignore */ }
+
+                        // Redirect to GitHub OAuth
+                        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                        const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
+
+                        if (!githubClientId) {
+                          toast.error('GitHub Client ID não configurado')
+                          return
+                        }
+
+                        const redirectUri = `${backendUrl}/api/gitsync/callback`
+                        const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo`
+
+                        window.location.href = githubAuthUrl
+                      }}
+                    >
+                      <GitBranch className="h-4 w-4 mr-2" />
+                      Conectar repositório GitHub
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center">
+                      💡 Você será redirecionado para autorizar o acesso ao GitHub
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Card: Membros do Projeto - Lista Expandida */}
             <Card>
               <CardHeader>
@@ -1329,6 +1688,79 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           onMembersAdded={loadMembers}
         />
       )}
+
+      {/* Dialog: Selecionar Repositório GitHub */}
+      <Dialog open={showRepoDialog} onOpenChange={setShowRepoDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Selecionar Repositório</DialogTitle>
+            <DialogDescription>
+              Escolha qual repositório conectar a este projeto
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingRepos ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400 mr-2" />
+              <span className="text-sm text-gray-600">Carregando repositórios...</span>
+            </div>
+          ) : availableRepos.length === 0 ? (
+            <div className="text-center py-8">
+              <GitBranch className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-600">Nenhum repositório encontrado</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Verifique as permissões da GitHub App
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Label htmlFor="repo-select">Repositório</Label>
+              <select
+                id="repo-select"
+                value={selectedRepo}
+                onChange={(e) => setSelectedRepo(e.target.value)}
+                className="w-full p-2 border rounded-md text-sm"
+              >
+                <option value="">Selecione um repositório</option>
+                {availableRepos.map((repo) => (
+                  <option key={repo.full_name} value={repo.full_name}>
+                    {repo.full_name} ({repo.default_branch})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRepoDialog(false)
+                setSelectedRepo("")
+              }}
+              disabled={connecting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConnectRepo}
+              disabled={!selectedRepo || connecting || loadingRepos}
+            >
+              {connecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                <>
+                  <GitBranch className="h-4 w-4 mr-2" />
+                  Conectar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Expandido do Card (tela cheia) */}
       <CardFeatureModal
