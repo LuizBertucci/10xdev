@@ -105,7 +105,7 @@ app.post('/api/gitsync/webhook',
 )
 
 // OAuth callback - sem auth do usuario (recebe code do GitHub)
-app.get('/api/gitsync/callback', async (req, res) => {
+const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
   try {
     const { code, installation_id } = req.query as { code?: string; installation_id?: string }
 
@@ -129,7 +129,10 @@ app.get('/api/gitsync/callback', async (req, res) => {
     const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
     res.redirect(`${frontendUrl}/import-github-token?error=${encodeURIComponent(error.message)}`)
   }
-})
+}
+
+app.get('/api/gitsync/callback', handleGitSyncCallback)
+app.get('/api/gitsync/oauth/callback', handleGitSyncCallback)
 
 // ================================================
 // PARSING MIDDLEWARE
