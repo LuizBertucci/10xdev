@@ -1,12 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CardFeature } from '@/types';
-import { normalizeTab, isValidTab, type TabKey } from '@/utils/routes';
+import { normalizeTab, type TabKey } from '@/utils/routes';
 
 // Define the state and functions for the DevPlatform
 export function usePlatform() {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const pendingTabRef = useRef<TabKey | null>(null);
   

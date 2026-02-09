@@ -1,10 +1,7 @@
 "use client"
 
-import { useState } from "react"
-
 interface YouTubeVideoProps {
   url: string
-  mode?: "preview" | "embed"
   className?: string
 }
 
@@ -50,7 +47,7 @@ export function extractYouTubeVideoId(url: string): string | null {
  * Componente para exibir vídeos do YouTube
  * Sempre mostra o iframe embed para evitar problemas de re-renderização
  */
-export default function YouTubeVideo({ url, mode = "embed", className = "" }: YouTubeVideoProps) {
+export default function YouTubeVideo({ url, className = "" }: YouTubeVideoProps) {
   const videoId = extractYouTubeVideoId(url)
 
   if (!videoId) {

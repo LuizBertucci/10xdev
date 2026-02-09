@@ -94,12 +94,15 @@ export default function Projects({ platformState }: ProjectsProps) {
       } else {
         toast.error(response.error || 'Erro ao carregar projetos')
       }
-    } catch (error: any) {
-      if (error?.statusCode === 429 || error?.status === 429) {
-        toast.error('Muitas requisições. Tente novamente em instantes.')
-        return
-      }
-      toast.error(error?.message || 'Erro ao carregar projetos')
+} catch (error: unknown) {
+        if (error instanceof Error && 'statusCode' in error) {
+          const statusCode = (error as { statusCode?: unknown }).statusCode
+          if (statusCode === 429 || (error as { status?: unknown }).status === 429) {
+            toast.error('Muitas requisições. Tente novamente em instantes.')
+            return
+          }
+        }
+        toast.error(error instanceof Error ? error.message : 'Erro ao carregar projetos')
     } finally {
       setLoading(false)
     }
@@ -120,8 +123,8 @@ export default function Projects({ platformState }: ProjectsProps) {
       } else {
         toast.error(response.error || 'Erro ao carregar templates')
       }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao carregar templates')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar templates')
     } finally {
       setTemplatesLoading(false)
     }
@@ -247,8 +250,8 @@ export default function Projects({ platformState }: ProjectsProps) {
       } else {
         toast.error(response.error || 'Erro ao sair do projeto')
       }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao sair do projeto')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao sair do projeto')
     }
   }
 
@@ -275,8 +278,8 @@ export default function Projects({ platformState }: ProjectsProps) {
       } else {
         toast.error(response.error || 'Erro ao deletar projeto')
       }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao deletar projeto')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao deletar projeto')
     } finally {
       setDeleting(false)
     }

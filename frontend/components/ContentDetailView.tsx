@@ -32,7 +32,7 @@ export default function ContentDetailView({ id, onBack, onGoHome }: ContentDetai
         } else {
           setError(cardRes?.error || "Conteúdo não encontrado")
         }
-      } catch (e) {
+      } catch {
         setError("Erro ao carregar conteúdo")
       } finally {
         setLoading(false)

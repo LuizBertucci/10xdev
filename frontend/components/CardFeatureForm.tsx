@@ -40,8 +40,6 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   ]
 }
 
-type ScreenData = CreateScreenData
-
 interface CardFeatureFormData {
   title: string
   tech?: string
@@ -476,8 +474,8 @@ export default function CardFeatureForm({
         addBlock(targetIndex, ContentType.PDF, publicUrl)
       }
       toast.success("PDF enviado com sucesso")
-    } catch (error: any) {
-      toast.error(error?.message || "Erro ao enviar PDF")
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao enviar PDF")
     } finally {
       setUploadingPdf(false)
       setPdfTargetScreen(null)

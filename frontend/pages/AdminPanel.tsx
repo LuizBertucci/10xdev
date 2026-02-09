@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { adminService, type AdminUserRow } from "@/services"
 import { useAuth } from "@/hooks/useAuth"
 import { Card, CardContent } from "@/components/ui/card"
@@ -44,9 +44,9 @@ export default function AdminPanel() {
             setItems([])
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Erro ao carregar usuários:", err)
-        toast.error(err?.error || "Erro ao carregar usuários")
+        toast.error(err instanceof Error ? err.message : "Erro ao carregar usuários")
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -100,8 +100,8 @@ export default function AdminPanel() {
       } else {
         toast.error(res?.error || "Falha ao atualizar status")
       }
-    } catch (err: any) {
-      toast.error(err?.error || "Erro ao atualizar status")
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar status")
     } finally {
       setUpdating(prev => ({ ...prev, [u.id]: false }))
     }
@@ -127,8 +127,8 @@ export default function AdminPanel() {
       } else {
         toast.error(res?.error || "Falha ao atualizar role")
       }
-    } catch (err: any) {
-      toast.error(err?.error || "Erro ao atualizar role")
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar role")
     } finally {
       setUpdating(prev => ({ ...prev, [u.id]: false }))
     }
@@ -146,8 +146,8 @@ export default function AdminPanel() {
       } else {
         toast.error(res?.error || "Falha ao excluir usuário")
       }
-    } catch (err: any) {
-      toast.error(err?.error || "Erro ao excluir usuário")
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir usuário")
     } finally {
       setUpdating(prev => ({ ...prev, [u.id]: false }))
       setDeleteTarget(null)
@@ -193,8 +193,8 @@ export default function AdminPanel() {
                 } else {
                   toast.error(res?.error || "Falha ao atualizar")
                 }
-              } catch (e: any) {
-                toast.error(e?.error || "Erro ao atualizar")
+              } catch (e: unknown) {
+                toast.error(e instanceof Error ? e.message : "Erro ao atualizar")
               } finally {
                 setLoading(false)
               }

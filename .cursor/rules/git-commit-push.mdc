@@ -1,0 +1,109 @@
+---
+description: Padrão para organizar commits e push com quality gate integrado
+alwaysApply: true
+---
+
+# Git Commit & Push Workflow
+
+**Nunca commite automaticamente.** Só commite quando o usuário pedir explicitamente (ex: "commita", "pode subir", "sobe", "commit", "push").
+Quando o usuário pedir, siga este fluxo. Se pedir para pular o quality gate (`"pula"`, `"skip"`, `"só commita"`), vá direto para a etapa 3.
+
+## 1. Analisar alterações pendentes
+
+- Rode `git status` e `git diff --stat` para listar todos os arquivos modificados
+- Rode `git diff` por grupo de arquivos para entender cada mudança
+
+## 2. Quality Gate (lint + build)
+
+### Lint (sempre)
+
+```bash
+npm run lint
+```
+
+- **Sempre roda**, independente do tamanho da mudança
+- Se falhar, corrija os erros e rode novamente. Não prossiga até passar.
+
+### Build (condicional)
+
+```bash
+npm run build
+```
+
+Rode **apenas** se: 3+ arquivos alterados, **ou** mudanças em `types/`, `tsconfig`, `package.json`, arquivos de config.
+Se falhar, corrija e rode novamente. Não prossiga até passar.
+
+## 3. Agrupar por responsabilidade
+
+Separe as alterações em commits lógicos, cada um com **uma única responsabilidade**:
+- Agrupe arquivos que fazem parte da mesma feature/fix/refactor
+- Nunca misture alterações de backend com frontend se forem de funcionalidades diferentes
+- Nunca misture performance com feature nova
+
+## 4. Apresentar tabela + CodeRabbit Review
+
+Apresente a tabela de commits. Em seguida, rode o CodeRabbit Review se aplicável.
+
+### CodeRabbit (condicional)
+
+```bash
+coderabbit review --plain --type uncommitted
+```
+
+Rode **apenas** se: 3+ arquivos alterados, **ou** o usuário pediu explicitamente (`"revisa"`, `"roda coderabbit"`, `"quality gate"`).
+
+### Tabela enriquecida
+
+Mapeie as sugestões do CodeRabbit aos commits e apresente a tabela com status:
+
+| # | Commit (título) | Arquivos | Status |
+|---|-----------------|----------|--------|
+| 1 | `tipo: título curto` | arquivo1, arquivo2 | limpo |
+| 2 | `tipo: título curto` | arquivo3 | 2 sugestões |
+
+Para commits com sugestões, liste-as abaixo:
+
+| # | Arquivo | Sugestão | Severidade |
+|---|---------|----------|------------|
+| 1 | `path/file.ts` | Descrição da melhoria | alta/média/baixa |
+
+- Ordene por severidade (alta primeiro)
+- Traduza para português se vier em inglês
+- Pergunte quais sugestões aplicar
+- **Aplique antes de commitar** (o commit já sai na versão final)
+- Se aplicou mudanças, rode `npm run lint` novamente
+
+Se CodeRabbit não rodar (< 3 arquivos), apresente a tabela sem a coluna Status.
+
+**Tipos de commit:** `feat`, `fix`, `perf`, `style`, `refactor`, `docs`, `chore`, `test`
+
+Aguarde o "ok" do usuário antes de executar os commits.
+
+## 5. Executar commits na ordem
+
+Cada commit usa HEREDOC com título + corpo descritivo:
+
+```bash
+git add arquivo1 arquivo2 && git commit -m "$(cat <<'EOF'
+tipo: título curto em português
+
+Descrição detalhada em 2-3 linhas explicando
+o que foi feito e o motivo da alteração.
+EOF
+)"
+```
+
+## 6. Verificar e fazer push
+
+- Rode `git status` + `git log --oneline` para confirmar
+- **Faça o push automaticamente** logo após os commits
+- Sempre perguntar antes de fazer `push --force`
+
+## Regras
+
+- Títulos de commit em **português**, lowercase, sem ponto final
+- Corpo do commit em **português** com contexto útil
+- Título deve ser o **mais descritivo possível** dentro do limite de ~72 caracteres
+  - Bom: `perf: substituir chamadas individuais /access por cálculo local com useMemo`
+  - Ruim: `perf: otimizar acesso`
+- Sempre perguntar antes de fazer `push --force`

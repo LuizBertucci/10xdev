@@ -176,7 +176,7 @@ class ProjectService {
   // ================================================
 
   async getAll(params?: ProjectQueryParams): Promise<ApiResponse<Project[]> | undefined> {
-    return apiClient.get<Project[]>(this.endpoint, params)
+    return apiClient.get<Project[]>(this.endpoint, params as unknown as Record<string, string | number | undefined>)
   }
 
   async getById(id: string): Promise<ApiResponse<Project> | undefined> {
@@ -236,7 +236,7 @@ class ProjectService {
     if (limit === undefined && offset === undefined) {
       return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`)
     }
-    const params: Record<string, any> = {}
+    const params: Record<string, string | number> = {}
     if (limit !== undefined) params.limit = limit
     if (offset !== undefined) params.offset = offset
     return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, params)

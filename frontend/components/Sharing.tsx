@@ -15,6 +15,8 @@ interface SharingProps {
   manualSearchMinChars?: number
   autoSearchMinChars?: number
   debounceMs?: number
+  /** IDs de usuários que já fazem parte (exibidos com tag "Já adicionado" e não selecionáveis) */
+  existingUserIds?: string[]
 }
 
 export function Sharing({
@@ -28,6 +30,7 @@ export function Sharing({
   manualSearchMinChars = 2,
   autoSearchMinChars = 3,
   debounceMs = 400,
+  existingUserIds = [],
 }: SharingProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<User[]>([])
@@ -54,7 +57,7 @@ export function Sharing({
         setSearchResults([])
         toast.error(response?.error || "Erro ao buscar usuários")
       }
-    } catch (error) {
+    } catch {
       toast.error("Erro ao buscar usuários")
     } finally {
       setIsSearching(false)
@@ -134,7 +137,7 @@ export function Sharing({
               className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-gray-300 text-xs"
             >
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full" />
+                <img src={user.avatarUrl} alt={user.name || user.email} className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
               ) : (
                 <UserIcon className="h-3 w-3 text-gray-500" />
               )}
@@ -172,32 +175,41 @@ export function Sharing({
       <div className="min-h-[40px]">
         {searchResults.length > 0 && (
           <div className="max-h-[150px] overflow-y-auto overscroll-contain space-y-1.5 border border-gray-200 rounded-md p-2 bg-white">
-            {searchResults.map((user) => (
-              <div
-                key={user.id}
-                className={`p-2 border rounded-md cursor-pointer flex items-center gap-2 transition-colors text-xs ${
-                  selectedUsers.some((item) => item.id === user.id)
-                    ? "border-green-300 bg-green-50"
-                    : "hover:bg-gray-50 border-gray-200"
-                }`}
-                onClick={() => handleSelectUser(user)}
-              >
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                    <UserIcon className="h-3 w-3 text-gray-500" />
+            {searchResults.map((user) => {
+              const isExisting = existingUserIds.includes(user.id)
+              const isSelected = selectedUsers.some((item) => item.id === user.id)
+              return (
+                <div
+                  key={user.id}
+                  className={`p-2 border rounded-md flex items-center gap-2 transition-colors text-xs ${
+                    isExisting
+                      ? "border-gray-200 bg-white cursor-default"
+                      : isSelected
+                        ? "border-green-300 bg-green-50 cursor-pointer"
+                        : "hover:bg-gray-50 border-gray-200 cursor-pointer"
+                  }`}
+                  onClick={() => !isExisting && handleSelectUser(user)}
+                >
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.name || user.email} className="w-6 h-6 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+                      <UserIcon className="h-3 w-3 text-gray-500" />
+                    </div>
+                  )}
+                  <div className="flex-1 overflow-hidden">
+                    <p className="font-medium truncate">{user.name || user.email}</p>
+                    {user.name && <p className="text-[10px] text-gray-500 truncate">{user.email}</p>}
                   </div>
-                )}
-                <div className="flex-1 overflow-hidden">
-                  <p className="font-medium truncate">{user.name || user.email}</p>
-                  {user.name && <p className="text-[10px] text-gray-500 truncate">{user.email}</p>}
+                  {isExisting && (
+                    <span className="text-[10px] font-medium text-green-700 bg-green-100 ring-1 ring-green-300 px-2 py-0.5 rounded-md shrink-0">Já adicionado</span>
+                  )}
+                  {!isExisting && isSelected && (
+                    <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                  )}
                 </div>
-                {selectedUsers.some((item) => item.id === user.id) && (
-                  <Check className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

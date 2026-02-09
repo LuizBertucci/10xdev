@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,7 +21,7 @@ interface CardFeatureCompactProps {
   snippet: CardFeatureType
   onEdit: (snippet: CardFeatureType) => void
   onDelete: (snippetId: string) => void
-  onUpdate?: (id: string, data: Partial<CardFeatureType>) => Promise<any>
+  onUpdate?: (id: string, data: Partial<CardFeatureType>) => Promise<void>
   className?: string
   isSelectionMode?: boolean
   isSelected?: boolean
@@ -43,11 +43,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
-  const [accessInfo, setAccessInfo] = useState<{ canGenerate: boolean; isOwner: boolean; isAdmin: boolean } | null>(null)
   // Estado local para screens - permite atualização imediata após gerar resumo
   const [localScreens, setLocalScreens] = useState(snippet.screens)
-  // Force refresh para garantir re-render após gerar resumo
-  const [refreshKey, setRefreshKey] = useState(0)
   
   const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
@@ -64,27 +61,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     : 'https://10xdev.com.br'
   const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
 
-  // Verificar acesso para mostrar botão de gerar resumo
-  useEffect(() => {
-    const checkAccess = async () => {
-    if (!user || !snippet.id) {
-      setAccessInfo(null)
-      return
+  // Cálculo local de acesso (evita chamada individual GET /access por card)
+  const accessInfo = useMemo(() => {
+    if (!user) return null
+    return {
+      canGenerate: user.role === 'admin',
+      isOwner: snippet.createdBy === user.id,
+      isAdmin: user.role === 'admin'
     }
-      
-      try {
-        const response = await cardFeatureService.checkAccess(snippet.id)
-        if (response.success && response.data) {
-          setAccessInfo(response.data)
-        }
-      } catch (error) {
-        console.error('Erro ao verificar acesso:', error)
-        setAccessInfo(null)
-      }
-    }
-    
-    checkAccess()
-  }, [user, snippet.id])
+  }, [user, snippet.createdBy])
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -115,7 +100,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setApiLinkCopied(true)
       toast.success("Link da API copiado!")
       setTimeout(() => setApiLinkCopied(false), 2000)
-    } catch (err) {
+    } catch {
       toast.error("Erro ao copiar link")
     }
   }
@@ -128,7 +113,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setShareLinkCopied(true)
       toast.success("Link copiado!")
       setTimeout(() => setShareLinkCopied(false), 2000)
-    } catch (err) {
+    } catch {
       toast.error("Erro ao copiar link")
     }
   }
@@ -141,7 +126,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setContentLinkCopied(true)
       toast.success("Link do conteúdo copiado!")
       setTimeout(() => setContentLinkCopied(false), 2000)
-    } catch (err) {
+    } catch {
       toast.error("Erro ao copiar link do conteúdo")
     }
   }
@@ -180,7 +165,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         newVisibility === Visibility.PUBLIC ? 'Validando' :
         newVisibility === Visibility.PRIVATE ? 'Privado' : 'Não Listado'
       }`)
-    } catch (err) {
+    } catch {
       toast.error("Erro ao alterar visibilidade")
     }
   }
@@ -205,7 +190,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         if (onUpdate) {
           await onUpdate(snippet.id, { screens: updatedScreens })
           setLocalScreens(updatedScreens)
-          setRefreshKey(prev => prev + 1)
           const summaryIndex = updatedScreens.findIndex(screen =>
             isResumoScreen(screen.name)
           )
@@ -217,8 +201,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       } else {
         toast.error(response.message || 'Erro ao gerar resumo')
       }
-    } catch (error: any) {
-      if (error.message) {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message) {
         toast.error(error.message)
       } else {
         toast.error('Erro ao gerar resumo')
@@ -234,7 +218,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         <VisibilityTab 
           visibility={snippet.visibility} 
           isPrivate={snippet.isPrivate} 
-          approvalStatus={(snippet as any).approvalStatus}
+          approvalStatus={(snippet as { approvalStatus?: unknown }).approvalStatus as 'approved' | 'rejected' | 'pending' | 'none' | undefined}
           size={size} 
           isClickable={canEdit}
         />

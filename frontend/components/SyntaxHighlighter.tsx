@@ -33,7 +33,7 @@ export default function SyntaxHighlighter({
         code={code || ''}
         language={getPrismLanguage(language)}
       >
-        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+        {({ style, tokens, getLineProps, getTokenProps }) => (
           <pre 
               className="text-xs leading-tight whitespace-pre" 
               style={{

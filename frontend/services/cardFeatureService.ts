@@ -117,8 +117,8 @@ class CardFeatureService {
   /**
    * Compartilha um card privado com usuários específicos
    */
-  async shareCard(cardId: string, userIds: string[]): Promise<ApiResponse<any> | undefined> {
-    return apiClient.post<any>(`${this.endpoint}/${cardId}/share`, { userIds })
+  async shareCard(cardId: string, userIds: string[]): Promise<ApiResponse<unknown> | undefined> {
+    return apiClient.post<unknown>(`${this.endpoint}/${cardId}/share`, { userIds })
   }
 
   /**
@@ -131,8 +131,8 @@ class CardFeatureService {
   /**
    * Lista todos os usuários com quem o card está compartilhado
    */
-  async getCardShares(cardId: string): Promise<ApiResponse<any[]> | undefined> {
-    return apiClient.get<any[]>(`${this.endpoint}/${cardId}/shares`)
+  async getCardShares(cardId: string): Promise<ApiResponse<unknown[]> | undefined> {
+    return apiClient.get<unknown[]>(`${this.endpoint}/${cardId}/shares`)
   }
 
   /**
@@ -162,7 +162,7 @@ class CardFeatureService {
   }
 
   async generateSummary(cardId: string, force?: boolean): Promise<GenerateSummaryResponse> {
-    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force }) as any
+    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, { force }) as GenerateSummaryResponse
 
     if (response?.success) {
       if (response.data) {

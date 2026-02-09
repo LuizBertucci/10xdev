@@ -53,7 +53,7 @@ export class SupabaseController {
           name: name || email.split('@')[0]
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller register:', error)
       res.status(500).json({
         success: false,
@@ -103,7 +103,7 @@ export class SupabaseController {
           name: data.user?.user_metadata?.name || data.user?.user_metadata?.full_name || null
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller login:', error)
       res.status(500).json({
         success: false,
@@ -124,7 +124,7 @@ export class SupabaseController {
         success: true,
         message: 'Logout realizado com sucesso'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller logout:', error)
       res.status(500).json({
         success: false,
@@ -153,7 +153,7 @@ export class SupabaseController {
         message: 'Usuário autenticado',
         data: req.user
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller showProfile:', error)
       res.status(500).json({
         success: false,
@@ -179,7 +179,7 @@ export class SupabaseController {
       const { name, email } = req.body || {}
 
       // Atualizar no Supabase Auth
-      const updateData: any = {}
+      const updateData: { email?: string; data?: { name?: string; full_name?: string } } = {}
       if (email) updateData.email = email
       if (name) {
         updateData.data = {
@@ -211,7 +211,7 @@ export class SupabaseController {
       }
 
       // Atualizar também na tabela users
-      const userUpdateData: any = {
+      const userUpdateData: { updated_at: string; name?: string; email?: string } = {
         updated_at: new Date().toISOString()
       }
       if (name) userUpdateData.name = name
@@ -224,8 +224,8 @@ export class SupabaseController {
             .update(userUpdateData)
             .eq('id', req.user.id)
         )
-      } catch (dbError: any) {
-        console.error('Erro ao atualizar perfil na tabela users:', dbError.message)
+      } catch (dbError: unknown) {
+        console.error('Erro ao atualizar perfil na tabela users:', dbError instanceof Error ? dbError.message : String(dbError))
         // Continua mesmo com erro - auth já foi atualizado
       }
 
@@ -238,7 +238,7 @@ export class SupabaseController {
           name: name || authData.user.user_metadata?.name || null
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller updateProfile:', error)
       res.status(500).json({
         success: false,
@@ -277,7 +277,7 @@ export class SupabaseController {
         success: true,
         message: 'Conta deletada com sucesso'
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no controller deleteAccount:', error)
       res.status(500).json({
         success: false,

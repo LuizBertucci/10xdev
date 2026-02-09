@@ -6,6 +6,12 @@ import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
+import { normalizeTag, normalizeTags } from '@/utils/tagNormalization'
+
+interface PackageJson {
+  dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
+}
 
 // ================================================
 // CONFIGURATION
@@ -294,16 +300,17 @@ export class GithubService {
         url: `https://github.com/${repoInfo.owner}/${repoInfo.repo}`,
         isPrivate: Boolean(data.private)
       }
-    } catch (error: any) {
-      const status = error.response?.status
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string } }, message?: string }
+      const status = axiosError.response?.status
       const msg = status === 404
         ? 'Repositório não encontrado. Verifique a URL.'
         : (status === 401 || status === 403)
-          ? (error.response?.headers?.['x-ratelimit-remaining'] === '0'
+          ? (axiosError.response?.headers?.['x-ratelimit-remaining'] === '0'
             ? 'Limite de requisições do GitHub atingido. Aguarde ou use um token.'
             : 'Sem permissão. Se for privado, adicione um token de acesso.')
-          : `Erro ao acessar GitHub: ${error.response?.data?.message || error.message}`
-      const err = new Error(msg) as any
+          : `Erro ao acessar GitHub: ${axiosError.response?.data?.message || axiosError.message || String(error)}`
+      const err = new Error(msg) as Error & { statusCode?: number }
       err.statusCode = status || 500
       throw err
     }
@@ -406,7 +413,7 @@ export class GithubService {
     return CODE_EXTENSIONS.includes(this.getFileExtension(path))
   }
 
-  private static detectTech(files: FileEntry[], packageJson?: any): string {
+  private static detectTech(files: FileEntry[], packageJson?: PackageJson): string {
     if (packageJson) {
       const deps = { ...packageJson.dependencies, ...packageJson.devDependencies }
       for (const [keyword, tech] of Object.entries(TECH_DETECTION)) {
@@ -622,9 +629,9 @@ export class GithubService {
     tech: string,
     lang: string,
     featureFiles: FeatureFile[],
-    aiOverrides?: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined }
+    aiOverrides?: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined; category?: string; tags?: string[] }
   ): CreateCardFeatureRequest {
-    const category = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
+    const category = aiOverrides?.category || FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
     return {
       title: aiOverrides ? cleanMarkdown(aiOverrides.title) : this.generateFeatureTitle(featureName, featureFiles),
       description: cleanMarkdown(aiOverrides?.description || this.generateFeatureDescription(featureName, featureFiles)),
@@ -633,7 +640,7 @@ export class GithubService {
       content_type: ContentType.CODE,
       card_type: CardType.CODIGOS,
       category,
-      tags: this.generateAutoTags(featureName, tech),
+      tags: aiOverrides?.tags || this.generateAutoTags(featureName, tech),
       visibility: Visibility.UNLISTED,
       screens
     }
@@ -668,20 +675,33 @@ export class GithubService {
     }
   }
 
-  /** Gera tags automaticas baseadas na feature e tech. */
+  /** Gera tags automaticas baseadas na feature e tech.
+   *  Usa FEATURE_TITLES (portugues) ao inves de keywords cruas para evitar
+   *  duplicatas como "Project"/"Projeto" ou "Card"/"CardFeature". */
   private static generateAutoTags(featureName: string, tech: string): string[] {
     const tags: string[] = []
-    if (featureName && featureName !== 'misc') tags.push(featureName)
-    const keywords = FEATURE_SEMANTIC_MAP[featureName]
-    if (keywords) tags.push(...keywords.slice(0, 3))
-    if (tech && tech !== 'General') tags.push(tech.toLowerCase().replace(/\./g, ''))
+
+    // 1. Nome da feature em portugues (via FEATURE_TITLES) como tag principal
+    const featureTitle = FEATURE_TITLES[featureName]
+    if (featureTitle) {
+      tags.push(featureTitle)
+    } else if (featureName && featureName !== 'misc') {
+      // Feature desconhecida: normalizar ao inves de usar key crua
+      tags.push(normalizeTag(featureName))
+    }
+
+    // 2. Tech principal (manter case original: "React", "Node.js")
+    if (tech && tech !== 'General') {
+      tags.push(tech)
+    }
+
     return [...new Set(tags)].filter(t => t.length > 2)
   }
 
   private static estimateCardsCount(featureGroups: [string, FeatureFile[]][]): number {
     const byFeature = featureGroups.length
-    const totalFiles = featureGroups.reduce((sum, [_, files]) => sum + files.length, 0)
-    const totalSize = featureGroups.reduce((sum, [_, files]) => sum + files.reduce((s, f) => s + f.size, 0), 0)
+    const totalFiles = featureGroups.reduce((sum, [, files]) => sum + files.length, 0)
+    const totalSize = featureGroups.reduce((sum, [, files]) => sum + files.reduce((s, f) => s + f.size, 0), 0)
     return Math.max(byFeature, Math.ceil(totalFiles / 5), Math.ceil(totalSize / (50 * 1024)), 10)
   }
 
@@ -712,7 +732,7 @@ export class GithubService {
 
     notify('extracting_files', 10, `Extraindo ${totalFiles} arquivos...`)
 
-    let packageJson: any = null
+    let packageJson: PackageJson | undefined
     const pkg = files.find(f => f.path === 'package.json')
     if (pkg) { try { packageJson = JSON.parse(pkg.content) } catch { /* ignore */ } }
 
@@ -793,12 +813,19 @@ export class GithubService {
             })
           }
           if (screens.length === 0) continue
-          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, allFeatureFiles, {
+          const aiOverrides: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined; category?: string; tags?: string[] } = {
             title: aiCard.title,
             description: aiCard.description,
             tech: aiCard.tech,
-            language: aiCard.language
-          })
+            language: aiCard.language,
+            category: aiCard.category
+          }
+          if (aiCard.tags && aiCard.tags.length > 0) aiOverrides.tags = aiCard.tags
+          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, allFeatureFiles, aiOverrides)
+          // Se a IA forneceu tags, normalizar para evitar duplicatas EN/PT
+          if (aiCard.tags && aiCard.tags.length > 0) {
+            newCard.tags = normalizeTags(aiCard.tags)
+          }
           const cardWithSummary = this.addSummaryScreen(newCard)
           await emitCard(cardWithSummary)
           aiCardsCreated++
@@ -825,8 +852,8 @@ export class GithubService {
           : `📁 ${cards.length} cards criados via heurística`
         notify('generating_cards', 90, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
         return { cards, filesProcessed, aiUsed: true, aiCardsCreated }
-      } catch (featureErr: any) {
-        console.error('[GithubService] Erro IA no processamento único:', featureErr?.message)
+      } catch (featureErr: unknown) {
+        console.error('[GithubService] Erro IA no processamento único:', featureErr instanceof Error ? featureErr.message : String(featureErr))
         notify('generating_cards', 60,
           `⚠️ IA falhou, usando heurística`,
           { cardEstimate: estimatedCards })

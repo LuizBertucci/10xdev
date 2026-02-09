@@ -60,10 +60,10 @@ export default function RegisterPage() {
       timeoutRef.current = setTimeout(() => {
         router.push(getDefaultRoute())
       }, 1000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no registro:', error)
       // Mostrar mensagem de erro amigável
-      const errorMessage = error.message || 'Falha ao criar conta. Tente novamente.'
+      const errorMessage = error instanceof Error ? error.message : 'Falha ao criar conta. Tente novamente.'
       toast.error(errorMessage)
 
       // Se o email já está cadastrado, sugerir fazer login

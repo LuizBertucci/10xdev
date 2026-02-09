@@ -1,6 +1,33 @@
 import { z } from 'zod'
-import { MacroCategory, MICRO_TO_MACRO_MAPPING, MACRO_CATEGORY_DESCRIPTIONS } from '@/types/MacroCategory'
+import { MacroCategory } from '@/types/MacroCategory'
 import { ContentType } from '@/types/cardfeature'
+
+interface AiCardFile {
+  path: string
+  content?: string
+}
+
+interface AiCardScreen {
+  name: string
+  description: string
+  files: AiCardFile[]
+}
+
+interface AiCard {
+  title?: string
+  name?: string
+  featureName?: string
+  description?: string
+  category?: string
+  tags?: string[] | string | unknown
+  tech?: string | unknown
+  language?: string | unknown
+  screens?: unknown
+}
+
+interface AiOutput {
+  cards?: AiCard[]
+}
 
 /**
  * Remove formatação Markdown de texto (negrito, itálico, links, etc)
@@ -45,6 +72,7 @@ const AiOutputSchema = z.object({
   cards: z.array(z.object({
     title: z.string().min(1),
     description: z.string().optional().default(''),
+    category: z.string().optional().default(''),
     tech: z.string().optional(),
     language: z.string().optional(),
     macroCategory: z.nativeEnum(MacroCategory).optional(),
@@ -106,7 +134,7 @@ export class AiCardGroupingService {
     return raw
   }
 
-  private static async callChatCompletions(args: { endpoint: string; apiKey: string; body: any }): Promise<{ content: string }> {
+  private static async callChatCompletions(args: { endpoint: string; apiKey: string; body: Record<string, unknown> }): Promise<{ content: string }> {
     const res = await fetch(args.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
@@ -117,9 +145,17 @@ export class AiCardGroupingService {
       return ''
     })
     if (!res.ok) throw new Error(`LLM HTTP ${res.status}: ${text || res.statusText}`)
-    let json: any
+    let json: unknown
     try { json = JSON.parse(text) } catch { throw new Error('LLM retornou resposta não-JSON') }
-    const content = json?.choices?.[0]?.message?.content
+    
+    if (!json || typeof json !== 'object') throw new Error('LLM retornou resposta inválida')
+    const obj = json as Record<string, unknown>
+    if (!obj.choices || !Array.isArray(obj.choices)) throw new Error('LLM retornou resposta inválida')
+    if (!obj.choices[0] || typeof obj.choices[0] !== 'object') throw new Error('LLM retornou resposta inválida')
+    const choice = obj.choices[0] as Record<string, unknown>
+    if (!choice.message || typeof choice.message !== 'object') throw new Error('LLM retornou resposta inválida')
+    const message = choice.message as Record<string, unknown>
+    const content = message.content
     if (!content || typeof content !== 'string') throw new Error('LLM retornou resposta inválida')
     return { content }
   }
@@ -129,24 +165,28 @@ export class AiCardGroupingService {
    * Handles various LLM response formats by mapping name→title, populating
    * missing descriptions, ensuring proper types, and filtering invalid entries.
    */
-  private static normalizeAiOutput(raw: any): any {
+  private static normalizeAiOutput(raw: unknown): AiOutput {
     if (!raw || typeof raw !== 'object') {
       return { cards: [] }
     }
 
-    if (raw?.cards && Array.isArray(raw.cards)) {
-      const normalizedCards = raw.cards
-        .map((card: any, cardIdx: number) => {
+    const obj = raw as Record<string, unknown>
+    if (obj?.cards && Array.isArray(obj.cards)) {
+      const normalizedCards = obj.cards
+        .map((card: unknown, cardIdx: number) => {
+          if (!card || typeof card !== 'object') return null
+          const cardObj = card as AiCard
           // Map name→title with fallbacks
-          const title = cleanMarkdown(card?.title || card?.name || card?.featureName || `Card ${cardIdx + 1}`)
+          const title = cleanMarkdown(cardObj?.title || cardObj?.name || cardObj?.featureName || `Card ${cardIdx + 1}`)
 
           // Normalize screens array
-          const screensRaw = Array.isArray(card?.screens) ? card.screens : []
+          const screensRaw = Array.isArray(cardObj?.screens) ? cardObj.screens : []
           const screens = screensRaw
-            .map((s: any, screenIdx: number) => {
-              const name = cleanMarkdown(s?.name || s?.layer || s?.key || `Screen ${screenIdx + 1}`)
-              const description = cleanMarkdown(s?.description || '')
-              const files = Array.isArray(s?.files) ? s.files : []
+            .map((s:unknown, screenIdx: number) => {
+              const screen = s as AiCardScreen
+              const name = cleanMarkdown(screen?.name || `Screen ${screenIdx + 1}`)
+              const description = cleanMarkdown(screen?.description || '')
+              const files = Array.isArray(screen?.files) ? screen.files : []
               if (!files.length) return null
               return { name, description, files }
             })
@@ -156,28 +196,29 @@ export class AiCardGroupingService {
           if (!title || !screens.length) return null
 
           // Build normalized card with required fields
-          const normalizedCard: any = {
+          const normalizedCard: AiCard = {
             title,
-            description: cleanMarkdown(card?.description || ''),
-            screens
+            description: cleanMarkdown(cardObj?.description || ''),
+            category: cleanMarkdown(String(cardObj?.category || (Array.isArray(cardObj?.tags) ? cardObj.tags[0] : 'Geral'))),
+            screens: screens as unknown as AiCardScreen[]
           }
 
           // Add optional fields if present
-          if (card?.tech) normalizedCard.tech = String(card.tech)
-          if (card?.language) normalizedCard.language = String(card.language)
+          if (cardObj?.tech) (normalizedCard as { tech?: string }).tech = String(cardObj.tech)
+          if (cardObj?.language) (normalizedCard as { language?: string }).language = String(cardObj.language)
 
           // Handle tags if present (coerce to array)
-          if (card?.tags !== undefined) {
-            if (Array.isArray(card.tags)) {
-              normalizedCard.tags = card.tags.map((t: any) => String(t))
-            } else if (typeof card.tags === 'string') {
-              normalizedCard.tags = [String(card.tags)]
+          if (cardObj?.tags !== undefined) {
+            if (Array.isArray(cardObj.tags)) {
+              (normalizedCard as { tags?: string[] }).tags = cardObj.tags.map((t: unknown) => String(t))
+            } else if (typeof cardObj.tags === 'string') {
+              (normalizedCard as { tags?: string[] }).tags = [String(cardObj.tags)]
             }
           }
 
           return normalizedCard
         })
-        .filter(Boolean)
+        .filter((c): c is AiCard => c !== null)
 
       return { cards: normalizedCards }
     }
@@ -209,82 +250,80 @@ export class AiCardGroupingService {
     }
 
     const system = [
-      'Você é um arquiteto de software especializado em organizar código.',
+      'Você é um arquiteto de software especializado em organizar código de repositórios.',
       '',
       '## Tarefa',
-      'Organize os arquivos em "cards" por funcionalidade de negócio usando MACRO-CATEGORIAS coerentes.',
+      'Organize os arquivos em "cards" por funcionalidade de negócio. Cada card tem uma **category** que será usada para agrupar cards na interface do projeto.',
       '',
-      '## MACRO-CATEGORIAS OBRIGATÓRIAS (use APENAS estas)',
-      '1. Frontend - Componentes UI, páginas, estilos, estado',
-      '2. Backend - APIs, serviços, banco de dados, lógica',
-      '3. Fullstack - Autenticação, usuários, pagamentos, notificações',
-      '4. DevOps - Configuração, build, deploy, infraestrutura',
-      '5. Conteúdo - Documentação, tutoriais, guias',
-      '6. Ferramentas - Utilitários, scripts, templates',
-      '7. Testes - Testes automatizados, qualidade',
+      '## Categorização dos Cards',
       '',
-      '## Regras CRÍTICAS para Bom Agrupamento',
-      '- **OBRIGATÓRIO**: Use APENAS as 7 macro-categorias acima',
-      '- **NÃO IMPORTA O QUÃO ESPECÍFICO**: Sempre classifique em uma das 7 categorias',
+      'Cada card DEVE ter um campo "category" que será usado para agrupar cards na interface.',
+      '',
+      '### Regras de Categorização:',
+      '1. A category deve ser um nome CURTO e DESCRITIVO em português (2-4 palavras)',
+      '2. Alvo: **5-10 categorias DISTINTAS** para todo o projeto (não 1 por card!)',
+      '3. Cards relacionados DEVEM compartilhar a mesma category',
+      '4. NÃO use nomes de arquivos/componentes como category',
+      '',
+      '### Bons exemplos de categorias:',
+      '- "Autenticação" (auth controller + auth service + login page)',
+      '- "Componentes UI" (buttons, inputs, dialogs, modals)',
+      '- "APIs REST" (routes, controllers, middleware)',
+      '- "Gestão de Dados" (models, migrations, repositories)',
+      '- "Configuração" (env, config files, setup scripts)',
+      '- "Hooks e Estado" (React hooks, stores, context)',
+      '- "Inteligência Artificial" (LLM services, embeddings, AI integrations)',
+      '',
+      '### Maus exemplos (EVITAR):',
+      '- "Frontend" ou "Backend" (genérico demais - não diz NADA sobre a funcionalidade)',
+      '- "Componente de Botão" (muito específico - 1 arquivo = 1 categoria)',
+      '- "SyntaxHighlighter" (nome de componente interno, não categoria)',
+      '- "Publichome" (nome de arquivo/página, não categoria)',
+      '',
+      '## Regras de Agrupamento',
       '- **AGRUPE TUDO relacionado** em 1 card só (não fragmente)',
-      '- Ex: "Componente de Botão" + "Componente de Input" = 1 card "Componentes UI" na categoria "Frontend"',
-      '- Ex: "Auth Controller" + "Auth Service" = 1 card "Autenticação" na categoria "Fullstack"',
-      '- Ex: "User Model" + "Payment Controller" = 1 card "Sistema de Usuários" na categoria "Fullstack"',
+      '- Ex: "Componente de Botão" + "Componente de Input" = 1 card "Componentes UI", category "Componentes UI"',
+      '- Ex: "Auth Controller" + "Auth Service" + "Login Page" = 1 card "Sistema de Autenticação", category "Autenticação"',
+      '- Se arquivos estão no mesmo diretório/namespace, provavelmente são da mesma feature',
       '',
-      '## Mapeamento FORÇADO (obrigatório seguir)',
-      '- QUALQUER coisa de UI/Componentes → Categoria "Frontend"',
-      '- QUALQUER coisa de API/Controller/Service → Categoria "Backend"', 
-      '- QUALQUER coisa de Auth/User/Payment → Categoria "Fullstack"',
-      '- QUALQUER coisa de Config/Build/Deploy → Categoria "DevOps"',
-      '- QUALQUER coisa de Docs/Tutorial/Guide → Categoria "Conteúdo"',
-      '- QUALQUER coisa de Utils/Helpers/Scripts → Categoria "Ferramentas"',
-      '- QUALQUER coisa de Test → Categoria "Testes"',
-      '',
-      '## Detecção de Namespace',
-      'Se arquivos estão no mesmo diretório/namespace, provavelmente são da mesma feature:',
-      '- backend/src/skills/n8n/* → card "Skills n8n" → macroCategory: "' + MacroCategory.TOOLS + '"',
-      '- frontend/components/ui/* → card "Componentes UI" → macroCategory: "' + MacroCategory.FRONTEND + '"',
-      '- backend/src/auth/* → card "Sistema de Autenticação" → macroCategory: "' + MacroCategory.FULLSTACK + '"',
-      '- backend/src/api/* → card "APIs REST" → macroCategory: "' + MacroCategory.APIS + '"',
-      '',
-      '## Formato de Saída',
+      '## Formato de Saída (JSON)',
       '- title: Nome descritivo em português (ex: "Sistema de Autenticação")',
+      '- category: Categoria para agrupamento (2-4 palavras, português, OBRIGATÓRIO)',
       '- description: O que a funcionalidade FAZ (não liste arquivos)',
       '- tech: Tecnologia principal (ex: "React", "Node.js")',
-      '- tags: Array de 3-5 tags principais (OBRIGATÓRIO)',
+      '- tags: Array de 2-4 tags técnicas complementares',
       '- screens[].name: Nome da camada (ex: "Backend - Controller", "Frontend - Component")',
       '- screens[].files: Paths EXATOS dos arquivos da lista fornecida',
       '',
-      '## Exemplos de Bons Cards com Tags Coerentes',
+      '## Tags (metadata secundária)',
+      '- NÃO repita a category nas tags',
+      '- NÃO inclua a tech principal nas tags (já está no campo tech)',
+      '- Use para: tecnologias secundárias, padrões, conceitos',
+      '- Exemplos: ["JWT", "OAuth"], ["Tailwind", "Radix"], ["CRUD", "Paginação"]',
+      '',
+      '## Exemplos de Bons Cards',
       '✅ {',
       '   "title": "Sistema de Autenticação",',
+      '   "category": "Autenticação",',
       '   "tech": "Node.js + React",',
-      '   "tags": ["Fullstack", "Autenticação", "JWT", "OAuth"]',
+      '   "tags": ["JWT", "OAuth", "Session"]',
       ' }',
       '✅ {',
-      '   "title": "Componentes UI",',
-      '   "tech": "React + Tailwind",',
-      '   "tags": ["Frontend", "UI", "Componentes", "React"]',
+      '   "title": "Biblioteca de Componentes",',
+      '   "category": "Componentes UI",',
+      '   "tech": "React",',
+      '   "tags": ["Radix", "Tailwind", "Acessibilidade"]',
       ' }',
       '✅ {',
-      '   "title": "APIs REST",',
+      '   "title": "API de Projetos",',
+      '   "category": "APIs REST",',
       '   "tech": "Express.js",',
-      '   "tags": ["Backend", "APIs", "REST", "Controllers"]',
+      '   "tags": ["CRUD", "Paginação", "Validação"]',
       ' }',
       '',
-      '## Regras FINAIS para QUALIDADE',
-      '✅ BOM agrupamento tem:',
-      '- 10-20 cards no total (consolidado)',
-      '- Cada card com 5-20 screens bem organizadas',
-      '- Primeira tag SEMPRE é uma das 7 macro-categorias',
-      '- Títulos descritivos e em português',
-      '- Features completas (backend + frontend juntos)',
-      '',
-      '❌ RUIM agrupamento tem:',
-      '- 30+ cards (fragmentado)',
-      '- Cards com 1-3 screens apenas',
-      '- Categorias específicas como "Buttons", "Auth Controller"',
-      '- Tags sem macro-categoria principal',
+      '## Qualidade',
+      '✅ BOM: 10-20 cards, 5-10 categorias distintas, titles em português',
+      '❌ RUIM: 30+ cards, 1 categoria por card, nomes de arquivo como category',
       '',
       '## Saída',
       'Retorne APENAS JSON válido com a chave "cards".'
@@ -359,7 +398,9 @@ export class AiCardGroupingService {
       '```json',
       '{',
       '  "title": "Componentes UI",',
+      '  "category": "Componentes UI",',
       '  "description": "Biblioteca completa de componentes reutilizáveis incluindo botões, inputs, dialogs e utilitários de interface.",',
+      '  "tags": ["Radix", "Acessibilidade"],',
       '  "screens": [',
       '    { ',
       '      "name": "Overview", ',
@@ -377,7 +418,9 @@ export class AiCardGroupingService {
       '```json',
       '{',
       '  "title": "Hooks Customizados",',
+      '  "category": "Hooks e Estado",',
       '  "description": "Hooks React reutilizáveis para autenticação, gerenciamento de estado e integração com APIs.",',
+      '  "tags": ["Custom Hooks", "Reatividade"],',
       '  "screens": [',
       '    { ',
       '      "name": "Overview", ',
@@ -448,19 +491,16 @@ export class AiCardGroupingService {
       mode
     })
 
-    let llmContent: string | undefined
-
     try {
       const { content } = await this.callChatCompletions({ endpoint, apiKey, body })
       console.log('[AiCardGroupingService] Resposta LLM recebida', { contentLength: content.length })
-      llmContent = content
 
       // Normalizar saída do LLM para o schema esperado (fallbacks para Grok)
-      let parsed: any
+      let parsed: unknown
       try {
         parsed = JSON.parse(content)
-      } catch (parseErr: any) {
-        throw new Error(`Resposta LLM não é JSON válido: ${String(parseErr?.message || parseErr)}`)
+      } catch (parseErr: unknown) {
+        throw new Error(`Resposta LLM não é JSON válido: ${String(parseErr instanceof Error ? parseErr.message : parseErr)}`)
       }
 
       // Normalize the parsed output using shared helper
@@ -468,9 +508,9 @@ export class AiCardGroupingService {
       console.log('[AiCardGroupingService] Cards normalizados:', normalized?.cards?.length || 0)
 
       return AiOutputSchema.parse(normalized)
-    } catch (err: any) {
-      console.error('[AiCardGroupingService] Erro LLM:', err?.message)
-      const msg = String(err?.message || err)
+    } catch (err: unknown) {
+      console.error('[AiCardGroupingService] Erro LLM:', err instanceof Error ? err.message : String(err))
+      const msg = String(err instanceof Error ? err.message : err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
         const body2 = {
           model,
@@ -480,11 +520,11 @@ export class AiCardGroupingService {
         const { content } = await this.callChatCompletions({ endpoint, apiKey, body: body2 })
         
         // Parse and normalize the retry response using the same helper
-        let retryParsed: any
+        let retryParsed: unknown
         try {
           retryParsed = JSON.parse(content)
-        } catch (parseErr: any) {
-          throw new Error(`Resposta LLM (retry) não é JSON válido: ${String(parseErr?.message || parseErr)}`)
+        } catch (parseErr: unknown) {
+          throw new Error(`Resposta LLM (retry) não é JSON válido: ${String(parseErr instanceof Error ? parseErr.message : parseErr)}`)
         }
         
         const retryNormalized = this.normalizeAiOutput(retryParsed)

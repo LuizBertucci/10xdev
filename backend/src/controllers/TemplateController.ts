@@ -88,8 +88,8 @@ export class TemplateController {
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
         search: req.query.search as string,
         isActive: req.query.isActive ? req.query.isActive === 'true' : undefined,
-        sortBy: req.query.sortBy as any,
-        sortOrder: req.query.sortOrder as any
+        sortBy: req.query.sortBy as 'name',
+        sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
 
       const result = await TemplateModel.list(params)

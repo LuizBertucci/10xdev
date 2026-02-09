@@ -6,6 +6,20 @@ import path from 'path'
 // CONFIGURAÇÃO DO CLIENTE
 // ================================================
 
+interface SupabaseQueryResult<T = unknown> {
+  data: T | null
+  error: { message: string; code?: string; details?: string; hint?: string; status?: number } | null
+  count: number | null
+}
+
+interface CustomError extends Error {
+  code?: string | undefined
+  details?: string | undefined
+  hint?: string | undefined
+  status?: number | undefined
+  statusCode?: number | undefined
+}
+
 // Load environment variables from backend/.env with absolute path
 const envPath = path.resolve(__dirname, '../../.env')
 dotenv.config({ path: envPath, override: true })
@@ -59,9 +73,9 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
  * const result = await executeQuery(supabase.from('table').delete().eq('id', id))
  * // result.error será null se sucesso
  */
-export const executeQuery = async (queryBuilder: any) => {
+export const executeQuery = async <T = unknown>(queryBuilder: unknown): Promise<SupabaseQueryResult<T>> => {
   try {
-    const result = await queryBuilder
+    const result = await queryBuilder as SupabaseQueryResult<T>
 
     // Verificar se result é null ou undefined
     if (!result) {
@@ -74,7 +88,7 @@ export const executeQuery = async (queryBuilder: any) => {
 
       if (error) {
         // Criar erro customizado preservando metadados do Supabase
-        const err: any = new Error(error.message || 'Database error')
+        const err = new Error(error.message || 'Database error') as CustomError
         err.code = error.code // Preserva código do Supabase (ex: PGRST116)
         err.details = error.details
         err.hint = error.hint
@@ -127,7 +141,10 @@ export const executeQuery = async (queryBuilder: any) => {
 /**
  * Helper para pagination
  */
-export const paginate = (queryBuilder: any, page: number = 1, limit: number = 10) => {
+export const paginate = <T = unknown>(queryBuilder: T, page: number = 1, limit: number = 10): T => {
   const offset = (page - 1) * limit
-  return queryBuilder.range(offset, offset + limit - 1)
+  if (queryBuilder && typeof queryBuilder === 'object' && 'range' in queryBuilder && typeof queryBuilder.range === 'function') {
+    return (queryBuilder as { range: (start: number, end: number) => T }).range(offset, offset + limit - 1)
+  }
+  return queryBuilder
 }

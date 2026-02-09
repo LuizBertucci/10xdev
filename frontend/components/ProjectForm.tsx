@@ -93,7 +93,6 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
   const [urlStatus, setUrlStatus] = useState<'idle' | 'valid' | 'invalid'>('idle')
   const [showTokenField, setShowTokenField] = useState(false)
   const [possiblePrivateRepo, setPossiblePrivateRepo] = useState(false)
-  const hasGithubUrl = githubUrl.trim().length > 0
 
   useEffect(() => {
     try {
@@ -201,8 +200,10 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
             : (response?.error || 'Erro ao buscar informações do repositório'))
         }
       }
-    } catch (error: any) {
-      const statusCode = error?.statusCode || error?.response?.status
+    } catch (error: unknown) {
+      const statusCode = error && typeof error === 'object' && 'statusCode' in error
+        ? (error as { statusCode?: number }).statusCode
+        : undefined
       const isAuthError = statusCode === 401 || statusCode === 403 || statusCode === 404
 
       if (isAuthError && !githubToken) {
@@ -212,7 +213,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       } else if (isAuthError && githubToken) {
         if (showToasts) toast.error('Token sem permissão para este repositório')
       } else if (showToasts) {
-        toast.error(error?.message || 'Erro ao buscar informações do repositório')
+        toast.error(error instanceof Error ? error.message : 'Erro ao buscar informações do repositório')
       }
     } finally {
       setLoadingGithub(false)
@@ -306,8 +307,8 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       } else {
         toast.error(response.error || 'Erro ao criar projeto')
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao criar projeto')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar projeto')
     } finally {
       setCreating(false)
     }
@@ -381,8 +382,8 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
       } else {
         toast.error(response?.error || "Erro ao importar projeto")
       }
-    } catch (error: any) {
-      toast.error(error?.message || "Erro ao importar projeto do GitHub")
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao importar projeto do GitHub")
     } finally {
       setImportingGithub(false)
     }

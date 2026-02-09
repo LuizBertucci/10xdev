@@ -6,14 +6,14 @@ export function buildCategoryGroups(cards: CardFeature[]) {
   const map = new Map<string, CardFeature[]>()
 
   cards.forEach((card) => {
-    const tags = card.tags && card.tags.length > 0 ? card.tags : [DEFAULT_CATEGORY]
-    tags.forEach((rawTag) => {
-      const tag = rawTag?.trim() || DEFAULT_CATEGORY
-      if (!map.has(tag)) {
-        map.set(tag, [])
-      }
-      map.get(tag)?.push(card)
-    })
+    const category = card.category?.trim()
+      || (card.tags && card.tags.length > 0 ? card.tags[0]?.trim() : null)
+      || DEFAULT_CATEGORY
+
+    if (!map.has(category)) {
+      map.set(category, [])
+    }
+    map.get(category)?.push(card)
   })
 
   return map

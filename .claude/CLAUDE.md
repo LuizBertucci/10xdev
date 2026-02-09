@@ -1,159 +1,73 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Projeto
 
-## Project Overview
+**10xDev** — plataforma full-stack para gerenciar snippets e recursos tecnicos.
 
-**10xDev** is a full-stack developer platform featuring a CardFeatures system for managing code snippets, examples, and technical resources. The project consists of a Next.js frontend and Node.js/Express backend with PostgreSQL via Supabase.
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui (Radix) — `frontend/`
+- **Backend**: Node.js, Express, TypeScript, Supabase (PostgreSQL) — `backend/`
+- **Padrao backend**: Controller → Model → Database
 
-### Architecture
-- **Frontend**: Next.js 15 with TypeScript, Tailwind CSS, shadcn/ui components
-- **Backend**: Node.js with Express, TypeScript, comprehensive middleware stack
-- **Database**: PostgreSQL via Supabase (both public and admin clients)
-- **State Management**: Custom hooks with API integration
-- **UI Framework**: Radix UI components with Tailwind styling
+## Comandos
 
-## Development Commands
-
-### Frontend (from /frontend)
+### Frontend (`frontend/`)
 ```bash
-npm run dev          # Start development server (Next.js)
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # ESLint checks
+npm run dev       # Dev server (porta 3000)
+npm run build     # Build de producao
+npm run lint      # ESLint
 ```
 
-### Backend (from /backend)
+### Backend (`backend/`)
 ```bash
-npm run dev          # Start development server with nodemon
-npm run build        # TypeScript compilation to /dist
-npm run start        # Start production server from dist/
-npm test             # Run Jest tests
-npm run lint         # ESLint checks
-npm run lint:fix     # Auto-fix ESLint issues
+npm run dev       # Dev server com nodemon (porta 3001)
+npm run build     # Compila TypeScript para dist/
+npm test          # Jest
+npm run lint      # ESLint
+npm run lint:fix  # ESLint com auto-fix
 ```
 
-## Key Architecture Patterns
+## Regras de codigo
 
-### CardFeature System
-The core feature is a comprehensive CRUD system for managing code snippets with multi-tab support:
+### TypeScript — escreva codigo que compila sem erros
 
-**Data Structure**:
-- `CardFeature`: Main entity with title, tech, language, description
-- `CardFeatureScreen[]`: Array of tabs/files within each CardFeature
-- Each screen has: name, description, code content
+**Backend e mais estrito que o frontend.** No backend, respeite:
+- `noImplicitAny` — nunca deixe tipos implicitos como `any`
+- `noImplicitReturns` — toda funcao deve ter return explicito em todos os caminhos
+- `noUncheckedIndexedAccess` — acesso por index retorna `T | undefined`, trate antes de usar
+- `exactOptionalPropertyTypes` — propriedades opcionais nao aceitam `undefined` explicito, use omissao
+- `noFallthroughCasesInSwitch` — todo `case` precisa de `break` ou `return`
 
-**API Endpoints** (`/api/card-features`):
-- `GET /` - List all with pagination, filtering, sorting
-- `GET /:id` - Get single CardFeature
-- `GET /search?q=term` - Search functionality
-- `GET /tech/:tech` - Filter by technology
-- `GET /stats` - System statistics
-- `POST /` - Create new CardFeature
-- `PUT /:id` - Update existing
-- `DELETE /:id` - Delete CardFeature
-- `POST /bulk` - Bulk create
-- `DELETE /bulk` - Bulk delete
+**Frontend** usa `strict: true` mas sem as regras extras acima.
 
-### Frontend Component Architecture
-- **Pages as Components**: Located in `/pages/` (not Next.js pages - custom component structure)
-- **Reusable UI**: shadcn/ui components in `/components/ui/`
-- **Business Components**: CardFeature, CardFeatureForm, CardFeatureModal
-- **Custom Hooks**: `useCardFeatures` for state management, `useApi` for HTTP client
-- **Services Layer**: Dedicated API clients in `/services/`
+### ESLint — regras permissivas, mas nao ignore
 
-### Backend Architecture
-**Controller → Model → Database** pattern:
-- **Controllers**: Request handling, validation, response formatting
-- **Models**: Business logic and database operations
-- **Database**: Supabase client with typed interfaces
-- **Middleware**: CORS, rate limiting, security headers, error handling
-- **Routes**: RESTful API organization
+Ambos os projetos desabilitam `no-explicit-any`, `no-unused-vars` e `prefer-const`. Mesmo assim:
+- Nao crie variaveis sem uso desnecessariamente
+- Prefira `const` sobre `let` quando o valor nao muda
+- Use `any` somente quando realmente necessario — prefira tipos concretos
 
-### Type Safety
-Shared TypeScript interfaces between frontend and backend:
-- `CardFeature`, `CardFeatureScreen` interfaces
-- `CreateCardFeatureData`, `UpdateCardFeatureData` for mutations
-- `CardFeatureQueryParams` for filtering/pagination
-- Database types generated from Supabase schema
+### Path aliases
 
-### Syntax Highlighting System
-Custom implementation with:
-- `SyntaxHighlighter` component with theme support
-- Language-specific highlighting for TypeScript, JavaScript, Python, etc.
-- Tech badge system with icons and colors
-- Configurable syntax themes in `/components/utils/`
+- **Frontend**: `@/*` → `./*`
+- **Backend**: `@/*` → `./src/*` (tambem `@/models/*`, `@/controllers/*`, `@/routes/*`, `@/middleware/*`, `@/database/*`, `@/utils/*`, `@/types/*`)
 
-## Development Environment Setup
+### Naming
 
-1. **Environment Variables**:
-   - Backend: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-   - CORS origin configuration
-   - Rate limiting settings
+- **Componentes/tipos**: PascalCase (`CardFeature.tsx`, `CardFeature`)
+- **Utilitarios/hooks**: camelCase (`useCardFeatures.ts`)
+- **Banco**: snake_case (`card_features`)
+- **API**: kebab-case (`/card-features`)
+- **Propriedades de tipo**: camelCase
 
-2. **Database**: 
-   - Supabase PostgreSQL with `card_features` table
-   - JSONB field for screens array
-   - Indexes on tech, language, created_at
+## Idioma
 
-3. **Development Flow**:
-   - Frontend runs on port 3000
-   - Backend runs on port 3001
-   - API proxy configuration in Next.js for development
+- Converse sempre em **portugues**
+- Commits, PRs e mensagens em **portugues** (ver skills `/commit` e `/pr`)
 
-## Code Conventions
+## Arquivos-chave
 
-### Frontend
-- React functional components with hooks
-- TypeScript strict mode enabled
-- Tailwind classes for styling
-- Custom hooks for business logic
-- Props interfaces for all components
-
-### Backend
-- Express router patterns
-- Async/await for database operations
-- Comprehensive error handling
-- Input validation on all endpoints
-- Rate limiting per operation type
-- Structured logging with Morgan
-
-### Naming Conventions
-- **Components**: PascalCase (CardFeature.tsx)
-- **Files**: camelCase for utilities, PascalCase for components
-- **Database**: snake_case (card_features table)
-- **API**: kebab-case endpoints (/card-features)
-- **Types**: PascalCase interfaces, camelCase for properties
-
-## Testing Strategy
-- **Backend**: Jest configuration ready
-- **Frontend**: Next.js testing setup available
-- **API Testing**: Endpoints return consistent response format
-- **Type Safety**: Shared interfaces prevent runtime errors
-
-## Key Files to Understand
-- `frontend/types/cardfeature.ts` - Complete type system
-- `backend/src/controllers/CardFeatureController.ts` - Main API logic
-- `frontend/components/CardFeature.tsx` - Core display component
-- `frontend/hooks/useCardFeatures.ts` - Main state management
-- `backend/src/database/supabase.ts` - Database configuration
-
-## Common Tasks
-
-### Adding New CardFeature Fields
-1. Update interfaces in both `frontend/types/` and `backend/src/types/`
-2. Modify database schema in Supabase
-3. Update validation in CardFeatureController
-4. Update form components and display components
-
-### Adding New Technology Support
-1. Update `SupportedTech` enum in type definitions
-2. Add tech configuration in `frontend/components/utils/techConfigs.ts`
-3. Update badges and icons system
-
-### API Rate Limiting
-Different limits for different operations:
-- General: 100 req/15min
-- Write operations: 50 req/15min  
-- Bulk operations: 10 req/15min
-- Search: 200 req/15min
+- `frontend/types/cardfeature.ts` — sistema de tipos compartilhado
+- `backend/src/controllers/CardFeatureController.ts` — logica principal da API
+- `frontend/components/CardFeature.tsx` — componente de exibicao
+- `frontend/hooks/useCardFeatures.ts` — state management
+- `backend/src/database/supabase.ts` — configuracao do banco

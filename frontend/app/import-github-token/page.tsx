@@ -113,7 +113,7 @@ export default function ImportGithubTokenPage() {
       setTimeout(() => {
         router.push(`/?${params.toString()}`)
       }, 1500)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro na validação:', error)
       setStatus('error')
       setMessage('Erro ao validar token. Tente novamente.')

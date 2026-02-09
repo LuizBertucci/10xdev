@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase'
 interface ImportJobInfo {
   jobId: string
   progress: number
-  step: string
+  step: string | null
   message: string | null
 }
 
@@ -30,11 +30,11 @@ export function useProjectImportJobs(projectIds: string[]) {
         if (!mounted) return
 
         const map = new Map<string, ImportJobInfo>()
-        ;(data || []).forEach((job: any) => {
+        ;(data || []).forEach((job: { project_id: string, id: string, progress?: number, step?: string, message?: string | null }) => {
           map.set(job.project_id, {
             jobId: job.id,
             progress: Number(job.progress ?? 0),
-            step: job.step,
+            step: job.step ?? null,
             message: job.message ?? null
           })
         })

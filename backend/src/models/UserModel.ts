@@ -5,6 +5,13 @@ import {
   ModelListResult,
   ModelResult
 } from '@/types/user'
+import type { CardFeatureRow } from '@/types/cardfeature'
+
+interface UserRowWithStats extends UserRow {
+  role?: string | null
+  status?: string | null
+  card_count?: number
+}
 
 export class UserModel {
   private static transformToResponse(row: UserRow): UserResponse {
@@ -29,7 +36,7 @@ export class UserModel {
           .order('name', { ascending: true })
       )
 
-      if (!data || data.length === 0) {
+      if (!data || !Array.isArray(data) || data.length === 0) {
         return {
           success: true,
           data: [],
@@ -38,7 +45,46 @@ export class UserModel {
         }
       }
 
-      const users = data.map((row: UserRow) => this.transformToResponse(row))
+      const users = await Promise.all(
+        (data as UserRow[]).map(async (row: UserRow) => {
+          const user = this.transformToResponse(row)
+          if (!user.avatarUrl || !user.name) {
+            try {
+              const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(row.id)
+              if (authUser?.user?.user_metadata) {
+                const meta = authUser.user.user_metadata
+                const updates: Record<string, string> = {}
+
+                if (!user.avatarUrl && meta.avatar_url) {
+                  user.avatarUrl = meta.avatar_url
+                  updates.avatar_url = meta.avatar_url
+                }
+                if (!user.name) {
+                  const authName = meta.name || meta.full_name || null
+                  if (authName) {
+                    user.name = authName
+                    updates.name = authName
+                  }
+                }
+
+                // Sincronizar na tabela users para próximas buscas
+                if (Object.keys(updates).length > 0) {
+                  updates.updated_at = new Date().toISOString()
+                  void Promise.resolve(
+                    supabaseAdmin
+                      .from('users')
+                      .update(updates)
+                      .eq('id', row.id)
+                  ).catch(() => {})
+                }
+              }
+            } catch {
+              // Ignorar erro de auth, manter dados da tabela
+            }
+          }
+          return user
+        })
+      )
 
       return {
         success: true,
@@ -46,12 +92,12 @@ export class UserModel {
         count: count || 0,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error searching users:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -77,7 +123,7 @@ export class UserModel {
         createdAt: string | null
         updatedAt: string | null
         cardCount: number
-      })> = (users ?? []).map((row: any) => ({
+      })> = ((users as UserRowWithStats[] | null) ?? []).map((row: UserRowWithStats) => ({
         id: row.id,
         email: row.email,
         name: row.name ?? null,
@@ -95,7 +141,7 @@ export class UserModel {
 
       // Usar RPC function para contagem eficiente (escalável até 1M+ cards)
       // Fallback para query client-side se RPC não existir
-      let counts = new Map<string, number>()
+      const counts = new Map<string, number>()
 
       try {
         // Tentar usar RPC function (mais eficiente)
@@ -108,7 +154,7 @@ export class UserModel {
             counts.set(row.user_id, Number(row.card_count) || 0)
           }
         }
-      } catch (rpcError: any) {
+      } catch (rpcError: unknown) {
         // Fallback: contagem client-side se RPC não existir
         console.warn('RPC get_user_card_counts não encontrada, usando fallback client-side')
         const { data: cards } = await executeQuery(
@@ -117,8 +163,8 @@ export class UserModel {
             .select('created_by')
         )
 
-        for (const c of cards ?? []) {
-          const creator = (c as any)?.created_by as string | null
+        for (const c of (cards as { created_by: string | null }[] | null) ?? []) {
+          const creator = (c as { created_by: string | null })?.created_by
           if (!creator) continue
           counts.set(creator, (counts.get(creator) ?? 0) + 1)
         }
@@ -132,12 +178,12 @@ export class UserModel {
         count: count || enriched.length,
         statusCode: 200
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error listing users with stats:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -162,12 +208,12 @@ export class UserModel {
       }
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating user status:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -192,12 +238,12 @@ export class UserModel {
       }
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating user role:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -215,17 +261,17 @@ export class UserModel {
       await executeQuery(
         supabaseAdmin
           .from('card_features')
-          .update({ created_by: null, updated_at: new Date().toISOString() } as any)
+          .update({ created_by: null, updated_at: new Date().toISOString() } as Partial<CardFeatureRow>)
           .eq('created_by', userId)
       )
 
       return { success: true, data: { updatedCount: count || 0 }, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error anonymizing cards:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -242,9 +288,9 @@ export class UserModel {
             .delete()
             .eq('shared_with_user_id', userId)
         )
-      } catch (err: any) {
-        const code = err?.code
-        const msg = String(err?.message || '')
+      } catch (err: unknown) {
+        const code = err && typeof err === 'object' && 'code' in err ? String(err.code) : undefined
+        const msg = err instanceof Error ? String(err.message) : String(err || '')
         const isMissingRelation = code === '42P01' || msg.includes('card_shares') || msg.includes('relation')
         if (!isMissingRelation) throw err
       }
@@ -266,12 +312,12 @@ export class UserModel {
       )
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error cleaning user references:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -285,7 +331,7 @@ export class UserModel {
           .eq('created_by', userId)
       )
 
-      const projectIds: string[] = (projects ?? []).map((p: any) => p.id).filter(Boolean)
+      const projectIds: string[] = ((projects as { id: string }[] | null) ?? []).map((p: { id: string }) => p.id).filter(Boolean)
       if (projectIds.length === 0) {
         return { success: true, data: { deletedProjects: 0 }, statusCode: 200 }
       }
@@ -311,12 +357,12 @@ export class UserModel {
       )
 
       return { success: true, data: { deletedProjects: projectIds.length }, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting projects by creator:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }
@@ -331,12 +377,12 @@ export class UserModel {
       )
 
       return { success: true, data: null, statusCode: 200 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting user profile row:', error)
       return {
         success: false,
-        error: error.message || 'Internal server error',
-        statusCode: error.statusCode || 500
+        error: error instanceof Error ? error.message : 'Internal server error',
+        statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
   }

@@ -1,8 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import supabase, { type User, type RegisterData, type LoginData } from '@/services/auth'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 interface AuthContextType {
   user: User | null
@@ -209,18 +208,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         // Traduzir erros comuns do Supabase
-        let errorMessage = error.message
-        if (error.message?.includes('Invalid login credentials')) {
+        let errorMessage = error instanceof Error ? error.message : String(error)
+        if (error instanceof Error && error.message?.includes('Invalid login credentials')) {
           errorMessage = 'Credenciais inválidas. Verifique seu email e senha.'
-        } else if (error.message?.includes('Email not confirmed')) {
+        } else if (error instanceof Error && error.message?.includes('Email not confirmed')) {
           errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
-        } else if (error.message?.includes('Invalid email')) {
+        } else if (error instanceof Error && error.message?.includes('Invalid email')) {
           errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
-        } else if (error.message?.includes('Request rate limit') || error.message?.includes('rate limit')) {
+        } else if (error instanceof Error && (error.message?.includes('Request rate limit') || error.message?.includes('rate limit'))) {
           errorMessage = 'Muitas tentativas de login. Por favor, aguarde alguns minutos antes de tentar novamente.'
         }
-        
-        const customError: any = new Error(errorMessage)
+
+        const customError = new Error(errorMessage) as Error & { originalError?: unknown }
         customError.originalError = error
         throw customError
       }
@@ -244,7 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .catch(err => console.error('Erro ao buscar perfil completo:', err))
           .finally(() => setIsProfileLoaded(true))
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no login:', error)
       throw error
     } finally {
@@ -268,18 +267,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         // Traduzir erros comuns do Supabase
-        let errorMessage = error.message
-        if (error.message?.includes('User already registered') || error.message?.includes('already registered')) {
+        let errorMessage = error instanceof Error ? error.message : String(error)
+        if (error instanceof Error && (error.message?.includes('User already registered') || error.message?.includes('already registered'))) {
           errorMessage = 'Este email já está cadastrado. Tente fazer login ou use outro email.'
-        } else if (error.message?.includes('Invalid email')) {
+        } else if (error instanceof Error && error.message?.includes('Invalid email')) {
           errorMessage = 'Email inválido. Por favor, verifique o email e tente novamente.'
-        } else if (error.message?.includes('Password')) {
+        } else if (error instanceof Error && error.message?.includes('Password')) {
           errorMessage = 'A senha não atende aos requisitos mínimos.'
-        } else if (error.message?.includes('Request rate limit') || error.message?.includes('rate limit')) {
+        } else if (error instanceof Error && (error.message?.includes('Request rate limit') || error.message?.includes('rate limit'))) {
           errorMessage = 'Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.'
         }
-        
-        const customError: any = new Error(errorMessage)
+
+        const customError = new Error(errorMessage) as Error & { originalError?: unknown }
         customError.originalError = error
         throw customError
       }
@@ -301,7 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .catch(err => console.error('Erro ao buscar perfil completo:', err))
           .finally(() => setIsProfileLoaded(true))
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no registro:', error)
       throw error
     } finally {
@@ -318,7 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileCache.clear()
       setUser(null)
       setIsProfileLoaded(true)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro no logout:', error)
       throw error
     } finally {
@@ -331,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!user) throw new Error('Usuário não autenticado')
 
-      const updateData: any = {}
+      const updateData: { email?: string, data?: { name: string, full_name: string } } = {}
       if (data.email) updateData.email = data.email
       if (data.name) {
         updateData.data = {
@@ -360,7 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userData)
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar perfil:', error)
       throw error
     } finally {

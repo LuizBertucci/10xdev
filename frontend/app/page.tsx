@@ -1,7 +1,8 @@
 "use client"
 
 
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarTrigger, SidebarProvider } from "@/components/ui/sidebar"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { usePlatform } from "@/hooks/use-platform"
 import { useSearchParams } from "next/navigation"
 import AppSidebar from "@/components/AppSidebar"
@@ -21,11 +22,12 @@ import PublicHome from "@/components/PublicHome"
 
 export default function DevPlatform() {
   const searchParams = useSearchParams()
-  const tab = searchParams?.get('tab')
+  const isMobile = useIsMobile()
 
   // Hooks must be called before any early returns
   const platformState = usePlatform()
   const { user, isProfileLoaded } = useAuth()
+  const tab = searchParams?.get('tab')
   const activeTab = platformState.activeTab
   const contentsTab = searchParams?.get('contentsTab') || 'posts'
   const contentId = activeTab === "contents" ? searchParams?.get('id') || null : null
@@ -59,18 +61,13 @@ export default function DevPlatform() {
       <SidebarProvider>
         <AppSidebar platformState={platformState} />
         <SidebarInset>
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 overflow-x-hidden">
-            {/* Header */}
-            <header className="bg-white shadow-sm border-b">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                  <div className="flex items-center space-x-4">
-                    <SidebarTrigger />
-                  </div>
-                </div>
-              </div>
+          {isMobile && (
+            <header className="flex items-center gap-2 px-4 py-3 border-b bg-background">
+              <SidebarTrigger />
+              <h1 className="font-semibold">10xDev</h1>
             </header>
-
+          )}
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 overflow-x-hidden">
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-hidden">
               {/* Só monta abas já visitadas; ocultar com CSS evita piscar ao trocar (sidebar, botões, painel). */}
               {visitedTabs.has("home") && (

@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:docs.anthropic.com)"
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: otimizar CLAUDE.md removendo conteudo redundante e adicionando regras de codigo\n\nReduzido de 159 para 73 linhas. Removidas secoes que o Claude\ndescobre lendo o codigo \\(endpoints, architecture, type safety\\).\nAdicionadas regras de TypeScript strict do backend, ESLint e idioma.\nEOF\n\\)\")",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

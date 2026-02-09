@@ -1,4 +1,5 @@
-import type { CreateCardFeatureRequest, CardFeatureScreen } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest } from '@/types/cardfeature'
+import { normalizeTags } from '@/utils/tagNormalization'
 
 export enum QualityIssueType {
   DUPLICATE_TITLE = 'duplicate_title',
@@ -547,6 +548,13 @@ export class CardQualitySupervisor {
     const { filteredCards, removeCount } = this.removeCards(workingCards, report.cardsToRemove)
     cardsRemoved = removeCount
     workingCards = filteredCards
+
+    // Normalizar tags de todos os cards (safety-net final)
+    for (const card of workingCards) {
+      if (card.tags) {
+        card.tags = normalizeTags(card.tags)
+      }
+    }
 
     console.log(`\n[CardQualitySupervisor] Resultado: ${workingCards.length} cards (${mergesApplied} merges, ${cardsRemoved} removidos)\n`)
 
