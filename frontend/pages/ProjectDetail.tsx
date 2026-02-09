@@ -25,6 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import CardFeatureModal from "@/components/CardFeatureModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
@@ -63,6 +64,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
+  const [expandModalCard, setExpandModalCard] = useState<CardFeature | null>(null)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -959,6 +961,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
                           onEdit={() => {}} // Não permitir editar aqui
                           onDelete={() => {}} // Não permitir deletar aqui
                           expandOnClick
+                          onExpand={(card) => setExpandModalCard(card)}
                         />
 
                         {/* Painel flutuante de ações (apenas no modo de edição) */}
@@ -1326,6 +1329,13 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           onMembersAdded={loadMembers}
         />
       )}
+
+      {/* Modal Expandido do Card (tela cheia) */}
+      <CardFeatureModal
+        snippet={expandModalCard}
+        isOpen={expandModalCard !== null}
+        onClose={() => setExpandModalCard(null)}
+      />
     </div>
   )
 }
