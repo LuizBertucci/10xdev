@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video, Sparkles, Loader2 } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video, Sparkles, Loader2, Expand } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -45,9 +45,10 @@ interface CardFeatureCompactProps {
   isSelected?: boolean
   onToggleSelect?: (id: string) => void
   expandOnClick?: boolean
+  onExpand?: (snippet: CardFeatureType) => void
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
@@ -518,6 +519,28 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
                       {apiLinkCopied ? 'Copiado!' : 'Link da API'}
                     </Button>
+
+                    {/* Botão Tela cheia */}
+                    {onExpand && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onExpand(snippet)
+                            }}
+                            className="text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-1 h-7 w-7"
+                          >
+                            <Expand className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Tela cheia</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
 
                     {/* Toggle - extrema direita */}
                     <Tooltip>

@@ -6,11 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, MoreVertical, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, GitBranch, RefreshCw, ExternalLink, Unplug } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { projectService, type Project, ProjectMemberRole, type SyncStatusResponse } from "@/services"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2 } from "lucide-react"
+import { projectService, type Project, type ProjectMember, type ProjectCard } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
-import { userService, type User } from "@/services/userService"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
 import { Progress } from "@/components/ui/progress"
@@ -27,9 +25,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import CardFeatureModal from "@/components/CardFeatureModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
-import { usePlatform } from "@/hooks/use-platform"
+import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 
 interface PlatformState {
@@ -40,22 +39,22 @@ interface ProjectDetailProps {
   platformState?: PlatformState
 }
 
-export default function ProjectDetail({ platformState }: ProjectDetailProps) {
+export default function ProjectDetail({ platformState: _platformState }: ProjectDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams?.get('id') || null
 
   const [project, setProject] = useState<Project | null>(null)
-  const [members, setMembers] = useState<any[]>([])
-  const [cards, setCards] = useState<any[]>([])
+  const [members, setMembers] = useState<ProjectMember[]>([])
+  const [cards, setCards] = useState<ProjectCard[]>([])
   const [cardFeatures, setCardFeatures] = useState<CardFeature[]>([])
-  const [availableCards, setAvailableCards] = useState<any[]>([])
+  const [availableCards, setAvailableCards] = useState<CardFeature[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [loadingCards, setLoadingCards] = useState(false)
   const [loadingMoreCards, setLoadingMoreCards] = useState(false)
   const [hasMoreCards, setHasMoreCards] = useState(false)
-  const [totalCardsCount, setTotalCardsCount] = useState(0)
+  const [_totalCardsCount, setTotalCardsCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState("")
   const ALL_CATEGORIES_VALUE = "__all__"
   const ALL_CATEGORIES_LABEL = "Todas"
@@ -65,6 +64,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [isAddMemberDialogOpen, setIsAddMemberDialogOpen] = useState(false)
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
+  const [expandModalCard, setExpandModalCard] = useState<CardFeature | null>(null)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -74,45 +74,26 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   const [showCategories, setShowCategories] = useState(true)
   const [activeTab, setActiveTab] = useState('codes')
 
-  // Share project state
+  // Share project state (usado no card Compartilhar da aba Configurações)
   const [projectLinkCopied, setProjectLinkCopied] = useState(false)
-
-  // URL compartilhável do projeto
   const shareableProjectUrl = useMemo(() => {
     if (typeof window === 'undefined' || !project) return ''
-    const baseUrl = window.location.origin
-    return `${baseUrl}/?tab=projects&id=${project.id}`
+    return `${window.location.origin}/?tab=projects&id=${project.id}`
   }, [project])
-
-  // Função para copiar URL do projeto
   const handleCopyProjectUrl = async () => {
-    if (!shareableProjectUrl) {
-      toast.error('Link não disponível')
-      return
-    }
+    if (!shareableProjectUrl) return
     try {
       await navigator.clipboard.writeText(shareableProjectUrl)
       setProjectLinkCopied(true)
       toast.success('Link do projeto copiado!')
       setTimeout(() => setProjectLinkCopied(false), 2000)
-    } catch (err) {
-      toast.error('Erro ao copiar link do projeto')
-    }
+    } catch { toast.error('Erro ao copiar link do projeto') }
   }
 
-  // User Search State
-  const [userSearchQuery, setUserSearchQuery] = useState("")
-  const [userSearchResults, setUserSearchResults] = useState<User[]>([])
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [isSearchingUsers, setIsSearchingUsers] = useState(false)
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const grokEnabled = process.env.NEXT_PUBLIC_GROK_ENABLED === "true"
   const [status, setStatus] = useState<{ type: "info" | "success" | "error"; text: string } | null>(null)
   
-  // GitSync state
-  const [syncStatus, setSyncStatus] = useState<SyncStatusResponse | null>(null)
-  const [syncing, setSyncing] = useState(false)
-
   // Import job state
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
   const [importJob, setImportJob] = useState<{
@@ -161,60 +142,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }, [grokEnabled])
 
-  // Load GitSync status
-  const loadSyncStatus = async () => {
-    if (!projectId) return
-    try {
-      const res = await projectService.getSyncStatus(projectId)
-      if (res?.success && res.data) {
-        setSyncStatus(res.data)
-      }
-    } catch {
-      // Silently ignore - sync may not be configured
-    }
-  }
-
-  useEffect(() => {
-    if (projectId) {
-      loadSyncStatus()
-    }
-  }, [projectId])
-
-  const handleSync = async () => {
-    if (!projectId || syncing) return
-    try {
-      setSyncing(true)
-      const res = await projectService.syncProject(projectId)
-      if (res?.success) {
-        toast.success(res.message || 'Sincronização concluída')
-        await loadSyncStatus()
-        // Reload cards to show updated content
-        loadCards(true)
-      } else {
-        toast.error(res?.error || 'Erro ao sincronizar')
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erro ao sincronizar com o GitHub')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  const handleDisconnect = async () => {
-    if (!projectId) return
-    try {
-      const res = await projectService.disconnectRepo(projectId)
-      if (res?.success) {
-        toast.success('Repositório desconectado')
-        setSyncStatus(null)
-      } else {
-        toast.error('Erro ao desconectar')
-      }
-    } catch {
-      toast.error('Erro ao desconectar repositório')
-    }
-  }
-
   useEffect(() => {
     if (project?.name && !isEditingName) {
       setNameDraft(project.name)
@@ -241,7 +168,18 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           .maybeSingle()
 
         if (mounted && data) {
-          const jobData = data as any
+          const jobData = data as {
+      id: string
+      status: string
+      step: string
+      progress: number
+      message: string | null
+      ai_requested: boolean
+      ai_used: boolean
+      ai_cards_created: number
+      files_processed: number
+      cards_created: number
+    }
           setImportJob(jobData)
           lastCardsCreatedRef.current = jobData.cards_created || 0
         }
@@ -262,7 +200,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           schema: 'public',
           table: 'import_jobs',
           filter: `project_id=eq.${projectId}`
-        }, (payload: any) => {
+        }, (payload: { new: { id: string; status: string; step: string; progress: number; message: string | null; ai_requested: boolean; ai_used: boolean; ai_cards_created: number; files_processed: number; cards_created: number } }) => {
           if (!mounted) return
           const row = payload.new
           if (row) {
@@ -336,8 +274,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         handleBack()
         return false
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar projeto')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar projeto')
       handleBack()
       return false
     } finally {
@@ -354,8 +292,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       if (response?.success && response?.data) {
         setMembers(response.data)
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar membros')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar membros')
     } finally {
       setLoadingMembers(false)
     }
@@ -380,13 +318,13 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         setCards(newCards)
 
         const features = newCards
-          .map((projectCard: any) => projectCard.cardFeature)
-          .filter(Boolean) as CardFeature[]
+          .map((projectCard: ProjectCard) => projectCard.cardFeature)
+          .filter((cardFeature): cardFeature is NonNullable<NonNullable<ProjectCard>['cardFeature']> => cardFeature !== undefined && cardFeature !== null)
         setCardFeatures(features)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (!incremental && !loadMore) {
-        toast.error(error.message || 'Erro ao carregar cards')
+        toast.error(error instanceof Error ? error.message : 'Erro ao carregar cards')
       } else if (loadMore) {
         toast.error('Erro ao carregar mais cards')
       }
@@ -408,12 +346,12 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     try {
       const response = await cardFeatureService.getAll({ limit: 100 })
       if (response?.success && response?.data) {
-        const projectCardIds = new Set(cards.map((c: any) => c.cardFeatureId))
-        const filtered = response.data.filter((card: any) => !projectCardIds.has(card.id))
+        const projectCardIds = new Set(cards.map((c) => c.cardFeatureId))
+        const filtered = response.data.filter((card) => !projectCardIds.has(card.id))
         setAvailableCards(filtered)
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao carregar cards disponíveis')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar cards disponíveis')
     }
   }
 
@@ -437,9 +375,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         showStatus("error", response?.error || "Erro ao adicionar card")
         toast.error(response?.error || 'Erro ao adicionar card')
       }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao adicionar card")
-      toast.error(error.message || 'Erro ao adicionar card')
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message : "Erro ao adicionar card")
+      toast.error(error instanceof Error ? error.message : 'Erro ao adicionar card')
     }
   }
 
@@ -460,9 +398,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         showStatus("error", response?.error || "Erro ao remover card")
         toast.error(response?.error || 'Erro ao remover card')
       }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao remover card")
-      toast.error(error.message || 'Erro ao remover card')
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message : "Erro ao remover card")
+      toast.error(error instanceof Error ? error.message : 'Erro ao remover card')
     }
   }
 
@@ -480,9 +418,9 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         showStatus("error", response?.error || "Erro ao reordenar card")
         toast.error(response?.error || 'Erro ao reordenar card')
       }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao reordenar card")
-      toast.error(error.message || 'Erro ao reordenar card')
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message : "Erro ao reordenar card")
+      toast.error(error instanceof Error ? error.message : 'Erro ao reordenar card')
     }
   }
 
@@ -504,66 +442,11 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
         showStatus("error", response?.error || "Erro ao deletar projeto")
         toast.error(response?.error || 'Erro ao deletar projeto')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao deletar projeto:', error)
-      let errorMessage = 'Erro ao deletar projeto'
-      if (error?.error) {
-        errorMessage = error.error
-      } else if (error?.message) {
-        errorMessage = error.message
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar projeto'
       toast.error(errorMessage)
       showStatus("error", errorMessage)
-    }
-  }
-
-  const handleSearchUsers = async () => {
-    if (!userSearchQuery || userSearchQuery.length < 2) {
-      toast.error("Digite pelo menos 2 caracteres")
-      return
-    }
-    
-    try {
-      setIsSearchingUsers(true)
-      const response = await userService.searchUsers(userSearchQuery)
-      if (response?.success && response?.data) {
-        setUserSearchResults(response.data)
-        if (response.data.length === 0) {
-          toast.info("Nenhum usuário encontrado")
-        }
-      } else {
-        setUserSearchResults([])
-        toast.error(response?.error || "Erro ao buscar usuários")
-      }
-    } catch (error) {
-      toast.error("Erro ao buscar usuários")
-    } finally {
-      setIsSearchingUsers(false)
-    }
-  }
-
-  const handleAddMember = async () => {
-    if (!selectedUser || !projectId) return
-    
-    try {
-      showStatus("info", "Adicionando membro...")
-      const response = await projectService.addMember(projectId, { userId: selectedUser.id })
-      if (response?.success) {
-        toast.success("Membro adicionado com sucesso")
-        setIsAddMemberDialogOpen(false)
-        loadMembers()
-        // Reset states
-        setSelectedUser(null)
-        setUserSearchQuery("")
-        setUserSearchResults([])
-        showStatus("success", "Membro adicionado ao projeto")
-      } else {
-        showStatus("error", response?.error || "Erro ao adicionar membro")
-        toast.error(response?.error || "Erro ao adicionar membro")
-      }
-    } catch (error: any) {
-      showStatus("error", error.message || "Erro ao adicionar membro")
-      toast.error(error.message || "Erro ao adicionar membro")
     }
   }
 
@@ -582,7 +465,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
   }
 
   const startEditName = () => {
-    if (!canManageMembers) return
+    if (!canEditProject) return
     setNameDraft(project?.name || "")
     setIsEditingName(true)
     requestAnimationFrame(() => {
@@ -627,8 +510,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       } else {
         showStatus("error", response?.error || "Erro ao atualizar nome")
       }
-    } catch (error: any) {
-      showStatus("error", error?.message || "Erro ao atualizar nome")
+    } catch (error: unknown) {
+      showStatus("error", error instanceof Error ? error.message : "Erro ao atualizar nome")
     } finally {
       setSavingName(false)
     }
@@ -639,15 +522,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       loadAvailableCards()
     }
   }, [isAddCardDialogOpen])
-
-  // Reset dialog state when closed
-  useEffect(() => {
-    if (!isAddMemberDialogOpen) {
-      setSelectedUser(null)
-      setUserSearchQuery("")
-      setUserSearchResults([])
-    }
-  }, [isAddMemberDialogOpen])
 
   // Deduplicate cardFeatures by id to avoid duplicate keys
   const uniqueCardFeatures = Array.from(
@@ -683,9 +557,28 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
     }
   }, [orderedCategories, selectedCategory])
 
+  const handleCategoryOrderChange = async (newOrder: string[]) => {
+    // Atualiza localmente de imediato (otimista)
+    setProject((prev) => prev ? { ...prev, categoryOrder: newOrder } : prev)
+
+    if (projectId) {
+      try {
+        const response = await projectService.update(projectId, { categoryOrder: newOrder })
+        if (!response?.success) {
+          toast.error(response?.error || 'Erro ao salvar ordem das categorias')
+          // Reverte em caso de erro
+          setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
+        }
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao salvar ordem das categorias')
+        setProject((prev) => prev ? { ...prev, categoryOrder: project?.categoryOrder || [] } : prev)
+      }
+    }
+  }
+
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
-      const projectCard = cards.find((c: any) => c.cardFeatureId === cardFeature.id)
+      const projectCard = cards.find((c) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
@@ -697,7 +590,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
-  const canManageMembers = project?.userRole === 'owner' || project?.userRole === 'admin'
+  const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin'
+  const canManageMembers = !!project?.userRole // qualquer membro pode adicionar pessoas
   if (loading || !project) {
     return (
       <div className="text-center py-12">
@@ -808,7 +702,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                   <span className="text-gray-900 font-bold">Projeto:</span>{" "}
                   {project.name}
                 </h1>
-                {canManageMembers && (
+                {canEditProject && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -842,92 +736,18 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
           </Button>
 
           {project.userRole && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditMode(!isEditMode)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  {isEditMode ? "Sair do modo de edição" : "Editar lista"}
-                </DropdownMenuItem>
-                {project.userRole === "owner" && (
-                  <DropdownMenuItem
-                    onClick={handleDeleteProject}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Deletar Projeto
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsAddMemberDialogOpen(true)}
+              title="Adicionar membro ao projeto"
+            >
+              <UserPlus className="h-5 w-5" />
+            </Button>
           )}
         </div>
       </div>
-
-      {/* GitSync Status Banner */}
-      {syncStatus?.active && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 mb-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <GitBranch className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-              <span className="text-sm font-medium text-emerald-900 truncate">
-                {syncStatus.githubOwner}/{syncStatus.githubRepo}
-              </span>
-              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 flex-shrink-0">
-                {syncStatus.defaultBranch}
-              </Badge>
-              {syncStatus.conflicts > 0 && (
-                <Badge variant="destructive" className="text-xs flex-shrink-0">
-                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {syncStatus.lastSyncAt && (
-                <span className="text-xs text-emerald-600 hidden sm:inline">
-                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
-                className="h-7 px-2 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
-                title="Sincronizar com GitHub"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              </Button>
-              <a
-                href={`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
-                title="Abrir no GitHub"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100">
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
-                    <Unplug className="h-4 w-4 mr-2" />
-                    Desconectar do GitHub
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Import Progress Banner - Sticky between Header and Tabs */}
       {importJob && (
@@ -1007,42 +827,65 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       {/* Tabs de navegação */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <TabsList>
-            <TabsTrigger value="codes">Códigos</TabsTrigger>
-            <TabsTrigger value="settings">Configurações</TabsTrigger>
-          </TabsList>
-
           {/* Botão toggle do Sumário - visível apenas na tab Códigos */}
           {activeTab === 'codes' && (
-            <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full">
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full md:w-auto"
-                >
-                  <List className="h-4 w-4 mr-2" />
-                  <span className="md:hidden">{isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário</span>
-                  <span className="hidden md:inline">Ver Sumário</span>
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="md:hidden mt-2">
-                <ProjectCategories
-                  categories={orderedCategories}
-                  counts={categoryGroups}
-                  selectedCategory={selectedCategory}
-                  onSelect={setSelectedCategory}
-                  allLabel={ALL_CATEGORIES_LABEL}
-                  allValue={ALL_CATEGORIES_VALUE}
-                  allCount={uniqueCardFeatures.length}
-                  loading={loadingCards}
-                  loadingText="Carregando categorias..."
-                  emptyText="Sem categorias"
-                  className="max-h-[300px] overflow-y-auto"
-                />
-              </CollapsibleContent>
-            </Collapsible>
+            <>
+              {/* Desktop: toggle simples do showCategories */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:inline-flex"
+                onClick={() => setShowCategories(prev => !prev)}
+              >
+                <List className="h-4 w-4 mr-2" />
+                {showCategories ? 'Ocultar' : 'Ver'} Sumário
+              </Button>
+
+              {/* Mobile: Collapsible com painel embutido */}
+              <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full md:hidden">
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <List className="h-4 w-4 mr-2" />
+                    {isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <ProjectCategories
+                    categories={orderedCategories}
+                    counts={categoryGroups}
+                    selectedCategory={selectedCategory}
+                    onSelect={setSelectedCategory}
+                    allLabel={ALL_CATEGORIES_LABEL}
+                    allValue={ALL_CATEGORIES_VALUE}
+                    allCount={uniqueCardFeatures.length}
+                    loading={loadingCards}
+                    loadingText="Carregando categorias..."
+                    emptyText="Sem categorias"
+                    sortable
+                    onOrderChange={handleCategoryOrderChange}
+                    className="max-h-[300px] overflow-y-auto"
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </>
           )}
+
+          <div className="flex items-center gap-2 md:ml-auto">
+            <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
+              <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
+                <Settings className="h-3.5 w-3.5" />
+                Configurações
+              </TabsTrigger>
+              <TabsTrigger value="codes" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
+                <Code2 className="h-3.5 w-3.5" />
+                Códigos
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </div>
 
         <TabsContent value="codes" className="space-y-3">
@@ -1062,20 +905,33 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 loading={loadingCards}
                 loadingText="Carregando categorias..."
                 emptyText="Sem categorias"
+                sortable
+                onOrderChange={handleCategoryOrderChange}
                 className="hidden md:block md:h-[520px] md:overflow-y-auto"
               />
             )}
 
             <div className="space-y-3">
-              {/* Barra de busca acima dos cards */}
-              <div className="relative">
-                <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  placeholder="Buscar cards..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9"
-                />
+              {/* Barra de busca + botão de edição */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    placeholder="Buscar cards..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9"
+                  />
+                </div>
+                <Button
+                  variant={isEditMode ? "default" : "ghost"}
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  title={isEditMode ? "Sair do modo de edição" : "Editar lista de cards"}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
               </div>
 
               <ProjectSummary
@@ -1105,6 +961,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                           onEdit={() => {}} // Não permitir editar aqui
                           onDelete={() => {}} // Não permitir deletar aqui
                           expandOnClick
+                          onExpand={(card) => setExpandModalCard(card)}
                         />
 
                         {/* Painel flutuante de ações (apenas no modo de edição) */}
@@ -1199,7 +1056,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
             </div>
             
             {/* Conteúdo - Todos os cards empilhados */}
-            <div className="max-w-2xl space-y-4">
+            <div className="space-y-4">
             {/* Card: Compartilhar Projeto com Input */}
             <Card>
               <CardHeader>
@@ -1286,6 +1143,7 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                               src={member.user.avatarUrl}
                               alt={member.user.name || member.user.email}
                               className="w-9 h-9 rounded-full flex-shrink-0 object-cover"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
@@ -1319,31 +1177,6 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                 )}
               </CardContent>
             </Card>
-
-            {/* Card: Editar Lista */}
-            {canManageMembers && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Pencil className="h-5 w-5" />
-                    Organização
-                  </CardTitle>
-                  <CardDescription>
-                    Reordene e gerencie os cards do projeto
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    {isEditMode ? 'Sair do modo de edição' : 'Editar lista de cards'}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Card: Deletar Projeto (separado e destacado) */}
             {project.userRole === "owner" && (
@@ -1449,7 +1282,8 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
                         <img
                           src={member.user.avatarUrl}
                           alt={member.user.name || member.user.email}
-                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0"
+                          className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover"
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
@@ -1486,75 +1320,22 @@ export default function ProjectDetail({ platformState }: ProjectDetailProps) {
       </Dialog>
 
       {/* Dialog Adicionar Membro */}
-      <Dialog open={isAddMemberDialogOpen} onOpenChange={setIsAddMemberDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Adicionar Membro</DialogTitle>
-            <DialogDescription>
-              Busque um usuário por email ou nome para adicionar ao projeto.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                value={userSearchQuery}
-                onChange={(e) => setUserSearchQuery(e.target.value)}
-                placeholder="Email ou nome do usuário..."
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-              />
-              <Button onClick={handleSearchUsers} disabled={isSearchingUsers} size="icon">
-                {isSearchingUsers ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
-            </div>
+      {projectId && (
+        <AddMemberInProject
+          open={isAddMemberDialogOpen}
+          onOpenChange={setIsAddMemberDialogOpen}
+          projectId={projectId}
+          members={members}
+          onMembersAdded={loadMembers}
+        />
+      )}
 
-            {/* Resultados da Busca */}
-            <div className="max-h-[200px] overflow-y-auto space-y-2">
-              {userSearchResults.map((user) => (
-                <div
-                  key={user.id}
-                  className={`p-3 border rounded-lg cursor-pointer flex items-center gap-3 transition-colors ${
-                    selectedUser?.id === user.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                  onClick={() => setSelectedUser(user)}
-                >
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.name || user.email} className="w-8 h-8 rounded-full" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                      <UserIcon className="h-4 w-4 text-gray-500" />
-                    </div>
-                  )}
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium truncate">{user.name || user.email}</p>
-                    {user.name && <p className="text-xs text-gray-500 truncate">{user.email}</p>}
-                  </div>
-                  {selectedUser?.id === user.id && (
-                    <Check className="h-4 w-4 text-blue-500" />
-                  )}
-                </div>
-              ))}
-              {!isSearchingUsers && userSearchResults.length === 0 && !userSearchQuery && (
-                <p className="text-sm text-gray-500 text-center py-2">
-                  Busque para encontrar usuários
-                </p>
-              )}
-              {userSearchQuery && !isSearchingUsers && userSearchResults.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-2">
-                  Nenhum usuário encontrado
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddMemberDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddMember} disabled={!selectedUser}>
-              Adicionar Membro
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal Expandido do Card (tela cheia) */}
+      <CardFeatureModal
+        snippet={expandModalCard}
+        isOpen={expandModalCard !== null}
+        onClose={() => setExpandModalCard(null)}
+      />
     </div>
   )
 }
