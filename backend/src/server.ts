@@ -117,19 +117,30 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
 
     const tokenData = await GithubService.exchangeCodeForToken(code)
 
-    // Detectar frontend origin do state parameter (enviado pelo frontend)
+    // Detectar frontend origin e projectId do state parameter
     let frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+    let projectId: string | undefined
+
     if (state) {
       try {
-        frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
+        const decoded = Buffer.from(state, 'base64').toString('utf-8')
+        const stateData = JSON.parse(decoded)
+        frontendUrl = stateData.origin || frontendUrl
+        projectId = stateData.projectId
       } catch {
-        // Se falhar decode, usar default
+        // Se falhar decode JSON, tentar como string simples (retrocompatibilidade)
+        try {
+          frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
+        } catch {
+          // Se falhar tudo, usar default
+        }
       }
     }
 
     const params = new URLSearchParams({
       access_token: tokenData.access_token,
-      ...(installation_id ? { installation_id } : {})
+      ...(installation_id ? { installation_id } : {}),
+      ...(projectId ? { project_id: projectId } : {})
     })
 
     res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
@@ -139,11 +150,19 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
     // Detectar frontend origin do state parameter
     const { state } = req.query as { state?: string }
     let frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+
     if (state) {
       try {
-        frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
+        const decoded = Buffer.from(state, 'base64').toString('utf-8')
+        const stateData = JSON.parse(decoded)
+        frontendUrl = stateData.origin || frontendUrl
       } catch {
-        // Se falhar decode, usar default
+        // Se falhar decode JSON, tentar como string simples
+        try {
+          frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
+        } catch {
+          // Se falhar tudo, usar default
+        }
       }
     }
 

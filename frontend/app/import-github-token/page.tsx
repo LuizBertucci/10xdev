@@ -17,11 +17,12 @@ export default function ImportGithubTokenPage() {
     const token = searchParams?.get('token')
     const accessToken = searchParams?.get('access_token')
     const installationId = searchParams?.get('installation_id')
+    const projectId = searchParams?.get('project_id')
     const errorParam = searchParams?.get('error')
 
     // GitHub App OAuth callback (access_token + installation_id via backend redirect)
     if (accessToken || installationId) {
-      handleGitSyncCallback(accessToken, installationId)
+      handleGitSyncCallback(accessToken, installationId, projectId)
       return
     }
 
@@ -49,7 +50,7 @@ export default function ImportGithubTokenPage() {
   }, [searchParams])
 
   /** Handles GitHub App OAuth callback (from backend /api/gitsync/callback redirect) */
-  const handleGitSyncCallback = (accessToken: string | null, installationId: string | null) => {
+  const handleGitSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null) => {
     setStatus('loading')
     setMessage('Conexão com GitHub realizada! Preparando...')
 
@@ -68,10 +69,17 @@ export default function ImportGithubTokenPage() {
     setStatus('success')
     setMessage('GitHub conectado! Redirecionando...')
 
-    // Redirect back to projects page with gitsync flag
+    // Redirect back to project detail or home with gitsync flag
     setTimeout(() => {
       const params = new URLSearchParams({ gitsync: 'true' })
       if (installationId) params.set('installation_id', installationId)
+
+      // If projectId exists, redirect to project detail page
+      if (projectId) {
+        params.set('tab', 'projects')
+        params.set('id', projectId)
+      }
+
       router.push(`/?${params.toString()}`)
     }, 1500)
   }

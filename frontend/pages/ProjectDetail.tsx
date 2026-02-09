@@ -1425,7 +1425,6 @@ export default function ProjectDetail({ platformState: _platformState }: Project
                         } catch { /* ignore */ }
 
                         // Redirect to GitHub OAuth
-                        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
                         const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
 
                         if (!githubClientId) {
@@ -1433,11 +1432,20 @@ export default function ProjectDetail({ platformState: _platformState }: Project
                           return
                         }
 
-                        // Encode frontend origin in state parameter so backend knows where to redirect
-                        const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-                        const state = btoa(frontendOrigin)
+                        // Detect if running on localhost to use correct backend URL
+                        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+                        const backendUrl = isLocalhost
+                          ? 'http://localhost:3001'
+                          : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
 
-                        const redirectUri = `${backendUrl}/gitsync/callback`
+                        // Encode frontend origin and projectId in state parameter
+                        const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+                        const stateData = JSON.stringify({ origin: frontendOrigin, projectId: projectId || '' })
+                        const state = btoa(stateData)
+
+                        // Remove /api suffix if present to avoid duplication
+                        const baseUrl = backendUrl.replace(/\/api$/, '')
+                        const redirectUri = `${baseUrl}/api/gitsync/callback`
                         const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
 
                         window.location.href = githubAuthUrl
