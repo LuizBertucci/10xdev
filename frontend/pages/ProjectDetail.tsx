@@ -1433,8 +1433,12 @@ export default function ProjectDetail({ platformState: _platformState }: Project
                           return
                         }
 
-                        const redirectUri = `${backendUrl}/api/gitsync/callback`
-                        const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo`
+                        // Encode frontend origin in state parameter so backend knows where to redirect
+                        const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+                        const state = btoa(frontendOrigin)
+
+                        const redirectUri = `${backendUrl}/gitsync/callback`
+                        const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
 
                         window.location.href = githubAuthUrl
                       }}
