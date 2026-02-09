@@ -18,6 +18,10 @@ import {
 // Import routes
 import { apiRoutes } from '@/routes'
 
+// Import GitSync (used for webhook/callback before express.json)
+import { GithubService } from '@/services/githubService'
+import { GitSyncService } from '@/services/gitSyncService'
+
 // Configurar variáveis de ambiente - carregar do diretório do backend
 // Usar process.cwd() para garantir que leia do diretório onde o processo foi iniciado
 const envPath = path.resolve(process.cwd(), '.env')
@@ -48,6 +52,87 @@ app.use(helmet({
 
 // CORS
 app.use(corsMiddleware)
+
+// ================================================
+// GITSYNC WEBHOOK & OAUTH CALLBACK
+// Registrados ANTES do express.json() para:
+// - Webhook: receber raw body para verificacao HMAC
+// - OAuth callback: nao requer auth do usuario
+// ================================================
+
+// Webhook - recebe raw body para HMAC verification
+app.post('/api/gitsync/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    try {
+      const signature = req.headers['x-hub-signature-256'] as string
+      if (!signature) {
+        res.status(401).json({ success: false, error: 'Assinatura ausente' })
+        return
+      }
+
+      const rawBody = req.body as Buffer
+      if (!GithubService.verifyWebhookSignature(rawBody, signature)) {
+        res.status(401).json({ success: false, error: 'Assinatura inválida' })
+        return
+      }
+
+      const payload = JSON.parse(rawBody.toString('utf8'))
+      const event = req.headers['x-github-event'] as string
+
+      console.log(`[GitSync Webhook] Evento: ${event}`)
+
+      // Responder 200 imediatamente e processar em background
+      res.status(200).json({ success: true, message: 'Webhook recebido' })
+
+      // Background processing
+      setImmediate(async () => {
+        try {
+          if (event === 'push') {
+            await GitSyncService.handleWebhookPush(payload)
+          } else if (event === 'installation') {
+            await GitSyncService.handleWebhookInstallation(payload)
+          }
+        } catch (err: any) {
+          console.error(`[GitSync Webhook] Erro ao processar ${event}:`, err.message)
+        }
+      })
+    } catch (error: any) {
+      console.error('[GitSync Webhook] Erro:', error)
+      res.status(500).json({ success: false, error: 'Erro ao processar webhook' })
+    }
+  }
+)
+
+// OAuth callback - sem auth do usuario (recebe code do GitHub)
+const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
+  try {
+    const { code, installation_id } = req.query as { code?: string; installation_id?: string }
+
+    if (!code) {
+      res.status(400).json({ success: false, error: 'Código de autorização não recebido' })
+      return
+    }
+
+    const tokenData = await GithubService.exchangeCodeForToken(code)
+
+    // Redirecionar para o frontend com dados na URL
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+    const params = new URLSearchParams({
+      access_token: tokenData.access_token,
+      ...(installation_id ? { installation_id } : {})
+    })
+
+    res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
+  } catch (error: any) {
+    console.error('[GitSync OAuth] Erro:', error)
+    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+    res.redirect(`${frontendUrl}/import-github-token?error=${encodeURIComponent(error.message)}`)
+  }
+}
+
+app.get('/api/gitsync/callback', handleGitSyncCallback)
+app.get('/api/gitsync/oauth/callback', handleGitSyncCallback)
 
 // ================================================
 // PARSING MIDDLEWARE

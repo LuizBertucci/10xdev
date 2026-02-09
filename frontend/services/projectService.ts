@@ -24,6 +24,14 @@ interface Project {
   cardCount?: number
   cardsCreatedCount?: number // Número de cards criados neste projeto (para deleção)
   userRole?: ProjectMemberRole
+  // GitSync fields
+  githubInstallationId?: number | null
+  githubOwner?: string | null
+  githubRepo?: string | null
+  defaultBranch?: string | null
+  gitsyncActive?: boolean
+  lastSyncAt?: string | null
+  lastSyncSha?: string | null
 }
 
 export interface GithubRepoInfo {
@@ -90,6 +98,40 @@ interface ProjectQueryParams {
   search?: string
   sortBy?: 'name' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'
+}
+
+// GitSync types
+export interface GithubAppRepo {
+  id: number
+  name: string
+  full_name: string
+  description: string | null
+  private: boolean
+  language: string | null
+  default_branch: string
+  html_url: string
+  owner: {
+    login: string
+    avatar_url: string
+  }
+}
+
+export interface SyncStatusResponse {
+  active: boolean
+  lastSyncAt: string | null
+  lastSyncSha: string | null
+  githubOwner: string | null
+  githubRepo: string | null
+  defaultBranch: string | null
+  conflicts: number
+  totalMappings: number
+}
+
+export interface ConnectRepoData {
+  installationId: number
+  owner: string
+  repo: string
+  defaultBranch?: string
 }
 
 // ================================================
@@ -211,6 +253,45 @@ class ProjectService {
   async reorderCard(projectId: string, cardFeatureId: string, direction: 'up' | 'down'): Promise<ApiResponse<null> | undefined> {
     return apiClient.patch<null>(`${this.endpoint}/${projectId}/cards/${cardFeatureId}/reorder`, { direction })
   }
+
+  // ================================================
+  // GITSYNC
+  // ================================================
+
+  /** Lista repos acessiveis pela GitHub App installation */
+  async listGithubRepos(installationId: number): Promise<ApiResponse<GithubAppRepo[]> | undefined> {
+    return apiClient.get<GithubAppRepo[]>(`${this.endpoint}/gitsync/repos`, { installation_id: installationId })
+  }
+
+  /** Conecta um projeto a um repo GitHub */
+  async connectRepo(projectId: string, data: ConnectRepoData): Promise<ApiResponse<Project> | undefined> {
+    return apiClient.post<Project>(`${this.endpoint}/${projectId}/gitsync/connect`, data)
+  }
+
+  /** Desconecta o projeto do GitHub */
+  async disconnectRepo(projectId: string): Promise<ApiResponse<null> | undefined> {
+    return apiClient.delete<null>(`${this.endpoint}/${projectId}/gitsync/connect`)
+  }
+
+  /** Obtem status de sync do projeto */
+  async getSyncStatus(projectId: string): Promise<ApiResponse<SyncStatusResponse> | undefined> {
+    return apiClient.get<SyncStatusResponse>(`${this.endpoint}/${projectId}/gitsync/status`)
+  }
+
+  /** Trigger manual de sync GitHub -> Cards */
+  async syncProject(projectId: string): Promise<ApiResponse<null> | undefined> {
+    return apiClient.post<null>(`${this.endpoint}/${projectId}/gitsync/sync`, {})
+  }
+
+  /** Envia mudancas de um card para o GitHub como PR */
+  async pushToGithub(projectId: string, cardFeatureId: string): Promise<ApiResponse<{ prUrl: string; prNumber: number }> | undefined> {
+    return apiClient.post<{ prUrl: string; prNumber: number }>(`${this.endpoint}/${projectId}/gitsync/push`, { cardFeatureId })
+  }
+
+  /** Resolve conflito de sync */
+  async resolveConflict(projectId: string, fileMappingId: string, resolution: 'keep_card' | 'keep_github'): Promise<ApiResponse<any> | undefined> {
+    return apiClient.post<any>(`${this.endpoint}/${projectId}/gitsync/resolve`, { fileMappingId, resolution })
+  }
 }
 
 // Instância singleton
@@ -225,6 +306,9 @@ export type {
   UpdateProjectData,
   AddProjectMemberData,
   UpdateProjectMemberData,
-  ProjectQueryParams
+  ProjectQueryParams,
+  ConnectRepoData,
+  SyncStatusResponse,
+  GithubAppRepo
 }
 

@@ -253,7 +253,13 @@ export class AiCardGroupingService {
       'Você é um arquiteto de software especializado em organizar código de repositórios.',
       '',
       '## Tarefa',
-      'Organize os arquivos em "cards" por funcionalidade de negócio. Cada card tem uma **category** que será usada para agrupar cards na interface do projeto.',
+      'Organize os arquivos em "cards" por funcionalidade de negócio. Cada card tem uma **category** usada para agrupar cards na interface do projeto.',
+      '',
+      '## Regras de Negócio (clareza do card)',
+      '- Explique a feature em linguagem simples, sem jargões',
+      '- Título e descrição devem comunicar o problema que resolve e o benefício gerado',
+      '- Não use nomes de arquivos/componentes em título ou descrição',
+      '- Pense em quem usa a feature e qual fluxo principal ela habilita',
       '',
       '## Categorização dos Cards',
       '',
@@ -539,7 +545,7 @@ export class AiCardGroupingService {
     screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>
     tech?: string
     language?: string
-  }): Promise<{ summary: string }> {
+  }, customPrompt?: string): Promise<{ summary: string }> {
     console.log('[generateCardSummary] Iniciando...')
     const apiKey = this.resolveApiKey()
     console.log('[generateCardSummary] API Key presente:', Boolean(apiKey))
@@ -590,6 +596,19 @@ export class AiCardGroupingService {
       '- Pode usar markdown leve (ex: **negrito**, *itálico*)',
       '- Pode usar bullets nas seções "Features" e "Arquivos"',
       '- Features devem ser objetivas, sem redundâncias (ex: "CRUD completo" já cobre GET/POST/PUT/DELETE/PATCH)',
+      '',
+      '## Regras de Negócio (clareza do resumo)',
+      '- Explique a feature em linguagem simples, sem jargões',
+      '- Título e descrição devem comunicar o problema que resolve e o benefício gerado',
+      '- Não use nomes de arquivos/componentes no texto',
+      '- Pense em quem usa a feature e qual fluxo principal ela habilita',
+      '',
+      '## Diretrizes do Resumo',
+      '- Mantenha o formato atual (título, descrição, categoria/tecnologias, features, arquivos)',
+      '- A descrição curta deve ser objetiva e fácil de entender por qualquer pessoa',
+      '- As features devem refletir capacidades reais do card, sem detalhes de implementação',
+      '- Use linguagem simples, sem jargões',
+      '- Na descrição curta, cite o problema que resolve e o benefício gerado',
       '- Em "Arquivos", use backticks e o número XX deve ser exato',
       '- Em "Arquivos", separe Backend e Frontend em subseções e deixe uma linha em branco entre elas',
       '- Não invente arquivos; use apenas os arquivos do card e que apareçam nas abas',
@@ -597,6 +616,7 @@ export class AiCardGroupingService {
       '- Não usar emojis'
     ].join('\n')
 
+    const trimmedPrompt = customPrompt?.trim()
     const user = [
       `Card: ${params.cardTitle}`,
       `Tech: ${params.tech || 'Não informado'}`,
@@ -605,7 +625,8 @@ export class AiCardGroupingService {
       'Screens:',
       screensContext,
       '',
-      'Gere o resumo no formato EXATO especificado acima.'
+      'Gere o resumo no formato EXATO especificado acima.',
+      ...(trimmedPrompt ? ['', 'Instruções adicionais do usuário:', trimmedPrompt] : [])
     ].join('\n')
     
     console.log('[generateCardSummary] Chamando API de IA...')

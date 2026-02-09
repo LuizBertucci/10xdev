@@ -1,7 +1,9 @@
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
+import { GitSyncModel } from '@/models/GitSyncModel'
 import { GithubService } from '@/services/githubService'
+import { GitSyncService } from '@/services/gitSyncService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
 import type { CreateCardFeatureRequest } from '@/types/cardfeature'
@@ -14,7 +16,9 @@ import {
   type UpdateProjectMemberRequest,
   type ShareProjectRequest,
   type ValidateGithubTokenRequest,
-  type ValidateGithubTokenResponse
+  type ValidateGithubTokenResponse,
+  type ConnectRepoRequest,
+  type ResolveConflictRequest
 } from '@/types/project'
 import {
   safeHandler,
@@ -384,4 +388,185 @@ export class ProjectController {
     if (direction !== 'up' && direction !== 'down') throw badRequest('Direção deve ser "up" ou "down"')
     respond(res, await ProjectModel.reorderCard(id, cardFeatureId, direction, req.user!.id), 'Card reordenado com sucesso')
   })
+
+  // ================================================
+  // GITSYNC ENDPOINTS
+  // ================================================
+
+  /** GET /api/projects/gitsync/repos
+   *  Lista repos acessiveis via GitHub App installation */
+  static listGithubRepos = safeHandler(async (req, res) => {
+    const installationId = Number(req.query.installation_id)
+    if (!installationId) throw badRequest('installation_id é obrigatório')
+
+    const repos = await GithubService.listInstallationRepos(installationId)
+    res.json({ success: true, data: repos, count: repos.length })
+  })
+
+  /** POST /api/projects/:id/gitsync/connect
+   *  Conecta um projeto a um repo GitHub */
+  static connectRepo = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { installationId, owner, repo, defaultBranch } = req.body as ConnectRepoRequest
+    if (!installationId || !owner || !repo) {
+      throw badRequest('installationId, owner e repo são obrigatórios')
+    }
+
+    // Verificar se o user tem acesso ao projeto
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    // Salvar dados de sync no projeto
+    const updateResult = await ProjectModel.updateSyncInfo(id, {
+      github_installation_id: installationId,
+      github_owner: owner,
+      github_repo: repo,
+      default_branch: defaultBranch || 'main',
+      gitsync_active: true,
+      last_sync_at: new Date().toISOString()
+    })
+    assertResult(updateResult)
+
+    res.json({
+      success: true,
+      data: updateResult.data,
+      message: 'Repositório conectado com sucesso'
+    })
+  })
+
+  /** DELETE /api/projects/:id/gitsync/connect
+   *  Desconecta o projeto do GitHub */
+  static disconnectRepo = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    // Limpar dados de sync
+    const updateResult = await ProjectModel.updateSyncInfo(id, {
+      github_installation_id: null,
+      github_owner: null,
+      github_repo: null,
+      default_branch: null,
+      gitsync_active: false,
+      last_sync_at: null,
+      last_sync_sha: null
+    })
+    assertResult(updateResult)
+
+    // Remover file mappings
+    await GitSyncModel.deleteByProject(id)
+
+    res.json({
+      success: true,
+      message: 'Repositório desconectado com sucesso'
+    })
+  })
+
+  /** GET /api/projects/:id/gitsync/status
+   *  Retorna status de sync do projeto */
+  static getSyncStatus = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const conflicts = await GitSyncModel.countConflicts(id)
+    const mappings = await GitSyncModel.getMappingsByProject(id)
+
+    res.json({
+      success: true,
+      data: {
+        active: syncInfo.data?.gitsync_active || false,
+        lastSyncAt: syncInfo.data?.last_sync_at || null,
+        lastSyncSha: syncInfo.data?.last_sync_sha || null,
+        githubOwner: syncInfo.data?.github_owner || null,
+        githubRepo: syncInfo.data?.github_repo || null,
+        defaultBranch: syncInfo.data?.default_branch || null,
+        conflicts,
+        totalMappings: mappings.count || 0
+      }
+    })
+  })
+
+  /** POST /api/projects/:id/gitsync/sync
+   *  Trigger manual de sync GitHub -> Cards */
+  static syncProject = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    if (!syncInfo.data?.gitsync_active) {
+      throw badRequest('GitSync não está ativo neste projeto')
+    }
+
+    const result = await GitSyncService.syncFromGithub(id)
+
+    if (!result.success) {
+      throw badRequest(result.error || 'Erro ao sincronizar')
+    }
+
+    res.json({
+      success: true,
+      data: {
+        filesUpdated: result.filesUpdated,
+        filesAdded: result.filesAdded,
+        filesRemoved: result.filesRemoved
+      },
+      message: result.filesUpdated > 0
+        ? `Sincronização concluída: ${result.filesUpdated} arquivo(s) atualizado(s)`
+        : 'Projeto já está atualizado'
+    })
+  })
+
+  /** POST /api/projects/:id/gitsync/push
+   *  Envia mudancas de um card para o GitHub como PR */
+  static pushToGithub = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { cardFeatureId } = req.body
+    if (!cardFeatureId) throw badRequest('cardFeatureId é obrigatório')
+
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const result = await GitSyncService.syncToGithub(id, cardFeatureId)
+
+    if (!result.success) {
+      throw badRequest(result.error || 'Erro ao enviar para o GitHub')
+    }
+
+    res.json({
+      success: true,
+      data: {
+        prUrl: result.prUrl,
+        prNumber: result.prNumber
+      },
+      message: `Pull Request #${result.prNumber} criada com sucesso`
+    })
+  })
+
+  /** POST /api/projects/:id/gitsync/resolve
+   *  Resolve um conflito de sync */
+  static resolveConflict = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { fileMappingId, resolution } = req.body as ResolveConflictRequest
+    if (!fileMappingId || !resolution) {
+      throw badRequest('fileMappingId e resolution são obrigatórios')
+    }
+    if (resolution !== 'keep_card' && resolution !== 'keep_github') {
+      throw badRequest('resolution deve ser "keep_card" ou "keep_github"')
+    }
+
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const result = await GitSyncService.resolveConflict(id, fileMappingId, resolution)
+    if (!result.success) {
+      throw badRequest(result.error || 'Erro ao resolver conflito')
+    }
+
+    res.json({
+      success: true,
+      message: `Conflito resolvido: ${resolution === 'keep_card' ? 'versão do card mantida' : 'versão do GitHub aplicada'}`
+    })
+  })
+
 }

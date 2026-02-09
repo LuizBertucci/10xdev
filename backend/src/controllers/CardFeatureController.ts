@@ -727,7 +727,7 @@ export class CardFeatureController {
         return
       }
       const { id } = req.params
-      const { force } = req.body as { force?: boolean }
+      const { force, prompt } = req.body as { force?: boolean; prompt?: string }
       if (!id) {
         console.log('[generateSummary] ERRO: ID obrigatório')
         res.status(400).json({ success: false, error: 'ID é obrigatório' })
@@ -804,7 +804,7 @@ export class CardFeatureController {
       if (card.language) params.language = card.language
       
       console.log('[generateSummary] Chamando IA para gerar resumo...')
-      const { summary } = await AiCardGroupingService.generateCardSummary(params)
+      const { summary } = await AiCardGroupingService.generateCardSummary(params, prompt)
       console.log('[generateSummary] Resumo gerado com sucesso:', summary?.substring(0, 100) + '...')
       
       const summaryScreen: CardFeatureScreen = {

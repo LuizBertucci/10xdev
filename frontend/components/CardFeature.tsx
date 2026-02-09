@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Expand, Edit, Trash2, Lock, Link2, Sparkles, Loader2 } from "lucide-react"
 import { cardFeatureService } from '@/services/cardFeatureService'
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -11,6 +12,23 @@ import { useAuth } from "@/hooks/useAuth"
 import type { CardFeature as CardFeatureType } from "@/types"
 import { Visibility, ContentType } from "@/types"
 import { toast } from "sonner"
+import { AIInstructions } from "@/components/AIInstructions"
+
+const SUMMARY_INSTRUCTIONS = [
+  '## Regras de Negócio (clareza do resumo)',
+  '- Explique a feature em linguagem simples, sem jargões',
+  '- Título e descrição devem comunicar o problema que resolve e o benefício gerado',
+  '- Não use nomes de arquivos/componentes no texto',
+  '- Pense em quem usa a feature e qual fluxo principal ela habilita',
+  '',
+  '## Diretrizes do Resumo',
+  '- Mantenha o formato atual (título, descrição, categoria/tecnologias, features, arquivos)',
+  '- A descrição curta deve ser objetiva e fácil de entender por qualquer pessoa',
+  '- As features devem refletir capacidades reais do card, sem detalhes de implementação'
+].join('\n')
+
+const SUMMARY_INSTRUCTIONS_ROWS = SUMMARY_INSTRUCTIONS.split('\n').length + 4
+const SUMMARY_INSTRUCTIONS_LS_KEY = 'card-summary-instructions'
 
 interface CardFeatureProps {
   snippet: CardFeatureType
@@ -23,6 +41,8 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+  const [showSummaryPrompt, setShowSummaryPrompt] = useState(false)
+  const [summaryInstructions, setSummaryInstructions] = useState(SUMMARY_INSTRUCTIONS)
   const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
   const techValue = snippet.tech ?? "Geral"
   const languageValue = snippet.language ?? "text"
@@ -39,11 +59,28 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
     }
   }, [user, snippet.createdBy])
 
-  const handleGenerateSummary = useCallback(async () => {
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(SUMMARY_INSTRUCTIONS_LS_KEY)
+      if (stored) setSummaryInstructions(stored)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SUMMARY_INSTRUCTIONS_LS_KEY, summaryInstructions)
+    } catch { /* ignore */ }
+  }, [summaryInstructions])
+
+  const handleGenerateSummary = useCallback(async (prompt?: string) => {
     if (!accessInfo?.canGenerate || isGeneratingSummary) return
     setIsGeneratingSummary(true)
     try {
-      const response = await cardFeatureService.generateSummary(snippet.id, true)
+      const response = await cardFeatureService.generateSummary(
+        snippet.id,
+        true,
+        prompt?.trim() || undefined
+      )
       if (response.success) {
         const updatedScreens = response.summary
           ? [
@@ -77,6 +114,47 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 
   return (
     <TooltipProvider>
+      <Dialog open={showSummaryPrompt} onOpenChange={setShowSummaryPrompt}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Instruções do resumo</DialogTitle>
+            <DialogDescription>
+              Ajuste o prompt para gerar um resumo mais claro e focado na feature.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3">
+            <AIInstructions
+              value={summaryInstructions}
+              onChange={setSummaryInstructions}
+              rows={SUMMARY_INSTRUCTIONS_ROWS}
+              label="Instruções para o resumo"
+              id={`summary-instructions-${snippet.id}`}
+            />
+          </div>
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowSummaryPrompt(false)}
+              disabled={isGeneratingSummary}
+              className="h-9 px-4"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setShowSummaryPrompt(false)
+                handleGenerateSummary(summaryInstructions)
+              }}
+              disabled={isGeneratingSummary}
+              className="h-9 px-4"
+            >
+              {isGeneratingSummary ? 'Gerando...' : 'Gerar resumo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Card className="shadow-lg hover:shadow-xl transition-shadow h-[32rem]">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
@@ -149,13 +227,13 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
 {accessInfo?.canGenerate && (
   <Tooltip>
     <TooltipTrigger asChild>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleGenerateSummary}
-        disabled={!accessInfo?.canGenerate || isGeneratingSummary}
-        className={`text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200 p-2 ${isGeneratingSummary ? 'animate-pulse' : ''}`}
-      >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSummaryPrompt(true)}
+                      disabled={!accessInfo?.canGenerate || isGeneratingSummary}
+                      className={`text-gray-500 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200 p-2 ${isGeneratingSummary ? 'animate-pulse' : ''}`}
+                    >
         {isGeneratingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
       </Button>
     </TooltipTrigger>

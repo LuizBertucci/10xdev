@@ -51,7 +51,15 @@ export class ProjectModel {
       ...(row.category_order !== undefined ? { categoryOrder: row.category_order } : {}),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      createdBy: row.created_by
+      createdBy: row.created_by,
+      // GitSync fields
+      ...(row.github_installation_id !== undefined ? { githubInstallationId: row.github_installation_id } : {}),
+      ...(row.github_owner !== undefined ? { githubOwner: row.github_owner } : {}),
+      ...(row.github_repo !== undefined ? { githubRepo: row.github_repo } : {}),
+      ...(row.default_branch !== undefined ? { defaultBranch: row.default_branch } : {}),
+      ...(row.gitsync_active !== undefined ? { gitsyncActive: row.gitsync_active } : {}),
+      ...(row.last_sync_at !== undefined ? { lastSyncAt: row.last_sync_at } : {}),
+      ...(row.last_sync_sha !== undefined ? { lastSyncSha: row.last_sync_sha } : {})
     }
   }
 
@@ -1341,6 +1349,92 @@ export class ProjectModel {
       return data?.role as ProjectMemberRole | undefined
     } catch {
       return undefined
+    }
+  }
+
+  // ================================================
+  // GITSYNC - Metodos de sincronizacao
+  // ================================================
+
+  /** Atualiza campos gitsync de um projeto */
+  static async updateSyncInfo(
+    projectId: string,
+    data: {
+      github_installation_id?: number | null
+      github_owner?: string | null
+      github_repo?: string | null
+      default_branch?: string | null
+      gitsync_active?: boolean
+      last_sync_at?: string | null
+      last_sync_sha?: string | null
+    }
+  ): Promise<ModelResult<ProjectResponse>> {
+    try {
+      const { data: rowData } = await executeQuery<ProjectRow | null>(
+        supabaseAdmin
+          .from('projects')
+          .update({
+            ...data,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', projectId)
+          .select()
+          .single()
+      )
+      const row = rowData as ProjectRow | null
+      if (!row) {
+        return { success: false, error: 'Projeto não encontrado', statusCode: 404 }
+      }
+      return { success: true, data: this.transformToResponse(row) }
+    } catch (error: any) {
+      console.error('Erro ao atualizar sync info do projeto:', error)
+      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+    }
+  }
+
+  /** Busca info de sync de um projeto */
+  static async getSyncInfo(projectId: string): Promise<ModelResult<ProjectRow>> {
+    try {
+      const { data } = await executeQuery<ProjectRow | null>(
+        supabaseAdmin
+          .from('projects')
+          .select('id, github_installation_id, github_owner, github_repo, default_branch, gitsync_active, last_sync_at, last_sync_sha')
+          .eq('id', projectId)
+          .single()
+      )
+      const row = data as ProjectRow | null
+      if (!row) {
+        return { success: false, error: 'Projeto não encontrado', statusCode: 404 }
+      }
+      return { success: true, data: row }
+    } catch (error: any) {
+      console.error('Erro ao buscar sync info do projeto:', error)
+      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+    }
+  }
+
+  /** Busca projeto por repo GitHub (para webhook) */
+  static async findByGithubRepo(
+    owner: string, repo: string
+  ): Promise<ModelResult<ProjectRow>> {
+    try {
+      const { data } = await executeQuery<ProjectRow | null>(
+        supabaseAdmin
+          .from('projects')
+          .select('*')
+          .eq('github_owner', owner)
+          .eq('github_repo', repo)
+          .eq('gitsync_active', true)
+          .maybeSingle()
+      )
+      const row = data as ProjectRow | null
+      if (!row) {
+        return { success: false, error: 'Projeto não encontrado para este repositório', statusCode: 404 }
+      }
+      return { success: true, data: row }
+    } catch (error: any) {
+      console.error('Erro ao buscar projeto por repo GitHub:', error)
+      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
     }
   }
 }

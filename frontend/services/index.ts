@@ -29,7 +29,10 @@ export type {
   AddProjectMemberData,
   UpdateProjectMemberData,
   ProjectQueryParams,
-  GithubRepoInfo
+  GithubRepoInfo,
+  GithubAppRepo,
+  SyncStatusResponse,
+  ConnectRepoData
 } from './projectService'
 
 // Template Service
