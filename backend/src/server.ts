@@ -93,11 +93,12 @@ app.post('/api/gitsync/webhook',
           } else if (event === 'installation') {
             await GitSyncService.handleWebhookInstallation(payload)
           }
-        } catch (err: any) {
-          console.error(`[GitSync Webhook] Erro ao processar ${event}:`, err.message)
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err)
+          console.error(`[GitSync Webhook] Erro ao processar ${event}:`, message)
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GitSync Webhook] Erro:', error)
       res.status(500).json({ success: false, error: 'Erro ao processar webhook' })
     }
@@ -107,7 +108,7 @@ app.post('/api/gitsync/webhook',
 // OAuth callback - sem auth do usuario (recebe code do GitHub)
 const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
   try {
-    const { code, installation_id } = req.query as { code?: string; installation_id?: string }
+    const { code, installation_id, state } = req.query as { code?: string; installation_id?: string; state?: string }
 
     if (!code) {
       res.status(400).json({ success: false, error: 'Código de autorização não recebido' })
@@ -116,18 +117,38 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
 
     const tokenData = await GithubService.exchangeCodeForToken(code)
 
-    // Redirecionar para o frontend com dados na URL
-    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+    // Detectar frontend origin do state parameter (enviado pelo frontend)
+    let frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+    if (state) {
+      try {
+        frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
+      } catch {
+        // Se falhar decode, usar default
+      }
+    }
+
     const params = new URLSearchParams({
       access_token: tokenData.access_token,
       ...(installation_id ? { installation_id } : {})
     })
 
     res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[GitSync OAuth] Erro:', error)
-    const frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
-    res.redirect(`${frontendUrl}/import-github-token?error=${encodeURIComponent(error.message)}`)
+
+    // Detectar frontend origin do state parameter
+    const { state } = req.query as { state?: string }
+    let frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
+    if (state) {
+      try {
+        frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
+      } catch {
+        // Se falhar decode, usar default
+      }
+    }
+
+    const message = error instanceof Error ? error.message : 'Erro ao processar OAuth'
+    res.redirect(`${frontendUrl}/import-github-token?error=${encodeURIComponent(message)}`)
   }
 }
 
@@ -170,7 +191,7 @@ app.use(morgan(morganFormat))
 
 // Request ID para rastreamento
 app.use((req, res, next) => {
-  const requestId = Math.random().toString(36).substr(2, 9)
+  const requestId = Math.random().toString(36).substring(2, 11)
   req.headers['x-request-id'] = requestId
   res.setHeader('X-Request-ID', requestId)
   next()
@@ -194,7 +215,7 @@ app.use((req, res, next) => {
 // ================================================
 
 // Health check simples na raiz
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.status(200).json({
     success: true,
     message: '🚀 10xDev Backend API está rodando!',
