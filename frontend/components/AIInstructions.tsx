@@ -66,7 +66,7 @@ export function AIInstructions({
         onChange={(event) => setDraft(event.target.value)}
         spellCheck={false}
         rows={rows}
-        className="bg-gray-50 border-gray-200 text-xs resize-none overflow-hidden outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none"
+        className="bg-gray-50 border-gray-200 text-xs resize-none overflow-y-auto outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none"
       />
     </div>
   )

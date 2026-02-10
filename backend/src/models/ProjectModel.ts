@@ -396,23 +396,29 @@ export class ProjectModel {
   // UPDATE
   // ================================================
 
-  static async update(id: string, data: UpdateProjectRequest, userId: string): Promise<ModelResult<ProjectResponse>> {
+  static async update(id: string, data: UpdateProjectRequest, userId: string, userRole?: string): Promise<ModelResult<ProjectResponse>> {
     try {
       const role = await this.getUserRole(id, userId)
+      const isSystemAdmin = userRole === 'admin'
+
       // categoryOrder pode ser atualizado por qualquer membro; name/description exigem owner ou admin
       const isOnlyCategoryOrder = data.categoryOrder !== undefined && data.name === undefined && data.description === undefined
-      if (!role) {
-        return {
-          success: false,
-          error: 'Você não tem permissão para atualizar este projeto',
-          statusCode: 403
+
+      // Verificar permissões: admin do sistema pode tudo, senão segue as regras normais
+      if (!isSystemAdmin) {
+        if (!role) {
+          return {
+            success: false,
+            error: 'Você não tem permissão para atualizar este projeto',
+            statusCode: 403
+          }
         }
-      }
-      if (!isOnlyCategoryOrder && role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN) {
-        return {
-          success: false,
-          error: 'Você não tem permissão para atualizar este projeto',
-          statusCode: 403
+        if (!isOnlyCategoryOrder && role !== ProjectMemberRole.OWNER && role !== ProjectMemberRole.ADMIN) {
+          return {
+            success: false,
+            error: 'Você não tem permissão para atualizar este projeto',
+            statusCode: 403
+          }
         }
       }
 

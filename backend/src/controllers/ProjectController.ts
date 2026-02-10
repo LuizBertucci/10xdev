@@ -217,7 +217,7 @@ export class ProjectController {
 
   /** PUT /api/projects/:id */
   static update = safeHandler(async (req, res) => {
-    respond(res, await ProjectModel.update(requireId(req), req.body, req.user!.id), 'Projeto atualizado com sucesso')
+    respond(res, await ProjectModel.update(requireId(req), req.body, req.user!.id, req.user!.role), 'Projeto atualizado com sucesso')
   })
 
   /** DELETE /api/projects/:id */
