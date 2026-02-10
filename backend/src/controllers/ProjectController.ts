@@ -399,12 +399,30 @@ export class ProjectController {
     const installationId = Number(req.query.installation_id)
     if (!installationId) throw badRequest('installation_id é obrigatório')
 
-    const repos = await GithubService.listInstallationRepos(installationId)
-    res.json({ success: true, data: repos, count: repos.length })
+    try {
+      const repos = await GithubService.listInstallationRepos(installationId)
+      res.json({ success: true, data: repos, count: repos.length })
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number; data?: unknown }; message?: string }
+      const status = axiosErr.response?.status
+      const detail = axiosErr.response?.data
+      console.error('[listGithubRepos] Erro GitHub:', { installationId, status, detail, message: axiosErr.message })
+      if (status === 404) {
+        const e = new Error('Instalação não encontrada. Instale o app 10xDev no GitHub.') as Error & { statusCode: number }
+        e.statusCode = 404
+        throw e
+      }
+      if (status === 403) {
+        const e = new Error('Sem permissão para acessar esta instalação.') as Error & { statusCode: number }
+        e.statusCode = 403
+        throw e
+      }
+      throw err
+    }
   })
 
   /** POST /api/projects/:id/gitsync/connect
-   *  Conecta um projeto a um repo GitHub */
+   *  Conecta um projeto a um repo GitHub e importa cards do código */
   static connectRepo = safeHandler(async (req, res) => {
     const id = requireId(req)
     const { installationId, owner, repo, defaultBranch } = req.body as ConnectRepoRequest
@@ -412,24 +430,31 @@ export class ProjectController {
       throw badRequest('installationId, owner e repo são obrigatórios')
     }
 
-    // Verificar se o user tem acesso ao projeto
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
-    // Salvar dados de sync no projeto
-    const updateResult = await ProjectModel.updateSyncInfo(id, {
-      github_installation_id: installationId,
-      github_owner: owner,
-      github_repo: repo,
-      default_branch: defaultBranch || 'main',
-      gitsync_active: true,
-      last_sync_at: new Date().toISOString()
-    })
-    assertResult(updateResult)
+    const useAi = process.env.GITHUB_IMPORT_USE_AI === 'true'
+    const result = await GitSyncService.connectRepo(
+      id,
+      installationId,
+      owner,
+      repo,
+      req.user!.id,
+      { defaultBranch: defaultBranch || 'main', useAi }
+    )
+
+    if (!result.success) {
+      throw { statusCode: 500, message: result.error || 'Erro ao importar cards do repositório' }
+    }
+
+    const projectRes = await ProjectModel.findById(id, req.user!.id)
+    assertResult(projectRes)
 
     res.json({
       success: true,
-      data: updateResult.data,
-      message: 'Repositório conectado com sucesso'
+      data: projectRes.data,
+      message: result.mappingsCreated > 0
+        ? `Repositório conectado. ${result.mappingsCreated} arquivo(s) mapeado(s) para cards.`
+        : 'Repositório conectado. Nenhum arquivo de código detectado (verifique a estrutura do projeto).'
     })
   })
 
