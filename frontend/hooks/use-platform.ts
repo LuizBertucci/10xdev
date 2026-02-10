@@ -68,7 +68,9 @@ export function usePlatform() {
     }
     // Apenas remove ID se estiver mudando para tab diferente do atual
     // Isso permite navegação interna com ID (click em card), mas limpa ao mudar de tab
-    if (normalizedTab !== activeTab) {
+    // EXCEÇÃO: Não remove ID quando há flags especiais (gitsync, etc) para preservar contexto em fluxos OAuth
+    const hasSpecialFlags = params.has('gitsync') || params.has('oauth_return');
+    if (normalizedTab !== activeTab && !hasSpecialFlags) {
       params.delete('id');
     }
     const queryString = params.toString();
