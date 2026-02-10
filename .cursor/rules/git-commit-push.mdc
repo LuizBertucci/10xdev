@@ -6,14 +6,36 @@ alwaysApply: true
 # Git Commit & Push Workflow
 
 **Nunca commite automaticamente.** Só commite quando o usuário pedir explicitamente (ex: "commita", "pode subir", "sobe", "commit", "push").
-Quando o usuário pedir, siga este fluxo. Se pedir para pular o quality gate (`"pula"`, `"skip"`, `"só commita"`), vá direto para a etapa 3.
+
+## Modos de execução
+
+### 1) Commit rápido (default quando usuário pedir só "commit")
+
+Use quando o usuário pedir apenas **commit** (ex: "commita", "pode subir", "só commit", "só commita"):
+
+- Rode `git status` + `git diff --stat` + `git diff` por grupo de arquivos
+- Rode **sempre** `npm run lint`
+- Monte e apresente a **tabela de commits por arquivos**
+- Não rode `npm run build` automaticamente
+- Não rode `coderabbit review` automaticamente
+- Aguarde "ok" do usuário para executar o(s) commit(s)
+
+### 2) Commit completo (somente quando usuário pedir "completo")
+
+Use quando o usuário pedir explicitamente **completo** (ex: "commit completo", "faz o completo", "quality gate completo"):
+
+- Faça tudo do modo rápido
+- Rode também `npm run build`
+- Rode também `coderabbit review --plain --type uncommitted`
+- Apresente tabela enriquecida com status e sugestões
+- Aguarde "ok" do usuário para executar o(s) commit(s)
 
 ## 1. Analisar alterações pendentes
 
 - Rode `git status` e `git diff --stat` para listar todos os arquivos modificados
 - Rode `git diff` por grupo de arquivos para entender cada mudança
 
-## 2. Quality Gate (lint + build)
+## 2. Quality Gate por modo
 
 ### Lint (sempre)
 
@@ -21,16 +43,16 @@ Quando o usuário pedir, siga este fluxo. Se pedir para pular o quality gate (`"
 npm run lint
 ```
 
-- **Sempre roda**, independente do tamanho da mudança
+- **Sempre roda**, independente do tamanho da mudança (rápido e completo)
 - Se falhar, corrija os erros e rode novamente. Não prossiga até passar.
 
-### Build (condicional)
+### Build (somente no completo)
 
 ```bash
 npm run build
 ```
 
-Rode **apenas** se: 3+ arquivos alterados, **ou** mudanças em `types/`, `tsconfig`, `package.json`, arquivos de config.
+Rode no modo **completo**.  
 Se falhar, corrija e rode novamente. Não prossiga até passar.
 
 ## 3. Agrupar por responsabilidade
@@ -40,17 +62,25 @@ Separe as alterações em commits lógicos, cada um com **uma única responsabil
 - Nunca misture alterações de backend com frontend se forem de funcionalidades diferentes
 - Nunca misture performance com feature nova
 
-## 4. Apresentar tabela + CodeRabbit Review
+## 4. Apresentar tabela + CodeRabbit Review (por modo)
 
-Apresente a tabela de commits. Em seguida, rode o CodeRabbit Review se aplicável.
+### Modo rápido
 
-### CodeRabbit (condicional)
+- Apresente a tabela de commits por arquivos
+- Não rode CodeRabbit automaticamente
+
+### Modo completo
+
+- Apresente a tabela de commits por arquivos
+- Rode CodeRabbit e apresente status/sugestões
+
+### CodeRabbit (somente no completo)
 
 ```bash
 coderabbit review --plain --type uncommitted
 ```
 
-Rode **apenas** se: 3+ arquivos alterados, **ou** o usuário pediu explicitamente (`"revisa"`, `"roda coderabbit"`, `"quality gate"`).
+Rode apenas no modo **completo** (ou se o usuário pedir explicitamente revisão).
 
 ### Tabela enriquecida
 
@@ -73,7 +103,7 @@ Para commits com sugestões, liste-as abaixo:
 - **Aplique antes de commitar** (o commit já sai na versão final)
 - Se aplicou mudanças, rode `npm run lint` novamente
 
-Se CodeRabbit não rodar (< 3 arquivos), apresente a tabela sem a coluna Status.
+No modo rápido, apresente a tabela sem coluna de status.
 
 **Tipos de commit:** `feat`, `fix`, `perf`, `style`, `refactor`, `docs`, `chore`, `test`
 

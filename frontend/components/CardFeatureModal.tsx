@@ -22,11 +22,6 @@ interface CardFeatureModalProps {
 export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onDelete }: CardFeatureModalProps) {
   if (!snippet) return null
 
-  // Filtrar para remover apenas a screen "Sumário", mantendo todas as outras (incluindo Resumo)
-  const filteredScreens = snippet.screens.filter(
-    (screen) => (screen.name || '').trim().toLowerCase() !== 'sumário'
-  )
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="max-w-[95vw] w-[95vw] max-h-[90vh] h-[90vh] p-0 flex flex-col">
@@ -69,14 +64,14 @@ export default function CardFeatureModal({ snippet, isOpen, onClose, onEdit, onD
 
         <ScrollArea className="flex-1 min-h-0">
           <div className="flex gap-6 px-6 pb-6 h-full">
-            {filteredScreens.map((screen, index) => (
+            {snippet.screens.map((screen, index) => (
               <div key={index} className="flex-shrink-0 w-[300px] sm:w-[500px] flex flex-col">
                 <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4">
                   <ContentRenderer blocks={screen.blocks || []} />
                 </div>
               </div>
             ))}
-            {filteredScreens.length === 0 && (
+            {snippet.screens.length === 0 && (
               <div className="flex items-center justify-center w-full py-12 text-gray-500">
                 Nenhum conteúdo disponível
               </div>

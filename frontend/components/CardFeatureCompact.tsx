@@ -182,12 +182,37 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     router.push(`/?tab=${tab}&id=${snippet.id}`)
   }
 
-  const isResumoScreen = (name?: string) =>
-    (name || '').trim().toLowerCase() === 'resumo'
+  const normalizeScreenName = (name?: string) =>
+    (name || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+  const isSummaryScreen = (name?: string) => {
+    const normalized = normalizeScreenName(name)
+    return normalized === 'resumo' || normalized === 'visao geral'
+  }
+
+  const visibleScreens = useMemo(() => {
+    let summaryAlreadyAdded = false
+
+    return localScreens.reduce<CardFeatureType['screens']>((acc, screen) => {
+      if (isSummaryScreen(screen.name)) {
+        if (summaryAlreadyAdded) return acc
+        summaryAlreadyAdded = true
+        acc.push({ ...screen, name: 'Visão Geral' })
+        return acc
+      }
+
+      acc.push(screen)
+      return acc
+    }, [])
+  }, [localScreens])
 
   // Screen ativa baseada na tab selecionada
-  const activeScreen = localScreens[activeTab] || localScreens[0]
-  const isSummaryTab = isResumoScreen(activeScreen?.name)
+  const activeScreen = visibleScreens[activeTab] || visibleScreens[0]
+  const isSummaryTab = isSummaryScreen(activeScreen?.name)
 
   // Função para mudar visibilidade rapidamente
   const handleVisibilityChange = async (newVisibility: Visibility) => {
@@ -217,19 +242,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
         const updatedScreens = response.summary
           ? [
               {
-                name: 'Resumo',
+                name: 'Visão Geral',
                 description: 'Resumo gerado por IA',
                 blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
-              ...localScreens.filter(s => !isResumoScreen(s.name))
+              ...localScreens.filter((s) => !isSummaryScreen(s.name))
             ]
           : localScreens
         if (onUpdate) {
           await onUpdate(snippet.id, { screens: updatedScreens })
           setLocalScreens(updatedScreens)
-          const summaryIndex = updatedScreens.findIndex(screen =>
-            isResumoScreen(screen.name)
+          const summaryIndex = updatedScreens.findIndex((screen) =>
+            isSummaryScreen(screen.name)
           )
           if (summaryIndex >= 0) {
             setActiveTab(summaryIndex)
@@ -430,10 +455,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     Vídeo
                   </Badge>
                 )}
-                {localScreens.some(s => isResumoScreen(s.name)) && (
+                {visibleScreens.some((s) => isSummaryScreen(s.name)) && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-200 bg-blue-50 text-blue-700">
                     <Sparkles className="h-3 w-3 mr-1" />
-                    Resumo
+                    Visão Geral
                   </Badge>
                 )}
               </div>
@@ -486,7 +511,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     )}
 
-                    {/* Botão Link do card (compartilhamento) */}
+                    {/* Botão Compartilhar */}
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -494,10 +519,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       onClick={handleCopyShareUrl}
                     >
                       {shareLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {shareLinkCopied ? 'Copiado!' : 'Link do card'}
+                      {shareLinkCopied ? 'Copiado!' : 'Compartilhar'}
                     </Button>
 
-                    {/* Botão Link da API */}
+                    {/* Botão Link para IA */}
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -505,29 +530,23 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       onClick={handleCopyApiUrl}
                     >
                       {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {apiLinkCopied ? 'Copiado!' : 'Link da API'}
+                      {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
                     </Button>
 
                     {/* Botão Tela cheia */}
                     {onExpand && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onExpand(snippet)
-                            }}
-                            className="text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-1 h-7 w-7"
-                          >
-                            <Expand className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Tela cheia</p>
-                        </TooltipContent>
-                      </Tooltip>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onExpand(snippet)
+                        }}
+                        className="h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
+                      >
+                        <Expand className="h-3 w-3 mr-1" />
+                        Tela cheia
+                      </Button>
                     )}
 
                     {/* Toggle - extrema direita */}
@@ -580,7 +599,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                {localScreens.map((screen, index) => (
+                {visibleScreens.map((screen, index) => (
                   <button
                     key={index}
                     onClick={() => setActiveTab(index)}
@@ -665,11 +684,15 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                  `}</style>
 
                 <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
-                  <ContentRenderer
-                    blocks={activeScreen.blocks || []}
-                    className="h-full compact-content w-full"
-                    key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
-                  />
+                  {activeScreen ? (
+                    <ContentRenderer
+                      blocks={activeScreen.blocks || []}
+                      className="h-full compact-content w-full"
+                      key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-500 px-1 py-2">Nenhum conteúdo disponível</p>
+                  )}
                 </div>
               </div>
             </div>
