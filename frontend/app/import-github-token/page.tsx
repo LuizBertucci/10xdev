@@ -1,24 +1,35 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import { projectService } from '@/services/projectService'
 
 type Status = 'loading' | 'success' | 'error' | 'idle'
 
+type PendingRedirect = {
+  projectId: string | null
+  installationId: string | null
+}
+
 export default function ImportGithubTokenPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState('')
+  const [pendingRedirect, setPendingRedirect] = useState<PendingRedirect | null>(null)
+  const hasRedirectedRef = useRef(false)
 
   useEffect(() => {
-    const token = searchParams?.get('token')
-    const accessToken = searchParams?.get('access_token')
-    const installationId = searchParams?.get('installation_id')
-    const projectId = searchParams?.get('project_id')
-    const errorParam = searchParams?.get('error')
+    // Guard: verificar se searchParams está disponível (pode ser null durante SSR/hidratação)
+    if (!searchParams) return
+
+    const token = searchParams.get('token')
+    const accessToken = searchParams.get('access_token')
+    const installationId = searchParams.get('installation_id')
+    const projectId = searchParams.get('project_id')
+    const errorParam = searchParams.get('error')
 
     // GitHub App OAuth callback (access_token + installation_id via backend redirect)
     if (accessToken || installationId) {
@@ -49,13 +60,36 @@ export default function ImportGithubTokenPage() {
     setMessage('Nenhum token ou código de autorização detectado. Tente novamente.')
   }, [searchParams])
 
+  /** Redireciona para o projeto com gitsync - sem checar sessão (evita timing getSession/useAuth).
+   * Se não houver sessão, ProtectedRoute manda para login; sessionStorage preserva dest. */
+  useEffect(() => {
+    if (!pendingRedirect || hasRedirectedRef.current) return
+
+    hasRedirectedRef.current = true
+    const { projectId, installationId } = pendingRedirect
+    const dest = projectId
+      ? `/?tab=projects&id=${projectId}&gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
+      : `/?tab=projects&gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
+
+    try {
+      sessionStorage.setItem('gitsync_redirect_after_login', dest)
+    } catch { /* ignore */ }
+
+    const params = new URLSearchParams()
+    params.set('tab', 'projects')
+    if (projectId) params.set('id', projectId)
+    params.set('gitsync', 'true')
+    if (installationId) params.set('installation_id', installationId)
+    router.push(`/?${params.toString()}`)
+    setPendingRedirect(null)
+  }, [pendingRedirect, router])
+
   /** Handles GitHub App OAuth callback (from backend /api/gitsync/callback redirect) */
   const handleGitSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null) => {
     setStatus('loading')
     setMessage('Conexão com GitHub realizada! Preparando...')
 
     try {
-      // Store installation_id for ProjectForm to use
       if (installationId) {
         sessionStorage.setItem('gitsync_installation_id', installationId)
       }
@@ -67,21 +101,9 @@ export default function ImportGithubTokenPage() {
     }
 
     setStatus('success')
-    setMessage('GitHub conectado! Redirecionando...')
+    setMessage('Verificando autenticação antes de redirecionar...')
 
-    // Redirect back to project detail or home with gitsync flag
-    setTimeout(() => {
-      const params = new URLSearchParams({ gitsync: 'true' })
-      if (installationId) params.set('installation_id', installationId)
-
-      // If projectId exists, redirect to project detail page
-      if (projectId) {
-        params.set('tab', 'projects')
-        params.set('id', projectId)
-      }
-
-      router.push(`/?${params.toString()}`)
-    }, 1500)
+    setPendingRedirect({ projectId, installationId })
   }
 
   const validateAndPrepare = async (token: string, repoUrl: string) => {
