@@ -153,7 +153,6 @@ class ApiClient {
           const { createClient } = await import('@/lib/supabase')
           const supabase = createClient()
           const { data: { session }, error } = await supabase.auth.getSession()
-          
           if (error || !session?.access_token) {
             cachedAccessToken = null
             cachedAccessTokenExpiresAtMs = 0
@@ -178,7 +177,8 @@ class ApiClient {
   private async request<T>(
     method: string,
     endpoint: string,
-    options?: { data?: unknown; params?: Record<string, unknown>; silent?: boolean; isUpload?: boolean }
+    options?: { data?: unknown; params?: Record<string, unknown>; silent?: boolean; isUpload?: boolean },
+    isRetry = false
   ): Promise<ApiResponse<T> | undefined> {
     try {
       const url = this.buildURL(endpoint, options?.params)
@@ -198,13 +198,26 @@ class ApiClient {
 
       return await this.handleResponse<T>(response, options?.silent)
     } catch (error) {
+      const err = error as ApiError & { statusCode?: number }
+      if (err?.statusCode === 401 && !isRetry && typeof window !== 'undefined') {
+        try {
+          const { createClient } = await import('@/lib/supabase')
+          const supabase = createClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.refresh_token) {
+            await supabase.auth.refreshSession({ refresh_token: session.refresh_token })
+            clearTokenCache()
+            return this.request<T>(method, endpoint, options, true)
+          }
+        } catch { /* ignore */ }
+      }
       if (error && typeof error === 'object' && 'success' in error) {
         throw error
       }
       throw {
         success: false,
-        error: error instanceof Error ? error.message : `Erro na requisição ${method}`,
-        statusCode: error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 0
+        error: err?.error ?? (error instanceof Error ? error.message : `Erro na requisição ${method}`),
+        statusCode: err?.statusCode ?? 0
       } as ApiError
     }
   }

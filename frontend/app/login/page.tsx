@@ -21,14 +21,25 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  // Resolve redirect: prioriza sessionStorage (GitSync) pois redirect param pode perder id ao ter &
+  const getRedirectTarget = (): string | null => {
+    try {
+      const stored = sessionStorage.getItem('gitsync_redirect_after_login')
+      if (stored) {
+        sessionStorage.removeItem('gitsync_redirect_after_login')
+        return stored
+      }
+    } catch { /* ignore */ }
+    return searchParams?.get('redirect') ?? null
+  }
+
   // Se já autenticado, redirecionar para home com tab ou query param redirect
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      const redirect = searchParams?.get('redirect')
+      const redirect = getRedirectTarget()
       if (redirect) {
         router.push(redirect)
       } else {
-        // Redirecionar para home (tela inicial - default após login)
         router.push(getDefaultRoute())
       }
     }
@@ -46,11 +57,10 @@ export default function LoginPage() {
     try {
       await login({ email, password })
       toast.success('Login realizado com sucesso!')
-      const redirect = searchParams?.get('redirect')
+      const redirect = getRedirectTarget()
       if (redirect) {
         router.push(redirect)
       } else {
-        // Redirecionar para home (tela inicial - default após login)
         router.push(getDefaultRoute())
       }
     } catch (error: unknown) {

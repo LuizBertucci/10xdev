@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
-const publicPaths = ['/login', '/register']
+// /import-github-token: callback OAuth GitHub - deve carregar sem sessão para processar tokens
+const publicPaths = ['/login', '/register', '/import-github-token']
 
 // Cache simples em memória para sessões (reduz rate limiting do Supabase)
 interface CacheEntry {
@@ -201,7 +202,8 @@ export async function middleware(req: NextRequest) {
   }
 
   // Evita acesso a login/register se já autenticado
-  if (isPublic && hasSession) {
+  // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
+  if (isPublic && hasSession && pathname !== '/import-github-token') {
     const url = req.nextUrl.clone()
     url.pathname = '/'
     // Usuário autenticado deve cair no app (não na landing)

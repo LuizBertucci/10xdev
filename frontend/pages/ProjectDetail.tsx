@@ -45,7 +45,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams?.get('id') || null
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<ProjectMember[]>([])
@@ -173,31 +173,42 @@ export default function ProjectDetail({ platformState: _platformState }: Project
     }
   }, [projectId])
 
-  // Detectar retorno do OAuth do GitHub
+  // Detectar retorno do OAuth do GitHub (URL ou sessionStorage quando redirect perde params)
   useEffect(() => {
-    if (!searchParams) return
+    if (!searchParams || !projectId) return
 
     const gitsyncFlag = searchParams.get('gitsync')
-    const installationId = searchParams.get('installation_id')
+    let installationId = searchParams.get('installation_id') || null
+    if (!installationId) {
+      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('gitsync_installation_id') : null
+    }
 
-    if (gitsyncFlag === 'true' && installationId) {
-      // Check if this is for the current project
-      const storedProjectId = sessionStorage.getItem('gitsync_project_id')
-      if (storedProjectId === projectId) {
-        // Load available repos and show dialog
-        loadAvailableRepos(Number(installationId))
-        sessionStorage.removeItem('gitsync_project_id')
+    const shouldShowRepoDialog = (gitsyncFlag === 'true' || installationId) && installationId
+    if (!shouldShowRepoDialog) return
+    if (!isAuthenticated) return
 
-        // Remove query params from URL
+    const storedProjectId = sessionStorage.getItem('gitsync_project_id')
+    const isForThisProject = (storedProjectId && storedProjectId === projectId) || !storedProjectId
+
+    if (isForThisProject) {
+      if (storedProjectId) sessionStorage.removeItem('gitsync_project_id')
+      loadAvailableRepos(Number(installationId), () => {
         const params = new URLSearchParams(searchParams.toString())
         params.delete('gitsync')
         params.delete('installation_id')
-        router.replace(`${window.location.pathname}?${params.toString()}`)
-      }
+        const newQuery = params.toString()
+        if (newQuery !== searchParams.toString()) {
+          router.replace(newQuery ? `/?${newQuery}` : '/')
+        }
+      })
     }
-  }, [searchParams, projectId])
+  }, [searchParams, projectId, isAuthenticated])
 
-  const loadAvailableRepos = async (installationId: number) => {
+  const loadAvailableRepos = async (
+    installationId: number,
+    onSuccess?: () => void,
+    isRetry = false
+  ) => {
     try {
       setLoadingRepos(true)
       setShowRepoDialog(true)
@@ -210,11 +221,17 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           full_name: repo.full_name,
           default_branch: repo.default_branch
         })))
+        onSuccess?.()
       } else {
         toast.error('Erro ao carregar repositórios')
         setShowRepoDialog(false)
       }
     } catch (error: unknown) {
+      const err = error as { statusCode?: number }
+      if (err?.statusCode === 401 && !isRetry) {
+        await new Promise(r => setTimeout(r, 800))
+        return loadAvailableRepos(installationId, onSuccess, true)
+      }
       toast.error(error instanceof Error ? error.message : 'Erro ao carregar repositórios')
       setShowRepoDialog(false)
     } finally {
