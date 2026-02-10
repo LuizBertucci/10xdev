@@ -361,19 +361,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {accessInfo?.canGenerate && (
-                        <DropdownMenuItem 
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setShowSummaryPrompt(true)
-                          }}
-                          disabled={isGeneratingSummary}
-                        >
-                          {isGeneratingSummary ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                          {isGeneratingSummary ? 'Gerando...' : 'Gerar Resumo com IA'}
-                        </DropdownMenuItem>
-                      )}
-<DropdownMenuItem 
+                      <DropdownMenuItem 
                           onClick={(e) => {
                             e.stopPropagation()
                             onEdit(snippet)
@@ -611,6 +599,35 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
               {/* Área do Conteúdo com Containers Específicos */}
               <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white">
+                {/* Botão Gerar Resumo - apenas na aba Resumo */}
+                {isSummaryTab && accessInfo?.canGenerate && (
+                  <div className="absolute top-2 right-2 z-20">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowSummaryPrompt(true)
+                          }}
+                          disabled={isGeneratingSummary}
+                          className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                        >
+                          {isGeneratingSummary ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{isGeneratingSummary ? 'Gerando resumo...' : 'Gerar resumo com IA'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+
                 {isGeneratingSummary && isSummaryTab && (
                   <div className="mb-2 w-full h-2 bg-blue-100 rounded-full overflow-hidden">
                     <div className="h-2 bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
