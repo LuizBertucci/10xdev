@@ -31,6 +31,7 @@ import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
+import { useAuth } from "@/hooks/useAuth"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -44,6 +45,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams?.get('id') || null
+  const { user } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<ProjectMember[]>([])
@@ -746,7 +748,12 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
-  const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin'
+  // Debug: verificar usuário e permissões
+  console.log('ProjectDetail - User:', user)
+  console.log('ProjectDetail - Project userRole:', project?.userRole)
+  console.log('ProjectDetail - Can edit?', project?.userRole === 'owner' || project?.userRole === 'admin' || user?.role === 'admin')
+
+  const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin' || user?.role === 'admin'
   const canManageMembers = !!project?.userRole // qualquer membro pode adicionar pessoas
   if (loading || !project) {
     return (
