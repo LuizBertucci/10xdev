@@ -22,6 +22,11 @@ import { apiRoutes } from '@/routes'
 import { GithubService } from '@/services/githubService'
 import { GitSyncService } from '@/services/gitSyncService'
 
+type OAuthStateData = {
+  origin?: string
+  projectId?: string
+}
+
 // Configurar variáveis de ambiente - carregar do diretório do backend
 // Usar process.cwd() para garantir que leia do diretório onde o processo foi iniciado
 const envPath = path.resolve(process.cwd(), '.env')
@@ -106,6 +111,57 @@ app.post('/api/gitsync/webhook',
 )
 
 // OAuth callback - sem auth do usuario (recebe code do GitHub)
+const DEFAULT_FRONTEND_ORIGIN = 'http://localhost:3000'
+
+const parseStateParameter = (state?: string): OAuthStateData => {
+  if (!state) return {}
+
+  try {
+    const decoded = Buffer.from(state, 'base64').toString('utf-8')
+
+    try {
+      const parsed = JSON.parse(decoded)
+      if (!parsed || typeof parsed !== 'object') return {}
+
+      const origin = typeof parsed.origin === 'string' ? parsed.origin : undefined
+      const projectId = typeof parsed.projectId === 'string' ? parsed.projectId : undefined
+      return { origin, projectId }
+    } catch {
+      // Retrocompatibilidade: state antigo codificado só com origin em texto.
+      return { origin: decoded }
+    }
+  } catch {
+    return {}
+  }
+}
+
+const normalizeOrigin = (value: string): string | null => {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  try {
+    return new URL(trimmed).origin
+  } catch {
+    return null
+  }
+}
+
+const getValidatedFrontendUrl = (stateOrigin?: string): string => {
+  const allowedOrigins = (process.env.CORS_ORIGIN || DEFAULT_FRONTEND_ORIGIN)
+    .split(',')
+    .map((origin) => normalizeOrigin(origin))
+    .filter((origin): origin is string => Boolean(origin))
+
+  const fallbackOrigin = allowedOrigins[0] || DEFAULT_FRONTEND_ORIGIN
+  const candidateOrigin = stateOrigin ? normalizeOrigin(stateOrigin) : null
+
+  if (candidateOrigin && allowedOrigins.includes(candidateOrigin)) {
+    return candidateOrigin
+  }
+
+  return fallbackOrigin
+}
+
 const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
   try {
     const { code, installation_id, state } = req.query as { code?: string; installation_id?: string; state?: string }
@@ -117,25 +173,8 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
 
     const tokenData = await GithubService.exchangeCodeForToken(code)
 
-    // Detectar frontend origin e projectId do state parameter
-    let frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
-    let projectId: string | undefined
-
-    if (state) {
-      try {
-        const decoded = Buffer.from(state, 'base64').toString('utf-8')
-        const stateData = JSON.parse(decoded)
-        frontendUrl = stateData.origin || frontendUrl
-        projectId = stateData.projectId
-      } catch {
-        // Se falhar decode JSON, tentar como string simples (retrocompatibilidade)
-        try {
-          frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
-        } catch {
-          // Se falhar tudo, usar default
-        }
-      }
-    }
+    const { origin, projectId } = parseStateParameter(state)
+    const frontendUrl = getValidatedFrontendUrl(origin)
 
     const params = new URLSearchParams({
       access_token: tokenData.access_token,
@@ -147,27 +186,17 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
   } catch (error: unknown) {
     console.error('[GitSync OAuth] Erro:', error)
 
-    // Detectar frontend origin do state parameter
     const { state } = req.query as { state?: string }
-    let frontendUrl = process.env.CORS_ORIGIN || 'http://localhost:3000'
-
-    if (state) {
-      try {
-        const decoded = Buffer.from(state, 'base64').toString('utf-8')
-        const stateData = JSON.parse(decoded)
-        frontendUrl = stateData.origin || frontendUrl
-      } catch {
-        // Se falhar decode JSON, tentar como string simples
-        try {
-          frontendUrl = Buffer.from(state, 'base64').toString('utf-8')
-        } catch {
-          // Se falhar tudo, usar default
-        }
-      }
-    }
+    const { origin, projectId } = parseStateParameter(state)
+    const frontendUrl = getValidatedFrontendUrl(origin)
 
     const message = error instanceof Error ? error.message : 'Erro ao processar OAuth'
-    res.redirect(`${frontendUrl}/import-github-token?error=${encodeURIComponent(message)}`)
+    const params = new URLSearchParams({
+      error: message,
+      ...(projectId ? { project_id: projectId } : {})
+    })
+
+    res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
   }
 }
 

@@ -748,11 +748,6 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
-  // Debug: verificar usuário e permissões
-  console.log('ProjectDetail - User:', user)
-  console.log('ProjectDetail - Project userRole:', project?.userRole)
-  console.log('ProjectDetail - Can edit?', project?.userRole === 'owner' || project?.userRole === 'admin' || user?.role === 'admin')
-
   const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin' || user?.role === 'admin'
   const canManageMembers = !!project?.userRole // qualquer membro pode adicionar pessoas
   if (loading || !project) {
