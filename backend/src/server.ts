@@ -173,12 +173,30 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
 
     const tokenData = await GithubService.exchangeCodeForToken(code)
 
+    // Obter installation_id: callback pode não incluir (OAuth padrão).
+    // Fallback: buscar via getUserInstallations com o access_token.
+    let installationId = installation_id
+    if (!installationId) {
+      try {
+        const appId = process.env.GITHUB_APP_ID ? Number(process.env.GITHUB_APP_ID) : null
+        const installations = await GithubService.getUserInstallations(tokenData.access_token)
+        const ourInstallations = appId
+          ? installations.filter((i: { app_id: number }) => i.app_id === appId)
+          : installations
+        if (ourInstallations.length > 0) {
+          installationId = String(ourInstallations[0].id)
+        }
+      } catch (err) {
+        console.error('[GitSync OAuth] Erro ao buscar installations:', err)
+      }
+    }
+
     const { origin, projectId } = parseStateParameter(state)
     const frontendUrl = getValidatedFrontendUrl(origin)
 
     const params = new URLSearchParams({
       access_token: tokenData.access_token,
-      ...(installation_id ? { installation_id } : {}),
+      ...(installationId ? { installation_id: installationId } : {}),
       ...(projectId ? { project_id: projectId } : {})
     })
 
