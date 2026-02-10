@@ -86,7 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initSession = async () => {
       if (mounted) setIsLoading(true)
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
+        let { data: { session }, error } = await supabase.auth.getSession()
+
+        // Se sessão existe mas está expirada, tenta refresh (evita redirect após OAuth/idle)
+        if (session?.refresh_token && session.expires_at) {
+          const expiresAtMs = session.expires_at * 1000
+          const nowMs = Date.now()
+          const bufferMs = 60_000 // 1 min de margem
+          if (expiresAtMs - nowMs < bufferMs) {
+            const refreshed = await supabase.auth.refreshSession({ refresh_token: session.refresh_token })
+            if (!refreshed.error && refreshed.data?.session) {
+              session = refreshed.data.session
+              error = null
+            }
+          }
+        }
 
         if (!mounted) return
 
