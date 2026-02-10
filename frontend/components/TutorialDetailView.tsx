@@ -289,11 +289,15 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
       {/* 2-Column Layout - 50/50 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Video */}
-        <div>
+        <div className="space-y-4">
           {/* Video Player */}
-          {tutorial.youtubeUrl && (
+          {tutorial.youtubeUrl ? (
             <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-              <YouTubeVideo url={tutorial.youtubeUrl} mode="embed" />
+              <YouTubeVideo url={tutorial.youtubeUrl} />
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+              <p className="text-gray-500">Nenhum vídeo disponível</p>
             </div>
           )}
         </div>
@@ -324,6 +328,7 @@ export default function TutorialDetailView({ id, onBack, onGoHome, onGoToTutoria
               snippet={relatedCard}
               onEdit={() => {}}
               onDelete={() => {}}
+              expandOnClick={true}
             />
           ) : (
             <div className="py-8 text-center">

@@ -62,14 +62,16 @@ export default function YouTubeVideo({ url, className = "" }: YouTubeVideoProps)
 
   // Sempre mostra o iframe - mais estável e sem problemas de estado
   return (
-    <div className={`relative w-full ${className}`} style={{ paddingBottom: "56.25%" }}>
-      <iframe
-        src={embedUrl}
-        title="YouTube video player"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="absolute top-0 left-0 w-full h-full rounded-lg border-0"
-      />
+    <div className={`w-full ${className}`}>
+      <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+        <iframe
+          src={embedUrl}
+          title="YouTube video player"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          className="absolute top-0 left-0 w-full h-full rounded-lg"
+        />
+      </div>
     </div>
   )
 }
