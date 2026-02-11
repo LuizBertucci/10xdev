@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useState } from "react"
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent
+} from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Edit, Link2, Loader2, Sparkles, Trash2 } from "lucide-react"
+import { Check, Edit, GripVertical, Link2, Loader2, Sparkles, Trash2 } from "lucide-react"
 import ContentRenderer from "./ContentRenderer"
 import { Textarea } from "@/components/ui/textarea"
 import type { CardFeature } from "@/types"
@@ -11,7 +20,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog"
 import { AIInstructions } from "@/components/AIInstructions"
 
@@ -42,6 +50,16 @@ const SUMMARY_INSTRUCTIONS = [
 
 const SUMMARY_INSTRUCTIONS_ROWS = SUMMARY_INSTRUCTIONS.split('\n').length + 4
 const SUMMARY_INSTRUCTIONS_LS_KEY = 'card-summary-instructions'
+const SUMMARY_SCREEN_ID = '__summary__'
+const DEFAULT_COLUMN_WIDTH = 500
+const SUMMARY_COLUMN_WIDTH = 560
+const MIN_COLUMN_WIDTH = 320
+const MAX_COLUMN_WIDTH = 1200
+
+type StoredModalLayout = {
+  order: string[]
+  widths: Record<string, number>
+}
 
 export default function CardFeatureModal({
   snippet,
@@ -61,6 +79,11 @@ export default function CardFeatureModal({
   const [isEditingSummary, setIsEditingSummary] = useState(false)
   const [summaryDraft, setSummaryDraft] = useState('')
   const [isSavingSummary, setIsSavingSummary] = useState(false)
+  const [columnOrder, setColumnOrder] = useState<string[]>([])
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const [draggingScreenId, setDraggingScreenId] = useState<string | null>(null)
+  const [dragOverScreenId, setDragOverScreenId] = useState<string | null>(null)
+  const resizeStateRef = useRef<{ screenId: string; startX: number; startWidth: number } | null>(null)
 
   const normalizeScreenName = (name?: string) =>
     (name || '')
@@ -90,6 +113,72 @@ export default function CardFeatureModal({
       return acc
     }, [])
   }, [snippet])
+
+  const getScreenStableId = (screen: CardFeature['screens'][number], index: number) => {
+    if (isSummaryScreen(screen.name)) return SUMMARY_SCREEN_ID
+    const firstRoute = (screen.blocks || [])
+      .map((block) => block.route?.trim())
+      .find((route): route is string => Boolean(route))
+    if (firstRoute) return `route:${firstRoute}`
+    const normalizedName = normalizeScreenName(screen.name) || 'sem-nome'
+    return `screen:${normalizedName}:${index}`
+  }
+
+  const screenItems = useMemo(
+    () =>
+      visibleScreens.map((screen, index) => ({
+        id: getScreenStableId(screen, index),
+        isSummary: isSummaryScreen(screen.name),
+        screen
+      })),
+    [visibleScreens]
+  )
+
+  const summaryScreenItem = useMemo(
+    () => screenItems.find((item) => item.isSummary) ?? null,
+    [screenItems]
+  )
+
+  const draggableScreenItems = useMemo(
+    () => screenItems.filter((item) => !item.isSummary),
+    [screenItems]
+  )
+
+  const orderedScreenItems = useMemo(() => {
+    const draggableById = new Map(draggableScreenItems.map((item) => [item.id, item]))
+    const currentDraggableIds = draggableScreenItems.map((item) => item.id)
+    const normalizedOrder = columnOrder.filter((id) => draggableById.has(id))
+    currentDraggableIds.forEach((id) => {
+      if (!normalizedOrder.includes(id)) normalizedOrder.push(id)
+    })
+    const orderedDraggable = normalizedOrder
+      .map((id) => draggableById.get(id))
+      .filter((item): item is (typeof draggableScreenItems)[number] => Boolean(item))
+    if (summaryScreenItem) return [summaryScreenItem, ...orderedDraggable]
+    return orderedDraggable
+  }, [columnOrder, draggableScreenItems, summaryScreenItem])
+
+  const orderedDraggableScreenItems = useMemo(
+    () => orderedScreenItems.filter((item) => !item.isSummary),
+    [orderedScreenItems]
+  )
+
+  const getDefaultWidth = useCallback((screenId: string) => {
+    return screenId === SUMMARY_SCREEN_ID ? SUMMARY_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH
+  }, [])
+
+  const clampColumnWidth = useCallback((width: number) => {
+    return Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, width))
+  }, [])
+
+  const getColumnWidth = useCallback(
+    (screenId: string) => {
+      const storedWidth = columnWidths[screenId]
+      if (!storedWidth) return getDefaultWidth(screenId)
+      return clampColumnWidth(storedWidth)
+    },
+    [clampColumnWidth, columnWidths, getDefaultWidth]
+  )
 
   const visibleFilesCount = useMemo(() => {
     const routes = new Set<string>()
@@ -131,6 +220,190 @@ export default function CardFeatureModal({
       // ignore
     }
   }, [summaryInstructions])
+
+  useEffect(() => {
+    if (!snippet) return
+    const layoutStorageKey = `card-modal-layout:${snippet.id}`
+    const draggableIds = draggableScreenItems.map((item) => item.id)
+    const allScreenIds = screenItems.map((item) => item.id)
+    const defaultWidths = allScreenIds.reduce<Record<string, number>>((acc, id) => {
+      acc[id] = getDefaultWidth(id)
+      return acc
+    }, {})
+
+    let parsedLayout: StoredModalLayout | null = null
+    try {
+      const stored = localStorage.getItem(layoutStorageKey)
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<StoredModalLayout>
+        if (Array.isArray(parsed.order) && parsed.widths && typeof parsed.widths === 'object') {
+          parsedLayout = {
+            order: parsed.order.filter((value): value is string => typeof value === 'string'),
+            widths: Object.fromEntries(
+              (Object.entries(parsed.widths).filter(
+                ([, value]) => typeof value === 'number'
+              ) as Array<[string, number]>)
+            )
+          }
+        }
+      }
+    } catch {
+      parsedLayout = null
+    }
+
+    const persistedOrder = parsedLayout?.order ?? []
+    const normalizedOrder = persistedOrder.filter((id) => draggableIds.includes(id))
+    draggableIds.forEach((id) => {
+      if (!normalizedOrder.includes(id)) normalizedOrder.push(id)
+    })
+
+    const persistedWidths = parsedLayout?.widths ?? {}
+    const normalizedWidths = { ...defaultWidths }
+    allScreenIds.forEach((id) => {
+      const maybeWidth = persistedWidths[id]
+      if (typeof maybeWidth === 'number') {
+        normalizedWidths[id] = clampColumnWidth(maybeWidth)
+      }
+    })
+
+    setColumnOrder(normalizedOrder)
+    setColumnWidths(normalizedWidths)
+    setDraggingScreenId(null)
+    setDragOverScreenId(null)
+  }, [clampColumnWidth, draggableScreenItems, getDefaultWidth, screenItems, snippet])
+
+  useEffect(() => {
+    if (!snippet || !isOpen) return
+    const layoutStorageKey = `card-modal-layout:${snippet.id}`
+    const payload: StoredModalLayout = {
+      order: columnOrder,
+      widths: columnWidths
+    }
+    try {
+      localStorage.setItem(layoutStorageKey, JSON.stringify(payload))
+    } catch {
+      // ignore
+    }
+  }, [columnOrder, columnWidths, isOpen, snippet])
+
+  const onResizeMove = useCallback(
+    (event: PointerEvent) => {
+      const resizeState = resizeStateRef.current
+      if (!resizeState) return
+      const deltaX = event.clientX - resizeState.startX
+      const nextWidth = clampColumnWidth(resizeState.startWidth + deltaX)
+      setColumnWidths((prev) => ({
+        ...prev,
+        [resizeState.screenId]: nextWidth
+      }))
+    },
+    [clampColumnWidth]
+  )
+
+  const stopResizing = useCallback(() => {
+    resizeStateRef.current = null
+    window.removeEventListener('pointermove', onResizeMove)
+    window.removeEventListener('pointerup', stopResizing)
+  }, [onResizeMove])
+
+  const onResizeStart = useCallback(
+    (screenId: string, event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      resizeStateRef.current = {
+        screenId,
+        startX: event.clientX,
+        startWidth: getColumnWidth(screenId)
+      }
+      window.addEventListener('pointermove', onResizeMove)
+      window.addEventListener('pointerup', stopResizing)
+    },
+    [getColumnWidth, onResizeMove, stopResizing]
+  )
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', onResizeMove)
+      window.removeEventListener('pointerup', stopResizing)
+    }
+  }, [onResizeMove, stopResizing])
+
+  const onScreenDragStart = useCallback(
+    (screenId: string, event: ReactDragEvent<HTMLDivElement>) => {
+      setDraggingScreenId(screenId)
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', screenId)
+    },
+    []
+  )
+
+  const onScreenDragOver = useCallback(
+    (targetScreenId: string, event: ReactDragEvent<HTMLDivElement>) => {
+      if (!draggingScreenId || draggingScreenId === targetScreenId) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+      setDragOverScreenId(targetScreenId)
+    },
+    [draggingScreenId]
+  )
+
+  const onScreenDrop = useCallback(
+    (targetScreenId: string, event: ReactDragEvent<HTMLDivElement>) => {
+      if (!draggingScreenId || draggingScreenId === targetScreenId) return
+      event.preventDefault()
+      setColumnOrder((prev) => {
+        const current = prev.length > 0 ? [...prev] : draggableScreenItems.map((item) => item.id)
+        const withoutDragged = current.filter((id) => id !== draggingScreenId)
+        const targetIndex = withoutDragged.indexOf(targetScreenId)
+        if (targetIndex < 0) return current
+        withoutDragged.splice(targetIndex, 0, draggingScreenId)
+        return withoutDragged
+      })
+      setDragOverScreenId(null)
+      setDraggingScreenId(null)
+    },
+    [draggingScreenId, draggableScreenItems]
+  )
+
+  const onScreenDragEnd = useCallback(() => {
+    setDraggingScreenId(null)
+    setDragOverScreenId(null)
+  }, [])
+
+  const moveDraggedToIndex = useCallback(
+    (targetIndex: number) => {
+      if (!draggingScreenId) return
+      setColumnOrder((prev) => {
+        const current = prev.length > 0 ? [...prev] : draggableScreenItems.map((item) => item.id)
+        const withoutDragged = current.filter((id) => id !== draggingScreenId)
+        const clampedTargetIndex = Math.max(0, Math.min(targetIndex, withoutDragged.length))
+        withoutDragged.splice(clampedTargetIndex, 0, draggingScreenId)
+        return withoutDragged
+      })
+      setDragOverScreenId(null)
+      setDraggingScreenId(null)
+    },
+    [draggingScreenId, draggableScreenItems]
+  )
+
+  const onGapDragOver = useCallback(
+    (gapIndex: number, event: ReactDragEvent<HTMLDivElement>) => {
+      if (!draggingScreenId) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+      setDragOverScreenId(`gap:${gapIndex}`)
+    },
+    [draggingScreenId]
+  )
+
+  const onGapDrop = useCallback(
+    (gapIndex: number, event: ReactDragEvent<HTMLDivElement>) => {
+      if (!draggingScreenId) return
+      event.preventDefault()
+      moveDraggedToIndex(gapIndex)
+    },
+    [draggingScreenId, moveDraggedToIndex]
+  )
 
   if (!snippet) return null
 
@@ -269,97 +542,164 @@ export default function CardFeatureModal({
           </DialogHeader>
 
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-6 pt-1 pb-6">
-            <div className="flex gap-6 h-full min-w-max">
-              {visibleScreens.length === 0 ? (
+            <div className="flex h-full min-w-max">
+              {orderedScreenItems.length === 0 ? (
                 <div className="flex items-center justify-center w-full py-12 text-gray-500">
                   Nenhum conteúdo disponível
                 </div>
               ) : (
-                visibleScreens.map((screen, index) => (
-                  <div key={index} className="flex-shrink-0 w-[300px] sm:w-[500px] h-full min-h-0 flex flex-col">
-                    <div className="relative h-full min-h-0 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4">
-                      {isSummaryScreen(screen.name) && onGenerateSummary && canGenerateSummary && (
-                        <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowSummaryPrompt(true)}
-                            disabled={isGeneratingSummary || isEditingSummary || isSavingSummary}
-                            className="h-8 w-8 text-purple-500 hover:text-purple-700 hover:bg-purple-50"
-                            title={isGeneratingSummary ? "Gerando resumo..." : "Gerar resumo com IA"}
-                          >
-                            {isGeneratingSummary ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-4 w-4" />
-                            )}
-                          </Button>
-                          {onSaveSummary && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                setSummaryDraft(getSummaryContent(screen))
-                                setIsEditingSummary(true)
-                              }}
-                              disabled={isGeneratingSummary || isSavingSummary}
-                              className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                              title="Editar Visão Geral"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                <>
+                  {orderedScreenItems.map(({ id, isSummary, screen }) => (
+                    <Fragment key={id}>
+                      {!isSummary && (
+                        <div
+                          className={`relative h-full w-6 flex-shrink-0 ${
+                            dragOverScreenId === `gap:${orderedDraggableScreenItems.findIndex((item) => item.id === id)}`
+                              ? 'bg-blue-100/80'
+                              : ''
+                          }`}
+                          onDragOver={(event) => {
+                            const gapIndex = orderedDraggableScreenItems.findIndex((item) => item.id === id)
+                            if (gapIndex < 0) return
+                            onGapDragOver(gapIndex, event)
+                          }}
+                          onDrop={(event) => {
+                            const gapIndex = orderedDraggableScreenItems.findIndex((item) => item.id === id)
+                            if (gapIndex < 0) return
+                            onGapDrop(gapIndex, event)
+                          }}
+                        />
+                      )}
+                      <div
+                        className={`relative flex-shrink-0 h-full min-h-0 flex flex-col ${
+                          draggingScreenId === id ? 'opacity-70' : ''
+                        } ${dragOverScreenId === id ? 'ring-1 ring-blue-300 rounded-lg' : ''}`}
+                        style={{ width: `${getColumnWidth(id)}px`, minWidth: `${MIN_COLUMN_WIDTH}px` }}
+                        onDragOver={(event) => {
+                          if (isSummary) return
+                          onScreenDragOver(id, event)
+                        }}
+                        onDrop={(event) => {
+                          if (isSummary) return
+                          onScreenDrop(id, event)
+                        }}
+                      >
+                        <div className="relative h-full min-h-0 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4">
+                          {!isSummary && (
+                            <div className="absolute left-3 top-3 z-10">
+                              <button
+                                type="button"
+                                draggable
+                                onDragStart={(event) => onScreenDragStart(id, event)}
+                                onDragEnd={onScreenDragEnd}
+                                className="inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700 active:cursor-grabbing"
+                                title="Arrastar coluna"
+                                aria-label="Arrastar coluna"
+                              >
+                                <GripVertical className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                          {isSummary && onGenerateSummary && canGenerateSummary && (
+                            <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowSummaryPrompt(true)}
+                                disabled={isGeneratingSummary || isEditingSummary || isSavingSummary}
+                                className="h-8 w-8 text-purple-500 hover:text-purple-700 hover:bg-purple-50"
+                                title={isGeneratingSummary ? "Gerando resumo..." : "Gerar resumo com IA"}
+                              >
+                                {isGeneratingSummary ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-4 w-4" />
+                                )}
+                              </Button>
+                              {onSaveSummary && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setSummaryDraft(getSummaryContent(screen))
+                                    setIsEditingSummary(true)
+                                  }}
+                                  disabled={isGeneratingSummary || isSavingSummary}
+                                  className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                  title="Editar Visão Geral"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          {isSummary && isEditingSummary && onSaveSummary ? (
+                            <div className="flex h-full min-h-0 flex-col pt-10">
+                              <Textarea
+                                value={summaryDraft}
+                                onChange={(event) => setSummaryDraft(event.target.value)}
+                                spellCheck={false}
+                                className="flex-1 min-h-[280px] text-xs leading-relaxed resize-none"
+                                placeholder="Edite a Visão Geral em markdown..."
+                              />
+                              <div className="mt-3 flex items-center justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setIsEditingSummary(false)
+                                    setSummaryDraft('')
+                                  }}
+                                  disabled={isSavingSummary}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={async () => {
+                                    if (!snippet) return
+                                    try {
+                                      setIsSavingSummary(true)
+                                      await onSaveSummary(snippet.id, summaryDraft)
+                                      setIsEditingSummary(false)
+                                    } finally {
+                                      setIsSavingSummary(false)
+                                    }
+                                  }}
+                                  disabled={isSavingSummary}
+                                >
+                                  {isSavingSummary ? 'Salvando...' : 'Salvar'}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <ContentRenderer blocks={screen.blocks || []} />
                           )}
                         </div>
-                      )}
-                      {isSummaryScreen(screen.name) && isEditingSummary && onSaveSummary ? (
-                        <div className="flex h-full min-h-0 flex-col pt-10">
-                          <Textarea
-                            value={summaryDraft}
-                            onChange={(event) => setSummaryDraft(event.target.value)}
-                            spellCheck={false}
-                            className="flex-1 min-h-[280px] text-xs leading-relaxed resize-none"
-                            placeholder="Edite a Visão Geral em markdown..."
-                          />
-                          <div className="mt-3 flex items-center justify-end gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setIsEditingSummary(false)
-                                setSummaryDraft('')
-                              }}
-                              disabled={isSavingSummary}
-                            >
-                              Cancelar
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={async () => {
-                                if (!snippet) return
-                                try {
-                                  setIsSavingSummary(true)
-                                  await onSaveSummary(snippet.id, summaryDraft)
-                                  setIsEditingSummary(false)
-                                } finally {
-                                  setIsSavingSummary(false)
-                                }
-                              }}
-                              disabled={isSavingSummary}
-                            >
-                              {isSavingSummary ? 'Salvando...' : 'Salvar'}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <ContentRenderer blocks={screen.blocks || []} />
-                      )}
-                    </div>
-                  </div>
-                ))
+                        <div
+                          role="separator"
+                          aria-orientation="vertical"
+                          aria-label="Redimensionar coluna"
+                          className="absolute -right-2 top-3 z-20 h-7 w-2 cursor-col-resize rounded-md bg-transparent hover:bg-blue-300/60"
+                          onPointerDown={(event) => onResizeStart(id, event)}
+                        />
+                      </div>
+                    </Fragment>
+                  ))}
+                  {orderedDraggableScreenItems.length > 0 && (
+                    <div
+                      className={`relative h-full w-6 flex-shrink-0 ${
+                        dragOverScreenId === `gap:${orderedDraggableScreenItems.length}` ? 'bg-blue-100/80' : ''
+                      }`}
+                      onDragOver={(event) => onGapDragOver(orderedDraggableScreenItems.length, event)}
+                      onDrop={(event) => onGapDrop(orderedDraggableScreenItems.length, event)}
+                    />
+                  )}
+                </>
               )}
             </div>
           </div>
