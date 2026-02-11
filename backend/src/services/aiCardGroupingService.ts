@@ -2,6 +2,17 @@ import { z } from 'zod'
 import { MacroCategory } from '@/types/MacroCategory'
 import { ContentType } from '@/types/cardfeature'
 
+function extractImportsFromSnippet(snippet?: string): string[] {
+  if (!snippet) return []
+  const out: string[] = []
+  const re = /import\s+(?:[\w*\s{},]*)\s+from\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(snippet)) !== null) {
+    out.push(m[1] || m[2] || '')
+  }
+  return [...new Set(out.filter(Boolean))].slice(0, 10)
+}
+
 interface AiCardFile {
   path: string
   content?: string
@@ -241,12 +252,19 @@ export class AiCardGroupingService {
     const mode = this.mode()
 
     const MAX_FILES = Number(process.env.GITHUB_IMPORT_AI_MAX_FILES || (mode === 'full' ? 400 : 200))
-    const MAX_CHARS_PER_FILE = Number(process.env.GITHUB_IMPORT_AI_MAX_CHARS_PER_FILE || (mode === 'full' ? 20000 : 1200))
+    const MAX_CHARS_PER_FILE = Number(process.env.GITHUB_IMPORT_AI_MAX_CHARS_PER_FILE || (mode === 'full' ? 20000 : 2000))
 
     const filesTrimmed: FileMeta[] = []
     for (const f of params.files.slice(0, MAX_FILES)) {
       const trimmed = (f.snippet || '').slice(0, MAX_CHARS_PER_FILE)
-      filesTrimmed.push({ path: f.path, layer: f.layer, featureName: f.featureName, size: f.size, snippet: trimmed })
+      const imports = extractImportsFromSnippet(trimmed)
+      filesTrimmed.push({
+        path: f.path,
+        layer: f.layer,
+        featureName: f.featureName,
+        size: f.size,
+        snippet: trimmed + (imports.length ? `\n\n// imports: ${imports.join(', ')}` : '')
+      })
     }
 
     const system = [

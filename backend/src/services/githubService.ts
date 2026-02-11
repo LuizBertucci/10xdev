@@ -85,21 +85,24 @@ const TECH_DETECTION: Record<string, string> = {
 }
 
 /** Regex patterns para detectar a camada técnica de um arquivo pelo seu path.
- *  Usado para agrupar arquivos em "screens" (Backend - Controller, Frontend - Hook, etc). */
+ *  Usado para agrupar arquivos em "screens" (Backend - Controller, Frontend - Hook, etc).
+ *  Rotas: aceita diretórios /routes|router/ OU arquivos .../routes.ts /router.ts.
+ *  API: preciso para Next.js pages/api/* ou diretório /api/.
+ *  Pages: inclui app router (app/ exceto api). */
 const LAYER_PATTERNS: Record<string, RegExp> = {
-  routes: /\/(routes?|routers?)\//i,
+  routes: /(?:\/(routes?|routers?)\/|\/(routes?|router)\.(t|j)sx?$)/i,
   controllers: /\/(controllers?)\//i,
   services: /\/(services?)\//i,
   models: /\/(models?)\//i,
   middlewares: /\/(middlewares?)\//i,
   validators: /\/(validators?|validations?)\//i,
+  api: /(?:\/pages\/api\/|\/api\/)/i,
   hooks: /\/(hooks?)\//i,
   components: /\/(components?)\//i,
-  pages: /\/(pages?|app)\//i,
+  pages: /(?:\/(pages?)\/|\/app\/(?!api\/))/i,
   stores: /\/(stores?|state)\//i,
-  api: /\/(api|services?)\//i,
   utils: /\/(utils?|helpers?|lib)\//i,
-  types: /\/(types?|interfaces?)\//i
+  types: /\/(types?|interfaces?)\/|\.d\.ts$/i
 }
 
 /** Nomes amigáveis para cada camada técnica, usados como título das screens nos cards.
@@ -232,6 +235,75 @@ const PATH_PATTERN_MAP: [RegExp, string][] = [
   [/package\.json|requirements\.txt|go\.mod|go\.sum|pom\.xml|build\.gradle|composer\.json|gemfile|pyproject\.toml|setup\.py|application\.properties|\.env|dockerfile|docker-compose|\.dockerignore|\.gitignore|\.prettierrc|\.editorconfig/i, 'config'],
   [/\.css$|\.scss$|\.sass$|\.less$|tailwind/i, 'style']
 ]
+
+// ================================================
+// DEPENDENCY GRAPH HELPERS
+// ================================================
+
+function extractImports(content: string): string[] {
+  const imports: string[] = []
+  const es6 = /import\s+(?:[\w*\s{},]*)\s+from\s+['"]([^'"]+)['"]/g
+  const req = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  const dyn = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+  let m: RegExpExecArray | null
+  while ((m = es6.exec(content)) !== null) imports.push(m[1]!)
+  while ((m = req.exec(content)) !== null) imports.push(m[1]!)
+  while ((m = dyn.exec(content)) !== null) imports.push(m[1]!)
+  return imports
+}
+
+function buildDependencyGraph(files: Array<{ path: string; content: string }>): Map<string, Set<string>> {
+  const index = new Map<string, string>()
+  for (const f of files) {
+    const noExt = f.path.replace(/\.(t|j)sx?$|\.vue$|\.svelte$|\.py$|\.go$|\.rb$|\.php$|\.java$/i, '')
+    index.set(f.path, f.path)
+    index.set(noExt, f.path)
+  }
+
+  const graph = new Map<string, Set<string>>()
+  for (const f of files) {
+    const deps = new Set<string>()
+    for (const imp of extractImports(f.content)) {
+      if (imp.startsWith('.')) {
+        const base = f.path.split('/').slice(0, -1).join('/')
+        const norm = (base ? base + '/' : '') + imp
+          .replace(/\/\.\//g, '/')
+          .replace(/\/[^/]+\/\.\.\//g, '/')
+          .replace(/^\.\//, '')
+        const resolved = index.get(norm) || index.get(norm.replace(/\.(t|j)sx?$/i, '')) || null
+        if (resolved) deps.add(resolved)
+      }
+    }
+    graph.set(f.path, deps)
+  }
+  return graph
+}
+
+function findConnectedComponents(graph: Map<string, Set<string>>): string[][] {
+  const seen = new Set<string>()
+  const out: string[][] = []
+
+  const visit = (n: string, acc: string[]) => {
+    if (seen.has(n)) return
+    seen.add(n)
+    acc.push(n)
+    for (const to of graph.get(n) ?? []) {
+      visit(to, acc)
+    }
+    for (const [k, set] of graph) {
+      if (set.has(n)) visit(k, acc)
+    }
+  }
+
+  for (const node of graph.keys()) {
+    if (!seen.has(node)) {
+      const comp: string[] = []
+      visit(node, comp)
+      if (comp.length) out.push(comp)
+    }
+  }
+  return out
+}
 
 interface ParsedRepoInfo {
   owner: string
@@ -438,30 +510,49 @@ export class GithubService {
   }
 
   private static detectMainLanguage(files: FileEntry[]): string {
-    const counts: Record<string, number> = {}
-    for (const file of files) {
-      const lang = this.getLanguageFromExtension(this.getFileExtension(file.path))
-      counts[lang] = (counts[lang] || 0) + 1
-    }
-    const preferred = ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'ruby', 'php']
-    let max = 0
-    let winner = 'typescript'
-    for (const lang of preferred) {
-      if ((counts[lang] || 0) > max) {
-        max = counts[lang] || 0
-        winner = lang
+    const langCounts = new Map<string, number>()
+
+    for (const f of files) {
+      const ext = f.path.substring(f.path.lastIndexOf('.')).toLowerCase()
+      const lang = EXTENSION_TO_LANGUAGE[ext]
+      if (lang) {
+        langCounts.set(lang, (langCounts.get(lang) || 0) + 1)
       }
     }
-    return winner
+
+    if (langCounts.size === 0) {
+      return 'General'
+    }
+
+    const sorted = Array.from(langCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+
+    const [topLang, topCount] = sorted[0]!
+    const totalFiles = files.length
+    const threshold = 0.3
+
+    if (topCount < totalFiles * threshold && sorted.length > 1) {
+      return 'General'
+    }
+
+    return topLang
   }
 
   // ================================================
   // FEATURE DETECTION & GROUPING
   // ================================================
 
-  private static detectFileLayer(path: string): string {
-    for (const [layer, pattern] of Object.entries(LAYER_PATTERNS)) {
-      if (pattern.test(path)) return layer
+  private static detectFileLayer(pathStr: string): string {
+    const orderedLayers = [
+      'routes', 'controllers', 'services', 'models',
+      'middlewares', 'validators',
+      'api',
+      'hooks', 'components', 'pages', 'stores',
+      'types', 'utils'
+    ] as const
+    for (const layer of orderedLayers) {
+      const pattern = LAYER_PATTERNS[layer]
+      if (pattern && pattern.test(pathStr)) return layer
     }
     return 'other'
   }
@@ -541,19 +632,65 @@ export class GithubService {
   }
 
   private static groupFilesByFeature(files: FileEntry[]): Map<string, FeatureFile[]> {
-    const analyzed: FeatureFile[] = files.map(file => ({
+    const prelim: FeatureFile[] = files.map(file => ({
       ...file,
       layer: this.detectFileLayer(file.path),
       featureName: this.extractFeatureName(file.path)
     }))
 
-    const groups = new Map<string, FeatureFile[]>()
-    for (const file of analyzed) {
-      const key = file.featureName || 'misc'
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(file)
+    const codeFiles = prelim.map(f => ({ path: f.path, content: f.content }))
+    const graph = buildDependencyGraph(codeFiles)
+    const components = findConnectedComponents(graph)
+
+    const isGeneric = (ff: FeatureFile) =>
+      ['utils', 'types', 'config'].includes(ff.featureName) ||
+      ['utils', 'types'].includes(ff.layer)
+    const pathToFeat = new Map(prelim.map(f => [f.path, f.featureName]))
+    const importerCountByTarget = new Map<string, Map<string, string[]>>()
+
+    for (const [importer, deps] of graph) {
+      const importerFeat = pathToFeat.get(importer) || 'misc'
+      for (const dep of deps) {
+        const m = importerCountByTarget.get(dep) || new Map<string, string[]>()
+        const arr = m.get(importerFeat) || []
+        arr.push(importer)
+        m.set(importerFeat, arr)
+        importerCountByTarget.set(dep, m)
+      }
     }
 
+    const reassigned: FeatureFile[] = prelim.map(f => {
+      if (!isGeneric(f)) return f
+      const byFeat = importerCountByTarget.get(f.path)
+      if (!byFeat || byFeat.size === 0) return f
+      const top = Array.from(byFeat.entries()).sort((a, b) => b[1].length - a[1].length)[0]
+      const candidate = top?.[0]
+      if (candidate && candidate !== f.featureName) {
+        return { ...f, featureName: candidate }
+      }
+      return f
+    })
+
+    const smallCluster = 6
+    const inCluster = new Set<string>(components.flat())
+    const pathToFeatFinal = new Map(reassigned.map(f => [f.path, f.featureName]))
+    const finalSet = reassigned.map(f => {
+      if (!inCluster.has(f.path)) return f
+      const comp = components.find(c => c.includes(f.path))
+      if (!comp || comp.length > smallCluster) return f
+      const feats = comp.map(p => pathToFeatFinal.get(p) || 'misc')
+      const top = feats.sort((a, b) =>
+        feats.filter(x => x === b).length - feats.filter(x => x === a).length
+      )[0]
+      return { ...f, featureName: top || f.featureName }
+    })
+
+    const groups = new Map<string, FeatureFile[]>()
+    for (const f of finalSet) {
+      const key = f.featureName || 'misc'
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(f)
+    }
     return this.consolidateFeatures(groups)
   }
 
@@ -609,7 +746,7 @@ export class GithubService {
   }
 
   private static makeSnippet(content: string): string {
-    return content.slice(0, 1200)
+    return content.slice(0, 2000)
   }
 
   /** Cria ContentBlock a partir de um arquivo. */
