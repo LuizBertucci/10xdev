@@ -412,11 +412,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 )}
               </div>
 
-              {/* Descrição do card (opcional) */}
-              {snippet.description && (
-                <p className="text-sm text-gray-600 line-clamp-2">{snippet.description}</p>
-              )}
-
               {/* Badges */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge
