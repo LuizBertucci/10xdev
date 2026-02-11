@@ -1,6 +1,10 @@
 import axios from 'axios'
 import AdmZip from 'adm-zip'
 import { randomUUID } from 'crypto'
+import jwt from 'jsonwebtoken'
+import fs from 'fs'
+import path from 'path'
+import crypto from 'crypto'
 import type { GithubRepoInfo } from '@/types/project'
 import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
@@ -946,12 +950,8 @@ export class GithubService {
   // ================================================
 
   /** Gera JWT assinado com a private key do GitHub App.
-   *  Valido por 10 minutos. Usado para obter installation tokens. */
+    *  Valido por 10 minutos. Usado para obter installation tokens. */
   static generateAppJWT(): string {
-    const jwt = require('jsonwebtoken') as typeof import('jsonwebtoken')
-    const fs = require('fs')
-    const path = require('path')
-
     const appId = process.env.GITHUB_APP_ID
     const privateKeyPath = process.env.GITHUB_PRIVATE_KEY_PATH
 
@@ -993,14 +993,15 @@ export class GithubService {
   }
 
   /** Lista repositorios que o App tem acesso via installation_id */
-  static async listInstallationRepos(installationId: number): Promise<any[]> {
+  static async listInstallationRepos(installationId: number): Promise<unknown[]> {
     const token = await this.getInstallationToken(installationId)
 
-    const repos: any[] = []
+    const repos: unknown[] = []
     let page = 1
     const perPage = 100
+    let hasMore = true
 
-    while (true) {
+    while (hasMore) {
       const response = await axios.get(
         'https://api.github.com/installation/repositories',
         {
@@ -1016,24 +1017,25 @@ export class GithubService {
       const data = response.data
       repos.push(...(data.repositories || []))
 
-      if (repos.length >= data.total_count || (data.repositories || []).length < perPage) {
-        break
+      if ((data.repositories || []).length < perPage || repos.length >= data.total_count) {
+        hasMore = false
+      } else {
+        page++
       }
-      page++
     }
 
     return repos.map(r => ({
-      id: r.id,
-      name: r.name,
-      full_name: r.full_name,
-      description: r.description,
-      private: r.private,
-      language: r.language,
-      default_branch: r.default_branch,
-      html_url: r.html_url,
+      id: (r as { id?: number }).id || 0,
+      name: (r as { name?: string }).name || '',
+      full_name: (r as { full_name?: string }).full_name || '',
+      description: (r as { description?: string }).description || '',
+      private: (r as { private?: boolean }).private || false,
+      language: (r as { language?: string }).language || null,
+      default_branch: (r as { default_branch?: string }).default_branch || '',
+      html_url: (r as { html_url?: string }).html_url || '',
       owner: {
-        login: r.owner.login,
-        avatar_url: r.owner.avatar_url
+        login: (r as { owner?: { login?: string } }).owner?.login || '',
+        avatar_url: (r as { owner?: { avatar_url?: string } }).owner?.avatar_url || ''
       }
     }))
   }
@@ -1053,7 +1055,7 @@ export class GithubService {
   static async getFileContent(
     token: string, owner: string, repo: string, filePath: string, ref?: string
   ): Promise<{ content: string; sha: string }> {
-    const params: any = {}
+    const params: Record<string, string> = {}
     if (ref) params.ref = ref
 
     const response = await axios.get(
@@ -1074,11 +1076,11 @@ export class GithubService {
       { headers: this.getHeaders(token) }
     )
 
-    return (response.data.files || []).map((f: any) => ({
-      filename: f.filename,
-      status: f.status, // added, removed, modified, renamed
-      additions: f.additions,
-      deletions: f.deletions
+    return (response.data.files || []).map((f: unknown) => ({
+      filename: (f as { filename?: string }).filename || '',
+      status: (f as { status?: string }).status || 'unknown',
+      additions: (f as { additions?: number }).additions || 0,
+      deletions: (f as { deletions?: number }).deletions || 0
     }))
   }
 
@@ -1186,7 +1188,6 @@ export class GithubService {
 
   /** Verifica assinatura HMAC SHA-256 do webhook do GitHub */
   static verifyWebhookSignature(payload: Buffer, signature: string): boolean {
-    const crypto = require('crypto')
     const secret = process.env.GITHUB_WEBHOOK_SECRET
 
     if (!secret) {
