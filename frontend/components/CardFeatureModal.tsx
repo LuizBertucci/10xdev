@@ -191,7 +191,7 @@ export default function CardFeatureModal({
     }
 
     screensForCount.forEach((screen) => {
-      ;(screen.blocks || []).forEach((block) => {
+      (screen.blocks || []).forEach((block) => {
         const route = block.route?.trim()
         if (route && isCountableFileRoute(route)) routes.add(route)
       })
