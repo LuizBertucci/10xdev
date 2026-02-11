@@ -4,6 +4,10 @@ import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { Visibility } from '@/types/cardfeature'
 import type {
+  CardFeatureUpdate,
+  CreateCardFeatureRequest
+} from '@/types/cardfeature'
+import type {
   GithubWebhookPushPayload,
   GithubWebhookInstallationPayload,
   GitSyncFileMappingInsert,
@@ -173,7 +177,7 @@ export class GitSyncService {
                 visibility: Visibility.UNLISTED,
                 created_in_project_id: projectId
               }
-              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
+              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as CreateCardFeatureRequest[], userId)
               if (!createdRes.success || !createdRes.data?.length) {
                 throw new Error(createdRes.error || 'Erro ao criar card no GitSync')
               }
@@ -225,9 +229,10 @@ export class GitSyncService {
         success: true,
         mappingsCreated: allMappings.count || 0
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GitSync] Erro ao conectar repo:', error)
-      return { success: false, mappingsCreated: 0, error: error.message }
+      const err = error as { message?: string }
+      return { success: false, mappingsCreated: 0, error: err.message || 'Erro desconhecido' }
     }
   }
 
@@ -302,8 +307,8 @@ export class GitSyncService {
                 })
 
                 filesUpdated++
-              } catch (err: any) {
-                console.warn(`[GitSync] Erro ao atualizar arquivo ${file.filename}:`, err.message)
+              } catch (err: unknown) {
+                console.warn(`[GitSync] Erro ao atualizar arquivo ${file.filename}:`, err)
               }
             } else if (file.status === 'removed' && mappingResult.success && mappingResult.data) {
               // Arquivo removido: marcar no mapping (nao deleta o card)
@@ -314,8 +319,8 @@ export class GitSyncService {
               filesAdded++
             }
           }
-        } catch (err: any) {
-          console.warn('[GitSync] Erro ao obter diff, fazendo sync parcial:', err.message)
+        } catch (err: unknown) {
+          console.warn('[GitSync] Erro ao obter diff, fazendo sync parcial:', err)
         }
       }
 
@@ -326,9 +331,10 @@ export class GitSyncService {
       })
 
       return { success: true, filesUpdated, filesAdded, filesRemoved }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GitSync] Erro no syncFromGithub:', error)
-      return { success: false, filesUpdated: 0, filesAdded: 0, filesRemoved: 0, error: error.message }
+      const err = error as { message?: string }
+      return { success: false, filesUpdated: 0, filesAdded: 0, filesRemoved: 0, error: err.message || 'Erro desconhecido' }
     }
   }
 
@@ -402,8 +408,8 @@ export class GitSyncService {
           )
 
           filesChanged++
-        } catch (err: any) {
-          console.warn(`[GitSync] Erro ao atualizar ${mapping.file_path} no GitHub:`, err.message)
+        } catch (err: unknown) {
+          console.warn(`[GitSync] Erro ao atualizar ${mapping.file_path} no GitHub:`, err)
         }
       }
 
@@ -442,9 +448,10 @@ export class GitSyncService {
       }
 
       return { success: true, prUrl: pr.html_url, prNumber: pr.number }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GitSync] Erro no syncToGithub:', error)
-      return { success: false, error: error.message }
+      const err = error as { message?: string }
+      return { success: false, error: err.message || 'Erro desconhecido' }
     }
   }
 
@@ -490,8 +497,8 @@ export class GitSyncService {
     try {
       const result = await this.syncFromGithub(project.id)
       console.log(`[GitSync Webhook] Sync concluido: ${result.filesUpdated} atualizados, ${result.filesAdded} adicionados, ${result.filesRemoved} removidos`)
-    } catch (err: any) {
-      console.error(`[GitSync Webhook] Erro no sync:`, err.message)
+    } catch (err: unknown) {
+      console.error(`[GitSync Webhook] Erro no sync:`, err)
     }
   }
 
@@ -574,9 +581,10 @@ export class GitSyncService {
       })
 
       return { success: true }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GitSync] Erro ao resolver conflito:', error)
-      return { success: false, error: error.message }
+      const err = error as { message?: string }
+      return { success: false, error: err.message || 'Erro desconhecido' }
     }
   }
 
@@ -610,12 +618,12 @@ export class GitSyncService {
 
     if (updated) {
       // userId 'system' para updates automaticos do GitSync
-      await CardFeatureModel.update(cardFeatureId, { screens: updatedScreens } as any, 'system', 'admin')
+      await CardFeatureModel.update(cardFeatureId, { screens: updatedScreens } as unknown as Partial<CardFeatureUpdate>, 'system', 'admin')
     }
   }
 
   /** Extrai conteudo de um bloco do card pelo file_path */
-  private static getCardBlockContent(card: any, filePath: string): string | null {
+  private static getCardBlockContent(card: { screens?: Array<{ blocks?: Array<{ route?: string; content?: string }> }> }, filePath: string): string | null {
     for (const screen of card.screens || []) {
       for (const block of screen.blocks || []) {
         if (block.route === filePath && block.content) {
