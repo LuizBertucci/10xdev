@@ -11,6 +11,7 @@ import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
+import { getMacroCategory } from "@/utils/macroCategories"
 import ContentRenderer from "./ContentRenderer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
@@ -438,6 +439,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     {snippet.language}
                   </Badge>
                 )}
+                {(() => {
+                  const macroCat = (snippet as { macro_category?: string }).macro_category
+                    || getMacroCategory(snippet.tags || [], snippet.category)
+                  if (!macroCat) return null
+                  return (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-indigo-200 bg-indigo-50 text-indigo-700"
+                    >
+                      {macroCat}
+                    </Badge>
+                  )
+                })()}
                 {hasFile && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-200 bg-red-50 text-red-700">
                     <FileText className="h-3 w-3 mr-1" />

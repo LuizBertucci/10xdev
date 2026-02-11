@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, Plus, FileJson, Globe, Lock, Link2, User, Pencil, Trash2 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
@@ -16,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { cardFeatureService } from "@/services"
 import { toast } from "sonner"
+import { getMacroCategoryStats, getMacroCategory } from "@/utils/macroCategories"
 
 interface PlatformState {
   activeTab?: string
@@ -140,6 +142,7 @@ export default function Codes({ platformState }: CodesProps) {
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, _setSelectedCardType] = useState<string>('codigos')
   const [selectedDirectoryTab, setSelectedDirectoryTab] = useState<string>('approved')
+  const [selectedMacroCategory, setSelectedMacroCategory] = useState<string>('all')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
@@ -209,7 +212,17 @@ export default function Codes({ platformState }: CodesProps) {
   }, [cardFeatures.loading, cardFeatures.searchTerm])
 
   // A API já retorna os dados filtrados e a contagem correta para paginação
-  const codeSnippets = cardFeatures.filteredItems
+  const rawSnippets = cardFeatures.filteredItems
+  const codeSnippets = useMemo(() => {
+    if (selectedMacroCategory === 'all') return rawSnippets
+    return rawSnippets.filter((s) => {
+      const macroCat = (s as { macro_category?: string }).macro_category
+        || getMacroCategory(s.tags || [], s.category)
+      return macroCat === selectedMacroCategory
+    })
+  }, [rawSnippets, selectedMacroCategory])
+
+  const macroCategoryStats = useMemo(() => getMacroCategoryStats(rawSnippets), [rawSnippets])
 
   // ================================================
   // EVENT HANDLERS - Funções para lidar com ações do usuário
@@ -492,6 +505,28 @@ export default function Codes({ platformState }: CodesProps) {
             </div>
           </div>
         </Tabs>
+
+        {/* Macro category filter - dropdown */}
+        {!cardFeatures.loading && rawSnippets.length > 0 && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-gray-500 font-medium">Categoria:</span>
+            <Select value={selectedMacroCategory} onValueChange={setSelectedMacroCategory}>
+              <SelectTrigger className="w-[180px] h-9 text-sm">
+                <SelectValue placeholder="Todas as categorias" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas ({rawSnippets.length})</SelectItem>
+                {macroCategoryStats
+                  .sort((a, b) => a.priority - b.priority)
+                  .map(({ category, count }) => (
+                    <SelectItem key={category} value={category}>
+                      {category} ({count})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* ===== ESTADOS DA UI - Loading, Error, Empty ===== */}
@@ -528,13 +563,13 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved' || selectedMacroCategory !== 'all'
               ? 'Nenhum snippet encontrado'
               : 'Nenhum card disponível'
             }
           </h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved' || selectedMacroCategory !== 'all'
               ? 'Tente ajustar seus filtros de busca'
               : 'Ainda não há snippets de código disponíveis para visualização'
             }

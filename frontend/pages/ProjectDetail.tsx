@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -31,7 +32,7 @@ import GitSyncProgressModal from "@/components/GitSyncProgressModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
-import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
+import { buildCategoryGroups, getAllCategories, orderCategories, type GroupingMode } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
 import { ContentType } from "@/types"
 
@@ -112,6 +113,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const [savingName, setSavingName] = useState(false)
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const [showCategories, setShowCategories] = useState(true)
+  const [categoryGroupingMode, setCategoryGroupingMode] = useState<GroupingMode>('project')
   const [activeTab, setActiveTab] = useState('codes')
 
   // Share project state (usado no card Compartilhar da aba Configurações)
@@ -947,8 +949,8 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   )
 
   const categoryGroups = useMemo(() => {
-    return buildCategoryGroups(uniqueCardFeatures)
-  }, [uniqueCardFeatures])
+    return buildCategoryGroups(uniqueCardFeatures, categoryGroupingMode)
+  }, [uniqueCardFeatures, categoryGroupingMode])
 
   const allCategories = useMemo(() => {
     return getAllCategories(categoryGroups)
@@ -1309,16 +1311,34 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           {/* Botão toggle do Sumário - visível apenas na tab Códigos */}
           {activeTab === 'codes' && (
             <>
-              {/* Desktop: toggle simples do showCategories */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex"
-                onClick={() => setShowCategories(prev => !prev)}
-              >
-                <List className="h-4 w-4 mr-2" />
-                {showCategories ? 'Ocultar' : 'Ver'} Sumário
-              </Button>
+              {/* Desktop: toggle simples do showCategories + grouping mode */}
+              <div className="hidden md:flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCategories(prev => !prev)}
+                >
+                  <List className="h-4 w-4 mr-2" />
+                  {showCategories ? 'Ocultar' : 'Ver'} Sumário
+                </Button>
+                {showCategories && (
+                  <Select
+                    value={categoryGroupingMode}
+                    onValueChange={(v) => {
+                      setCategoryGroupingMode(v as GroupingMode)
+                      setSelectedCategory(ALL_CATEGORIES_VALUE)
+                    }}
+                  >
+                    <SelectTrigger className="w-[160px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="project">Por projeto</SelectItem>
+                      <SelectItem value="macro">Por macro-categoria</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
 
               {/* Mobile: Collapsible com painel embutido */}
               <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full md:hidden">
@@ -1332,7 +1352,25 @@ export default function ProjectDetail({ platformState: _platformState }: Project
                     {isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário
                   </Button>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2">
+                <CollapsibleContent className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Agrupar por:</span>
+                    <Select
+                      value={categoryGroupingMode}
+                      onValueChange={(v) => {
+                        setCategoryGroupingMode(v as GroupingMode)
+                        setSelectedCategory(ALL_CATEGORIES_VALUE)
+                      }}
+                    >
+                      <SelectTrigger className="w-[140px] h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="project">Projeto</SelectItem>
+                        <SelectItem value="macro">Macro-categoria</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <ProjectCategories
                     categories={orderedCategories}
                     counts={categoryGroups}

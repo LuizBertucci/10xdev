@@ -38,18 +38,34 @@ export const MACRO_CATEGORIES = {
     description: 'Testes automatizados e garantia de qualidade',
     priority: 7,
     keywords: ['Testes', 'Quality', 'Unit', 'Integration', 'E2E']
+  },
+  'Outros': {
+    description: 'Categorias diversas ou não classificadas',
+    priority: 8,
+    keywords: ['Outros']
   }
 }
 
 /**
- * Determina a macro-categoria principal de um card baseado em suas tags
+ * Lista de macro-categorias válidas para exibição (badge omitido quando fora desta lista)
  */
-export function getMacroCategory(tags: string[] = []): string {
-  if (!tags || tags.length === 0) return 'Ferramentas'
+export const MACRO_CATEGORY_KEYS = Object.keys(MACRO_CATEGORIES) as string[]
 
-  // Procura por match exato primeiro
+/**
+ * Determina a macro-categoria principal de um card baseado em tags e/ou category
+ */
+export function getMacroCategory(tags: string[] = [], category?: string | null): string | null {
+  const combined = [...(category ? [category] : []), ...(tags || [])].filter(Boolean)
+  if (combined.length === 0) return null
+
+  // Match exato: category ou tag está em MACRO_CATEGORY_KEYS
+  for (const key of MACRO_CATEGORY_KEYS) {
+    if (combined.some(t => t.trim().toLowerCase() === key.toLowerCase())) return key
+  }
+
+  // Procura por match exato em keywords
   for (const [macroCategory, config] of Object.entries(MACRO_CATEGORIES)) {
-    if (tags.some(tag => config.keywords.some(keyword =>
+    if (combined.some(tag => config.keywords.some(keyword =>
       tag.toLowerCase() === keyword.toLowerCase()
     ))) {
       return macroCategory
@@ -58,7 +74,7 @@ export function getMacroCategory(tags: string[] = []): string {
 
   // Procura por match parcial
   for (const [macroCategory, config] of Object.entries(MACRO_CATEGORIES)) {
-    if (tags.some(tag => config.keywords.some(keyword =>
+    if (combined.some(tag => config.keywords.some(keyword =>
       tag.toLowerCase().includes(keyword.toLowerCase()) ||
       keyword.toLowerCase().includes(tag.toLowerCase())
     ))) {
@@ -67,7 +83,7 @@ export function getMacroCategory(tags: string[] = []): string {
   }
 
   // Fallback baseado em heurísticas
-  const tagText = tags.join(' ').toLowerCase()
+  const tagText = combined.join(' ').toLowerCase()
 
   if (tagText.match(/component|ui|button|input|dialog|modal/)) return 'Frontend'
   if (tagText.match(/api|controller|service|model|database/)) return 'Backend'
@@ -92,8 +108,8 @@ export function groupCardsByMacroCategory(cards: unknown[]): Record<string, unkn
 
   // Agrupa os cards
   cards.forEach(card => {
-    const cardObj = card as { tags?: string[] }
-    const macroCategory = getMacroCategory(cardObj.tags || [])
+    const cardObj = card as { tags?: string[]; category?: string }
+    const macroCategory = getMacroCategory(cardObj.tags || [], cardObj.category) || 'Ferramentas'
     grouped[macroCategory].push(card)
   })
 
