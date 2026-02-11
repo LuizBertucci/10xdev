@@ -91,6 +91,25 @@ export default function CardFeatureModal({
     }, [])
   }, [snippet])
 
+  const visibleFilesCount = useMemo(() => {
+    const routes = new Set<string>()
+    const screensForCount = visibleScreens.filter((screen) => !isSummaryScreen(screen.name))
+    const isCountableFileRoute = (route: string) => {
+      const normalized = route.toLowerCase()
+      if (normalized.includes('/migrations/')) return false
+      if (normalized.endsWith('.sql')) return false
+      return true
+    }
+
+    screensForCount.forEach((screen) => {
+      ;(screen.blocks || []).forEach((block) => {
+        const route = block.route?.trim()
+        if (route && isCountableFileRoute(route)) routes.add(route)
+      })
+    })
+    return routes.size
+  }, [visibleScreens])
+
   const getSummaryContent = (screen: CardFeature['screens'][number]) => {
     const textBlock = (screen.blocks || []).find((block) => block.type === 'text')
     return textBlock?.content || ''
@@ -214,7 +233,9 @@ export default function CardFeatureModal({
                   </Button>
                   <span className="text-gray-400 text-sm">●</span>
                   <span className="text-sm font-medium text-gray-700">
-                    {visibleScreens.length} {visibleScreens.length === 1 ? 'aba' : 'abas'}
+                    {visibleFilesCount > 0
+                      ? `${visibleFilesCount} ${visibleFilesCount === 1 ? 'arquivo' : 'arquivos'}`
+                      : `${visibleScreens.filter((screen) => !isSummaryScreen(screen.name)).length} ${visibleScreens.filter((screen) => !isSummaryScreen(screen.name)).length === 1 ? 'aba' : 'abas'}`}
                   </span>
                 </div>
               </div>
