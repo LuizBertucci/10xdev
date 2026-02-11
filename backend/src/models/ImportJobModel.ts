@@ -8,6 +8,8 @@ export type ImportJobStep =
   | 'downloading_zip'
   | 'extracting_files'
   | 'analyzing_repo'
+  | 'quality_check'
+  | 'quality_corrections'
   | 'generating_cards'
   | 'creating_cards'
   | 'linking_cards'

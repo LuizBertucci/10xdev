@@ -433,29 +433,85 @@ export class ProjectController {
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
     const useAi = process.env.GITHUB_IMPORT_USE_AI === 'true'
-    const result = await GitSyncService.connectRepo(
-      id,
-      installationId,
-      owner,
-      repo,
-      req.user!.id,
-      { defaultBranch: defaultBranch || 'main', useAi }
-    )
+    const job = await ImportJobModel.create({
+      project_id: id,
+      created_by: req.user!.id,
+      status: 'running',
+      step: 'starting',
+      progress: 0,
+      message: 'Iniciando conexão com o repositório...',
+      ai_requested: useAi
+    })
 
-    if (!result.success) {
-      throw { statusCode: 500, message: result.error || 'Erro ao importar cards do repositório' }
+    let lastProgress = 0
+    const updateJob = async (patch: ImportJobUpdate) => {
+      if (typeof patch.progress === 'number') {
+        patch.progress = Math.max(lastProgress, patch.progress)
+        lastProgress = patch.progress
+      }
+      await ImportJobModel.update(job.id, patch)
     }
 
-    const projectRes = await ProjectModel.findById(id, req.user!.id)
-    assertResult(projectRes)
+    try {
+      const result = await GitSyncService.connectRepo(
+        id,
+        installationId,
+        owner,
+        repo,
+        req.user!.id,
+        {
+          defaultBranch: defaultBranch || 'main',
+          useAi,
+          onProgress: async (step, progress, message) => {
+            await updateJob({
+              step: step as ImportJobStep,
+              progress,
+              message: message || null
+            })
+          }
+        }
+      )
 
-    res.json({
-      success: true,
-      data: projectRes.data,
-      message: result.mappingsCreated > 0
-        ? `Repositório conectado. ${result.mappingsCreated} arquivo(s) mapeado(s) para cards.`
-        : 'Repositório conectado. Nenhum arquivo de código detectado (verifique a estrutura do projeto).'
-    })
+      if (!result.success) {
+        await updateJob({
+          status: 'error',
+          step: 'error',
+          progress: 100,
+          message: result.error || 'Falha ao conectar repositório',
+          error: result.error || 'Falha ao conectar repositório'
+        })
+        throw { statusCode: 500, message: result.error || 'Erro ao importar cards do repositório' }
+      }
+
+      const projectRes = await ProjectModel.findById(id, req.user!.id)
+      assertResult(projectRes)
+
+      await updateJob({
+        status: 'done',
+        step: 'done',
+        progress: 100,
+        message: result.mappingsCreated > 0
+          ? `Conexão concluída. ${result.mappingsCreated} arquivo(s) mapeado(s).`
+          : 'Conexão concluída. Nenhum arquivo de código detectado.'
+      })
+
+      res.json({
+        success: true,
+        data: projectRes.data,
+        message: result.mappingsCreated > 0
+          ? `Repositório conectado. ${result.mappingsCreated} arquivo(s) mapeado(s) para cards.`
+          : 'Repositório conectado. Nenhum arquivo de código detectado (verifique a estrutura do projeto).'
+      })
+    } catch (error: unknown) {
+      await updateJob({
+        status: 'error',
+        step: 'error',
+        progress: 100,
+        message: error instanceof Error ? error.message : 'Falha ao conectar repositório',
+        error: error instanceof Error ? error.message : 'Falha ao conectar repositório'
+      })
+      throw error
+    }
   })
 
   /** DELETE /api/projects/:id/gitsync/connect
