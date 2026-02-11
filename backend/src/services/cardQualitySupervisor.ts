@@ -65,14 +65,25 @@ const FEATURE_TITLES: Record<string, string> = {
   'storage': 'Armazenamento'
 }
 
+type QualityLogHandler = (message: string) => void
+
 export class CardQualitySupervisor {
   private static readonly MIN_DESCRIPTION_LENGTH = 10
   private static readonly MIN_FILES_PER_CARD = 2
   private static readonly MAX_SCREENS_PER_CARD = 20
   private static readonly SIMILARITY_THRESHOLD = 0.85
 
-  static analyzeQuality(cards: CreateCardFeatureRequest[]): QualityReport {
-    console.log('[CardQualitySupervisor] Iniciando análise de qualidade de', cards.length, 'cards')
+  private static emit(message: string, onLog?: QualityLogHandler): void {
+    console.log(message)
+    onLog?.(message)
+  }
+
+  static analyzeQuality(
+    cards: CreateCardFeatureRequest[],
+    options?: { onLog?: QualityLogHandler }
+  ): QualityReport {
+    const onLog = options?.onLog
+    this.emit(`[CardQualitySupervisor] Iniciando análise de qualidade de ${cards.length} cards`, onLog)
 
     const issues: QualityIssue[] = []
     const cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }> = []
@@ -80,16 +91,16 @@ export class CardQualitySupervisor {
     const cardsToImprove: Array<{ index: number; suggestions: string[] }> = []
 
     // Check PRIORITÁRIO: consolidar subcategorias fragmentadas
-    this.checkSubcategoryFragmentation(cards, issues, cardsToMerge)
+    this.checkSubcategoryFragmentation(cards, issues, cardsToMerge, onLog)
 
     // Check crítico: detectar mesma feature dividida em cards separados
-    this.checkSameFeatureSplit(cards, issues, cardsToMerge)
+    this.checkSameFeatureSplit(cards, issues, cardsToMerge, onLog)
 
     // Check 1: Detectar títulos duplicados
-    this.checkDuplicateTitles(cards, issues, cardsToMerge)
+    this.checkDuplicateTitles(cards, issues, cardsToMerge, onLog)
 
     // Check 2: Detectar conteúdo duplicado ou muito similar
-    this.checkDuplicateContent(cards, issues, cardsToMerge)
+    this.checkDuplicateContent(cards, issues, cardsToMerge, onLog)
 
     // Check 3: Detectar conteúdo fraco (poucos arquivos, sem descrição, etc)
     this.checkWeakContent(cards, issues, cardsToImprove)
@@ -106,7 +117,7 @@ export class CardQualitySupervisor {
       cardsToImprove
     }
 
-    this.logReport(report)
+    this.logReport(report, onLog)
     return report
   }
 
@@ -117,7 +128,8 @@ export class CardQualitySupervisor {
   private static checkSubcategoryFragmentation(
     cards: CreateCardFeatureRequest[],
     issues: QualityIssue[],
-    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>,
+    onLog?: QualityLogHandler
   ): void {
     // Padrões para detectar fragmentação
     const patterns = [
@@ -210,7 +222,7 @@ export class CardQualitySupervisor {
 
       // Se tem 2+ cards do mesmo padrão, consolidar todos
       if (matches.length > 1) {
-        console.log(`[Supervisor] Subcategoria ${pattern.category}: ${matches.length} cards fragmentados`)
+        this.emit(`[Supervisor] Subcategoria ${pattern.category}: ${matches.length} cards fragmentados`, onLog)
 
         const targetIndex = matches[0]!
 
@@ -245,7 +257,8 @@ export class CardQualitySupervisor {
   private static checkSameFeatureSplit(
     cards: CreateCardFeatureRequest[],
     issues: QualityIssue[],
-    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>,
+    onLog?: QualityLogHandler
   ): void {
     for (let i = 0; i < cards.length; i++) {
       for (let j = i + 1; j < cards.length; j++) {
@@ -254,7 +267,7 @@ export class CardQualitySupervisor {
         const featureJ = this.extractFeatureFromTitleAndContent(cards[j]!)
 
         if (featureI && featureI === featureJ) {
-          console.log(`[Supervisor] Mesma feature detectada: "${cards[i]!.title}" + "${cards[j]!.title}"`)
+          this.emit(`[Supervisor] Mesma feature detectada: "${cards[i]!.title}" + "${cards[j]!.title}"`, onLog)
 
           issues.push({
             type: QualityIssueType.SAME_FEATURE_SPLIT,
@@ -353,7 +366,8 @@ export class CardQualitySupervisor {
   private static checkDuplicateTitles(
     cards: CreateCardFeatureRequest[],
     issues: QualityIssue[],
-    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>,
+    onLog?: QualityLogHandler
   ): void {
     const titleMap = new Map<string, number[]>()
 
@@ -367,7 +381,7 @@ export class CardQualitySupervisor {
 
     for (const [title, indices] of titleMap) {
       if (indices.length > 1) {
-        console.log(`[CardQualitySupervisor] Título duplicado encontrado: "${title}" (${indices.length} cards)`)
+        this.emit(`[CardQualitySupervisor] Título duplicado encontrado: "${title}" (${indices.length} cards)`, onLog)
 
         for (let i = 1; i < indices.length; i++) {
           issues.push({
@@ -392,14 +406,15 @@ export class CardQualitySupervisor {
   private static checkDuplicateContent(
     cards: CreateCardFeatureRequest[],
     issues: QualityIssue[],
-    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+    cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>,
+    onLog?: QualityLogHandler
   ): void {
     for (let i = 0; i < cards.length; i++) {
       for (let j = i + 1; j < cards.length; j++) {
         const similarity = this.calculateContentSimilarity(cards[i]!, cards[j]!)
 
         if (similarity >= this.SIMILARITY_THRESHOLD) {
-          console.log(`[CardQualitySupervisor] Conteúdo similar encontrado entre cards #${i} e #${j} (similaridade: ${(similarity * 100).toFixed(0)}%)`)
+          this.emit(`[CardQualitySupervisor] Conteúdo similar encontrado entre cards #${i} e #${j} (similaridade: ${(similarity * 100).toFixed(0)}%)`, onLog)
 
           issues.push({
             type: QualityIssueType.DUPLICATE_CONTENT,
@@ -531,17 +546,19 @@ export class CardQualitySupervisor {
 
   static applyCorrections(
     cards: CreateCardFeatureRequest[],
-    report: QualityReport
+    report: QualityReport,
+    options?: { onLog?: QualityLogHandler }
   ): { correctedCards: CreateCardFeatureRequest[]; mergesApplied: number; cardsRemoved: number } {
-    console.log('\n[CardQualitySupervisor] Aplicando correções automáticas')
-    console.log(`Cards originais: ${cards.length}`)
-    console.log(`Merges a aplicar: ${report.cardsToMerge.length}`)
-    console.log(`Cards a remover: ${report.cardsToRemove.length}`)
+    const onLog = options?.onLog
+    this.emit('[CardQualitySupervisor] Aplicando correções automáticas', onLog)
+    this.emit(`Cards originais: ${cards.length}`, onLog)
+    this.emit(`Merges a aplicar: ${report.cardsToMerge.length}`, onLog)
+    this.emit(`Cards a remover: ${report.cardsToRemove.length}`, onLog)
 
     let mergesApplied = 0
     let cardsRemoved = 0
 
-    const { mergedCards, mergeCount } = this.applyMerges(cards, report.cardsToMerge)
+    const { mergedCards, mergeCount } = this.applyMerges(cards, report.cardsToMerge, onLog)
     mergesApplied = mergeCount
     let workingCards = mergedCards
 
@@ -556,7 +573,7 @@ export class CardQualitySupervisor {
       }
     }
 
-    console.log(`\n[CardQualitySupervisor] Resultado: ${workingCards.length} cards (${mergesApplied} merges, ${cardsRemoved} removidos)\n`)
+    this.emit(`[CardQualitySupervisor] Resultado: ${workingCards.length} cards (${mergesApplied} merges, ${cardsRemoved} removidos)`, onLog)
 
     return {
       correctedCards: workingCards,
@@ -567,13 +584,14 @@ export class CardQualitySupervisor {
 
   private static applyMerges(
     cards: CreateCardFeatureRequest[],
-    merges: Array<{ sourceIndex: number; targetIndex: number; reason: string }>
+    merges: Array<{ sourceIndex: number; targetIndex: number; reason: string }>,
+    onLog?: QualityLogHandler
   ): { mergedCards: CreateCardFeatureRequest[]; mergeCount: number } {
     if (merges.length === 0) {
       return { mergedCards: [...cards], mergeCount: 0 }
     }
 
-    console.log(`[CardQualitySupervisor] Aplicando ${merges.length} merge(s)...`)
+    this.emit(`[CardQualitySupervisor] Aplicando ${merges.length} merge(s)...`, onLog)
 
     const workingCards = [...cards]
     const toRemove = new Set<number>()
@@ -592,13 +610,13 @@ export class CardQualitySupervisor {
       const targetCard = workingCards[targetIndex]
       if (!targetCard) continue
 
-      console.log(`\n[CardQualitySupervisor] Processando merge no target card #${targetIndex} "${targetCard.title}"`)
+      this.emit(`[CardQualitySupervisor] Processando merge no target card #${targetIndex} "${targetCard.title}"`, onLog)
 
       for (const sourceIndex of sourceIndices) {
         const sourceCard = workingCards[sourceIndex]
         if (!sourceCard || toRemove.has(sourceIndex)) continue
 
-        console.log(`[CardQualitySupervisor] Merge: "${sourceCard.title}" (#${sourceIndex}) -> "${targetCard.title}" (#${targetIndex})`)
+        this.emit(`[CardQualitySupervisor] Merge: "${sourceCard.title}" (#${sourceIndex}) -> "${targetCard.title}" (#${targetIndex})`, onLog)
 
         // Mesclar screens do source no target
         for (const sourceScreen of sourceCard.screens || []) {
@@ -642,7 +660,7 @@ export class CardQualitySupervisor {
 
     const result = workingCards.filter((_, index) => !toRemove.has(index))
 
-    console.log(`[CardQualitySupervisor] ${mergeCount} merge(s) aplicado(s), ${toRemove.size} card(s) removido(s)`)
+    this.emit(`[CardQualitySupervisor] ${mergeCount} merge(s) aplicado(s), ${toRemove.size} card(s) removido(s)`, onLog)
 
     return { mergedCards: result, mergeCount }
   }
@@ -655,12 +673,12 @@ export class CardQualitySupervisor {
       return { filteredCards: [...cards], removeCount: 0 }
     }
 
-    console.log(`\n[CardQualitySupervisor] Removendo ${indicesToRemove.length} card(s) de baixa qualidade`)
+    this.emit(`[CardQualitySupervisor] Removendo ${indicesToRemove.length} card(s) de baixa qualidade`)
 
     const toRemove = new Set(indicesToRemove)
     const result = cards.filter((card, index) => {
       if (toRemove.has(index)) {
-        console.log(`[CardQualitySupervisor] Removido: "${card.title}" (#${index})`)
+        this.emit(`[CardQualitySupervisor] Removido: "${card.title}" (#${index})`)
         return false
       }
       return true
@@ -669,23 +687,23 @@ export class CardQualitySupervisor {
     return { filteredCards: result, removeCount: indicesToRemove.length }
   }
 
-  private static logReport(report: QualityReport): void {
-    console.log('\n[CardQualitySupervisor] === RELATÓRIO DE QUALIDADE ===')
-    console.log(`Total de cards analisados: ${report.totalCards}`)
-    console.log(`Issues encontrados: ${report.issuesFound}`)
-    console.log(`Cards sugeridos para merge: ${report.cardsToMerge.length}`)
-    console.log(`Cards sugeridos para remoção: ${report.cardsToRemove.length}`)
+  private static logReport(report: QualityReport, onLog?: QualityLogHandler): void {
+    this.emit('[CardQualitySupervisor] === RELATÓRIO DE QUALIDADE ===', onLog)
+    this.emit(`Total de cards analisados: ${report.totalCards}`, onLog)
+    this.emit(`Issues encontrados: ${report.issuesFound}`, onLog)
+    this.emit(`Cards sugeridos para merge: ${report.cardsToMerge.length}`, onLog)
+    this.emit(`Cards sugeridos para remoção: ${report.cardsToRemove.length}`, onLog)
 
     if (report.cardsToMerge.length > 0) {
-      console.log('\n--- Sugestões de Merge ---')
+      this.emit('--- Sugestões de Merge ---', onLog)
       report.cardsToMerge.slice(0, 5).forEach((merge, index) => {
-        console.log(`  ${index + 1}. Card #${merge.sourceIndex} -> Card #${merge.targetIndex} (${merge.reason})`)
+        this.emit(`  ${index + 1}. Card #${merge.sourceIndex} -> Card #${merge.targetIndex} (${merge.reason})`, onLog)
       })
       if (report.cardsToMerge.length > 5) {
-        console.log(`  ... e mais ${report.cardsToMerge.length - 5} sugestões`)
+        this.emit(`  ... e mais ${report.cardsToMerge.length - 5} sugestões`, onLog)
       }
     }
 
-    console.log('='.repeat(50) + '\n')
+    this.emit('='.repeat(50), onLog)
   }
 }

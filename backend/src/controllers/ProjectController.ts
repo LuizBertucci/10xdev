@@ -399,12 +399,30 @@ export class ProjectController {
     const installationId = Number(req.query.installation_id)
     if (!installationId) throw badRequest('installation_id é obrigatório')
 
-    const repos = await GithubService.listInstallationRepos(installationId)
-    res.json({ success: true, data: repos, count: repos.length })
+    try {
+      const repos = await GithubService.listInstallationRepos(installationId)
+      res.json({ success: true, data: repos, count: repos.length })
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number; data?: unknown }; message?: string }
+      const status = axiosErr.response?.status
+      const detail = axiosErr.response?.data
+      console.error('[listGithubRepos] Erro GitHub:', { installationId, status, detail, message: axiosErr.message })
+      if (status === 404) {
+        const e = new Error('Instalação não encontrada. Instale o app 10xDev no GitHub.') as Error & { statusCode: number }
+        e.statusCode = 404
+        throw e
+      }
+      if (status === 403) {
+        const e = new Error('Sem permissão para acessar esta instalação.') as Error & { statusCode: number }
+        e.statusCode = 403
+        throw e
+      }
+      throw err
+    }
   })
 
   /** POST /api/projects/:id/gitsync/connect
-   *  Conecta um projeto a um repo GitHub */
+   *  Conecta um projeto a um repo GitHub e importa cards do código */
   static connectRepo = safeHandler(async (req, res) => {
     const id = requireId(req)
     const { installationId, owner, repo, defaultBranch } = req.body as ConnectRepoRequest
@@ -412,25 +430,88 @@ export class ProjectController {
       throw badRequest('installationId, owner e repo são obrigatórios')
     }
 
-    // Verificar se o user tem acesso ao projeto
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
-    // Salvar dados de sync no projeto
-    const updateResult = await ProjectModel.updateSyncInfo(id, {
-      github_installation_id: installationId,
-      github_owner: owner,
-      github_repo: repo,
-      default_branch: defaultBranch || 'main',
-      gitsync_active: true,
-      last_sync_at: new Date().toISOString()
+    const useAi = process.env.GITHUB_IMPORT_USE_AI === 'true'
+    const job = await ImportJobModel.create({
+      project_id: id,
+      created_by: req.user!.id,
+      status: 'running',
+      step: 'starting',
+      progress: 0,
+      message: 'Iniciando conexão com o repositório...',
+      ai_requested: useAi
     })
-    assertResult(updateResult)
 
-    res.json({
-      success: true,
-      data: updateResult.data,
-      message: 'Repositório conectado com sucesso'
-    })
+    let lastProgress = 0
+    const updateJob = async (patch: ImportJobUpdate) => {
+      if (typeof patch.progress === 'number') {
+        patch.progress = Math.max(lastProgress, patch.progress)
+        lastProgress = patch.progress
+      }
+      await ImportJobModel.update(job.id, patch)
+    }
+
+    try {
+      const result = await GitSyncService.connectRepo(
+        id,
+        installationId,
+        owner,
+        repo,
+        req.user!.id,
+        {
+          defaultBranch: defaultBranch || 'main',
+          useAi,
+          onProgress: async (step, progress, message) => {
+            await updateJob({
+              step: step as ImportJobStep,
+              progress,
+              message: message || null
+            })
+          }
+        }
+      )
+
+      if (!result.success) {
+        await updateJob({
+          status: 'error',
+          step: 'error',
+          progress: 100,
+          message: result.error || 'Falha ao conectar repositório',
+          error: result.error || 'Falha ao conectar repositório'
+        })
+        throw { statusCode: 500, message: result.error || 'Erro ao importar cards do repositório' }
+      }
+
+      const projectRes = await ProjectModel.findById(id, req.user!.id)
+      assertResult(projectRes)
+
+      await updateJob({
+        status: 'done',
+        step: 'done',
+        progress: 100,
+        message: result.mappingsCreated > 0
+          ? `Conexão concluída. ${result.mappingsCreated} arquivo(s) mapeado(s).`
+          : 'Conexão concluída. Nenhum arquivo de código detectado.'
+      })
+
+      res.json({
+        success: true,
+        data: projectRes.data,
+        message: result.mappingsCreated > 0
+          ? `Repositório conectado. ${result.mappingsCreated} arquivo(s) mapeado(s) para cards.`
+          : 'Repositório conectado. Nenhum arquivo de código detectado (verifique a estrutura do projeto).'
+      })
+    } catch (error: unknown) {
+      await updateJob({
+        status: 'error',
+        step: 'error',
+        progress: 100,
+        message: error instanceof Error ? error.message : 'Falha ao conectar repositório',
+        error: error instanceof Error ? error.message : 'Falha ao conectar repositório'
+      })
+      throw error
+    }
   })
 
   /** DELETE /api/projects/:id/gitsync/connect

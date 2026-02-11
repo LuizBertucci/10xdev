@@ -746,6 +746,12 @@ export class GithubService {
       options?.onProgress?.({ step, progress, message })
     }
 
+    const pushQualityLog = (step: string, progress: number) => (message: string) => {
+      const normalized = message.replace(/\s+/g, ' ').trim()
+      if (!normalized) return
+      notify(step, progress, normalized, { cardEstimate: estimatedCards, cardCount: cards.length })
+    }
+
     const useAi = options?.useAi === true && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
 
     let cards: CreateCardFeatureRequest[] = []
@@ -838,10 +844,14 @@ export class GithubService {
         cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
         // Qualidade check
         notify('quality_check', 80, '🔍 Supervisor de qualidade analisando cards...', { cardEstimate: estimatedCards, cardCount: cards.length })
-        const qualityReport = CardQualitySupervisor.analyzeQuality(cards)
+        const qualityReport = CardQualitySupervisor.analyzeQuality(cards, {
+          onLog: pushQualityLog('quality_check', 82)
+        })
         if (qualityReport.issuesFound > 0) {
           notify('quality_corrections', 85, '🔧 Aplicando correções automáticas...', { cardEstimate: estimatedCards, cardCount: cards.length })
-          const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
+          const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport, {
+            onLog: pushQualityLog('quality_corrections', 88)
+          })
           cards = corrections.correctedCards
           notify('quality_corrections', 90, `✅ Correções: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`, { cardEstimate: estimatedCards, cardCount: cards.length })
         } else {
@@ -913,11 +923,15 @@ export class GithubService {
 
     // Supervisor de qualidade
     notify('quality_check', 80, '🔍 Supervisor de qualidade analisando cards...', { cardEstimate: estimatedCards, cardCount: cards.length })
-    const qualityReport = CardQualitySupervisor.analyzeQuality(cards)
+    const qualityReport = CardQualitySupervisor.analyzeQuality(cards, {
+      onLog: pushQualityLog('quality_check', 82)
+    })
 
     if (qualityReport.issuesFound > 0) {
       notify('quality_corrections', 85, '🔧 Aplicando correções automáticas...', { cardEstimate: estimatedCards, cardCount: cards.length })
-      const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport)
+      const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport, {
+        onLog: pushQualityLog('quality_corrections', 88)
+      })
       cards = corrections.correctedCards
       notify('quality_corrections', 90, `✅ Correções: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`, { cardEstimate: estimatedCards, cardCount: cards.length })
     } else {
@@ -992,7 +1006,7 @@ export class GithubService {
         {
           params: { per_page: perPage, page },
           headers: {
-            Authorization: `token ${token}`,
+            Authorization: `Bearer ${token}`,
             Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28'
           }

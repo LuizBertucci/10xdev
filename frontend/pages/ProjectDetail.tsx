@@ -27,11 +27,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureModal from "@/components/CardFeatureModal"
+import GitSyncProgressModal from "@/components/GitSyncProgressModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
+import { ContentType } from "@/types"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -41,11 +43,45 @@ interface ProjectDetailProps {
   platformState?: PlatformState
 }
 
+type ImportJobState = {
+  id: string
+  status: string
+  step: string
+  progress: number
+  message: string | null
+  ai_requested: boolean
+  ai_used: boolean
+  ai_cards_created: number
+  files_processed: number
+  cards_created: number
+}
+
+type GitSyncProgressEvent = {
+  id: string
+  timestamp: number
+  status: string
+  progress: number
+  message: string
+}
+
+const getGitSyncHistoryStorageKey = (projectId: string) => `gitsync_progress_events:${projectId}`
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error !== null) {
+    const maybe = error as { error?: string; message?: string; statusCode?: number }
+    if (typeof maybe.error === 'string' && maybe.error.trim()) return maybe.error
+    if (typeof maybe.message === 'string' && maybe.message.trim()) return maybe.message
+    if (typeof maybe.statusCode === 'number') return `${fallback} (HTTP ${maybe.statusCode})`
+  }
+  return fallback
+}
+
 export default function ProjectDetail({ platformState: _platformState }: ProjectDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams?.get('id') || null
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
   const [members, setMembers] = useState<ProjectMember[]>([])
@@ -68,6 +104,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [expandModalCard, setExpandModalCard] = useState<CardFeature | null>(null)
+  const [isGeneratingModalSummary, setIsGeneratingModalSummary] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -105,21 +142,25 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const [selectedRepo, setSelectedRepo] = useState<string>("")
   const [loadingRepos, setLoadingRepos] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const handledOAuthFlowRef = useRef<string | null>(null)
+  const [showGitSyncProgressModal, setShowGitSyncProgressModal] = useState(false)
+  const [gitSyncProgressEvents, setGitSyncProgressEvents] = useState<GitSyncProgressEvent[]>([])
+  const lastProgressSignatureRef = useRef<string | null>(null)
+  const progressEventSeqRef = useRef(0)
+
+  const handleRepoDialogChange = (open: boolean) => {
+    setShowRepoDialog(open)
+    if (open) setShowGitSyncProgressModal(false)
+  }
+
+  const handleGitSyncProgressModalChange = (open: boolean) => {
+    setShowGitSyncProgressModal(open)
+    if (open) setShowRepoDialog(false)
+  }
 
   // Import job state
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
-  const [importJob, setImportJob] = useState<{
-    id: string
-    status: string
-    step: string
-    progress: number
-    message: string | null
-    ai_requested: boolean
-    ai_used: boolean
-    ai_cards_created: number
-    files_processed: number
-    cards_created: number
-  } | null>(null)
+  const [importJob, setImportJob] = useState<ImportJobState | null>(null)
 
   const showStatus = (
     type: "info" | "success" | "error",
@@ -139,6 +180,50 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       statusTimeoutRef.current = setTimeout(() => setStatus(null), durationMs)
     }
   }
+
+  const pushGitSyncProgressEvent = (job: ImportJobState) => {
+    const message = job.message?.trim() || 'Processando conexão com GitHub...'
+    const signature = `${job.id}|${job.status}|${job.step}|${job.progress}|${message}`
+    if (lastProgressSignatureRef.current === signature) return
+    lastProgressSignatureRef.current = signature
+
+    setGitSyncProgressEvents((prev) => {
+      progressEventSeqRef.current += 1
+      const next: GitSyncProgressEvent = {
+        id: `${job.id}-${Date.now()}-${progressEventSeqRef.current}`,
+        timestamp: Date.now(),
+        status: job.status,
+        progress: job.progress,
+        message
+      }
+      return [next, ...prev].slice(0, 120)
+    })
+  }
+
+  useEffect(() => {
+    if (!projectId || typeof window === 'undefined') return
+    try {
+      const raw = sessionStorage.getItem(getGitSyncHistoryStorageKey(projectId))
+      if (!raw) return
+      const parsed = JSON.parse(raw) as GitSyncProgressEvent[]
+      if (!Array.isArray(parsed)) return
+      setGitSyncProgressEvents(parsed.slice(0, 120))
+    } catch {
+      // ignore invalid cached history
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    if (!projectId || typeof window === 'undefined') return
+    try {
+      sessionStorage.setItem(
+        getGitSyncHistoryStorageKey(projectId),
+        JSON.stringify(gitSyncProgressEvents.slice(0, 120))
+      )
+    } catch {
+      // ignore storage errors
+    }
+  }, [gitSyncProgressEvents, projectId])
 
   useEffect(() => {
     return () => {
@@ -173,50 +258,89 @@ export default function ProjectDetail({ platformState: _platformState }: Project
     }
   }, [projectId])
 
-  // Detectar retorno do OAuth do GitHub
+  // Detectar retorno do OAuth do GitHub (URL ou sessionStorage quando redirect perde params)
   useEffect(() => {
-    if (!searchParams) return
+    if (!searchParams || !projectId) return
 
     const gitsyncFlag = searchParams.get('gitsync')
-    const installationId = searchParams.get('installation_id')
+    const hasOAuthReturnFlag = searchParams.has('oauth_return')
+    const hasInstallationInUrl = searchParams.has('installation_id')
+    const isOAuthCallbackFlow =
+      gitsyncFlag === 'true' || hasOAuthReturnFlag || hasInstallationInUrl
+    if (!isOAuthCallbackFlow) return
 
-    if (gitsyncFlag === 'true' && installationId) {
-      // Check if this is for the current project
-      const storedProjectId = sessionStorage.getItem('gitsync_project_id')
-      if (storedProjectId === projectId) {
-        // Load available repos and show dialog
-        loadAvailableRepos(Number(installationId))
-        sessionStorage.removeItem('gitsync_project_id')
+    let installationId = searchParams.get('installation_id') || null
+    if (!installationId && isOAuthCallbackFlow) {
+      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('gitsync_installation_id') : null
+    }
 
-        // Remove query params from URL
+    const shouldShowRepoDialog = Boolean(installationId)
+    if (!shouldShowRepoDialog) return
+    if (!isAuthenticated) return
+
+    const flowKey = `${projectId}:${installationId}:${searchParams.toString()}`
+    if (handledOAuthFlowRef.current === flowKey) return
+    handledOAuthFlowRef.current = flowKey
+
+    const storedProjectId = sessionStorage.getItem('gitsync_project_id')
+    const isForThisProject = (storedProjectId && storedProjectId === projectId) || !storedProjectId
+
+    if (isForThisProject) {
+      if (storedProjectId) sessionStorage.removeItem('gitsync_project_id')
+      loadAvailableRepos(Number(installationId), () => {
         const params = new URLSearchParams(searchParams.toString())
         params.delete('gitsync')
         params.delete('installation_id')
-        router.replace(`${window.location.pathname}?${params.toString()}`)
-      }
+        const newQuery = params.toString()
+        if (newQuery !== searchParams.toString()) {
+          router.replace(newQuery ? `/?${newQuery}` : '/')
+        }
+      })
     }
-  }, [searchParams, projectId])
+  }, [searchParams, projectId, isAuthenticated])
 
-  const loadAvailableRepos = async (installationId: number) => {
+  const loadAvailableRepos = async (
+    installationId: number,
+    onSuccess?: () => void,
+    isRetry = false
+  ) => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N1',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:start',message:'load repos requested',data:{projectId,installationId,isRetry,isAuthenticated},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       setLoadingRepos(true)
-      setShowRepoDialog(true)
+      handleRepoDialogChange(true)
 
       const response = await projectService.listGithubRepos(installationId)
       if (response?.success && response.data) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N1',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:success',message:'load repos success',data:{projectId,repoCount:response.data.length,isRetry},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         setAvailableRepos(response.data.map((repo: { owner: { login: string }; name: string; full_name: string; default_branch: string }) => ({
           owner: repo.owner.login,
           name: repo.name,
           full_name: repo.full_name,
           default_branch: repo.default_branch
         })))
+        onSuccess?.()
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N2',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:unexpected',message:'load repos non-success response',data:{projectId,isRetry,hasResponse:Boolean(response),success:response?.success ?? null,error:response?.error ?? null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         toast.error('Erro ao carregar repositórios')
-        setShowRepoDialog(false)
+        handleRepoDialogChange(false)
       }
     } catch (error: unknown) {
+      const err = error as { statusCode?: number }
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N2',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:catch',message:'load repos failed',data:{projectId,isRetry,statusCode:err?.statusCode ?? null,errorName:error instanceof Error ? error.name : typeof error,errorMessage:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      if (err?.statusCode === 401 && !isRetry) {
+        await new Promise(r => setTimeout(r, 800))
+        return loadAvailableRepos(installationId, onSuccess, true)
+      }
       toast.error(error instanceof Error ? error.message : 'Erro ao carregar repositórios')
-      setShowRepoDialog(false)
+      handleRepoDialogChange(false)
     } finally {
       setLoadingRepos(false)
     }
@@ -242,6 +366,20 @@ export default function ProjectDetail({ platformState: _platformState }: Project
 
     try {
       setConnecting(true)
+      handleRepoDialogChange(false)
+      setShowGitSyncProgressModal(true)
+      setGitSyncProgressEvents((prev) => [{
+        id: `connect-start-${Date.now()}-${crypto.randomUUID()}`,
+        timestamp: Date.now(),
+        status: 'running',
+        progress: 0,
+        message: 'Conectando repositório e iniciando importação...'
+      }, ...prev].slice(0, 120))
+      lastProgressSignatureRef.current = null
+      showStatus('info', 'Conectando repositório e iniciando importação...')
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N3',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:start',message:'connect repo requested',data:{projectId,selectedRepo,installationId:Number(installationId)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       const response = await projectService.connectRepo(projectId, {
         installationId: Number(installationId),
         owner: repo.owner,
@@ -250,16 +388,48 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       })
 
       if (response?.success) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N3',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:success',message:'connect repo success',data:{projectId,selectedRepo},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         toast.success('Repositório conectado com sucesso!')
-        setShowRepoDialog(false)
+        setGitSyncProgressEvents((prev) => [{
+          id: `connect-success-${Date.now()}-${crypto.randomUUID()}`,
+          timestamp: Date.now(),
+          status: 'done',
+          progress: 100,
+          message: response.message || 'Repositório conectado com sucesso.'
+        }, ...prev].slice(0, 120))
         setSelectedRepo("")
         await loadSyncStatus()
         sessionStorage.removeItem('gitsync_installation_id')
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N4',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:non-success',message:'connect repo non-success response',data:{projectId,selectedRepo,error:response?.error ?? null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         toast.error(response?.error || 'Erro ao conectar repositório')
+        setGitSyncProgressEvents((prev) => [{
+          id: `connect-non-success-${Date.now()}-${crypto.randomUUID()}`,
+          timestamp: Date.now(),
+          status: 'error',
+          progress: importJob?.progress ?? 0,
+          message: response?.error || 'Erro ao conectar repositório'
+        }, ...prev].slice(0, 120))
+        handleRepoDialogChange(true)
       }
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao conectar repositório')
+      const errorMessage = getErrorMessage(error, 'Erro ao conectar repositório')
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N4',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:catch',message:'connect repo failed',data:{projectId,selectedRepo,errorName:error instanceof Error ? error.name : typeof error,errorMessage},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      toast.error(errorMessage)
+      setGitSyncProgressEvents((prev) => [{
+        id: `connect-error-${Date.now()}-${crypto.randomUUID()}`,
+        timestamp: Date.now(),
+        status: 'error',
+        progress: importJob?.progress ?? 0,
+        message: errorMessage
+      }, ...prev].slice(0, 120))
+      handleRepoDialogChange(true)
     } finally {
       setConnecting(false)
     }
@@ -326,19 +496,9 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           .maybeSingle()
 
         if (mounted && data) {
-          const jobData = data as {
-      id: string
-      status: string
-      step: string
-      progress: number
-      message: string | null
-      ai_requested: boolean
-      ai_used: boolean
-      ai_cards_created: number
-      files_processed: number
-      cards_created: number
-    }
+          const jobData = data as ImportJobState
           setImportJob(jobData)
+          pushGitSyncProgressEvent(jobData)
           lastCardsCreatedRef.current = jobData.cards_created || 0
         }
       } catch (error) {
@@ -360,9 +520,10 @@ export default function ProjectDetail({ platformState: _platformState }: Project
           filter: `project_id=eq.${projectId}`
         }, (payload) => {
           if (!mounted) return
-          const row = payload.new as NonNullable<typeof importJob>
+          const row = payload.new as ImportJobState
           if (row) {
             setImportJob(row)
+            pushGitSyncProgressEvent(row)
             
             // Reload cards when a new card is created (incremental mode)
             const newCardsCreated = row.cards_created || 0
@@ -497,6 +658,105 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   
   const loadMoreCards = async () => {
     await loadCards(false, true)
+  }
+
+  const handleGenerateSummaryFromModal = async (cardId: string, prompt?: string) => {
+    try {
+      setIsGeneratingModalSummary(true)
+      await cardFeatureService.generateSummary(cardId, true, prompt?.trim() || undefined)
+
+      const updated = await cardFeatureService.getById(cardId)
+      if (!updated?.success || !updated.data) {
+        toast.success('Resumo gerado com sucesso!')
+        return
+      }
+
+      const updatedCard = updated.data
+
+      setExpandModalCard(updatedCard)
+      setCardFeatures((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)))
+      setCards((prev) =>
+        prev.map((projectCard) =>
+          projectCard.cardFeatureId === cardId
+            ? { ...projectCard, cardFeature: updatedCard }
+            : projectCard
+        )
+      )
+
+      toast.success('Resumo gerado com sucesso!')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao gerar resumo')
+    } finally {
+      setIsGeneratingModalSummary(false)
+    }
+  }
+
+  const handleSaveSummaryFromModal = async (cardId: string, summaryContent: string) => {
+    const normalizeScreenName = (name?: string) =>
+      (name || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+
+    const isSummaryScreen = (name?: string) => {
+      const normalized = normalizeScreenName(name)
+      return normalized === 'resumo' || normalized === 'sumario' || normalized === 'visao geral'
+    }
+
+    try {
+      const baseCard =
+        cardFeatures.find((card) => card.id === cardId) ||
+        (expandModalCard?.id === cardId ? expandModalCard : null)
+
+      if (!baseCard) {
+        toast.error('Card não encontrado para salvar resumo')
+        return
+      }
+
+      const existingSummaryScreen = baseCard.screens.find((screen) => isSummaryScreen(screen.name))
+      const existingTextBlock = existingSummaryScreen?.blocks?.find((block) => block.type === 'text')
+      const summaryBlockId = existingTextBlock?.id || cardFeatureService.generateUUID()
+
+      const nextSummaryScreen = {
+        ...(existingSummaryScreen || {}),
+        name: 'Visão Geral',
+        description: existingSummaryScreen?.description || 'Resumo do card',
+        route: existingSummaryScreen?.route || '',
+        blocks: [
+          {
+            id: summaryBlockId,
+            type: ContentType.TEXT,
+            content: summaryContent,
+            order: 0
+          }
+        ]
+      }
+
+      const nonSummaryScreens = baseCard.screens.filter((screen) => !isSummaryScreen(screen.name))
+      const nextScreens = [nextSummaryScreen, ...nonSummaryScreens]
+
+      const updated = await cardFeatureService.update(cardId, { screens: nextScreens })
+      if (!updated?.success || !updated.data) {
+        toast.error(updated?.error || 'Erro ao salvar Visão Geral')
+        return
+      }
+
+      const updatedCard = updated.data
+      setExpandModalCard(updatedCard)
+      setCardFeatures((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)))
+      setCards((prev) =>
+        prev.map((projectCard) =>
+          projectCard.cardFeatureId === cardId
+            ? { ...projectCard, cardFeature: updatedCard }
+            : projectCard
+        )
+      )
+
+      toast.success('Visão Geral atualizada')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar Visão Geral')
+    }
   }
 
 
@@ -1324,6 +1584,15 @@ export default function ProjectDetail({ platformState: _platformState }: Project
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mb-3 w-full"
+                  onClick={() => handleGitSyncProgressModalChange(true)}
+                >
+                  <Info className="h-4 w-4 mr-2" />
+                  Ver progresso da conexão
+                </Button>
                 {syncStatus?.active ? (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 bg-white border border-emerald-200 rounded-lg">
@@ -1703,8 +1972,15 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         />
       )}
 
+      <GitSyncProgressModal
+        open={showGitSyncProgressModal}
+        onOpenChange={handleGitSyncProgressModalChange}
+        job={importJob}
+        events={gitSyncProgressEvents}
+      />
+
       {/* Dialog: Selecionar Repositório GitHub */}
-      <Dialog open={showRepoDialog} onOpenChange={setShowRepoDialog}>
+      <Dialog open={showRepoDialog} onOpenChange={handleRepoDialogChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Selecionar Repositório</DialogTitle>
@@ -1749,7 +2025,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
             <Button
               variant="outline"
               onClick={() => {
-                setShowRepoDialog(false)
+                handleRepoDialogChange(false)
                 setSelectedRepo("")
               }}
               disabled={connecting}
@@ -1781,6 +2057,10 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         snippet={expandModalCard}
         isOpen={expandModalCard !== null}
         onClose={() => setExpandModalCard(null)}
+        canGenerateSummary={user?.role === 'admin'}
+        isGeneratingSummary={isGeneratingModalSummary}
+        onGenerateSummary={handleGenerateSummaryFromModal}
+        onSaveSummary={handleSaveSummaryFromModal}
       />
     </div>
   )

@@ -43,11 +43,40 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false)
   const [summaryInstructions, setSummaryInstructions] = useState(SUMMARY_INSTRUCTIONS)
-  const activeScreen = snippet.screens[activeTab] || snippet.screens[0]
   const techValue = snippet.tech ?? "Geral"
   const languageValue = snippet.language ?? "text"
   const isOwner = user?.id === snippet.createdBy
   const canEdit = isOwner
+
+  const normalizeScreenName = (name?: string) =>
+    (name || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+
+  const isVisaoGeralScreen = (name?: string) => {
+    const normalized = normalizeScreenName(name)
+    return normalized === 'resumo' || normalized === 'visao geral'
+  }
+
+  const visibleScreens = useMemo(() => {
+    let summaryAlreadyAdded = false
+
+    return snippet.screens.reduce<CardFeatureType['screens']>((acc, screen) => {
+      if (isVisaoGeralScreen(screen.name)) {
+        if (summaryAlreadyAdded) return acc
+        summaryAlreadyAdded = true
+        acc.push({ ...screen, name: 'Visão Geral' })
+        return acc
+      }
+
+      acc.push(screen)
+      return acc
+    }, [])
+  }, [snippet.screens])
+
+  const activeScreen = visibleScreens[activeTab] || visibleScreens[0]
 
   // Cálculo local de acesso (evita chamada individual GET /access por card)
   const accessInfo = useMemo(() => {
@@ -85,12 +114,12 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
         const updatedScreens = response.summary
           ? [
               {
-                name: 'Resumo',
+                name: 'Visão Geral',
                 description: 'Resumo gerado por IA',
                 blocks: [{ id: cardFeatureService.generateUUID(), type: ContentType.TEXT, content: response.summary, order: 0 }],
                 route: ''
               },
-              ...snippet.screens.filter(s => !/^(resumo|overview)$/i.test(s.name.trim()))
+              ...snippet.screens.filter((s) => !isVisaoGeralScreen(s.name))
             ]
           : snippet.screens
         onEdit({ ...snippet, screens: updatedScreens })
@@ -284,7 +313,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                {snippet.screens.map((screen, index) => (
+                {visibleScreens.map((screen, index) => (
                   <button
                     key={index}
                     onClick={() => setActiveTab(index)}

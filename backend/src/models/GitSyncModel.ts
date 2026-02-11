@@ -77,6 +77,38 @@ export class GitSyncModel {
     }
   }
 
+  /** Upsert em bulk por (project_id, file_path), reutilizando ou realocando mappings existentes */
+  static async upsertMappingsBulk(
+    mappings: GitSyncFileMappingInsert[]
+  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+    try {
+      if (mappings.length === 0) {
+        return { success: true, data: [], count: 0 }
+      }
+
+      const rows = mappings.map(m => ({
+        project_id: m.project_id,
+        card_feature_id: m.card_feature_id,
+        file_path: m.file_path,
+        branch_name: m.branch_name || 'main',
+        last_commit_sha: m.last_commit_sha || null,
+        last_synced_at: m.last_synced_at || new Date().toISOString(),
+        card_modified_at: m.card_modified_at || null
+      }))
+
+      const { data, error } = await supabaseAdmin
+        .from('gitsync_file_mappings')
+        .upsert(rows, { onConflict: 'project_id,file_path' })
+        .select()
+
+      if (error) throw error
+      return { success: true, data: data || [], count: data?.length || 0 }
+    } catch (error: any) {
+      console.error('Erro ao fazer upsert de file mappings em bulk:', error)
+      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+    }
+  }
+
   // ================================================
   // FILE MAPPINGS - QUERIES
   // ================================================

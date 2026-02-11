@@ -6,7 +6,8 @@ import { Visibility } from '@/types/cardfeature'
 import type {
   GithubWebhookPushPayload,
   GithubWebhookInstallationPayload,
-  GitSyncFileMappingInsert
+  GitSyncFileMappingInsert,
+  GitSyncFileMappingRow
 } from '@/types/project'
 
 // ================================================
@@ -15,6 +16,80 @@ import type {
 // ================================================
 
 export class GitSyncService {
+  private static extractUniqueFilePaths(card: { screens?: Array<{ blocks?: Array<{ route?: string }> }> }): string[] {
+    const unique = new Set<string>()
+    for (const screen of card.screens || []) {
+      for (const block of screen.blocks || []) {
+        if (block.route) unique.add(block.route)
+      }
+    }
+    return [...unique]
+  }
+
+  private static pickCanonicalCardId(mappings: GitSyncFileMappingRow[]): string | null {
+    if (mappings.length === 0) return null
+    const countByCard = new Map<string, number>()
+    mappings.forEach((mapping) => {
+      countByCard.set(mapping.card_feature_id, (countByCard.get(mapping.card_feature_id) || 0) + 1)
+    })
+    let bestId: string | null = null
+    let bestCount = -1
+    for (const [cardId, count] of countByCard.entries()) {
+      if (count > bestCount) {
+        bestId = cardId
+        bestCount = count
+      }
+    }
+    return bestId
+  }
+
+  private static async cleanupDuplicateCardsBySignature(
+    projectId: string,
+    userId: string
+  ): Promise<{ removedCards: number; mergedGroups: number }> {
+    const mappingsResult = await GitSyncModel.getMappingsByProject(projectId)
+    if (!mappingsResult.success || !mappingsResult.data || mappingsResult.data.length === 0) {
+      return { removedCards: 0, mergedGroups: 0 }
+    }
+
+    const pathsByCard = new Map<string, Set<string>>()
+    for (const mapping of mappingsResult.data) {
+      if (!pathsByCard.has(mapping.card_feature_id)) {
+        pathsByCard.set(mapping.card_feature_id, new Set<string>())
+      }
+      pathsByCard.get(mapping.card_feature_id)!.add(mapping.file_path)
+    }
+
+    const cardsBySignature = new Map<string, string[]>()
+    for (const [cardId, paths] of pathsByCard.entries()) {
+      const signature = [...paths].sort().join('|')
+      if (!signature) continue
+      if (!cardsBySignature.has(signature)) cardsBySignature.set(signature, [])
+      cardsBySignature.get(signature)!.push(cardId)
+    }
+
+    const cardsToDelete: string[] = []
+    let mergedGroups = 0
+
+    for (const cardIds of cardsBySignature.values()) {
+      if (cardIds.length <= 1) continue
+      mergedGroups++
+      const [, ...duplicates] = cardIds
+      cardsToDelete.push(...duplicates)
+    }
+
+    if (cardsToDelete.length === 0) {
+      return { removedCards: 0, mergedGroups: 0 }
+    }
+
+    for (const duplicateCardId of cardsToDelete) {
+      await GitSyncModel.deleteByCard(duplicateCardId)
+      await ProjectModel.removeCard(projectId, duplicateCardId, userId)
+    }
+
+    await CardFeatureModel.bulkDelete(cardsToDelete)
+    return { removedCards: cardsToDelete.length, mergedGroups }
+  }
 
   // ================================================
   // CONNECT REPO - Conecta projeto ao GitHub e importa
@@ -36,6 +111,7 @@ export class GitSyncService {
   ): Promise<{ success: boolean; mappingsCreated: number; error?: string }> {
     try {
       const branch = options?.defaultBranch || 'main'
+      const cardBySignature = new Map<string, string>()
 
       // 1. Obter installation token
       const token = await GithubService.getInstallationToken(installationId)
@@ -61,7 +137,7 @@ export class GitSyncService {
 
       // 4. Processar repo e criar cards (reutiliza flow existente)
       const repoUrl = `https://github.com/${owner}/${repo}`
-      const { cards } = await GithubService.processRepoToCards(
+      await GithubService.processRepoToCards(
         repoUrl,
         token,
         {
@@ -72,41 +148,75 @@ export class GitSyncService {
             }
           },
           onCardReady: async (card) => {
-            const normalizedCard = {
-              ...card,
-              visibility: Visibility.UNLISTED,
-              created_in_project_id: projectId
+            const filePaths = this.extractUniqueFilePaths(card)
+            if (filePaths.length === 0) return
+            const signature = [...filePaths].sort().join('|')
+
+            let cardId = cardBySignature.get(signature) || null
+
+            if (!cardId) {
+              const existingMappings: GitSyncFileMappingRow[] = []
+              for (const filePath of filePaths) {
+                const mapping = await GitSyncModel.getMappingByFilePath(projectId, filePath)
+                if (mapping.success && mapping.data) {
+                  existingMappings.push(mapping.data)
+                }
+              }
+
+              cardId = this.pickCanonicalCardId(existingMappings)
             }
-            const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
-            if (!createdRes.success || !createdRes.data?.length) {
-              throw new Error(createdRes.error || 'Erro ao criar card no GitSync')
+
+            let createdNewCard = false
+            if (!cardId) {
+              const normalizedCard = {
+                ...card,
+                visibility: Visibility.UNLISTED,
+                created_in_project_id: projectId
+              }
+              const createdRes = await CardFeatureModel.bulkCreate([normalizedCard] as any, userId)
+              if (!createdRes.success || !createdRes.data?.length) {
+                throw new Error(createdRes.error || 'Erro ao criar card no GitSync')
+              }
+              cardId = createdRes.data[0]!.id
+              createdNewCard = true
+              await ProjectModel.addCardsBulk(projectId, [cardId], userId)
             }
-            const cardId = createdRes.data[0]!.id
-            await ProjectModel.addCardsBulk(projectId, [cardId], userId)
+
+            if (!cardId) return
+            cardBySignature.set(signature, cardId)
 
             // 5. Criar file mappings para cada arquivo do card
             const mappings: GitSyncFileMappingInsert[] = []
-            for (const screen of card.screens || []) {
-              for (const block of screen.blocks || []) {
-                if (block.route) {
-                  mappings.push({
-                    project_id: projectId,
-                    card_feature_id: cardId,
-                    file_path: block.route,
-                    branch_name: branch,
-                    last_commit_sha: latestSha,
-                    last_synced_at: new Date().toISOString()
-                  })
-                }
-              }
+            for (const filePath of filePaths) {
+              mappings.push({
+                project_id: projectId,
+                card_feature_id: cardId,
+                file_path: filePath,
+                branch_name: branch,
+                last_commit_sha: latestSha,
+                last_synced_at: new Date().toISOString()
+              })
             }
 
             if (mappings.length > 0) {
-              await GitSyncModel.createMappingsBulk(mappings)
+              await GitSyncModel.upsertMappingsBulk(mappings)
+            }
+
+            if (!createdNewCard && options?.onProgress) {
+              await options.onProgress('quality_corrections', 92, `Reuso de card existente (${card.title})`)
             }
           }
         }
       )
+
+      const dedupe = await this.cleanupDuplicateCardsBySignature(projectId, userId)
+      if (dedupe.removedCards > 0 && options?.onProgress) {
+        await options.onProgress(
+          'quality_corrections',
+          94,
+          `Duplicatas removidas: ${dedupe.removedCards} card(s) em ${dedupe.mergedGroups} grupo(s)`
+        )
+      }
 
       // Contar total de mappings criados
       const allMappings = await GitSyncModel.getMappingsByProject(projectId)

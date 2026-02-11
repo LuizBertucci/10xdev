@@ -28,6 +28,9 @@ test-*.js
 # env files
 .env*
 
+# private keys (never commit)
+*.pem
+
 # vercel
 .vercel
 

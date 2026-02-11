@@ -173,12 +173,31 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
 
     const tokenData = await GithubService.exchangeCodeForToken(code)
 
+    // Obter installation_id: callback pode não incluir (OAuth padrão).
+    // Fallback: buscar via getUserInstallations com o access_token.
+    let installationId = installation_id
+    if (!installationId) {
+      try {
+        const appId = process.env.GITHUB_APP_ID ? Number(process.env.GITHUB_APP_ID) : null
+        const installations = await GithubService.getUserInstallations(tokenData.access_token)
+        const ourInstallations = appId
+          ? installations.filter((i: { app_id: number }) => i.app_id === appId)
+          : installations
+        const firstInstallation = ourInstallations[0]
+        if (firstInstallation) {
+          installationId = String(firstInstallation.id)
+        }
+      } catch (err) {
+        console.error('[GitSync OAuth] Erro ao buscar installations:', err)
+      }
+    }
+
     const { origin, projectId } = parseStateParameter(state)
     const frontendUrl = getValidatedFrontendUrl(origin)
 
     const params = new URLSearchParams({
-      access_token: tokenData.access_token,
-      ...(installation_id ? { installation_id } : {}),
+      github_access_token: tokenData.access_token,
+      ...(installationId ? { installation_id: installationId } : {}),
       ...(projectId ? { project_id: projectId } : {})
     })
 
@@ -247,7 +266,10 @@ app.use((req, res, next) => {
 
 // Timeout de resposta para evitar requests pendurados indefinidamente
 app.use((req, res, next) => {
-  const timeoutMs = Number(process.env.RESPONSE_TIMEOUT_MS) || 20000
+  const isGitSyncConnect = req.method === 'POST' && /\/api\/projects\/[^/]+\/gitsync\/connect$/.test(req.originalUrl)
+  const defaultTimeoutMs = Number(process.env.RESPONSE_TIMEOUT_MS) || 20000
+  const connectTimeoutMs = Number(process.env.GITSYNC_CONNECT_TIMEOUT_MS) || 180000
+  const timeoutMs = isGitSyncConnect ? connectTimeoutMs : defaultTimeoutMs
   res.setTimeout(timeoutMs, () => {
     const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']
     console.error(`[timeout] ${req.method} ${req.originalUrl} após ${timeoutMs}ms rid=${String(rid ?? '')}`)

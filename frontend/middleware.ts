@@ -2,7 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
-const publicPaths = ['/login', '/register']
+// /import-github-token: callback OAuth GitHub - deve carregar sem sessão para processar tokens
+const publicPaths = ['/login', '/register', '/import-github-token']
 
 // Cache simples em memória para sessões (reduz rate limiting do Supabase)
 interface CacheEntry {
@@ -60,6 +61,17 @@ function applyResponseCookies(target: NextResponse, source: NextResponse) {
   })
 }
 
+function getSupabaseCookieNames(req: NextRequest): string[] {
+  return req.cookies
+    .getAll()
+    .map((cookie) => cookie.name)
+    .filter((name) => name.startsWith('sb-'))
+}
+
+function getAllCookieNames(req: NextRequest): string[] {
+  return req.cookies.getAll().map((cookie) => cookie.name)
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
   const res = NextResponse.next()
@@ -67,12 +79,9 @@ export async function middleware(req: NextRequest) {
   const debugLocal = process.env.DEBUG_SUPABASE_AUTH_LOCAL === 'true'
   let cookiesSetCount = 0
   let cookiesRemoveCount = 0
-
-  // #region agent log
-  if (debugLocal) {
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H1',location:'middleware.ts:15',message:'middleware entry',data:{pathname,hasTab:Boolean(searchParams.get('tab'))},timestamp:Date.now()})}).catch(()=>{});
-  }
-  // #endregion
+  const host = req.headers.get('host')
+  const allCookies = getAllCookieNames(req)
+  const supabaseCookies = getSupabaseCookieNames(req)
 
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
@@ -82,12 +91,10 @@ export async function middleware(req: NextRequest) {
   // - `/?tab=...` é privado (app)
   const isRootLanding = pathname === '/' && !searchParams.get('tab')
   const isPublic = isRootLanding || publicPaths.includes(pathname)
-
-  // #region agent log
-  if (debugLocal) {
-    fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H2',location:'middleware.ts:26',message:'public route computed',data:{isRootLanding,isPublic},timestamp:Date.now()})}).catch(()=>{});
-  }
-  // #endregion
+  const hasOAuthFlags =
+    searchParams.has('gitsync') ||
+    searchParams.has('installation_id') ||
+    searchParams.has('oauth_return')
 
   // Cria cliente Supabase para validar sessão
   // Usa getSession() em vez de getUser() para evitar refresh token automático
@@ -137,12 +144,9 @@ export async function middleware(req: NextRequest) {
   } else {
     // Cache miss ou expirado - verifica no Supabase
     try {
-      // #region agent log
-      if (debugLocal) {
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H3',location:'middleware.ts:51',message:'before getSession',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
-      }
-      // #endregion
       const { data: { session }, error } = await supabase.auth.getSession()
+      const sessionExpiresAtMs = session?.expires_at ? session.expires_at * 1000 : null
+      const sessionExpiresInMs = sessionExpiresAtMs ? sessionExpiresAtMs - Date.now() : null
       // Se houver erro (ex: rate limit), não bloqueia - deixa passar e o cliente tratará
       if (!error && session?.user) {
         hasSession = true
@@ -152,26 +156,30 @@ export async function middleware(req: NextRequest) {
           pathname,
           hasSession,
           hasError: Boolean(error),
+          hasSessionUser: Boolean(session?.user),
+          sessionExpiresInMs,
           cookiesSetCount,
           cookiesRemoveCount,
         })
       }
-      // #region agent log
-      if (debugLocal) {
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H3',location:'middleware.ts:55',message:'after getSession',data:{hasSession,hasError:Boolean(error)},timestamp:Date.now()})}).catch(()=>{});
+      if (!hasSession && !isPublic) {
+        const supabaseCookies = getSupabaseCookieNames(req)
+        console.warn('[middleware][auth] sessão ausente no getSession', {
+          host: req.headers.get('host'),
+          pathname,
+          hasError: Boolean(error),
+          errorMessage: error?.message,
+          hasSupabaseCookies: supabaseCookies.length > 0,
+          supabaseCookies,
+          sessionExpiresInMs
+        })
       }
-      // #endregion
       // Armazena no cache (mesmo se não houver sessão, para evitar chamadas repetidas)
       setCachedSession(cacheKey, hasSession)
     } catch (error) {
       // Em caso de erro (rate limit, etc), não bloqueia a requisição
       // O cliente tratará a autenticação no lado do browser
       console.warn('Middleware: erro ao verificar sessão (não bloqueando):', error)
-      // #region agent log
-      if (debugLocal) {
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H4',location:'middleware.ts:60',message:'getSession exception',data:{hasSession:false,errorType:error instanceof Error ? error.name : typeof error},timestamp:Date.now()})}).catch(()=>{});
-      }
-      // #endregion
       hasSession = false
       if (debugAuth) {
         console.log('[middleware][supabase] getSession exception', {
@@ -186,33 +194,45 @@ export async function middleware(req: NextRequest) {
   }
 
   // Bloqueia rotas privadas se não houver sessão válida
-  if (!isPublic && !hasSession) {
+  if (!isPublic && !hasSession && !hasOAuthFlags) {
+    const supabaseCookies = getSupabaseCookieNames(req)
+    console.warn('[middleware][auth] redirect para login por sessão ausente', {
+      host: req.headers.get('host'),
+      pathname,
+      search: req.nextUrl.search,
+      hasSupabaseCookies: supabaseCookies.length > 0,
+      supabaseCookies,
+      cacheHit: cachedResult !== null,
+      cacheResult: cachedResult
+    })
     const url = req.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirect', pathname + req.nextUrl.search)
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
-    // #region agent log
-    if (debugLocal) {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H5',location:'middleware.ts:70',message:'redirect to login',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
-    }
-    // #endregion
     return redirect
   }
 
+  if (!isPublic && !hasSession && hasOAuthFlags) {
+    const supabaseCookies = getSupabaseCookieNames(req)
+    console.warn('[middleware][auth] bypass de login por flags OAuth/GitSync', {
+      host: req.headers.get('host'),
+      pathname,
+      search: req.nextUrl.search,
+      hasSupabaseCookies: supabaseCookies.length > 0,
+      supabaseCookies
+    })
+  }
+
   // Evita acesso a login/register se já autenticado
-  if (isPublic && hasSession) {
+  // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
+  if (isPublic && hasSession && pathname !== '/import-github-token') {
     const url = req.nextUrl.clone()
     url.pathname = '/'
     // Usuário autenticado deve cair no app (não na landing)
     url.search = '?tab=home'
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
-    // #region agent log
-    if (debugLocal) {
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'debug-session',runId:'pre',hypothesisId:'H5',location:'middleware.ts:81',message:'redirect to app',data:{pathname},timestamp:Date.now()})}).catch(()=>{});
-    }
-    // #endregion
     return redirect
   }
 
