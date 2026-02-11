@@ -294,8 +294,8 @@ class ProjectService {
   }
 
   /** Resolve conflito de sync */
-  async resolveConflict(projectId: string, fileMappingId: string, resolution: 'keep_card' | 'keep_github'): Promise<ApiResponse<any> | undefined> {
-    return apiClient.post<any>(`${this.endpoint}/${projectId}/gitsync/resolve`, { fileMappingId, resolution })
+  async resolveConflict(projectId: string, fileMappingId: string, resolution: 'keep_card' | 'keep_github'): Promise<ApiResponse<Record<string, unknown>> | undefined> {
+    return apiClient.post<Record<string, unknown>>(`${this.endpoint}/${projectId}/gitsync/resolve`, { fileMappingId, resolution })
   }
 }
 

@@ -39,9 +39,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: row }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao criar file mapping:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -71,9 +72,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: data || [], count: data?.length || 0 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao criar file mappings em bulk:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -103,9 +105,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: data || [], count: data?.length || 0 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao fazer upsert de file mappings em bulk:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -126,9 +129,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: data || [], count: data?.length || 0 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar file mappings do projeto:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -145,9 +149,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: data || [], count: data?.length || 0 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar file mappings do card:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -169,9 +174,10 @@ export class GitSyncModel {
         return { success: false, error: 'Mapeamento não encontrado', statusCode: 404 }
       }
       return { success: true, data }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar file mapping por path:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -194,9 +200,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: row }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar file mapping:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -213,9 +220,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true, data: data || [], count: data?.length || 0 }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao marcar card como modificado:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -244,9 +252,10 @@ export class GitSyncModel {
       )
 
       return { success: true, data: conflicts, count: conflicts.length }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar conflitos:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -270,9 +279,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao deletar file mappings do projeto:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -286,9 +296,10 @@ export class GitSyncModel {
 
       if (error) throw error
       return { success: true }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao deletar file mappings do card:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 }

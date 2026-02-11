@@ -76,12 +76,12 @@ export async function middleware(req: NextRequest) {
   const { pathname, searchParams } = req.nextUrl
   const res = NextResponse.next()
   const debugAuth = process.env.DEBUG_SUPABASE_AUTH === 'true'
-  const debugLocal = process.env.DEBUG_SUPABASE_AUTH_LOCAL === 'true'
+  const _debugLocal = process.env.DEBUG_SUPABASE_AUTH_LOCAL === 'true'
   let cookiesSetCount = 0
   let cookiesRemoveCount = 0
-  const host = req.headers.get('host')
-  const allCookies = getAllCookieNames(req)
-  const supabaseCookies = getSupabaseCookieNames(req)
+  const _host = req.headers.get('host')
+  const _allCookies = getAllCookieNames(req)
+  const _supabaseCookies = getSupabaseCookieNames(req)
 
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()

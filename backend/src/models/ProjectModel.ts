@@ -1392,9 +1392,10 @@ export class ProjectModel {
         return { success: false, error: 'Projeto não encontrado', statusCode: 404 }
       }
       return { success: true, data: this.transformToResponse(row) }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao atualizar sync info do projeto:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -1413,9 +1414,10 @@ export class ProjectModel {
         return { success: false, error: 'Projeto não encontrado', statusCode: 404 }
       }
       return { success: true, data: row }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar sync info do projeto:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -1438,9 +1440,10 @@ export class ProjectModel {
         return { success: false, error: 'Projeto não encontrado para este repositório', statusCode: 404 }
       }
       return { success: true, data: row }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Erro ao buscar projeto por repo GitHub:', error)
-      return { success: false, error: error.message, statusCode: error.statusCode || 500 }
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 }
