@@ -4,6 +4,7 @@ import {
   ApprovalStatus,
   Visibility
 } from '@/types/cardfeature'
+import { validateCard } from '@/services/cardValidation'
 import type { UserRow } from '@/types/user'
 import type {
   CardFeatureRow,
@@ -843,7 +844,28 @@ export class CardFeatureModel {
       const now = new Date().toISOString()
       const isAdmin = userRole === 'admin'
 
-      const insertData: CardFeatureInsert[] = items.map(item => {
+      const validItems: CreateCardFeatureRequest[] = []
+      const validationErrors: string[] = []
+
+      for (let i = 0; i < items.length; i++) {
+        const validation = validateCard(items[i]!)
+        if (!validation.valid) {
+          const errStr = validation.errors.map(e => `${e.field}: ${e.message}`).join('; ')
+          validationErrors.push(`Card ${i + 1} (${items[i]?.title || 'sem título'}): ${errStr}`)
+          continue
+        }
+        validItems.push(items[i]!)
+      }
+
+      if (validItems.length === 0) {
+        return {
+          success: false,
+          error: validationErrors.length > 0 ? validationErrors.join(' | ') : 'Nenhum card válido para criar',
+          statusCode: 400
+        }
+      }
+
+      const insertData: CardFeatureInsert[] = validItems.map(item => {
         // Processar screens para adicionar IDs e order aos blocos (mesma regra do create)
         const processedScreens = (item.screens || []).map(screen => ({
           ...screen,
@@ -919,6 +941,7 @@ export class CardFeatureModel {
         success: true,
         data: transformedData,
         count: transformedData.length,
+        error: validationErrors.length > 0 ? validationErrors.join(' | ') : undefined,
         statusCode: 201
       }
     } catch (error: unknown) {

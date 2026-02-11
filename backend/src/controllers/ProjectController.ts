@@ -119,7 +119,7 @@ export class ProjectController {
 
       try {
         await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
-        const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
+        const result = await GithubService.processRepoToCards(
           url, token,
           {
             useAi: useAi === true,
@@ -150,6 +150,7 @@ export class ProjectController {
             }
           }
         )
+        const { cards, filesProcessed, aiUsed, aiCardsCreated, filesSkipped, filesFailed, errorDetails } = result
 
         _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
@@ -164,9 +165,19 @@ export class ProjectController {
         }
 
         await updateJob({ step: 'linking_cards', progress: 95, message: 'Finalizando...' })
+        let doneMessage = 'Importação concluída.'
+        if ((filesSkipped ?? 0) > 0 || (filesFailed ?? 0) > 0) {
+          const parts: string[] = []
+          if ((filesSkipped ?? 0) > 0) parts.push(`${filesSkipped} arquivo(s) ignorado(s)`)
+          if ((filesFailed ?? 0) > 0) parts.push(`${filesFailed} feature(s) com falha`)
+          doneMessage += ` ${parts.join(', ')}.`
+          if (errorDetails?.length && errorDetails.length <= 5) {
+            doneMessage += ` Detalhes: ${errorDetails.join('; ')}`
+          }
+        }
         await updateJob({
           status: 'done', step: 'done', progress: 100,
-          message: 'Importação concluída.',
+          message: doneMessage,
           cards_created: totalCardsCreated || cards.length,
           files_processed: totalFilesProcessed || filesProcessed,
           ai_used: aiUsed,

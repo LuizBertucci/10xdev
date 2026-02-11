@@ -440,10 +440,11 @@ export class GithubService {
     throw new Error('Não foi possível baixar o repositório. Se for privado, informe um token.')
   }
 
-  private static extractFilesFromZip(zipBuffer: Buffer): FileEntry[] {
+  private static extractFilesFromZip(zipBuffer: Buffer): { files: FileEntry[]; skippedPaths: string[] } {
     const zip = new AdmZip(zipBuffer)
     const entries = zip.getEntries()
     const files: FileEntry[] = []
+    const skippedPaths: string[] = []
 
     for (const entry of entries) {
       if (entry.isDirectory) continue
@@ -452,14 +453,21 @@ export class GithubService {
       const relativePath = parts.join('/')
       if (!relativePath) continue
       if (!this.shouldIncludeFile(relativePath)) continue
-      if (entry.header.size > MAX_FILE_SIZE) continue
+      if (entry.header.size > MAX_FILE_SIZE) {
+        skippedPaths.push(`${relativePath} (tamanho excede limite)`)
+        continue
+      }
       try {
         const content = entry.getData().toString('utf-8')
         files.push({ path: relativePath, content, size: entry.header.size })
-      } catch { continue }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn(`[GithubService] Arquivo ignorado: ${relativePath} - ${msg}`)
+        skippedPaths.push(`${relativePath}: ${msg}`)
+      }
     }
 
-    return files
+    return { files, skippedPaths }
   }
 
   // ================================================
@@ -858,15 +866,28 @@ export class GithubService {
       onProgress?: (update: { step: string; progress?: number; message?: string; cardEstimate?: number; cardCount?: number }) => void
       onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
     }
-  ): Promise<{ cards: CreateCardFeatureRequest[]; filesProcessed: number; aiUsed: boolean; aiCardsCreated: number }> {
+  ): Promise<{
+    cards: CreateCardFeatureRequest[]
+    filesProcessed: number
+    aiUsed: boolean
+    aiCardsCreated: number
+    filesSkipped?: number
+    filesFailed?: number
+    errorDetails?: string[]
+  }> {
     const notify = (step: string, progress: number, message: string, extra?: { cardEstimate?: number; cardCount?: number }) =>
       options?.onProgress?.({ step, progress, message, ...extra })
 
     notify('downloading_zip', 5, 'Baixando o repositório do GitHub...')
     const zipBuffer = await this.downloadRepoAsZip(url, token)
 
-    const files = this.extractFilesFromZip(zipBuffer)
-    if (files.length === 0) throw new Error('Nenhum arquivo de código encontrado no repositório.')
+    const { files, skippedPaths } = this.extractFilesFromZip(zipBuffer)
+    const filesSkipped = skippedPaths.length
+    if (files.length === 0) {
+      const hint = filesSkipped > 0 ? ` (${filesSkipped} arquivo(s) ignorado(s))` : ''
+      throw new Error(`Nenhum arquivo de código encontrado no repositório.${hint}`)
+    }
+    const errorDetails: string[] = skippedPaths.length > 0 ? [...skippedPaths] : []
 
     const totalFiles = files.length
     let filesProcessed = 0
@@ -897,6 +918,7 @@ export class GithubService {
 
     let cards: CreateCardFeatureRequest[] = []
     let aiCardsCreated = 0
+    let featuresFailed = 0
 
     const featureGroupsArray = Array.from(featureGroups.entries())
     const totalFeatures = featureGroupsArray.length
@@ -916,7 +938,7 @@ export class GithubService {
     // ================================================
     if (useAi) {
       notify('generating_cards', 55,
-        `🤖 IA analisando todo o repositório [1/1]`,
+        `🤖 IA: enviando análise do repositório...`,
         { cardEstimate: estimatedCards })
       try {
         const mode = AiCardGroupingService.mode()
@@ -928,6 +950,7 @@ export class GithubService {
           size: f.size,
           snippet: mode === 'full' ? f.content : this.makeSnippet(f.content)
         }))
+        notify('generating_cards', 58, `🤖 IA: aguardando resposta...`, { cardEstimate: estimatedCards })
         const ai = await AiCardGroupingService.refineGrouping({
           repoUrl: url,
           detectedTech: tech,
@@ -938,6 +961,7 @@ export class GithubService {
             files: files.map(f => f.path)
           }))
         })
+        notify('generating_cards', 62, `🤖 IA: resposta recebida, parseando...`, { cardEstimate: estimatedCards, cardCount: ai.cards.length })
         notify('generating_cards', 65,
           `✅ IA criou ${ai.cards.length} card(s) consolidados`,
           { cardEstimate: estimatedCards, cardCount: ai.cards.length })
@@ -976,6 +1000,10 @@ export class GithubService {
           const cardWithSummary = this.addSummaryScreen(newCard)
           await emitCard(cardWithSummary)
           aiCardsCreated++
+          if (ai.cards.length > 0) {
+            const pct = Math.floor(65 + (aiCardsCreated / ai.cards.length) * 15)
+            notify('generating_cards', pct, `Criando cards: ${aiCardsCreated}/${ai.cards.length}`, { cardCount: aiCardsCreated })
+          }
           if (totalFiles > 0) {
             const progress = Math.floor(30 + (filesProcessed / totalFiles) * 55)
             notifyProgress('generating_cards', progress, `${filesProcessed}/${totalFiles} arquivos processados`)
@@ -1002,7 +1030,10 @@ export class GithubService {
           ? `🤖 IA criou ${aiCardsCreated} cards de ${cards.length} totais`
           : `📁 ${cards.length} cards criados via heurística`
         notify('generating_cards', 90, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
-        return { cards, filesProcessed, aiUsed: true, aiCardsCreated }
+        return {
+          cards, filesProcessed, aiUsed: true, aiCardsCreated,
+          ...(filesSkipped > 0 && { filesSkipped, errorDetails })
+        }
       } catch (featureErr: unknown) {
         console.error('[GithubService] Erro IA no processamento único:', featureErr instanceof Error ? featureErr.message : String(featureErr))
         notify('generating_cards', 60,
@@ -1016,43 +1047,52 @@ export class GithubService {
     for (const [idx, [featureName, featureFiles]] of featureGroupsArray.entries()) {
       const featureProgress = 55 + Math.floor(((idx + 1) / totalFeatures) * 15)
 
-      // --- Heuristic path ---
-      notify('generating_cards', featureProgress,
-        `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${idx + 1}/${totalFeatures}]`,
-        { cardEstimate: estimatedCards })
+      try {
+        // --- Heuristic path ---
+        notify('generating_cards', featureProgress,
+          `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${idx + 1}/${totalFeatures}]`,
+          { cardEstimate: estimatedCards })
 
-      const filesByLayer = new Map<string, FeatureFile[]>()
-      for (const file of featureFiles) {
-        if (!filesByLayer.has(file.layer)) filesByLayer.set(file.layer, [])
-        filesByLayer.get(file.layer)!.push(file)
-      }
-
-      const screens: CardFeatureScreen[] = []
-      const layerOrder = ['routes', 'controllers', 'services', 'models', 'middlewares', 'validators', 'hooks', 'api', 'stores', 'components', 'pages', 'types', 'utils', 'other']
-
-      for (const layer of layerOrder) {
-        const layerFiles = filesByLayer.get(layer)
-        if (!layerFiles?.length) continue
-
-        const screenName = LAYER_TO_SCREEN_NAME[layer] || this.capitalizeFirst(layer)
-        const blocks: ContentBlock[] = []
-        for (const file of layerFiles) {
-          blocks.push(this.fileToBlock(file, blocks.length))
-          filesProcessed++
+        const filesByLayer = new Map<string, FeatureFile[]>()
+        for (const file of featureFiles) {
+          if (!filesByLayer.has(file.layer)) filesByLayer.set(file.layer, [])
+          filesByLayer.get(file.layer)!.push(file)
         }
-        const fileNames = layerFiles.map(f => f.path.split('/').pop()).join(', ')
-        screens.push({
-          name: screenName,
-          description: layerFiles.length === 1 ? `Arquivo ${fileNames}` : `Arquivos: ${fileNames}`,
-          route: layerFiles[0]?.path || '',
-          blocks
-        })
-      }
 
-      if (!screens.length) continue
-      const newCard = this.buildCard(featureName, screens, tech, mainLanguage, featureFiles)
-      const cardWithSummary = this.addSummaryScreen(newCard)
-      await emitCard(cardWithSummary)
+        const screens: CardFeatureScreen[] = []
+        const layerOrder = ['routes', 'controllers', 'services', 'models', 'middlewares', 'validators', 'hooks', 'api', 'stores', 'components', 'pages', 'types', 'utils', 'other']
+
+        for (const layer of layerOrder) {
+          const layerFiles = filesByLayer.get(layer)
+          if (!layerFiles?.length) continue
+
+          const screenName = LAYER_TO_SCREEN_NAME[layer] || this.capitalizeFirst(layer)
+          const blocks: ContentBlock[] = []
+          for (const file of layerFiles) {
+            blocks.push(this.fileToBlock(file, blocks.length))
+            filesProcessed++
+          }
+          const fileNames = layerFiles.map(f => f.path.split('/').pop()).join(', ')
+          screens.push({
+            name: screenName,
+            description: layerFiles.length === 1 ? `Arquivo ${fileNames}` : `Arquivos: ${fileNames}`,
+            route: layerFiles[0]?.path || '',
+            blocks
+          })
+        }
+
+        if (!screens.length) continue
+        const newCard = this.buildCard(featureName, screens, tech, mainLanguage, featureFiles)
+        const cardWithSummary = this.addSummaryScreen(newCard)
+        await emitCard(cardWithSummary)
+        notify('generating_cards', featureProgress, `Cards criados: ${cards.length}`, { cardCount: cards.length })
+      } catch (featureErr: unknown) {
+        const msg = featureErr instanceof Error ? featureErr.message : String(featureErr)
+        const filePaths = featureFiles.map(f => f.path).slice(0, 3).join(', ')
+        console.error(`[GithubService] Feature "${featureName}" falhou`, { step: 'generating_cards', files: filePaths, error: msg })
+        errorDetails.push(`Feature ${featureName} (${filePaths}${featureFiles.length > 3 ? '...' : ''}): ${msg}`)
+        featuresFailed++
+      }
     }
 
     cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
@@ -1079,7 +1119,11 @@ export class GithubService {
       notify('quality_check', 90, '✅ Supervisor: qualidade OK', { cardEstimate: estimatedCards, cardCount: cards.length })
     }
 
-    return { cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated }
+    return {
+      cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated,
+      ...(filesSkipped > 0 && { filesSkipped, errorDetails }),
+      ...(featuresFailed > 0 && { filesFailed: featuresFailed })
+    }
   }
 
   // ================================================
