@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Edit, Loader2, Sparkles, Trash2 } from "lucide-react"
+import { Check, Edit, Link2, Loader2, Sparkles, Trash2 } from "lucide-react"
 import ContentRenderer from "./ContentRenderer"
+import { Textarea } from "@/components/ui/textarea"
 import type { CardFeature } from "@/types"
 import {
   Dialog,
@@ -23,6 +24,7 @@ interface CardFeatureModalProps {
   canGenerateSummary?: boolean
   isGeneratingSummary?: boolean
   onGenerateSummary?: (snippetId: string, prompt?: string) => void | Promise<void>
+  onSaveSummary?: (snippetId: string, summaryContent: string) => void | Promise<void>
 }
 
 const SUMMARY_INSTRUCTIONS = [
@@ -49,11 +51,16 @@ export default function CardFeatureModal({
   onDelete,
   canGenerateSummary = false,
   isGeneratingSummary = false,
-  onGenerateSummary
+  onGenerateSummary,
+  onSaveSummary
 }: CardFeatureModalProps) {
-  if (!snippet) return null
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false)
   const [summaryInstructions, setSummaryInstructions] = useState(SUMMARY_INSTRUCTIONS)
+  const [shareLinkCopied, setShareLinkCopied] = useState(false)
+  const [apiLinkCopied, setApiLinkCopied] = useState(false)
+  const [isEditingSummary, setIsEditingSummary] = useState(false)
+  const [summaryDraft, setSummaryDraft] = useState('')
+  const [isSavingSummary, setIsSavingSummary] = useState(false)
 
   const normalizeScreenName = (name?: string) =>
     (name || '')
@@ -68,6 +75,7 @@ export default function CardFeatureModal({
   }
 
   const visibleScreens = useMemo(() => {
+    if (!snippet) return []
     let summaryAlreadyAdded = false
 
     return snippet.screens.reduce<typeof snippet.screens>((acc, screen) => {
@@ -81,7 +89,12 @@ export default function CardFeatureModal({
       acc.push(screen)
       return acc
     }, [])
-  }, [snippet.screens])
+  }, [snippet])
+
+  const getSummaryContent = (screen: CardFeature['screens'][number]) => {
+    const textBlock = (screen.blocks || []).find((block) => block.type === 'text')
+    return textBlock?.content || ''
+  }
 
   useEffect(() => {
     try {
@@ -99,6 +112,34 @@ export default function CardFeatureModal({
       // ignore
     }
   }, [summaryInstructions])
+
+  if (!snippet) return null
+
+  const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  const appBaseUrl = isLocalhost ? 'http://localhost:3000' : 'https://10xdev.com.br'
+  const apiBaseUrl = isLocalhost ? 'http://localhost:3001/api' : 'https://api.10xdev.com.br/api'
+  const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
+  const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
+
+  const handleCopyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(cardShareUrl)
+      setShareLinkCopied(true)
+      setTimeout(() => setShareLinkCopied(false), 2000)
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleCopyApiUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(cardApiUrl)
+      setApiLinkCopied(true)
+      setTimeout(() => setApiLinkCopied(false), 2000)
+    } catch {
+      // ignore
+    }
+  }
 
   return (
     <>
@@ -133,7 +174,7 @@ export default function CardFeatureModal({
               type="button"
               onClick={async () => {
                 setShowSummaryPrompt(false)
-                if (onGenerateSummary) {
+                if (onGenerateSummary && snippet) {
                   await onGenerateSummary(snippet.id, summaryInstructions)
                 }
               }}
@@ -148,13 +189,34 @@ export default function CardFeatureModal({
 
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
         <DialogContent className="max-w-[95vw] w-[95vw] max-h-[90vh] h-[90vh] p-0 flex flex-col">
-          <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
+          <DialogHeader className="px-6 pt-6 pb-1 flex-shrink-0">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <DialogTitle className="text-xl">{snippet.title}</DialogTitle>
-                {snippet.description && (
-                  <DialogDescription className="mt-1">{snippet.description}</DialogDescription>
-                )}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${shareLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                    onClick={handleCopyShareUrl}
+                  >
+                    {shareLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                    {shareLinkCopied ? 'Copiado!' : 'Compartilhar'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${apiLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
+                    onClick={handleCopyApiUrl}
+                  >
+                    {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                    {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
+                  </Button>
+                  <span className="text-gray-400 text-sm">●</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {visibleScreens.length} {visibleScreens.length === 1 ? 'aba' : 'abas'}
+                  </span>
+                </div>
               </div>
               {(onEdit || onDelete) && (
                 <div className="flex gap-2 flex-shrink-0">
@@ -185,7 +247,7 @@ export default function CardFeatureModal({
             </div>
           </DialogHeader>
 
-          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-6 pb-6">
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden px-6 pt-1 pb-6">
             <div className="flex gap-6 h-full min-w-max">
               {visibleScreens.length === 0 ? (
                 <div className="flex items-center justify-center w-full py-12 text-gray-500">
@@ -196,23 +258,84 @@ export default function CardFeatureModal({
                   <div key={index} className="flex-shrink-0 w-[300px] sm:w-[500px] h-full min-h-0 flex flex-col">
                     <div className="relative h-full min-h-0 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4">
                       {isSummaryScreen(screen.name) && onGenerateSummary && canGenerateSummary && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setShowSummaryPrompt(true)}
-                          disabled={isGeneratingSummary}
-                          className="absolute right-3 top-3 h-8 w-8 text-purple-500 hover:text-purple-700 hover:bg-purple-50"
-                          title={isGeneratingSummary ? "Gerando resumo..." : "Gerar resumo com IA"}
-                        >
-                          {isGeneratingSummary ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
+                        <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowSummaryPrompt(true)}
+                            disabled={isGeneratingSummary || isEditingSummary || isSavingSummary}
+                            className="h-8 w-8 text-purple-500 hover:text-purple-700 hover:bg-purple-50"
+                            title={isGeneratingSummary ? "Gerando resumo..." : "Gerar resumo com IA"}
+                          >
+                            {isGeneratingSummary ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {onSaveSummary && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSummaryDraft(getSummaryContent(screen))
+                                setIsEditingSummary(true)
+                              }}
+                              disabled={isGeneratingSummary || isSavingSummary}
+                              className="h-8 w-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                              title="Editar Visão Geral"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
                           )}
-                        </Button>
+                        </div>
                       )}
-                      <ContentRenderer blocks={screen.blocks || []} />
+                      {isSummaryScreen(screen.name) && isEditingSummary && onSaveSummary ? (
+                        <div className="flex h-full min-h-0 flex-col pt-10">
+                          <Textarea
+                            value={summaryDraft}
+                            onChange={(event) => setSummaryDraft(event.target.value)}
+                            spellCheck={false}
+                            className="flex-1 min-h-[280px] text-xs leading-relaxed resize-none"
+                            placeholder="Edite a Visão Geral em markdown..."
+                          />
+                          <div className="mt-3 flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setIsEditingSummary(false)
+                                setSummaryDraft('')
+                              }}
+                              disabled={isSavingSummary}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={async () => {
+                                if (!snippet) return
+                                try {
+                                  setIsSavingSummary(true)
+                                  await onSaveSummary(snippet.id, summaryDraft)
+                                  setIsEditingSummary(false)
+                                } finally {
+                                  setIsSavingSummary(false)
+                                }
+                              }}
+                              disabled={isSavingSummary}
+                            >
+                              {isSavingSummary ? 'Salvando...' : 'Salvar'}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <ContentRenderer blocks={screen.blocks || []} />
+                      )}
                     </div>
                   </div>
                 ))

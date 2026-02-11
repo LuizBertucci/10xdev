@@ -33,6 +33,7 @@ import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
+import { ContentType } from "@/types"
 
 interface PlatformState {
   setActiveTab?: (tab: string) => void
@@ -687,6 +688,74 @@ export default function ProjectDetail({ platformState: _platformState }: Project
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar resumo')
     } finally {
       setIsGeneratingModalSummary(false)
+    }
+  }
+
+  const handleSaveSummaryFromModal = async (cardId: string, summaryContent: string) => {
+    const normalizeScreenName = (name?: string) =>
+      (name || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+
+    const isSummaryScreen = (name?: string) => {
+      const normalized = normalizeScreenName(name)
+      return normalized === 'resumo' || normalized === 'sumario' || normalized === 'visao geral'
+    }
+
+    try {
+      const baseCard =
+        cardFeatures.find((card) => card.id === cardId) ||
+        (expandModalCard?.id === cardId ? expandModalCard : null)
+
+      if (!baseCard) {
+        toast.error('Card não encontrado para salvar resumo')
+        return
+      }
+
+      const existingSummaryScreen = baseCard.screens.find((screen) => isSummaryScreen(screen.name))
+      const existingTextBlock = existingSummaryScreen?.blocks?.find((block) => block.type === 'text')
+      const summaryBlockId = existingTextBlock?.id || cardFeatureService.generateUUID()
+
+      const nextSummaryScreen = {
+        ...(existingSummaryScreen || {}),
+        name: 'Visão Geral',
+        description: existingSummaryScreen?.description || 'Resumo do card',
+        route: existingSummaryScreen?.route || '',
+        blocks: [
+          {
+            id: summaryBlockId,
+            type: ContentType.TEXT,
+            content: summaryContent,
+            order: 0
+          }
+        ]
+      }
+
+      const nonSummaryScreens = baseCard.screens.filter((screen) => !isSummaryScreen(screen.name))
+      const nextScreens = [nextSummaryScreen, ...nonSummaryScreens]
+
+      const updated = await cardFeatureService.update(cardId, { screens: nextScreens })
+      if (!updated?.success || !updated.data) {
+        toast.error(updated?.error || 'Erro ao salvar Visão Geral')
+        return
+      }
+
+      const updatedCard = updated.data
+      setExpandModalCard(updatedCard)
+      setCardFeatures((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)))
+      setCards((prev) =>
+        prev.map((projectCard) =>
+          projectCard.cardFeatureId === cardId
+            ? { ...projectCard, cardFeature: updatedCard }
+            : projectCard
+        )
+      )
+
+      toast.success('Visão Geral atualizada')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar Visão Geral')
     }
   }
 
@@ -1991,6 +2060,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         canGenerateSummary={user?.role === 'admin'}
         isGeneratingSummary={isGeneratingModalSummary}
         onGenerateSummary={handleGenerateSummaryFromModal}
+        onSaveSummary={handleSaveSummaryFromModal}
       />
     </div>
   )
