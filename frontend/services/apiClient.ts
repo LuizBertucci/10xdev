@@ -177,7 +177,13 @@ class ApiClient {
   private async request<T>(
     method: string,
     endpoint: string,
-    options?: { data?: unknown; params?: Record<string, unknown>; silent?: boolean; isUpload?: boolean },
+    options?: {
+      data?: unknown
+      params?: Record<string, unknown>
+      silent?: boolean
+      isUpload?: boolean
+      timeoutMs?: number
+    },
     isRetry = false
   ): Promise<ApiResponse<T> | undefined> {
     try {
@@ -194,7 +200,7 @@ class ApiClient {
         ...(options?.data && !options?.isUpload ? { body: JSON.stringify(options.data) } : {}),
         ...(options?.data && options?.isUpload ? { body: options.data } : {}),
         credentials: 'include'
-      }, this.requestTimeoutMs * (options?.isUpload ? 2 : 1))
+      }, options?.timeoutMs ?? this.requestTimeoutMs * (options?.isUpload ? 2 : 1))
 
       return await this.handleResponse<T>(response, options?.silent)
     } catch (error) {
@@ -228,6 +234,15 @@ class ApiClient {
 
   async post<T>(endpoint: string, data?: unknown, silent = false): Promise<ApiResponse<T> | undefined> {
     return this.request<T>('POST', endpoint, { data, silent })
+  }
+
+  async postWithTimeout<T>(
+    endpoint: string,
+    data: unknown,
+    timeoutMs: number,
+    silent = false
+  ): Promise<ApiResponse<T> | undefined> {
+    return this.request<T>('POST', endpoint, { data, silent, timeoutMs })
   }
 
   async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T> | undefined> {

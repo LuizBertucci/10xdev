@@ -26,12 +26,14 @@ export default function ImportGithubTokenPage() {
     if (!searchParams) return
 
     const token = searchParams.get('token')
-    const accessToken = searchParams.get('access_token')
+    const githubAccessToken = searchParams.get('github_access_token')
+    const legacyAccessToken = searchParams.get('access_token')
+    const accessToken = githubAccessToken || legacyAccessToken
     const installationId = searchParams.get('installation_id')
     const projectId = searchParams.get('project_id')
     const errorParam = searchParams.get('error')
 
-    // GitHub App OAuth callback (access_token + installation_id via backend redirect)
+    // GitHub App OAuth callback (github_access_token + installation_id via backend redirect)
     if (accessToken || installationId) {
       handleGitSyncCallback(accessToken, installationId, projectId)
       return

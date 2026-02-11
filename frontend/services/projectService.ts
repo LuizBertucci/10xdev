@@ -265,7 +265,12 @@ class ProjectService {
 
   /** Conecta um projeto a um repo GitHub */
   async connectRepo(projectId: string, data: ConnectRepoData): Promise<ApiResponse<Project> | undefined> {
-    return apiClient.post<Project>(`${this.endpoint}/${projectId}/gitsync/connect`, data)
+    // Conexao inicial pode levar mais tempo por processamento AI/import
+    return apiClient.postWithTimeout<Project>(
+      `${this.endpoint}/${projectId}/gitsync/connect`,
+      data,
+      120000
+    )
   }
 
   /** Desconecta o projeto do GitHub */
