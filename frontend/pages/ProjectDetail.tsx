@@ -103,6 +103,7 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [expandModalCard, setExpandModalCard] = useState<CardFeature | null>(null)
+  const [isGeneratingModalSummary, setIsGeneratingModalSummary] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -656,6 +657,37 @@ export default function ProjectDetail({ platformState: _platformState }: Project
   
   const loadMoreCards = async () => {
     await loadCards(false, true)
+  }
+
+  const handleGenerateSummaryFromModal = async (cardId: string, prompt?: string) => {
+    try {
+      setIsGeneratingModalSummary(true)
+      await cardFeatureService.generateSummary(cardId, true, prompt?.trim() || undefined)
+
+      const updated = await cardFeatureService.getById(cardId)
+      if (!updated?.success || !updated.data) {
+        toast.success('Resumo gerado com sucesso!')
+        return
+      }
+
+      const updatedCard = updated.data
+
+      setExpandModalCard(updatedCard)
+      setCardFeatures((prev) => prev.map((card) => (card.id === cardId ? updatedCard : card)))
+      setCards((prev) =>
+        prev.map((projectCard) =>
+          projectCard.cardFeatureId === cardId
+            ? { ...projectCard, cardFeature: updatedCard }
+            : projectCard
+        )
+      )
+
+      toast.success('Resumo gerado com sucesso!')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao gerar resumo')
+    } finally {
+      setIsGeneratingModalSummary(false)
+    }
   }
 
 
@@ -1956,6 +1988,9 @@ export default function ProjectDetail({ platformState: _platformState }: Project
         snippet={expandModalCard}
         isOpen={expandModalCard !== null}
         onClose={() => setExpandModalCard(null)}
+        canGenerateSummary={user?.role === 'admin'}
+        isGeneratingSummary={isGeneratingModalSummary}
+        onGenerateSummary={handleGenerateSummaryFromModal}
       />
     </div>
   )
