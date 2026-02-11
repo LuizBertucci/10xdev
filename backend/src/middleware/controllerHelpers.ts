@@ -33,6 +33,13 @@ export const safeHandler = (fn: AsyncHandler) => async (req: Request, res: Respo
   try {
     await fn(req, res)
   } catch (error: unknown) {
+    if (res.headersSent) {
+      console.warn('[safeHandler] headers already sent, skipping error response', {
+        path: req.originalUrl,
+        method: req.method
+      })
+      return
+    }
     const errorMessage = error instanceof Error ? error.message : 'Erro interno'
     const statusCode = typeof error === 'object' && error !== null && 'statusCode' in error && typeof error.statusCode === 'number'
       ? error.statusCode
