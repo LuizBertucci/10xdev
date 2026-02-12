@@ -156,6 +156,7 @@ export interface CreateCardFeatureRequest {
   approved_at?: string | null
   approved_by?: string | null
   created_in_project_id?: string  // ID do projeto onde foi criado (opcional)
+  macro_category?: MacroCategory  // Macro categoria para agrupamento na UI
   // Campos opcionais para posts
   category?: string           // Categoria do post
   file_url?: string           // URL do arquivo/PDF
