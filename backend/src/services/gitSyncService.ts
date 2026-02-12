@@ -145,7 +145,7 @@ export class GitSyncService {
         repoUrl,
         token,
         {
-          useAi: options?.useAi || false,
+          useAi: options?.useAi ?? true,
           onProgress: async (p) => {
             if (options?.onProgress) {
               await options.onProgress(p.step, p.progress ?? 0, p.message ?? '')

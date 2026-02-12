@@ -1,4 +1,5 @@
 import type { CreateCardFeatureRequest } from '@/types/cardfeature'
+import { FEATURE_SEMANTIC_MAP, FEATURE_TITLES } from '@/constants/featureSemantics'
 import { normalizeTags } from '@/utils/tagNormalization'
 
 export enum QualityIssueType {
@@ -30,41 +31,6 @@ export interface QualityReport {
   cardsToImprove: Array<{ index: number; suggestions: string[] }>
 }
 
-// Mapeamento de features (mesmo que githubService.ts)
-const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
-  'auth': ['auth', 'autenticação', 'autenticacao'],
-  'user': ['user', 'usuário', 'usuario', 'usuários', 'usuarios'],
-  'payment': ['payment', 'pagamento', 'pagamentos'],
-  'database': ['database', 'banco', 'dados'],
-  'n8n': ['n8n', 'workflow', 'workflows'],
-  'ai': ['ai', 'inteligência', 'artificial', 'inteligencia'],
-  'notification': ['notification', 'notificação', 'notificacao', 'notificações', 'notificacoes'],
-  'card': ['card', 'cards'],
-  'project': ['project', 'projeto', 'projetos'],
-  'template': ['template', 'templates'],
-  'content': ['content', 'conteúdo', 'conteudo'],
-  'admin': ['admin', 'administração', 'administracao'],
-  'api': ['api', 'cliente'],
-  'storage': ['storage', 'armazenamento']
-}
-
-const FEATURE_TITLES: Record<string, string> = {
-  'auth': 'Autenticação',
-  'user': 'Usuários',
-  'payment': 'Pagamentos',
-  'database': 'Banco de Dados',
-  'n8n': 'Workflows n8n',
-  'ai': 'Inteligência Artificial',
-  'notification': 'Notificações',
-  'card': 'Cards',
-  'project': 'Projetos',
-  'template': 'Templates',
-  'content': 'Conteúdo',
-  'admin': 'Administração',
-  'api': 'Cliente de API',
-  'storage': 'Armazenamento'
-}
-
 type QualityLogHandler = (message: string) => void
 
 export class CardQualitySupervisor {
@@ -80,21 +46,21 @@ export class CardQualitySupervisor {
 
   static analyzeQuality(
     cards: CreateCardFeatureRequest[],
-    options?: { onLog?: QualityLogHandler }
+    options?: { onLog?: QualityLogHandler; conservativeMode?: boolean }
   ): QualityReport {
     const onLog = options?.onLog
-    this.emit(`[CardQualitySupervisor] Iniciando análise de qualidade de ${cards.length} cards`, onLog)
+    const conservative = options?.conservativeMode ?? (process.env.GITHUB_IMPORT_SUPERVISOR_CONSERVATIVE === 'true')
+    this.emit(`[CardQualitySupervisor] Iniciando análise de qualidade de ${cards.length} cards${conservative ? ' (modo conservador)' : ''}`, onLog)
 
     const issues: QualityIssue[] = []
     const cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }> = []
     const cardsToRemove: number[] = []
     const cardsToImprove: Array<{ index: number; suggestions: string[] }> = []
 
-    // Check PRIORITÁRIO: consolidar subcategorias fragmentadas
-    this.checkSubcategoryFragmentation(cards, issues, cardsToMerge, onLog)
-
-    // Check crítico: detectar mesma feature dividida em cards separados
-    this.checkSameFeatureSplit(cards, issues, cardsToMerge, onLog)
+    if (!conservative) {
+      this.checkSubcategoryFragmentation(cards, issues, cardsToMerge, onLog)
+      this.checkSameFeatureSplit(cards, issues, cardsToMerge, onLog)
+    }
 
     // Check 1: Detectar títulos duplicados
     this.checkDuplicateTitles(cards, issues, cardsToMerge, onLog)
@@ -133,6 +99,16 @@ export class CardQualitySupervisor {
   ): void {
     // Padrões para detectar fragmentação
     const patterns = [
+      {
+        regex: /^Configuração.+$/i,
+        category: 'config',
+        targetTitle: 'Configuração e Infraestrutura'
+      },
+      {
+        regex: /Skill.+Claude|Configurações.*Agentes Claude/i,
+        category: 'claude',
+        targetTitle: 'Skills e Configurações Claude'
+      },
       {
         regex: /^Componente (de |d[oa] )?.+UI$/i,
         category: 'ui',

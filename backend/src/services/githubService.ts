@@ -6,10 +6,13 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import type { GithubRepoInfo } from '@/types/project'
+import type { MacroCategory } from '@/types/MacroCategory'
 import { CardType, ContentType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { CardQualitySupervisor } from '@/services/cardQualitySupervisor'
+import { validateCard } from '@/services/cardValidation'
+import { FEATURE_TITLES } from '@/constants/featureSemantics'
 import { normalizeTag, normalizeTags } from '@/utils/tagNormalization'
 
 interface PackageJson {
@@ -84,38 +87,6 @@ const TECH_DETECTION: Record<string, string> = {
   django: 'Django', flask: 'Flask', fastapi: 'FastAPI'
 }
 
-/** Regex patterns para detectar a camada técnica de um arquivo pelo seu path.
- *  Usado para agrupar arquivos em "screens" (Backend - Controller, Frontend - Hook, etc).
- *  Rotas: aceita diretórios /routes|router/ OU arquivos .../routes.ts /router.ts.
- *  API: preciso para Next.js pages/api/* ou diretório /api/.
- *  Pages: inclui app router (app/ exceto api). */
-const LAYER_PATTERNS: Record<string, RegExp> = {
-  routes: /(?:\/(routes?|routers?)\/|\/(routes?|router)\.(t|j)sx?$)/i,
-  controllers: /\/(controllers?)\//i,
-  services: /\/(services?)\//i,
-  models: /\/(models?)\//i,
-  middlewares: /\/(middlewares?)\//i,
-  validators: /\/(validators?|validations?)\//i,
-  api: /(?:\/pages\/api\/|\/api\/)/i,
-  hooks: /\/(hooks?)\//i,
-  components: /\/(components?)\//i,
-  pages: /(?:\/(pages?)\/|\/app\/(?!api\/))/i,
-  stores: /\/(stores?|state)\//i,
-  utils: /\/(utils?|helpers?|lib)\//i,
-  types: /\/(types?|interfaces?)\/|\.d\.ts$/i
-}
-
-/** Nomes amigáveis para cada camada técnica, usados como título das screens nos cards.
- *  Exibe "Backend - Controller" ao invés de apenas "controllers". */
-const LAYER_TO_SCREEN_NAME: Record<string, string> = {
-  routes: 'Backend - Routes', controllers: 'Backend - Controller',
-  services: 'Backend - Service', models: 'Backend - Model',
-  middlewares: 'Backend - Middleware', validators: 'Backend - Validators',
-  hooks: 'Frontend - Hook', components: 'Frontend - Component',
-  pages: 'Frontend - Page', stores: 'Frontend - Store',
-  api: 'Frontend - API Service', utils: 'Utils', types: 'Types', other: 'Other'
-}
-
 /** Remove formatacao Markdown de texto (negrito, italico, links, etc). */
 function cleanMarkdown(text: string): string {
   if (!text) return text
@@ -131,180 +102,6 @@ function cleanMarkdown(text: string): string {
     .trim()
 }
 
-// ================================================
-// FEATURE DETECTION MAPS
-// ================================================
-
-/** Mapeamento semantico: feature → keywords que pertencem a ela.
- *  Usado para agrupar arquivos relacionados em cards coesos.
- *  Ex: 'auth' agrupa auth.ts, login.tsx, jwt.ts, session.py, etc. */
-const FEATURE_SEMANTIC_MAP: Record<string, string[]> = {
-  'auth': ['auth', 'login', 'logout', 'register', 'signup', 'signin', 'password', 'session', 'token', 'jwt', 'oauth', 'credential', 'authentication'],
-  'user': ['user', 'profile', 'account', 'avatar', 'preferences', 'member'],
-  'payment': ['payment', 'billing', 'checkout', 'stripe', 'invoice', 'subscription', 'pricing'],
-  'database': ['supabase', 'database', 'db', 'prisma', 'drizzle', 'postgres', 'mysql', 'mongo', 'migration', 'serializers', 'orm', 'querysets', 'repository', 'entity', 'gorm', 'jpa', 'hibernate', 'activerecord'],
-  'n8n': ['n8n', 'workflow', 'automation', 'node', 'trigger', 'webhook', 'execution'],
-  'ai': ['ai', 'openai', 'gpt', 'llm', 'embedding', 'vector', 'langchain', 'claude', 'anthropic'],
-  'notification': ['notification', 'alert', 'toast', 'email', 'sms', 'push', 'mail', 'mailer', 'nodemailer'],
-  'card': ['card', 'cardfeature', 'feature'],
-  'project': ['project', 'projeto', 'import', 'github', 'repo', 'repository'],
-  'template': ['template'],
-  'content': ['content', 'conteudo', 'post', 'article'],
-  'admin': ['admin', 'dashboard', 'backoffice'],
-  'api': ['apiclient', 'httpclient', 'axios', 'fetch'],
-  'storage': ['storage', 'upload', 'file', 's3', 'bucket', 'blob'],
-  'middleware': ['middleware', 'cors', 'error', 'ratelimit', 'ratelimiter', 'limiter', 'decorators', 'beforerequest', 'afterrequest', 'interceptor', 'filter', 'aspect', 'concern', 'rack'],
-  'routing': ['route', 'router', 'routing', 'protected', 'protectedroute', 'guard'],
-  'ui': ['button', 'input', 'dialog', 'modal', 'dropdown', 'form', 'table', 'layout', 'sidebar', 'navigation', 'toast', 'alert'],
-  'docs': ['readme', 'documentation', 'docs', 'guide', 'tutorial', 'changelog', 'contributing', 'license', 'roadmap', 'architecture', 'design'],
-  'skill': ['skill', 'skills'],
-  'utils': ['util', 'utils', 'helper', 'helpers', 'lib', 'libs', 'common', 'shared', 'constants', 'types'],
-  'config': ['config', 'configuration', 'settings', 'env', 'environment', 'setup', 'initialize', 'server'],
-  'test': ['test', 'tests', 'spec', 'testing', '__tests__', 'e2e', 'integration', 'unit', 'mock', 'fixture'],
-  'build': ['build', 'webpack', 'vite', 'rollup', 'esbuild', 'tsconfig', 'babel', 'eslint', 'prettier', 'lint', 'format'],
-  'style': ['css', 'scss', 'sass', 'less', 'style', 'styles', 'tailwind', 'theme', 'colors'],
-  'hook': ['hook', 'hooks'],
-  'controller': ['controller', 'endpoint', 'viewsets', 'apiview', 'restcontroller', 'requestmapping', 'action'],
-  'service': ['service', 'business', 'logic', 'usecase', 'interactor', 'serviceimpl', 'component'],
-  'validation': ['validator', 'validation', 'schema', 'zod', 'yup', 'validators', 'forms', 'pydantic', 'validate', 'constraint', 'request', 'formrequest'],
-  'jobs': ['worker', 'job', 'queue', 'bull', 'agenda', 'celery', 'tasks', 'scheduled', 'async', 'executor', 'sidekiq', 'activejob', 'delayed']
-}
-
-/** Titulos descritivos em portugues para cada feature semantica. Usados como category no card. */
-const FEATURE_TITLES: Record<string, string> = {
-  'auth': 'Autenticação e Login',
-  'user': 'Gestão de Usuários',
-  'payment': 'Pagamentos e Cobrança',
-  'database': 'Acesso a Banco de Dados',
-  'n8n': 'Automação e Workflows',
-  'ai': 'Inteligência Artificial',
-  'notification': 'Notificações e Emails',
-  'card': 'Sistema de Cards',
-  'project': 'Gestão de Projetos',
-  'template': 'Templates e Layouts',
-  'content': 'Gestão de Conteúdo',
-  'admin': 'Painel Administrativo',
-  'api': 'Clientes HTTP e APIs',
-  'storage': 'Upload e Armazenamento',
-  'middleware': 'Middlewares e Interceptors',
-  'routing': 'Rotas e Navegação',
-  'ui': 'Componentes de Interface',
-  'docs': 'Documentação',
-  'skill': 'Skills e Tutoriais',
-  'utils': 'Funções Utilitárias',
-  'config': 'Configuração do Projeto',
-  'test': 'Testes Automatizados',
-  'build': 'Build e Ferramentas',
-  'style': 'Estilos e Temas',
-  'hook': 'React Hooks',
-  'controller': 'Endpoints e Controllers',
-  'service': 'Lógica de Negócio',
-  'validation': 'Validação de Dados',
-  'jobs': 'Tarefas em Background'
-}
-
-/** Mapa de nomes de arquivo especificos de linguagem → categoria. */
-const LANGUAGE_FILE_MAP: Record<string, string> = {
-  'models.py': 'database', 'views.py': 'controller', 'serializers.py': 'database',
-  'forms.py': 'validation', 'tasks.py': 'jobs', 'celery.py': 'jobs',
-  'admin.py': 'admin', 'urls.py': 'routing'
-}
-
-/** Mapa de sufixos de arquivo por linguagem → categoria. */
-const LANGUAGE_SUFFIX_MAP: [RegExp, string][] = [
-  [/_handler\.go$/i, 'controller'], [/_service\.go$/i, 'service'],
-  [/_repository\.go$/i, 'database'], [/_middleware\.go$/i, 'middleware'],
-  [/Controller\.java$/i, 'controller'], [/Service\.java$/i, 'service'],
-  [/Repository\.java$/i, 'database'], [/Entity\.java$/i, 'database'],
-  [/DTO\.java$/i, 'api'],
-  [/_controller\.rb$/i, 'controller'], [/_service\.rb$/i, 'service'],
-  [/_job\.rb$/i, 'jobs'], [/_mailer\.rb$/i, 'notification']
-]
-
-/** Mapa de patterns de path → categoria. Avaliados na ordem. */
-const PATH_PATTERN_MAP: [RegExp, string][] = [
-  [/\/components\/ui\//i, 'ui'],
-  [/\/skills\//i, 'skill'],
-  [/\/docs\//i, 'docs'],
-  [/readme\.md|contributing\.md|changelog\.md|license\.md/i, 'docs'],
-  [/\.md$/i, 'docs'],
-  [/\/utils\/|\/helpers\//i, 'utils'],
-  [/\/hooks\//i, 'hook'],
-  [/\/test|\.test\.|\.spec\.|__tests__|\.e2e\./i, 'test'],
-  [/\.config\.|tsconfig|webpack|vite\.config|babel\.config|eslint/i, 'config'],
-  [/package\.json|requirements\.txt|go\.mod|go\.sum|pom\.xml|build\.gradle|composer\.json|gemfile|pyproject\.toml|setup\.py|application\.properties|\.env|dockerfile|docker-compose|\.dockerignore|\.gitignore|\.prettierrc|\.editorconfig/i, 'config'],
-  [/\.css$|\.scss$|\.sass$|\.less$|tailwind/i, 'style']
-]
-
-// ================================================
-// DEPENDENCY GRAPH HELPERS
-// ================================================
-
-function extractImports(content: string): string[] {
-  const imports: string[] = []
-  const es6 = /import\s+(?:[\w*\s{},]*)\s+from\s+['"]([^'"]+)['"]/g
-  const req = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g
-  const dyn = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g
-  let m: RegExpExecArray | null
-  while ((m = es6.exec(content)) !== null) imports.push(m[1]!)
-  while ((m = req.exec(content)) !== null) imports.push(m[1]!)
-  while ((m = dyn.exec(content)) !== null) imports.push(m[1]!)
-  return imports
-}
-
-function buildDependencyGraph(files: Array<{ path: string; content: string }>): Map<string, Set<string>> {
-  const index = new Map<string, string>()
-  for (const f of files) {
-    const noExt = f.path.replace(/\.(t|j)sx?$|\.vue$|\.svelte$|\.py$|\.go$|\.rb$|\.php$|\.java$/i, '')
-    index.set(f.path, f.path)
-    index.set(noExt, f.path)
-  }
-
-  const graph = new Map<string, Set<string>>()
-  for (const f of files) {
-    const deps = new Set<string>()
-    for (const imp of extractImports(f.content)) {
-      if (imp.startsWith('.')) {
-        const base = f.path.split('/').slice(0, -1).join('/')
-        const norm = (base ? base + '/' : '') + imp
-          .replace(/\/\.\//g, '/')
-          .replace(/\/[^/]+\/\.\.\//g, '/')
-          .replace(/^\.\//, '')
-        const resolved = index.get(norm) || index.get(norm.replace(/\.(t|j)sx?$/i, '')) || null
-        if (resolved) deps.add(resolved)
-      }
-    }
-    graph.set(f.path, deps)
-  }
-  return graph
-}
-
-function findConnectedComponents(graph: Map<string, Set<string>>): string[][] {
-  const seen = new Set<string>()
-  const out: string[][] = []
-
-  const visit = (n: string, acc: string[]) => {
-    if (seen.has(n)) return
-    seen.add(n)
-    acc.push(n)
-    for (const to of graph.get(n) ?? []) {
-      visit(to, acc)
-    }
-    for (const [k, set] of graph) {
-      if (set.has(n)) visit(k, acc)
-    }
-  }
-
-  for (const node of graph.keys()) {
-    if (!seen.has(node)) {
-      const comp: string[] = []
-      visit(node, comp)
-      if (comp.length) out.push(comp)
-    }
-  }
-  return out
-}
-
 interface ParsedRepoInfo {
   owner: string
   repo: string
@@ -314,11 +111,6 @@ interface FileEntry {
   path: string
   content: string
   size: number
-}
-
-interface FeatureFile extends FileEntry {
-  layer: string
-  featureName: string
 }
 
 export class GithubService {
@@ -546,215 +338,13 @@ export class GithubService {
     return topLang
   }
 
-  // ================================================
-  // FEATURE DETECTION & GROUPING
-  // ================================================
-
-  private static detectFileLayer(pathStr: string): string {
-    const orderedLayers = [
-      'routes', 'controllers', 'services', 'models',
-      'middlewares', 'validators',
-      'api',
-      'hooks', 'components', 'pages', 'stores',
-      'types', 'utils'
-    ] as const
-    for (const layer of orderedLayers) {
-      const pattern = LAYER_PATTERNS[layer]
-      if (pattern && pattern.test(pathStr)) return layer
-    }
-    return 'other'
-  }
-
-  /** Extrai nome da feature a partir do path do arquivo.
-   *  Fluxo: language-specific → path patterns → dir structure → filename → normalize. */
-  private static extractFeatureName(path: string): string {
-    const pathLower = path.toLowerCase()
-    const fileName = path.split('/').pop() || ''
-
-    // 1. Nomes de arquivo especificos de linguagem (models.py, views.py, etc)
-    const langMatch = LANGUAGE_FILE_MAP[fileName]
-    if (langMatch) return langMatch
-
-    // 2. Sufixos de arquivo por linguagem (_handler.go, Controller.java, etc)
-    for (const [pattern, category] of LANGUAGE_SUFFIX_MAP) {
-      if (pattern.test(fileName)) return category
-    }
-
-    // 3. Patterns de path (componentes/ui, hooks, utils, etc)
-    for (const [pattern, category] of PATH_PATTERN_MAP) {
-      if (pattern.test(pathLower)) return category
-    }
-
-    // 4. Arquivos .json genericos (exceto node_modules)
-    if (pathLower.endsWith('.json') && !pathLower.includes('/node_modules/')) return 'config'
-
-    // 5. Feature directories (src/features/auth/, src/modules/payments/)
-    const parts = path.split('/')
-    const featureDirs = ['features', 'modules', 'domains', 'apps']
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (featureDirs.includes(parts[i]?.toLowerCase() || '')) {
-        const featureDir = parts[i + 1]
-        if (featureDir && !['src', 'lib', 'app'].includes(featureDir.toLowerCase())) {
-          return this.normalizeFeatureName(featureDir)
-        }
-      }
-    }
-
-    // 6. Extrair do nome do arquivo
-    let baseName = (parts.pop() || '')
-      .replace(/\.(ts|tsx|js|jsx|py|java|go|rs|rb|php|vue|svelte)$/i, '')
-      .replace(/\.(test|spec|stories|styles?|module)$/i, '')
-      .replace(/^index$/i, '')
-
-    // Se vazio, usar diretorio pai
-    if (!baseName && parts.length > 0) baseName = parts[parts.length - 1] || 'misc'
-
-    // 7. Remover sufixos comuns de arquitetura
-    baseName = baseName.replace(
-      /(Controller|Service|Model|Routes?|Router|Validator|Middleware|Hook|Component|Page|Store|Slice|Api|Utils?|Helper|Type|Interface|Schema|Dto|Entity|Repository|Handler|Provider|Factory|Manager)s?$/i,
-      ''
-    )
-
-    // 8. Remover prefixo 'use' de hooks
-    if (baseName.toLowerCase().startsWith('use')) baseName = baseName.substring(3)
-
-    return this.normalizeFeatureName(baseName)
-  }
-
-  private static normalizeFeatureName(name: string): string {
-    return name
-      .replace(/([a-z])([A-Z])/g, '$1$2')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')
-      .trim()
-  }
-
-  private static mapToSemanticFeature(name: string): string {
-    const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '')
-    for (const [feature, keywords] of Object.entries(FEATURE_SEMANTIC_MAP)) {
-      for (const keyword of keywords) {
-        if (normalized.includes(keyword)) return feature
-      }
-    }
-    return normalized || 'misc'
-  }
-
-  private static groupFilesByFeature(files: FileEntry[]): Map<string, FeatureFile[]> {
-    const prelim: FeatureFile[] = files.map(file => ({
-      ...file,
-      layer: this.detectFileLayer(file.path),
-      featureName: this.extractFeatureName(file.path)
-    }))
-
-    const codeFiles = prelim.map(f => ({ path: f.path, content: f.content }))
-    const graph = buildDependencyGraph(codeFiles)
-    const components = findConnectedComponents(graph)
-
-    const isGeneric = (ff: FeatureFile) =>
-      ['utils', 'types', 'config'].includes(ff.featureName) ||
-      ['utils', 'types'].includes(ff.layer)
-    const pathToFeat = new Map(prelim.map(f => [f.path, f.featureName]))
-    const importerCountByTarget = new Map<string, Map<string, string[]>>()
-
-    for (const [importer, deps] of graph) {
-      const importerFeat = pathToFeat.get(importer) || 'misc'
-      for (const dep of deps) {
-        const m = importerCountByTarget.get(dep) || new Map<string, string[]>()
-        const arr = m.get(importerFeat) || []
-        arr.push(importer)
-        m.set(importerFeat, arr)
-        importerCountByTarget.set(dep, m)
-      }
-    }
-
-    const reassigned: FeatureFile[] = prelim.map(f => {
-      if (!isGeneric(f)) return f
-      const byFeat = importerCountByTarget.get(f.path)
-      if (!byFeat || byFeat.size === 0) return f
-      const top = Array.from(byFeat.entries()).sort((a, b) => b[1].length - a[1].length)[0]
-      const candidate = top?.[0]
-      if (candidate && candidate !== f.featureName) {
-        return { ...f, featureName: candidate }
-      }
-      return f
-    })
-
-    const smallCluster = 6
-    const inCluster = new Set<string>(components.flat())
-    const pathToFeatFinal = new Map(reassigned.map(f => [f.path, f.featureName]))
-    const finalSet = reassigned.map(f => {
-      if (!inCluster.has(f.path)) return f
-      const comp = components.find(c => c.includes(f.path))
-      if (!comp || comp.length > smallCluster) return f
-      const feats = comp.map(p => pathToFeatFinal.get(p) || 'misc')
-      const top = feats.sort((a, b) =>
-        feats.filter(x => x === b).length - feats.filter(x => x === a).length
-      )[0]
-      return { ...f, featureName: top || f.featureName }
-    })
-
-    const groups = new Map<string, FeatureFile[]>()
-    for (const f of finalSet) {
-      const key = f.featureName || 'misc'
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(f)
-    }
-    return this.consolidateFeatures(groups)
-  }
-
-  /** Consolida grupos fragmentados mapeando nomes para features semanticas. */
-  private static consolidateFeatures(groups: Map<string, FeatureFile[]>): Map<string, FeatureFile[]> {
-    const consolidated = new Map<string, FeatureFile[]>()
-    for (const [name, files] of groups) {
-      const semantic = this.mapToSemanticFeature(name)
-      if (!consolidated.has(semantic)) consolidated.set(semantic, [])
-      consolidated.get(semantic)!.push(...files)
-    }
-    return consolidated
-  }
-
-  private static generateFeatureTitle(featureName: string, files: FeatureFile[]): string {
-    const layers = new Set(files.map(f => f.layer))
-    const hasBackend = ['routes', 'controllers', 'services', 'models'].some(l => layers.has(l))
-    const hasFrontend = ['hooks', 'components', 'pages', 'stores'].some(l => layers.has(l))
-    const title = FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
-
-    if (hasBackend && hasFrontend) return `Sistema de ${title}`
-    if (hasBackend) return `API de ${title}`
-    if (hasFrontend) return `Interface de ${title}`
-    return title
-  }
-
-  private static generateFeatureDescription(featureName: string, files: FeatureFile[]): string {
-    const layers = [...new Set(files.map(f => f.layer))].filter(l => l !== 'other')
-    const cap = this.capitalizeFirst(featureName)
-
-    const hasBackend = layers.some(l => ['controllers', 'services', 'routes'].includes(l))
-    const hasFrontend = layers.some(l => ['components', 'pages', 'hooks'].includes(l))
-    const prefix = hasBackend && hasFrontend ? 'Stack completo'
-      : hasBackend ? 'Backend' : hasFrontend ? 'Frontend' : 'Módulo'
-
-    // Detectar metodos HTTP nos arquivos de rotas
-    const methods = new Set<string>()
-    for (const file of files.filter(f => f.layer === 'routes')) {
-      const c = file.content.toLowerCase()
-      for (const m of ['get', 'post', 'put', 'delete', 'patch']) {
-        if (c.includes(`.${m}(`)) methods.add(m.toUpperCase())
-      }
-    }
-
-    const parts = [`${prefix} do módulo ${cap}`]
-    if (methods.size > 0) parts.push(`com endpoints ${[...methods].join('/')}`)
-    parts.push(`(${files.length} arquivos)`)
-    return parts.join(' ')
-  }
-
   private static capitalizeFirst(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1)
   }
 
   private static makeSnippet(content: string): string {
-    return content.slice(0, 2000)
+    const max = Number(process.env.GITHUB_IMPORT_AI_MAX_CHARS_PER_FILE || 10000)
+    return content.slice(0, max)
   }
 
   /** Cria ContentBlock a partir de um arquivo. */
@@ -777,13 +367,13 @@ export class GithubService {
     screens: CardFeatureScreen[],
     tech: string,
     lang: string,
-    featureFiles: FeatureFile[],
-    aiOverrides?: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined; category?: string; tags?: string[] }
+    featureFiles: Array<{ path: string; content: string; size: number }>,
+    aiOverrides?: { title: string; description?: string; tech?: string; language?: string; category?: string; tags?: string[]; macro_category?: MacroCategory }
   ): CreateCardFeatureRequest {
     const category = aiOverrides?.category || FEATURE_TITLES[featureName] || this.capitalizeFirst(featureName)
-    return {
-      title: aiOverrides ? cleanMarkdown(aiOverrides.title) : this.generateFeatureTitle(featureName, featureFiles),
-      description: cleanMarkdown(aiOverrides?.description || this.generateFeatureDescription(featureName, featureFiles)),
+    const card: CreateCardFeatureRequest = {
+      title: aiOverrides ? cleanMarkdown(aiOverrides.title) : `Card ${featureName}`,
+      description: aiOverrides?.description ? cleanMarkdown(aiOverrides.description) : `Arquivos: ${featureFiles.map(f => f.path.split('/').pop()).join(', ')}`,
       tech: aiOverrides?.tech || tech,
       language: aiOverrides?.language || lang,
       content_type: ContentType.CODE,
@@ -793,9 +383,21 @@ export class GithubService {
       visibility: Visibility.UNLISTED,
       screens
     }
+    if (aiOverrides?.macro_category) {
+      card.macro_category = aiOverrides.macro_category
+    }
+    return card
   }
 
   private static addSummaryScreen(card: CreateCardFeatureRequest): CreateCardFeatureRequest {
+    const first = card.screens?.[0]?.name?.trim().toLowerCase()
+    if (first === 'resumo') return card
+    if (first === 'overview') {
+      const screens = [...(card.screens || [])]
+      if (screens[0]) screens[0] = { ...screens[0], name: 'Resumo' }
+      return { ...card, screens }
+    }
+
     const allFiles = card.screens
       .flatMap(s => s.blocks
         .filter(b => b.route && b.type === ContentType.CODE)
@@ -847,13 +449,6 @@ export class GithubService {
     return [...new Set(tags)].filter(t => t.length > 2)
   }
 
-  private static estimateCardsCount(featureGroups: [string, FeatureFile[]][]): number {
-    const byFeature = featureGroups.length
-    const totalFiles = featureGroups.reduce((sum, [, files]) => sum + files.length, 0)
-    const totalSize = featureGroups.reduce((sum, [, files]) => sum + files.reduce((s, f) => s + f.size, 0), 0)
-    return Math.max(byFeature, Math.ceil(totalFiles / 5), Math.ceil(totalSize / (50 * 1024)), 10)
-  }
-
   // ================================================
   // MAIN PROCESSING
   // ================================================
@@ -901,8 +496,13 @@ export class GithubService {
     const tech = this.detectTech(files, packageJson)
     const mainLanguage = this.detectMainLanguage(files)
 
-    notify('analyzing_repo', 20, `Tecnologia: ${tech}. Mapeando funcionalidades...`)
-    const featureGroups = this.groupFilesByFeature(files)
+    const useAi = options?.useAi === true && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
+    if (!useAi) {
+      throw new Error('Importação requer análise por IA. Configure as chaves da API e tente novamente.')
+    }
+    const estimatedCards = Math.max(10, Math.ceil(files.length / 10))
+
+    notify('analyzing_repo', 20, `Tecnologia: ${tech}. Preparando análise para IA...`)
 
     const notifyProgress = (step: string, progress: number, message: string) => {
       options?.onProgress?.({ step, progress, message })
@@ -914,15 +514,8 @@ export class GithubService {
       notify(step, progress, normalized, { cardEstimate: estimatedCards, cardCount: cards.length })
     }
 
-    const useAi = options?.useAi === true && AiCardGroupingService.isEnabled() && AiCardGroupingService.hasConfig()
-
     let cards: CreateCardFeatureRequest[] = []
     let aiCardsCreated = 0
-    let featuresFailed = 0
-
-    const featureGroupsArray = Array.from(featureGroups.entries())
-    const totalFeatures = featureGroupsArray.length
-    const estimatedCards = this.estimateCardsCount(featureGroupsArray)
 
     /** Emite card para o array e chama onCardReady se disponivel. */
     const emitCard = async (card: CreateCardFeatureRequest) => {
@@ -942,11 +535,9 @@ export class GithubService {
         { cardEstimate: estimatedCards })
       try {
         const mode = AiCardGroupingService.mode()
-        const allFeatureFiles = featureGroupsArray.flatMap(([, files]) => files)
-        const fileMetas = allFeatureFiles.map(f => ({
+        // Arquivos crus: IA analisa e agrupa por regras no prompt (sem heurística prévia)
+        const fileMetas = files.map(f => ({
           path: f.path,
-          layer: f.layer,
-          featureName: f.featureName,
           size: f.size,
           snippet: mode === 'full' ? f.content : this.makeSnippet(f.content)
         }))
@@ -955,22 +546,21 @@ export class GithubService {
           repoUrl: url,
           detectedTech: tech,
           detectedLanguage: mainLanguage,
-          files: fileMetas,
-          proposedGroups: featureGroupsArray.map(([key, files]) => ({
-            key,
-            files: files.map(f => f.path)
-          }))
+          files: fileMetas
         })
         notify('generating_cards', 62, `🤖 IA: resposta recebida, parseando...`, { cardEstimate: estimatedCards, cardCount: ai.cards.length })
         notify('generating_cards', 65,
           `✅ IA criou ${ai.cards.length} card(s) consolidados`,
           { cardEstimate: estimatedCards, cardCount: ai.cards.length })
+
+        let skippedNoScreens = 0
+        let skippedValidation = 0
         for (const aiCard of ai.cards) {
           const screens: CardFeatureScreen[] = []
           for (const s of aiCard.screens) {
             const blocks: ContentBlock[] = []
             for (const filePath of s.files) {
-              const file = allFeatureFiles.find(ff => ff.path === filePath)
+              const file = files.find(ff => ff.path === filePath)
               if (!file) continue
               blocks.push(this.fileToBlock(file, blocks.length))
               filesProcessed++
@@ -983,21 +573,32 @@ export class GithubService {
               blocks
             })
           }
-          if (screens.length === 0) continue
-          const aiOverrides: { title: string; description?: string | undefined; tech?: string | undefined; language?: string | undefined; category?: string; tags?: string[] } = {
+          if (screens.length === 0) {
+            skippedNoScreens++
+            continue
+          }
+          const aiOverrides: { title: string; description?: string; tech?: string; language?: string; category?: string; tags?: string[]; macro_category?: MacroCategory } = {
             title: aiCard.title,
-            description: aiCard.description,
-            tech: aiCard.tech,
-            language: aiCard.language,
-            category: aiCard.category
+            ...(aiCard.description != null && { description: aiCard.description }),
+            ...(aiCard.tech != null && typeof aiCard.tech === 'string' && { tech: aiCard.tech }),
+            ...(aiCard.language != null && typeof aiCard.language === 'string' && { language: aiCard.language }),
+            ...(aiCard.category != null && { category: aiCard.category })
           }
           if (aiCard.tags && aiCard.tags.length > 0) aiOverrides.tags = aiCard.tags
-          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, allFeatureFiles, aiOverrides)
+          if (aiCard.macroCategory) aiOverrides.macro_category = aiCard.macroCategory
+          const cardFiles = aiCard.screens.flatMap(s => s.files).map(fp => files.find(ff => ff.path === fp)).filter(Boolean) as Array<{ path: string; content: string; size: number }>
+          const newCard = this.buildCard(aiCard.title.toLowerCase().replace(/\s+/g, ''), screens, tech, mainLanguage, cardFiles, aiOverrides)
           // Se a IA forneceu tags, normalizar para evitar duplicatas EN/PT
           if (aiCard.tags && aiCard.tags.length > 0) {
             newCard.tags = normalizeTags(aiCard.tags)
           }
           const cardWithSummary = this.addSummaryScreen(newCard)
+          const validation = validateCard(cardWithSummary)
+          if (!validation.valid) {
+            console.error('[GithubService] Card IA inválido (pulando):', validation.errors)
+            skippedValidation++
+            continue
+          }
           await emitCard(cardWithSummary)
           aiCardsCreated++
           if (ai.cards.length > 0) {
@@ -1009,12 +610,21 @@ export class GithubService {
             notifyProgress('generating_cards', progress, `${filesProcessed}/${totalFiles} arquivos processados`)
           }
         }
+        console.log('[GithubService] DIAGNÓSTICO pipeline:', {
+          aiCardsRecebidos: ai.cards.length,
+          skippedNoScreens,
+          skippedValidation,
+          cardsEmitidos: cards.length,
+          aiCardsCreated
+        })
         // Após processar todos os cards da IA, adicionar Sumário e retornar
         cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
+        const cardsBeforeSupervisor = cards.length
         // Qualidade check
         notify('quality_check', 80, '🔍 Supervisor de qualidade analisando cards...', { cardEstimate: estimatedCards, cardCount: cards.length })
         const qualityReport = CardQualitySupervisor.analyzeQuality(cards, {
-          onLog: pushQualityLog('quality_check', 82)
+          onLog: pushQualityLog('quality_check', 82),
+          conservativeMode: process.env.GITHUB_IMPORT_SUPERVISOR_CONSERVATIVE === 'true'
         })
         if (qualityReport.issuesFound > 0) {
           notify('quality_corrections', 85, '🔧 Aplicando correções automáticas...', { cardEstimate: estimatedCards, cardCount: cards.length })
@@ -1022,108 +632,29 @@ export class GithubService {
             onLog: pushQualityLog('quality_corrections', 88)
           })
           cards = corrections.correctedCards
+          console.log('[GithubService] DIAGNÓSTICO supervisor:', {
+            cardsBeforeSupervisor,
+            mergesApplied: corrections.mergesApplied,
+            cardsRemoved: corrections.cardsRemoved,
+            cardsDepois: cards.length
+          })
           notify('quality_corrections', 90, `✅ Correções: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`, { cardEstimate: estimatedCards, cardCount: cards.length })
         } else {
           notify('quality_check', 90, '✅ Supervisor: qualidade OK', { cardEstimate: estimatedCards, cardCount: cards.length })
         }
-        const aiSummary = aiCardsCreated > 0
-          ? `🤖 IA criou ${aiCardsCreated} cards de ${cards.length} totais`
-          : `📁 ${cards.length} cards criados via heurística`
+        const aiSummary = `🤖 IA criou ${aiCardsCreated} cards de ${cards.length} totais`
         notify('generating_cards', 90, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
         return {
           cards, filesProcessed, aiUsed: true, aiCardsCreated,
           ...(filesSkipped > 0 && { filesSkipped, errorDetails })
         }
       } catch (featureErr: unknown) {
-        console.error('[GithubService] Erro IA no processamento único:', featureErr instanceof Error ? featureErr.message : String(featureErr))
-        notify('generating_cards', 60,
-          `⚠️ IA falhou, usando heurística`,
-          { cardEstimate: estimatedCards })
-        // Fallback: continua para o caminho heurístico
-      }
-    }
-    // ================================================
-
-    for (const [idx, [featureName, featureFiles]] of featureGroupsArray.entries()) {
-      const featureProgress = 55 + Math.floor(((idx + 1) / totalFeatures) * 15)
-
-      try {
-        // --- Heuristic path ---
-        notify('generating_cards', featureProgress,
-          `📁 Organizando: ${featureName} (${featureFiles.length} arquivos) [${idx + 1}/${totalFeatures}]`,
-          { cardEstimate: estimatedCards })
-
-        const filesByLayer = new Map<string, FeatureFile[]>()
-        for (const file of featureFiles) {
-          if (!filesByLayer.has(file.layer)) filesByLayer.set(file.layer, [])
-          filesByLayer.get(file.layer)!.push(file)
-        }
-
-        const screens: CardFeatureScreen[] = []
-        const layerOrder = ['routes', 'controllers', 'services', 'models', 'middlewares', 'validators', 'hooks', 'api', 'stores', 'components', 'pages', 'types', 'utils', 'other']
-
-        for (const layer of layerOrder) {
-          const layerFiles = filesByLayer.get(layer)
-          if (!layerFiles?.length) continue
-
-          const screenName = LAYER_TO_SCREEN_NAME[layer] || this.capitalizeFirst(layer)
-          const blocks: ContentBlock[] = []
-          for (const file of layerFiles) {
-            blocks.push(this.fileToBlock(file, blocks.length))
-            filesProcessed++
-          }
-          const fileNames = layerFiles.map(f => f.path.split('/').pop()).join(', ')
-          screens.push({
-            name: screenName,
-            description: layerFiles.length === 1 ? `Arquivo ${fileNames}` : `Arquivos: ${fileNames}`,
-            route: layerFiles[0]?.path || '',
-            blocks
-          })
-        }
-
-        if (!screens.length) continue
-        const newCard = this.buildCard(featureName, screens, tech, mainLanguage, featureFiles)
-        const cardWithSummary = this.addSummaryScreen(newCard)
-        await emitCard(cardWithSummary)
-        notify('generating_cards', featureProgress, `Cards criados: ${cards.length}`, { cardCount: cards.length })
-      } catch (featureErr: unknown) {
         const msg = featureErr instanceof Error ? featureErr.message : String(featureErr)
-        const filePaths = featureFiles.map(f => f.path).slice(0, 3).join(', ')
-        console.error(`[GithubService] Feature "${featureName}" falhou`, { step: 'generating_cards', files: filePaths, error: msg })
-        errorDetails.push(`Feature ${featureName} (${filePaths}${featureFiles.length > 3 ? '...' : ''}): ${msg}`)
-        featuresFailed++
+        console.error('[GithubService] Erro IA:', msg)
+        throw new Error(`Falha na análise por IA: ${msg}`)
       }
     }
-
-    cards.sort((a, b) => (b.screens?.length || 0) - (a.screens?.length || 0))
-
-    const aiSummary = aiCardsCreated > 0
-      ? `🤖 IA criou ${aiCardsCreated} cards de ${cards.length} totais`
-      : `📁 ${cards.length} cards criados via heurística`
-    notify('generating_cards', 70, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
-
-    // Supervisor de qualidade
-    notify('quality_check', 80, '🔍 Supervisor de qualidade analisando cards...', { cardEstimate: estimatedCards, cardCount: cards.length })
-    const qualityReport = CardQualitySupervisor.analyzeQuality(cards, {
-      onLog: pushQualityLog('quality_check', 82)
-    })
-
-    if (qualityReport.issuesFound > 0) {
-      notify('quality_corrections', 85, '🔧 Aplicando correções automáticas...', { cardEstimate: estimatedCards, cardCount: cards.length })
-      const corrections = CardQualitySupervisor.applyCorrections(cards, qualityReport, {
-        onLog: pushQualityLog('quality_corrections', 88)
-      })
-      cards = corrections.correctedCards
-      notify('quality_corrections', 90, `✅ Correções: ${corrections.mergesApplied} merge(s), ${corrections.cardsRemoved} remoção(ões)`, { cardEstimate: estimatedCards, cardCount: cards.length })
-    } else {
-      notify('quality_check', 90, '✅ Supervisor: qualidade OK', { cardEstimate: estimatedCards, cardCount: cards.length })
-    }
-
-    return {
-      cards, filesProcessed, aiUsed: aiCardsCreated > 0, aiCardsCreated,
-      ...(filesSkipped > 0 && { filesSkipped, errorDetails }),
-      ...(featuresFailed > 0 && { filesFailed: featuresFailed })
-    }
+    throw new Error('Importação requer análise por IA')
   }
 
   // ================================================
