@@ -99,6 +99,14 @@ export default function Contents() {
   // Get tab from URL (defaults to 'posts')
   const contentsTab = searchParams?.get('tab') || 'posts'
 
+  // Redirect para /contents?tab=posts quando acessar sem parâmetro
+  useEffect(() => {
+    const currentTab = searchParams?.get('tab')
+    if (!currentTab) {
+      router.replace('/contents?tab=posts')
+    }
+  }, [searchParams, router])
+
   const initialPage = useMemo(() => {
     const p = Number(searchParams?.get('page') || 1)
     return Number.isFinite(p) && p > 0 ? Math.floor(p) : 1
@@ -170,16 +178,11 @@ export default function Contents() {
   // Handle tab change
   const handleTabChange = useCallback((value: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
-    // Sempre define o tab, remove se for posts (default)
-    if (value === 'posts') {
-      params.delete('tab')
-    } else {
-      params.set('tab', value)
-    }
+    // Sempre define o tab na URL (posts ou tutorials)
+    params.set('tab', value)
     params.delete('page')
     params.delete('id')
-    const queryString = params.toString()
-    router.push(queryString ? `/contents?${queryString}` : '/contents')
+    router.push(`/contents?${params.toString()}`)
   }, [router, searchParams])
 
   // Handle tutorial click
