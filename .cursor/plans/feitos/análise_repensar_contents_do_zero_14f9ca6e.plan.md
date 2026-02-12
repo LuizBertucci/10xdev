@@ -101,6 +101,7 @@ export enum CardType {
 
 - Usar MCP do Supabase para aplicar migração diretamente no banco
 - Executar via `mcp_supabase_apply_migration` com o seguinte SQL:
+
 ```sql
 -- Migration: adicionar campos para posts e vídeos
 ALTER TABLE card_features 
@@ -155,14 +156,14 @@ export enum CardType {
 
 #### 3. Atualizar Codes.tsx
 
-- **Filtrar apenas `card_type === 'codigo'`** (usar novo nome)
+- **Filtrar apenas `card_type === 'codigo'**` (usar novo nome)
 - Remover filtros de 'dicas' e 'workflows'
 - Manter cards compactos para códigos
 - Posts não aparecem mais aqui
 
 #### 4. Atualizar Contents.tsx
 
-- **Filtrar apenas `card_type === 'post'`** (usar CardFeature)
+- **Filtrar apenas `card_type === 'post'**` (usar CardFeature)
 - Renderizar `CardPost` para posts
 - Usar `cardFeatureService` ao invés de `contentService`
 - Suportar vídeos via campos `youtube_url` em CardFeature
@@ -195,8 +196,8 @@ export enum CardType {
 
 - `frontend/types/cardfeature.ts` - Simplificar enum para `CODIGO | POST`
 - `frontend/components/CardFeatureForm.tsx` - Suporte a post e campos opcionais
-- `frontend/pages/Codes.tsx` - **Filtrar apenas `card_type === 'codigos'`** (manter como está)
-- `frontend/pages/Contents.tsx` - **Filtrar apenas `card_type === 'post'`** (usar CardFeature)
+- `frontend/pages/Codes.tsx` - **Filtrar apenas `card_type === 'codigos'**` (manter como está)
+- `frontend/pages/Contents.tsx` - **Filtrar apenas `card_type === 'post'**` (usar CardFeature)
 - `frontend/components/CardPost.tsx` - Adaptar para receber `CardFeature[]` (renomeado de PostsDenseList)
 - `frontend/hooks/useCardFeatures.ts` - Suporte a filtro 'post' e 'codigos'
 - `frontend/pages/ContentDetail.tsx` - Adaptar para CardFeature (posts e vídeos)
@@ -244,19 +245,14 @@ export enum CardType {
 ### Estratégia de Migração
 
 1. **Renomear 'codigos' → 'codigo'**
-
-   - 194 cards afetados
-   - Migração simples (UPDATE)
-
+  - 194 cards afetados
+  - Migração simples (UPDATE)
 2. **Converter 'dicas' e 'workflows'**
-
-   - 9 cards afetados
-   - Decisão: converter todos para 'codigo' (ou analisar caso a caso)
-
+  - 9 cards afetados
+  - Decisão: converter todos para 'codigo' (ou analisar caso a caso)
 3. **Adicionar campos opcionais**
-
-   - Campos novos são opcionais
-   - Não afeta dados existentes
+  - Campos novos são opcionais
+  - Não afeta dados existentes
 
 ## Conclusão
 
@@ -283,3 +279,4 @@ export enum CardType {
 - ✅ Reutiliza toda estrutura existente
 - ✅ Suporta vídeos via campos opcionais
 - ✅ Resolve o problema de forma elegante
+
