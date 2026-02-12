@@ -3,7 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
 // /import-github-token: callback OAuth GitHub - deve carregar sem sessão para processar tokens
-const publicPaths = ['/login', '/register', '/import-github-token']
+const publicPaths = ['/login', '/register', '/import-github-token', '/']
+
+// Rotas privadas que requerem autenticação
+const privatePathPrefixes = ['/home', '/codes', '/contents', '/projects', '/admin']
 
 // Cache simples em memória para sessões (reduz rate limiting do Supabase)
 interface CacheEntry {
@@ -86,11 +89,11 @@ export async function middleware(req: NextRequest) {
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
 
-  // Regra especial:
-  // - `/` (sem query `tab`) é público
-  // - `/?tab=...` é privado (app)
-  const isRootLanding = pathname === '/' && !searchParams.get('tab')
-  const isPublic = isRootLanding || publicPaths.includes(pathname)
+  // Verifica se é rota pública
+  const isPublic = publicPaths.includes(pathname) || pathname === '/'
+  
+  // Verifica se é rota privada (começa com algum dos prefixos privados)
+  const isPrivate = privatePathPrefixes.some(prefix => pathname.startsWith(prefix))
   const hasOAuthFlags =
     searchParams.has('gitsync') ||
     searchParams.has('installation_id') ||
@@ -194,7 +197,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Bloqueia rotas privadas se não houver sessão válida
-  if (!isPublic && !hasSession && !hasOAuthFlags) {
+  if (isPrivate && !hasSession && !hasOAuthFlags) {
     const supabaseCookies = getSupabaseCookieNames(req)
     console.warn('[middleware][auth] redirect para login por sessão ausente', {
       host: req.headers.get('host'),
@@ -207,13 +210,15 @@ export async function middleware(req: NextRequest) {
     })
     const url = req.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('redirect', pathname + req.nextUrl.search)
+    // Preserva a URL completa para redirecionamento pós-login
+    const fullPath = pathname + (req.nextUrl.search || '')
+    url.searchParams.set('redirect', fullPath)
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
     return redirect
   }
 
-  if (!isPublic && !hasSession && hasOAuthFlags) {
+  if (isPrivate && !hasSession && hasOAuthFlags) {
     const supabaseCookies = getSupabaseCookieNames(req)
     console.warn('[middleware][auth] bypass de login por flags OAuth/GitSync', {
       host: req.headers.get('host'),
@@ -226,11 +231,10 @@ export async function middleware(req: NextRequest) {
 
   // Evita acesso a login/register se já autenticado
   // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
-  if (isPublic && hasSession && pathname !== '/import-github-token') {
+  if ((pathname === '/login' || pathname === '/register') && hasSession) {
     const url = req.nextUrl.clone()
-    url.pathname = '/'
-    // Usuário autenticado deve cair no app (não na landing)
-    url.search = '?tab=home'
+    url.pathname = '/home'
+    url.search = ''
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
     return redirect

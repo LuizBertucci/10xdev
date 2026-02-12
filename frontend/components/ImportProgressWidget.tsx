@@ -93,14 +93,7 @@ export default function ImportProgressWidget() {
 
   const handleOpenProject = () => {
     if (!active?.projectId || !active?.jobId) return
-    // Mantém compatível com a navegação já usada no app (tab=projects&id=...)
-    const query: Record<string, string> = {
-      ...(router.query as Record<string, string>),
-      tab: 'projects',
-      id: active.projectId,
-      jobId: active.jobId
-    }
-    router.push({ pathname: '/', query }, undefined, { shallow: true })
+    router.push(`/projects/${active.projectId}?jobId=${encodeURIComponent(active.jobId)}`)
   }
 
   return (
