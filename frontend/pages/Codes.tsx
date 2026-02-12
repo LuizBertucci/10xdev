@@ -17,20 +17,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { cardFeatureService } from "@/services"
 import { toast } from "sonner"
 
-interface PlatformState {
-  activeTab?: string
-  setActiveTab?: (tab: string) => void
-  searchTerm: string
-  setSearchTerm: (term: string) => void
-  selectedTech: string
-  setSelectedTech: (tech: string) => void
-  filteredSnippets: (snippets: CardFeatureType[]) => CardFeatureType[]
-}
-
-interface CodesProps {
-  platformState?: PlatformState
-}
-
 // Memoized CreateCardButton component - prevents flickering when parent re-renders
 interface CreateCardButtonProps {
   onClick: () => void
@@ -108,25 +94,13 @@ const CreateCardButton = React.memo(function CreateCardButton({
   return true
 })
 
-export default function Codes({ platformState }: CodesProps) {
+export default function Codes() {
   const { user, isProfileLoaded } = useAuth()
   const isAdmin = user?.role === 'admin'
   const isAuthed = !!user
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  // Default platform state for when component is rendered without props
-  const defaultPlatformState: PlatformState = {
-    activeTab: 'codes',
-    setActiveTab: () => {},
-    searchTerm: '',
-    setSearchTerm: () => {},
-    selectedTech: 'all',
-    setSelectedTech: () => {},
-    filteredSnippets: (snippets: CardFeatureType[]) => snippets
-  }
-
-  const activePlatformState = platformState || defaultPlatformState
 
   // URL state: ?page= (somente para tab=codes)
   const initialPage = useMemo(() => {
@@ -160,15 +134,19 @@ export default function Codes({ platformState }: CodesProps) {
         ? ApprovalStatus.PENDING
         : 'all'
   
-  // Hook principal para operações CRUD e dados da API com filtros do platformState
+  // Estados locais para busca e filtro
+  const [searchTerm, setSearchTerm] = useState<string>(searchParams?.get('search') || '')
+  const [selectedTech, setSelectedTech] = useState<string>(searchParams?.get('tech') || 'all')
+
+  // Hook principal para operações CRUD e dados da API com filtros locais
   const cardFeatures = useCardFeatures({ initialPage }, {
-    searchTerm: activePlatformState.searchTerm,
-    selectedTech: activePlatformState.selectedTech,
+    searchTerm,
+    selectedTech,
     selectedVisibility,
     selectedApprovalStatus,
     selectedCardType,
-    setSearchTerm: activePlatformState.setSearchTerm,
-    setSelectedTech: activePlatformState.setSelectedTech
+    setSearchTerm,
+    setSelectedTech
   })
 
   // Manter URL sincronizada com a paginação atual
@@ -365,7 +343,7 @@ export default function Codes({ platformState }: CodesProps) {
         <div className="flex items-center space-x-2 text-sm">
           <button
             type="button"
-            onClick={() => router.push('/?tab=home')}
+            onClick={() => router.push('/home')}
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início

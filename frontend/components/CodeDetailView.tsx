@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, Calendar, Tag, ChevronRight, Code2, Copy, Check } from "lucide-react"
 import ContentRenderer from "@/components/ContentRenderer"
 import { Button } from "@/components/ui/button"
@@ -8,44 +8,32 @@ import { cardFeatureService } from "@/services"
 import type { CardFeature as CardFeatureType } from "@/types"
 
 interface CodeDetailViewProps {
-  platformState?: {
-    activeTab: string
-    setActiveTab: (tab: string) => void
-  }
+  codeId: string
 }
 
-export default function CodeDetailView({ platformState }: CodeDetailViewProps) {
+export default function CodeDetailView({ codeId }: CodeDetailViewProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const id = searchParams?.get('id')
   const [cardFeature, setCardFeature] = useState<CardFeatureType | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedScreen, setCopiedScreen] = useState<number | null>(null)
 
   const handleBack = () => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    const currentTab = platformState?.activeTab || 'codes'
-    params.set('tab', currentTab)
-    params.delete('id')
-    router.push(`/?${params.toString()}`)
+    router.push('/codes')
   }
 
   const handleGoHome = () => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.delete('id')
-    params.delete('tab')
-    router.push(`/?${params.toString()}`)
+    router.push('/home')
   }
 
   useEffect(() => {
-    if (!id) return
+    if (!codeId) return
     router.refresh()
     const fetchContent = async () => {
       setLoading(true)
       setError(null)
       try {
-        const cardRes = await cardFeatureService.getById(id)
+        const cardRes = await cardFeatureService.getById(codeId)
         if (cardRes?.success && cardRes.data) {
           setCardFeature(cardRes.data)
         } else {
@@ -59,7 +47,7 @@ export default function CodeDetailView({ platformState }: CodeDetailViewProps) {
       }
     }
     fetchContent()
-  }, [id])
+  }, [codeId, router])
 
   const formatDate = (iso?: string) => {
     if (!iso) return ""
