@@ -8,10 +8,10 @@ export default function ContentDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const id = params?.id as string
-  const contentsTab = searchParams?.get('contentsTab') || 'posts'
+  const tab = searchParams?.get('tab') || 'posts'
   
   // Se for tutorial, usa TutorialDetail, senão usa ContentDetail
-  if (contentsTab === 'tutorials') {
+  if (tab === 'tutorials') {
     return <TutorialDetail id={id} />
   }
   

@@ -96,8 +96,8 @@ export default function Contents() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
-  // Get contentsTab from URL (defaults to 'posts')
-  const contentsTab = searchParams?.get('contentsTab') || 'posts'
+  // Get tab from URL (defaults to 'posts')
+  const contentsTab = searchParams?.get('tab') || 'posts'
 
   const initialPage = useMemo(() => {
     const p = Number(searchParams?.get('page') || 1)
@@ -170,20 +170,21 @@ export default function Contents() {
   // Handle tab change
   const handleTabChange = useCallback((value: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
+    // Sempre define o tab, remove se for posts (default)
     if (value === 'posts') {
-      params.delete('contentsTab')
+      params.delete('tab')
     } else {
-      params.set('contentsTab', value)
+      params.set('tab', value)
     }
     params.delete('page')
     params.delete('id')
-    router.push(`/?${params.toString()}`)
+    const queryString = params.toString()
+    router.push(queryString ? `/contents?${queryString}` : '/contents')
   }, [router, searchParams])
 
   // Handle tutorial click
   const handleTutorialClick = useCallback((tutorial: Content) => {
-    router.push(`/contents/${tutorial.id}?contentsTab=tutorials`)
+    router.push(`/contents/${tutorial.id}?tab=tutorials`)
   }, [router])
 
   // Sync URL with state (posts pagination)
