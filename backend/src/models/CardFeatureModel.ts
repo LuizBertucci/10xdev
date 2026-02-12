@@ -941,7 +941,7 @@ export class CardFeatureModel {
         success: true,
         data: transformedData,
         count: transformedData.length,
-        error: validationErrors.length > 0 ? validationErrors.join(' | ') : undefined,
+        ...(validationErrors.length > 0 && { error: validationErrors.join(' | ') }),
         statusCode: 201
       }
     } catch (error: unknown) {
