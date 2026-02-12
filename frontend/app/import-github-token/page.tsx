@@ -70,19 +70,14 @@ export default function ImportGithubTokenPage() {
     hasRedirectedRef.current = true
     const { projectId, installationId } = pendingRedirect
     const dest = projectId
-      ? `/?tab=projects&id=${projectId}&gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
-      : `/?tab=projects&gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
+      ? `/projects/${projectId}?gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
+      : `/projects?gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
 
     try {
       sessionStorage.setItem('gitsync_redirect_after_login', dest)
     } catch { /* ignore */ }
 
-    const params = new URLSearchParams()
-    params.set('tab', 'projects')
-    if (projectId) params.set('id', projectId)
-    params.set('gitsync', 'true')
-    if (installationId) params.set('installation_id', installationId)
-    router.push(`/?${params.toString()}`)
+    router.push(dest)
     setPendingRedirect(null)
   }, [pendingRedirect, router])
 
@@ -143,7 +138,7 @@ export default function ImportGithubTokenPage() {
 
       // Pequeno delay para UX (mostra mensagem de sucesso)
       setTimeout(() => {
-        router.push(`/?${params.toString()}`)
+        router.push(`/projects?${params.toString()}`)
       }, 1500)
     } catch (error: unknown) {
       console.error('Erro na validação:', error)
@@ -187,7 +182,7 @@ export default function ImportGithubTokenPage() {
             <h2 className="text-xl font-semibold text-center mb-2">⚠️ Erro</h2>
             <p className="text-center text-gray-600 text-sm mb-4">{message}</p>
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/projects')}
               className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
             >
               Voltar para Projetos

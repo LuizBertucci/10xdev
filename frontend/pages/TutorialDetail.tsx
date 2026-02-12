@@ -3,56 +3,37 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import TutorialDetailView from "@/components/TutorialDetailView"
 
-interface PlatformState {
-  activeTab?: string
-  setActiveTab?: (tab: string) => void
-}
-
 interface TutorialDetailProps {
-  platformState?: PlatformState
   id?: string
 }
 
-export default function TutorialDetail({ platformState: _platformState, id: propId }: TutorialDetailProps) {
+export default function TutorialDetail({ id: propId }: TutorialDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = propId || searchParams?.get('id') || null
 
   const handleBack = () => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
-    params.set('contentsTab', 'tutorials')
-    params.delete('id')
-    router.push(`/?${params.toString()}`)
+    router.push('/contents?tab=tutorials')
   }
 
-  const goToTab = (tab: 'home' | 'contents') => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.delete('id')
-    params.delete('contentsTab')
-    if (tab === 'home') {
-      params.delete('tab')
-    } else {
-      params.set('tab', tab)
-    }
-    const qs = params.toString()
-    router.push(qs ? `/?${qs}` : '/')
+  const handleGoHome = () => {
+    router.push('/home')
   }
 
-  const goToTutorials = () => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
-    params.set('contentsTab', 'tutorials')
-    params.delete('id')
-    router.push(`/?${params.toString()}`)
+  const handleGoToTutorials = () => {
+    router.push('/contents?tab=tutorials')
+  }
+
+  if (!id) {
+    return <div className="p-4 text-red-600">ID do tutorial não fornecido</div>
   }
 
   return (
     <TutorialDetailView
       id={id}
       onBack={handleBack}
-      onGoHome={() => goToTab("home")}
-      onGoToTutorials={goToTutorials}
+      onGoHome={handleGoHome}
+      onGoToTutorials={handleGoToTutorials}
     />
   )
 }

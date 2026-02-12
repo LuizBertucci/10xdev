@@ -35,14 +35,6 @@ import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/
 import { useAuth } from "@/hooks/useAuth"
 import { ContentType } from "@/types"
 
-interface PlatformState {
-  setActiveTab?: (tab: string) => void
-}
-
-interface ProjectDetailProps {
-  platformState?: PlatformState
-}
-
 type ImportJobState = {
   id: string
   status: string
@@ -77,10 +69,14 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return fallback
 }
 
-export default function ProjectDetail({ platformState: _platformState }: ProjectDetailProps) {
+interface ProjectDetailProps {
+  id?: string
+}
+
+export default function ProjectDetail({ id }: ProjectDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const projectId = searchParams?.get('id') || null
+  const projectId = id || searchParams?.get('id') || null
   const { user, isAuthenticated } = useAuth()
 
   const [project, setProject] = useState<Project | null>(null)
