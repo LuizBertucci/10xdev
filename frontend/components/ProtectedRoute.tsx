@@ -43,7 +43,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
 
       // Redirecionar para login com query param redirect para voltar após login
-      // Preservar query params se existirem (ex: ?tab=home)
+      // Preservar query params se existirem (ex: ?search=term)
       const safePathname = pathname ?? '/'
       const searchQuery = searchParams?.toString() ?? ''
       const currentPath = safePathname === '/' && searchQuery

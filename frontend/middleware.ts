@@ -89,6 +89,39 @@ export async function middleware(req: NextRequest) {
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
 
+  // REDIRECIONAMENTOS DE COMPATIBILIDADE (URLs antigas -> novas)
+  if (pathname === '/' && searchParams.has('tab')) {
+    const tab = searchParams.get('tab')
+    const id = searchParams.get('id')
+    
+    // Mapeamento de tabs para novas rotas
+    const tabToRoute: Record<string, string> = {
+      'home': '/home',
+      'codes': '/codes',
+      'contents': '/contents',
+      'projects': '/projects',
+      'admin': '/admin'
+    }
+    
+    if (tab && tabToRoute[tab]) {
+      const url = req.nextUrl.clone()
+      
+      // Se tem ID, vai para rota dinâmica (exceto admin que não tem detalhe)
+      if (id && tab !== 'admin') {
+        url.pathname = `${tabToRoute[tab]}/${id}`
+      } else {
+        url.pathname = tabToRoute[tab]
+      }
+      
+      // Remove o param 'tab' e 'id' antigos
+      url.searchParams.delete('tab')
+      url.searchParams.delete('id')
+      
+      // Mantém outros params (contentsTab, gitsync, etc)
+      return NextResponse.redirect(url, 301)
+    }
+  }
+
   // Verifica se é rota pública
   const isPublic = publicPaths.includes(pathname) || pathname === '/'
   

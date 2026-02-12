@@ -13,7 +13,7 @@ export default function TutorialDetail({ id: propId }: TutorialDetailProps) {
   const id = propId || searchParams?.get('id') || null
 
   const handleBack = () => {
-    router.push('/contents?tab=tutorials')
+    router.push('/contents?contentsTab=tutorials')
   }
 
   const handleGoHome = () => {
@@ -21,7 +21,7 @@ export default function TutorialDetail({ id: propId }: TutorialDetailProps) {
   }
 
   const handleGoToTutorials = () => {
-    router.push('/contents?tab=tutorials')
+    router.push('/contents?contentsTab=tutorials')
   }
 
   if (!id) {

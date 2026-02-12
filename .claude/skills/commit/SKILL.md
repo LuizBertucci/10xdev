@@ -33,6 +33,12 @@ npm run build
 Rode **apenas** se: 3+ arquivos alterados, **ou** mudancas em `types/`, `tsconfig`, `package.json`, arquivos de config.
 Se falhar, corrija e rode novamente. Nao prossiga ate passar.
 
+**Frontend com limitação de memória (WSL):**
+```bash
+cd frontend && NODE_OPTIONS="--max-old-space-size=4096" npm run build
+```
+Use quando o build crashar por falta de memória no WSL (erro de heap ou crash do terminal).
+
 ## 3. Agrupar por responsabilidade
 
 Separe as alteracoes em commits logicos, cada um com **uma unica responsabilidade**:

@@ -114,7 +114,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [projectLinkCopied, setProjectLinkCopied] = useState(false)
   const shareableProjectUrl = useMemo(() => {
     if (typeof window === 'undefined' || !project) return ''
-    return `${window.location.origin}/?tab=projects&id=${project.id}`
+    return `${window.location.origin}/projects/${project.id}`
   }, [project])
   const handleCopyProjectUrl = async () => {
     if (!shareableProjectUrl) return
