@@ -183,12 +183,8 @@ export default function Contents() {
 
   // Handle tutorial click
   const handleTutorialClick = useCallback((tutorial: Content) => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
-    params.set('contentsTab', 'tutorials')
-    params.set('id', tutorial.id)
-    router.push(`/?${params.toString()}`)
-  }, [router, searchParams])
+    router.push(`/contents/${tutorial.id}?contentsTab=tutorials`)
+  }, [router])
 
   // Sync URL with state (posts pagination)
   useEffect(() => {

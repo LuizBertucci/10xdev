@@ -80,22 +80,22 @@ frontend/app/
 
 ### 1) Criar shell autenticado em layout de rota
 
-- Criar layout para área autenticada (ex.: [frontend/app/(app)/layout.tsx](frontend/app/\(app)/layout.tsx)) reutilizando estrutura de `SidebarProvider`, `AppSidebar`, `SidebarInset` hoje em [frontend/app/page.tsx](frontend/app/page.tsx).
+- Criar layout para área autenticada (ex.: [frontend/app/(app)/layout.tsx](frontend/app/(app)/layout.tsx)) reutilizando estrutura de `SidebarProvider`, `AppSidebar`, `SidebarInset` hoje em [frontend/app/page.tsx](frontend/app/page.tsx).
 - Mover `ProtectedRoute` para esse layout para proteger todo o grupo.
 - Manter `PublicHome` em `/` fora do grupo autenticado.
 
 ### 2) Definir árvore de rotas do App Router
 
 - Criar páginas no App Router para cada seção principal:
-  - [frontend/app/(app)/home/page.tsx](frontend/app/\(app)/home/page.tsx)
-  - [frontend/app/(app)/codes/page.tsx](frontend/app/\(app)/codes/page.tsx)
+  - [frontend/app/(app)/home/page.tsx](frontend/app/(app)/home/page.tsx)
+  - [frontend/app/(app)/codes/page.tsx](frontend/app/(app)/codes/page.tsx)
   - [frontend/app/(app)/codes/[id]/page.tsx](frontend/app/(app)/codes/[id]/page.tsx)
-  - [frontend/app/(app)/contents/page.tsx](frontend/app/\(app)/contents/page.tsx)
+  - [frontend/app/(app)/contents/page.tsx](frontend/app/(app)/contents/page.tsx)
   - [frontend/app/(app)/contents/[id]/page.tsx](frontend/app/(app)/contents/[id]/page.tsx)
   - [frontend/app/(app)/contents/tutorials/[id]/page.tsx](frontend/app/(app)/contents/tutorials/[id]/page.tsx)
-  - [frontend/app/(app)/projects/page.tsx](frontend/app/\(app)/projects/page.tsx)
+  - [frontend/app/(app)/projects/page.tsx](frontend/app/(app)/projects/page.tsx)
   - [frontend/app/(app)/projects/[id]/page.tsx](frontend/app/(app)/projects/[id]/page.tsx)
-  - [frontend/app/(app)/admin/page.tsx](frontend/app/\(app)/admin/page.tsx)
+  - [frontend/app/(app)/admin/page.tsx](frontend/app/(app)/admin/page.tsx)
 - Cada página nova apenas compõe os componentes já existentes de `frontend/pages/*` no primeiro momento (sem refactor profundo).
 
 ### 3) Refatorar sidebar para navegação por rota
@@ -144,7 +144,7 @@ frontend/app/
 
 ### 9) Admin por rota e guarda de acesso
 
-- Mover render do admin para [frontend/app/(app)/admin/page.tsx](frontend/app/\(app)/admin/page.tsx).
+- Mover render do admin para [frontend/app/(app)/admin/page.tsx](frontend/app/(app)/admin/page.tsx).
 - No próprio page/layout, aplicar guard de role admin e redirect para `/home` quando não autorizado.
 - Remover lógica de “tab admin” de [frontend/app/page.tsx](frontend/app/page.tsx).
 
@@ -212,3 +212,4 @@ frontend/app/
 6. Admin (passo 9)
 7. Hard cut legado + utilitários (passos 10-11)
 8. Remoção definitiva do hook e limpeza global (passos 12-13)
+
