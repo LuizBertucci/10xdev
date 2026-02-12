@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useMemo, useState, useEffect, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, useSidebar } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -9,18 +10,38 @@ import { toast } from "sonner"
 import { Crown, LogOut, PanelLeft, Maximize2, Minimize2, MousePointerClick, Check } from "lucide-react"
 
 type SidebarMode = 'expanded' | 'collapsed' | 'hover'
+type TabKey = 'home' | 'codes' | 'contents' | 'projects' | 'admin'
 
-interface AppSidebarProps {
-  platformState: {
-    setActiveTab: (tab: string) => void
-    activeTab: string
-  }
+// Mapeamento de rotas para tabs
+const ROUTE_TO_TAB: Record<string, TabKey> = {
+  '/home': 'home',
+  '/codes': 'codes',
+  '/contents': 'contents',
+  '/projects': 'projects',
+  '/admin': 'admin'
 }
 
-function AppSidebar({ platformState }: AppSidebarProps) {
+const TAB_ROUTES: Record<TabKey, string> = {
+  home: '/home',
+  codes: '/codes',
+  contents: '/contents',
+  projects: '/projects',
+  admin: '/admin'
+}
+
+function AppSidebar() {
+  const router = useRouter()
+  const pathname = usePathname()
   const { user, logout } = useAuth()
   const { setOpenMobile, isMobile, setOpen } = useSidebar()
   const sidebarRef = useRef<HTMLDivElement>(null)
+
+  // Deriva a tab ativa do pathname
+  const activeTab = useMemo(() => {
+    // Remove ID dinâmico da rota: /codes/abc123 -> /codes
+    const basePath = pathname?.split('/').slice(0, 2).join('/') || '/home'
+    return ROUTE_TO_TAB[basePath] || 'home'
+  }, [pathname])
 
   // Sidebar mode: expanded, collapsed, hover (persisted in localStorage)
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
@@ -91,20 +112,20 @@ function AppSidebar({ platformState }: AppSidebarProps) {
 
   // Memoiza navItems - só recalcula quando isAdmin muda
   const navItems = useMemo(() => [
-    { key: "home", title: "Início", icon: "🏠", tooltip: "Início" },
-    { key: "codes", title: "Códigos", icon: "💻", tooltip: "Códigos" },
-    { key: "contents", title: "Conteúdos", icon: "🎓", tooltip: "Conteúdos" },
-    { key: "projects", title: "Projetos", icon: "📁", tooltip: "Projetos" },
-    ...(isAdmin ? [{ key: "admin", title: "Painel de Controle", icon: "🛠️", tooltip: "Painel de Controle" }] : [])
+    { key: "home" as TabKey, title: "Início", icon: "🏠", tooltip: "Início" },
+    { key: "codes" as TabKey, title: "Códigos", icon: "💻", tooltip: "Códigos" },
+    { key: "contents" as TabKey, title: "Conteúdos", icon: "🎓", tooltip: "Conteúdos" },
+    { key: "projects" as TabKey, title: "Projetos", icon: "📁", tooltip: "Projetos" },
+    ...(isAdmin ? [{ key: "admin" as TabKey, title: "Painel de Controle", icon: "🛠️", tooltip: "Painel de Controle" }] : [])
   ], [isAdmin])
 
-  const handleNavClick = React.useCallback((key: string) => {
-    platformState.setActiveTab(key)
+  const handleNavClick = React.useCallback((key: TabKey) => {
+    router.push(TAB_ROUTES[key])
     // Fecha a sidebar no mobile após clicar
     if (isMobile) {
       setOpenMobile(false)
     }
-  }, [platformState, isMobile, setOpenMobile])
+  }, [router, isMobile, setOpenMobile])
 
   const handleLogout = React.useCallback(async () => {
     try {
@@ -171,7 +192,7 @@ function AppSidebar({ platformState }: AppSidebarProps) {
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     onClick={() => handleNavClick(item.key)}
-                    isActive={platformState.activeTab === item.key}
+                    isActive={activeTab === item.key}
                     tooltip={item.tooltip}
                   >
                     <span className="text-base">{item.icon}</span>
@@ -240,11 +261,5 @@ function AppSidebar({ platformState }: AppSidebarProps) {
   )
 }
 
-// Memoiza o componente para evitar re-renders desnecessários quando o pai re-renderiza
-export default React.memo(AppSidebar, (prevProps, nextProps) => {
-  // Only re-render if platformState.activeTab changes
-  const prevActiveTab = prevProps.platformState?.activeTab
-  const nextActiveTab = nextProps.platformState?.activeTab
-  if (prevActiveTab !== nextActiveTab) return false
-  return true
-})
+// Memoiza o componente para evitar re-renders desnecessários
+export default React.memo(AppSidebar)
