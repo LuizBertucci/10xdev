@@ -29,15 +29,6 @@ import type { CreateCardFeatureData } from "@/types/cardfeature"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 
-interface PlatformState {
-  activeTab?: string
-  setActiveTab?: (tab: string) => void
-}
-
-interface ContentsProps {
-  platformState?: PlatformState
-}
-
 const ITEMS_PER_PAGE = 12
 
 // Memoized AddPostButton component - prevents re-renders when parent changes
@@ -98,7 +89,7 @@ const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disab
   return true
 })
 
-export default function Contents({ platformState: _platformState }: ContentsProps) {
+export default function Contents() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -291,7 +282,7 @@ export default function Contents({ platformState: _platformState }: ContentsProp
         <div className="flex items-center space-x-2 text-sm">
           <button
             type="button"
-            onClick={() => router.push('/?tab=home')}
+            onClick={() => router.push('/home')}
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início
