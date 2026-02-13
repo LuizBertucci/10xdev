@@ -28,7 +28,6 @@ export default function CodeDetailView({ codeId }: CodeDetailViewProps) {
 
   useEffect(() => {
     if (!codeId) return
-    router.refresh()
     const fetchContent = async () => {
       setLoading(true)
       setError(null)
@@ -47,7 +46,7 @@ export default function CodeDetailView({ codeId }: CodeDetailViewProps) {
       }
     }
     fetchContent()
-  }, [codeId, router])
+  }, [codeId])
 
   const formatDate = (iso?: string) => {
     if (!iso) return ""
