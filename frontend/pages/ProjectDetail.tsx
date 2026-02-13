@@ -841,17 +841,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   const handleBack = () => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'projects')
-    params.delete('id') // Remove o id para voltar à lista
-    router.push(`/?${params.toString()}`)
+    router.push('/projects')
   }
 
-  const goToTab = (tab: string) => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', tab)
-    params.delete('id')
-    router.push(`/?${params.toString()}`)
+  const goToRoute = (route: string) => {
+    router.push(route)
   }
 
   const startEditName = () => {
@@ -996,7 +990,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       <div className="flex items-center space-x-2 text-sm">
         <button
           type="button"
-          onClick={() => goToTab("home")}
+          onClick={() => goToRoute('/home')}
           className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
         >
           Início
