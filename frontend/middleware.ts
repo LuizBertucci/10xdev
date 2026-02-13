@@ -19,14 +19,42 @@ const CACHE_TTL = 30000 // 30 segundos
 const CACHE_TTL_ERROR = 5000 // 5 segundos para erros
 
 function getCacheKey(req: NextRequest): string | null {
-  // Extrai project_ref da URL do Supabase para usar o nome correto do cookie
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const projectRefMatch = supabaseUrl.match(/https:\/\/([^.]+)\.supabase/)
-  const projectRef = projectRefMatch?.[1] || 'unknown'
+  let projectRef: string | null = null
   
-  // @supabase/ssr usa o cookie 'sb-{project_ref}-auth-token'
-  const sessionCookie = req.cookies.get(`sb-${projectRef}-auth-token`)?.value
-  return sessionCookie || null
+  // Tenta extrair project_ref da URL do Supabase usando URL constructor
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  if (supabaseUrl) {
+    try {
+      const url = new URL(supabaseUrl)
+      const hostname = url.hostname
+      
+      // Tenta extrair subdomain (primeira parte antes de .supabase)
+      const parts = hostname.split('.')
+      if (parts.length >= 2 && parts[parts.length - 2] !== 'supabase') {
+        projectRef = parts[0]
+      }
+    } catch {
+      // URL inválida, projectRef permanece null
+    }
+  }
+  
+  // Tenta encontrar o cookie de sessão
+  // Primeiro: se temos projectRef, tenta o cookie específico
+  if (projectRef) {
+    const cookieValue = req.cookies.get(`sb-${projectRef}-auth-token`)?.value
+    if (cookieValue) return cookieValue
+  }
+  
+  // Fallback: scaneia todos os cookies para encontrar qualquer sb-*-auth-token
+  // Isso funciona para localhost, custom domains, etc.
+  const allCookies = req.cookies.getAll()
+  for (const cookie of allCookies) {
+    if (/^sb-[^-]+-auth-token$/.test(cookie.name)) {
+      return cookie.value
+    }
+  }
+  
+  return null
 }
 
 function getCachedSession(cacheKey: string | null): boolean | null {
