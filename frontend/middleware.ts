@@ -122,7 +122,7 @@ export async function middleware(req: NextRequest) {
       url.searchParams.delete('id')
       
       // Mantém outros params (contentsTab, gitsync, etc)
-      return NextResponse.redirect(url, 301)
+      return NextResponse.redirect(url, 308)
     }
   }
 
