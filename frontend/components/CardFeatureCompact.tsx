@@ -81,7 +81,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const appBaseUrl = isLocalhost
     ? 'http://localhost:3000'
     : 'https://10xdev.com.br'
-  const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
+  const cardShareUrl = `${appBaseUrl}/codes/${snippet.id}`
 
   // Cálculo local de acesso (evita chamada individual GET /access por card)
   const accessInfo = useMemo(() => {
@@ -179,8 +179,8 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
 
     // Navegar para view de detalhe baseado no tipo de card
-    const tab = snippet.card_type === CardType.POST ? 'contents' : 'codes'
-    router.push(`/?tab=${tab}&id=${snippet.id}`)
+    const route = snippet.card_type === CardType.POST ? `/contents/${snippet.id}` : `/codes/${snippet.id}`
+    router.push(route)
   }
 
   const normalizeScreenName = (name?: string) =>

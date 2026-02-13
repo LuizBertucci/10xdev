@@ -55,6 +55,12 @@ npm run build
 Rode no modo **completo**.  
 Se falhar, corrija e rode novamente. Não prossiga até passar.
 
+**Frontend com limitação de memória (WSL):**
+```bash
+cd frontend && NODE_OPTIONS="--max-old-space-size=4096" npm run build
+```
+Use quando o build crashar por falta de memória no WSL (erro de heap ou crash do terminal).
+
 ## 3. Agrupar por responsabilidade
 
 Separe as alterações em commits lógicos, cada um com **uma única responsabilidade**:

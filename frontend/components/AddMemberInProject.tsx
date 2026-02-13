@@ -47,7 +47,7 @@ export function AddMemberInProject({
 
   const shareableUrl = useMemo(() => {
     if (typeof window === 'undefined' || !projectId) return ''
-    return `${window.location.origin}/?tab=projects&id=${projectId}`
+    return `${window.location.origin}/projects/${projectId}`
   }, [projectId])
 
   const handleCopyUrl = async () => {

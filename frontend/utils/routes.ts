@@ -1,69 +1,48 @@
 /**
- * Helper para gerenciar rotas e tabs da aplicação
+ * Helper para gerenciar rotas da aplicação
  */
 
 export type TabKey = 'home' | 'codes' | 'contents' | 'projects' | 'admin'
 
-export const TABS: Record<TabKey, { key: TabKey; title: string; route: string }> = {
-  home: {
-    key: 'home',
-    title: 'Início',
-    // IMPORTANTE:
-    // `/` é landing pública. O app autenticado usa `/?tab=home`.
-    route: '/?tab=home'
-  },
-  codes: {
-    key: 'codes',
-    title: 'Códigos',
-    route: '/?tab=codes'
-  },
-  contents: {
-    key: 'contents',
-    title: 'Conteúdos',
-    route: '/?tab=contents'
-  },
-  projects: {
-    key: 'projects',
-    title: 'Projetos',
-    route: '/?tab=projects'
-  },
-  admin: {
-    key: 'admin',
-    title: 'Painel de Controle',
-    route: '/?tab=admin'
-  }
+export const ROUTES: Record<TabKey, string> = {
+  home: '/home',
+  codes: '/codes',
+  contents: '/contents',
+  projects: '/projects',
+  admin: '/admin'
 }
 
 /**
- * Gera a rota para uma tab específica
+ * Gera a rota para uma seção específica
  */
-export function getTabRoute(tab: TabKey): string {
-  return TABS[tab].route
+export function getRoute(tab: TabKey): string {
+  return ROUTES[tab]
+}
+
+/**
+ * Gera a rota padrão após login (home)
+ */
+export function getDefaultRoute(): string {
+  return ROUTES.home
 }
 
 /**
  * Gera a rota de redirect com query param
  */
 export function getRedirectRoute(tab: TabKey = 'home'): string {
-  return `?redirect=${encodeURIComponent(TABS[tab].route)}`
+  return `?redirect=${encodeURIComponent(ROUTES[tab])}`
 }
 
 /**
- * Pega a tab default (home - tela inicial após login/registro)
- */
-export function getDefaultRoute(): string {
-  return TABS.home.route
-}
-
-/**
- * Valida se uma tab é válida
+ * Valida se uma rota/tab é válida
  */
 export function isValidTab(tab: string | null): tab is TabKey {
-  return tab !== null && tab in TABS
+  return tab !== null && tab in ROUTES
 }
 
 /**
  * Normaliza uma tab para uma chave válida
+ * @deprecated Use validação direta de rota quando possível
  */
 export function normalizeTab(tab: string | null): TabKey {
   if (isValidTab(tab)) {
@@ -71,4 +50,3 @@ export function normalizeTab(tab: string | null): TabKey {
   }
   return 'home'
 }
-

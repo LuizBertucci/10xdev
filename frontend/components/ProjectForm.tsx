@@ -68,18 +68,13 @@ const IMPORT_INSTRUCTIONS_LS_KEY = "project-import-instructions"
 /** Classe CSS compartilhada para inputs padronizados. */
 const INPUT_CLASS = "h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm"
 
-interface PlatformState {
-  setActiveTab?: (tab: string) => void
-}
-
 interface ProjectFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  platformState?: PlatformState
   onSaved: () => void
 }
 
-export function ProjectForm({ open, onOpenChange, platformState, onSaved }: ProjectFormProps) {
+export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const router = useRouter()
   const [leftTab, setLeftTab] = useState<"create" | "import">("create")
   const [newProjectName, setNewProjectName] = useState("")
@@ -373,15 +368,7 @@ export function ProjectForm({ open, onOpenChange, platformState, onSaved }: Proj
           localStorage.setItem(IMPORT_JOB_LS_KEY, JSON.stringify({ jobId, projectId: project.id, createdAt: new Date().toISOString() }))
         } catch { /* ignore */ }
 
-        if (platformState?.setActiveTab) {
-          const params = new URLSearchParams()
-          params.set("tab", "projects")
-          params.set("id", project.id)
-          params.set("jobId", jobId)
-          router.push(`/?${params.toString()}`)
-        } else {
-          router.push(`/projects/${project.id}?jobId=${encodeURIComponent(jobId)}`)
-        }
+        router.push(`/projects/${project.id}?jobId=${encodeURIComponent(jobId)}`)
 
         onSaved()
         handleOpenChange(false)

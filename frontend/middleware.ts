@@ -3,7 +3,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
 // /import-github-token: callback OAuth GitHub - deve carregar sem sessão para processar tokens
-const publicPaths = ['/login', '/register', '/import-github-token']
+const publicPaths = ['/login', '/register', '/import-github-token', '/']
+
+// Rotas privadas que requerem autenticação
+const privatePathPrefixes = ['/home', '/codes', '/contents', '/projects', '/admin']
 
 // Cache simples em memória para sessões (reduz rate limiting do Supabase)
 interface CacheEntry {
@@ -16,10 +19,42 @@ const CACHE_TTL = 30000 // 30 segundos
 const CACHE_TTL_ERROR = 5000 // 5 segundos para erros
 
 function getCacheKey(req: NextRequest): string | null {
-  // Usa o cookie de sessão do Supabase como chave de cache
-  const sessionCookie = req.cookies.get('sb-access-token')?.value || 
-                       req.cookies.get('sb-refresh-token')?.value
-  return sessionCookie || null
+  let projectRef: string | null = null
+  
+  // Tenta extrair project_ref da URL do Supabase usando URL constructor
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  if (supabaseUrl) {
+    try {
+      const url = new URL(supabaseUrl)
+      const hostname = url.hostname
+      
+      // Tenta extrair subdomain (primeira parte antes de .supabase)
+      const parts = hostname.split('.')
+      if (parts.length >= 2 && parts[parts.length - 2] !== 'supabase') {
+        projectRef = parts[0]
+      }
+    } catch {
+      // URL inválida, projectRef permanece null
+    }
+  }
+  
+  // Tenta encontrar o cookie de sessão
+  // Primeiro: se temos projectRef, tenta o cookie específico
+  if (projectRef) {
+    const cookieValue = req.cookies.get(`sb-${projectRef}-auth-token`)?.value
+    if (cookieValue) return cookieValue
+  }
+  
+  // Fallback: scaneia todos os cookies para encontrar qualquer sb-*-auth-token
+  // Isso funciona para localhost, custom domains, etc.
+  const allCookies = req.cookies.getAll()
+  for (const cookie of allCookies) {
+    if (/^sb-[^-]+-auth-token$/.test(cookie.name)) {
+      return cookie.value
+    }
+  }
+  
+  return null
 }
 
 function getCachedSession(cacheKey: string | null): boolean | null {
@@ -86,11 +121,44 @@ export async function middleware(req: NextRequest) {
   // Evita interceptar rotas de API
   if (pathname.startsWith('/api')) return NextResponse.next()
 
-  // Regra especial:
-  // - `/` (sem query `tab`) é público
-  // - `/?tab=...` é privado (app)
-  const isRootLanding = pathname === '/' && !searchParams.get('tab')
-  const isPublic = isRootLanding || publicPaths.includes(pathname)
+  // REDIRECIONAMENTOS DE COMPATIBILIDADE (URLs antigas -> novas)
+  if (pathname === '/' && searchParams.has('tab')) {
+    const tab = searchParams.get('tab')
+    const id = searchParams.get('id')
+    
+    // Mapeamento de tabs para novas rotas
+    const tabToRoute: Record<string, string> = {
+      'home': '/home',
+      'codes': '/codes',
+      'contents': '/contents',
+      'projects': '/projects',
+      'admin': '/admin'
+    }
+    
+    if (tab && tabToRoute[tab]) {
+      const url = req.nextUrl.clone()
+      
+      // Se tem ID, vai para rota dinâmica (exceto admin que não tem detalhe)
+      if (id && tab !== 'admin') {
+        url.pathname = `${tabToRoute[tab]}/${id}`
+      } else {
+        url.pathname = tabToRoute[tab]
+      }
+      
+      // Remove o param 'tab' e 'id' antigos
+      url.searchParams.delete('tab')
+      url.searchParams.delete('id')
+      
+      // Mantém outros params (contentsTab, gitsync, etc)
+      return NextResponse.redirect(url, 308)
+    }
+  }
+
+  // Verifica se é rota pública
+  const isPublic = publicPaths.includes(pathname) || pathname === '/'
+  
+  // Verifica se é rota privada (começa com algum dos prefixos privados)
+  const isPrivate = privatePathPrefixes.some(prefix => pathname.startsWith(prefix))
   const hasOAuthFlags =
     searchParams.has('gitsync') ||
     searchParams.has('installation_id') ||
@@ -194,7 +262,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Bloqueia rotas privadas se não houver sessão válida
-  if (!isPublic && !hasSession && !hasOAuthFlags) {
+  if (isPrivate && !hasSession && !hasOAuthFlags) {
     const supabaseCookies = getSupabaseCookieNames(req)
     console.warn('[middleware][auth] redirect para login por sessão ausente', {
       host: req.headers.get('host'),
@@ -207,13 +275,15 @@ export async function middleware(req: NextRequest) {
     })
     const url = req.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('redirect', pathname + req.nextUrl.search)
+    // Preserva a URL completa para redirecionamento pós-login
+    const fullPath = pathname + (req.nextUrl.search || '')
+    url.searchParams.set('redirect', fullPath)
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
     return redirect
   }
 
-  if (!isPublic && !hasSession && hasOAuthFlags) {
+  if (isPrivate && !hasSession && hasOAuthFlags) {
     const supabaseCookies = getSupabaseCookieNames(req)
     console.warn('[middleware][auth] bypass de login por flags OAuth/GitSync', {
       host: req.headers.get('host'),
@@ -226,11 +296,10 @@ export async function middleware(req: NextRequest) {
 
   // Evita acesso a login/register se já autenticado
   // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
-  if (isPublic && hasSession && pathname !== '/import-github-token') {
+  if ((pathname === '/login' || pathname === '/register') && hasSession) {
     const url = req.nextUrl.clone()
-    url.pathname = '/'
-    // Usuário autenticado deve cair no app (não na landing)
-    url.search = '?tab=home'
+    url.pathname = '/home'
+    url.search = ''
     const redirect = NextResponse.redirect(url)
     applyResponseCookies(redirect, res)
     return redirect

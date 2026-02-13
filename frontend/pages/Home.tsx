@@ -1,16 +1,12 @@
+"use client"
+
 import { useRouter } from "next/navigation"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Code2, MessageCircle, Play, ArrowRight, Sparkles, FolderKanban } from "lucide-react"
 
-interface PlatformState {
-  setActiveTab: (tab: string) => void
-  setSelectedTech: (tech: string) => void
-}
-
 interface HomeProps {
-  platformState?: PlatformState
   /**
    * Quando true, a tela funciona como landing pública:
    * - não chama APIs privadas
@@ -19,7 +15,7 @@ interface HomeProps {
   isPublic?: boolean
 }
 
-export default function Home({ platformState, isPublic = false }: HomeProps) {
+export default function Home({ isPublic = false }: HomeProps) {
   const router = useRouter()
 
   const goToLoginWithRedirect = (redirectTo: string) => {
@@ -28,36 +24,34 @@ export default function Home({ platformState, isPublic = false }: HomeProps) {
 
   const handleGoToCodes = () => {
     if (isPublic) {
-      goToLoginWithRedirect('/?tab=codes')
+      goToLoginWithRedirect('/codes')
       return
     }
-    platformState?.setSelectedTech("all")
-    platformState?.setActiveTab("codes")
+    router.push('/codes')
   }
 
   const handleGoToContents = () => {
     if (isPublic) {
-      goToLoginWithRedirect('/?tab=contents')
+      goToLoginWithRedirect('/contents')
       return
     }
-    platformState?.setActiveTab("contents")
+    router.push('/contents')
   }
 
   const handleGoToProjects = () => {
     if (isPublic) {
-      goToLoginWithRedirect('/?tab=projects')
+      goToLoginWithRedirect('/projects')
       return
     }
-    platformState?.setActiveTab("projects")
+    router.push('/projects')
   }
 
   const handleAccess = () => {
     if (isPublic) {
-      goToLoginWithRedirect('/?tab=codes')
+      goToLoginWithRedirect('/codes')
       return
     }
-    platformState?.setActiveTab("codes")
-    platformState?.setSelectedTech("all")
+    router.push('/codes')
   }
 
   return (
