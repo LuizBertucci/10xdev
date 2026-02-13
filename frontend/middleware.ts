@@ -19,9 +19,13 @@ const CACHE_TTL = 30000 // 30 segundos
 const CACHE_TTL_ERROR = 5000 // 5 segundos para erros
 
 function getCacheKey(req: NextRequest): string | null {
-  // Usa o cookie de sessão do Supabase como chave de cache
-  const sessionCookie = req.cookies.get('sb-access-token')?.value || 
-                       req.cookies.get('sb-refresh-token')?.value
+  // Extrai project_ref da URL do Supabase para usar o nome correto do cookie
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const projectRefMatch = supabaseUrl.match(/https:\/\/([^.]+)\.supabase/)
+  const projectRef = projectRefMatch?.[1] || 'unknown'
+  
+  // @supabase/ssr usa o cookie 'sb-{project_ref}-auth-token'
+  const sessionCookie = req.cookies.get(`sb-${projectRef}-auth-token`)?.value
   return sessionCookie || null
 }
 
