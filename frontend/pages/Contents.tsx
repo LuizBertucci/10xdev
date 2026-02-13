@@ -29,15 +29,6 @@ import type { CreateCardFeatureData } from "@/types/cardfeature"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 
-interface PlatformState {
-  activeTab?: string
-  setActiveTab?: (tab: string) => void
-}
-
-interface ContentsProps {
-  platformState?: PlatformState
-}
-
 const ITEMS_PER_PAGE = 12
 
 // Memoized AddPostButton component - prevents re-renders when parent changes
@@ -98,15 +89,23 @@ const AddTutorialButton = React.memo(function AddTutorialButton({ onClick, disab
   return true
 })
 
-export default function Contents({ platformState: _platformState }: ContentsProps) {
+export default function Contents() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
-  // Get contentsTab from URL (defaults to 'posts')
-  const contentsTab = searchParams?.get('contentsTab') || 'posts'
+  // Get tab from URL (defaults to 'posts')
+  const contentsTab = searchParams?.get('tab') || 'posts'
+
+  // Redirect para /contents?tab=posts quando acessar sem parâmetro
+  useEffect(() => {
+    const currentTab = searchParams?.get('tab')
+    if (!currentTab) {
+      router.replace('/contents?tab=posts')
+    }
+  }, [searchParams, router])
 
   const initialPage = useMemo(() => {
     const p = Number(searchParams?.get('page') || 1)
@@ -179,47 +178,17 @@ export default function Contents({ platformState: _platformState }: ContentsProp
   // Handle tab change
   const handleTabChange = useCallback((value: string) => {
     const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
-    if (value === 'posts') {
-      params.delete('contentsTab')
-    } else {
-      params.set('contentsTab', value)
-    }
+    // Sempre define o tab na URL (posts ou tutorials)
+    params.set('tab', value)
     params.delete('page')
     params.delete('id')
-    router.push(`/?${params.toString()}`)
+    router.push(`/contents?${params.toString()}`)
   }, [router, searchParams])
 
   // Handle tutorial click
   const handleTutorialClick = useCallback((tutorial: Content) => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.set('tab', 'contents')
-    params.set('contentsTab', 'tutorials')
-    params.set('id', tutorial.id)
-    router.push(`/?${params.toString()}`)
-  }, [router, searchParams])
-
-  // Sync URL with state (posts pagination)
-  useEffect(() => {
-    if (contentsTab !== 'posts') return
-    const currentTab = searchParams?.get('tab') || 'home'
-    if (currentTab !== 'contents') return
-
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.delete('type')
-    if (cardFeatures.currentPage > 1) {
-      params.set('page', String(cardFeatures.currentPage))
-    } else {
-      params.delete('page')
-    }
-    const qs = params.toString()
-    const newUrl = qs ? `/?${qs}` : '/'
-    const currentUrl = searchParams?.toString() ? `/?${searchParams.toString()}` : '/'
-
-    if (newUrl !== currentUrl) {
-      router.replace(newUrl, { scroll: false })
-    }
-  }, [cardFeatures.currentPage, searchParams, router, contentsTab])
+    router.push(`/contents/${tutorial.id}?tab=tutorials`)
+  }, [router])
 
   useEffect(() => {
     if (!didInitRef.current) {
@@ -291,7 +260,7 @@ export default function Contents({ platformState: _platformState }: ContentsProp
         <div className="flex items-center space-x-2 text-sm">
           <button
             type="button"
-            onClick={() => router.push('/?tab=home')}
+            onClick={() => router.push('/home')}
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início

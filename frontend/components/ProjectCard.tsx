@@ -43,7 +43,7 @@ export function ProjectCard({
     const baseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:3000'
       : 'https://10xdev.com.br'
-    return `${baseUrl}/?tab=projects&id=${project.id}`
+    return `${baseUrl}/projects/${project.id}`
   })()
 
   // Função para copiar URL do projeto

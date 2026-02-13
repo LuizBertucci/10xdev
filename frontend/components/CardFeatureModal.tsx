@@ -410,7 +410,7 @@ export default function CardFeatureModal({
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   const appBaseUrl = isLocalhost ? 'http://localhost:3000' : 'https://10xdev.com.br'
   const apiBaseUrl = isLocalhost ? 'http://localhost:3001/api' : 'https://api.10xdev.com.br/api'
-  const cardShareUrl = `${appBaseUrl}/?tab=codes&id=${snippet.id}`
+  const cardShareUrl = `${appBaseUrl}/codes/${snippet.id}`
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
 
   const handleCopyShareUrl = async () => {

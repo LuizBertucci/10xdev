@@ -3,47 +3,28 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import ContentDetailView from "@/components/ContentDetailView"
 
-interface PlatformState {
-  activeTab?: string
-  setActiveTab?: (tab: string) => void
-}
-
 interface ContentDetailProps {
-  platformState?: PlatformState
   id?: string
 }
 
-export default function ContentDetail({ platformState, id: propId }: ContentDetailProps) {
+export default function ContentDetail({ id: propId }: ContentDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const id = propId || searchParams?.get('id') || null
 
   const handleBack = () => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    // Detectar qual tab está ativa
-    const currentTab = platformState?.activeTab || 'contents'
-    params.set('tab', currentTab)
-    params.delete('id')
-    router.push(`/?${params.toString()}`)
+    router.push('/contents')
   }
 
-  const goToTab = (tab: 'home' | 'codes' | 'contents' | 'projects') => {
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.delete('id')
-    if (tab === 'home') {
-      params.delete('tab')
-    } else {
-      params.set('tab', tab)
-    }
-    const qs = params.toString()
-    router.push(qs ? `/?${qs}` : '/')
+  const handleGoHome = () => {
+    router.push('/home')
   }
 
   return (
     <ContentDetailView
       id={id}
       onBack={handleBack}
-      onGoHome={() => goToTab("home")}
+      onGoHome={handleGoHome}
     />
   )
 }

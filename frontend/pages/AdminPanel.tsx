@@ -119,7 +119,7 @@ export default function AdminPanel() {
         if (u.id === user?.id) {
           toast.success("Seu role foi atualizado. Redirecionando...")
           setTimeout(() => {
-            window.location.href = "/?tab=codes"
+            window.location.href = "/codes"
           }, 1500)
         } else {
           toast.success("Role do usuário atualizada")

@@ -25,15 +25,7 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 
-interface PlatformState {
-  setActiveTab?: (tab: string) => void
-}
-
-interface ProjectsProps {
-  platformState?: PlatformState
-}
-
-export default function Projects({ platformState }: ProjectsProps) {
+export default function Projects() {
   const router = useRouter()
   const { user } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
@@ -212,10 +204,7 @@ export default function Projects({ platformState }: ProjectsProps) {
 
 
   const handleProjectClick = (projectId: string) => {
-    const params = new URLSearchParams()
-    params.set('tab', 'projects')
-    params.set('id', projectId)
-    router.push(`/?${params.toString()}`)
+    router.push(`/projects/${projectId}`)
   }
 
   const openDeleteDialog = (project: Project) => {
@@ -293,7 +282,7 @@ export default function Projects({ platformState }: ProjectsProps) {
         <div className="flex items-center space-x-2 text-sm">
           <button
             type="button"
-            onClick={() => router.push('/?tab=home')}
+            onClick={() => router.push('/home')}
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Início
@@ -301,7 +290,7 @@ export default function Projects({ platformState }: ProjectsProps) {
           <ChevronRight className="h-4 w-4 text-gray-400" />
           <button
             type="button"
-            onClick={() => router.push('/?tab=projects')}
+            onClick={() => router.push('/projects')}
             className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
           >
             Projetos
@@ -360,7 +349,6 @@ export default function Projects({ platformState }: ProjectsProps) {
           <ProjectForm
             open={isCreateDialogOpen}
             onOpenChange={setIsCreateDialogOpen}
-            platformState={platformState}
             onSaved={loadProjects}
           />
         </div>
