@@ -289,7 +289,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         params.delete('installation_id')
         const newQuery = params.toString()
         if (newQuery !== searchParams.toString()) {
-          router.replace(newQuery ? `/?${newQuery}` : '/')
+          router.replace(`/projects/${projectId}`)
         }
       })
     }

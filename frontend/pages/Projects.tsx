@@ -204,10 +204,7 @@ export default function Projects() {
 
 
   const handleProjectClick = (projectId: string) => {
-    const params = new URLSearchParams()
-    params.set('tab', 'projects')
-    params.set('id', projectId)
-    router.push(`/?${params.toString()}`)
+    router.push(`/projects/${projectId}`)
   }
 
   const openDeleteDialog = (project: Project) => {

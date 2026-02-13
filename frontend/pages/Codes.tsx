@@ -151,12 +151,8 @@ export default function Codes() {
 
   // Manter URL sincronizada com a paginação atual
   useEffect(() => {
-    // Se o usuário está navegando para outra tab, NÃO forçar tab=codes de volta.
-    const currentTab = searchParams?.get('tab') || 'home'
-    if (currentTab !== 'codes') return
-
     const params = new URLSearchParams(searchParams?.toString() || '')
-    // Só persistimos page na aba codes (não tocar no param tab aqui)
+    params.delete('tab')
     if (cardFeatures.currentPage <= 1) {
       params.delete('page')
     } else {
