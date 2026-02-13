@@ -301,17 +301,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     isRetry = false
   ) => {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N1',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:start',message:'load repos requested',data:{projectId,installationId,isRetry,isAuthenticated},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       setLoadingRepos(true)
       handleRepoDialogChange(true)
 
       const response = await projectService.listGithubRepos(installationId)
       if (response?.success && response.data) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N1',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:success',message:'load repos success',data:{projectId,repoCount:response.data.length,isRetry},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         setAvailableRepos(response.data.map((repo: { owner: { login: string }; name: string; full_name: string; default_branch: string }) => ({
           owner: repo.owner.login,
           name: repo.name,
@@ -320,17 +314,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         })))
         onSuccess?.()
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N2',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:unexpected',message:'load repos non-success response',data:{projectId,isRetry,hasResponse:Boolean(response),success:response?.success ?? null,error:response?.error ?? null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         toast.error('Erro ao carregar repositórios')
         handleRepoDialogChange(false)
       }
     } catch (error: unknown) {
       const err = error as { statusCode?: number }
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N2',location:'frontend/pages/ProjectDetail.tsx:loadAvailableRepos:catch',message:'load repos failed',data:{projectId,isRetry,statusCode:err?.statusCode ?? null,errorName:error instanceof Error ? error.name : typeof error,errorMessage:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (err?.statusCode === 401 && !isRetry) {
         await new Promise(r => setTimeout(r, 800))
         return loadAvailableRepos(installationId, onSuccess, true)
@@ -373,9 +361,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       }, ...prev].slice(0, 120))
       lastProgressSignatureRef.current = null
       showStatus('info', 'Conectando repositório e iniciando importação...')
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N3',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:start',message:'connect repo requested',data:{projectId,selectedRepo,installationId:Number(installationId)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       const response = await projectService.connectRepo(projectId, {
         installationId: Number(installationId),
         owner: repo.owner,
@@ -384,9 +369,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       })
 
       if (response?.success) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N3',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:success',message:'connect repo success',data:{projectId,selectedRepo},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         toast.success('Repositório conectado com sucesso!')
         setGitSyncProgressEvents((prev) => [{
           id: `connect-success-${Date.now()}-${crypto.randomUUID()}`,
@@ -399,9 +381,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         await loadSyncStatus()
         sessionStorage.removeItem('gitsync_installation_id')
       } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N4',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:non-success',message:'connect repo non-success response',data:{projectId,selectedRepo,error:response?.error ?? null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         toast.error(response?.error || 'Erro ao conectar repositório')
         setGitSyncProgressEvents((prev) => [{
           id: `connect-non-success-${Date.now()}-${crypto.randomUUID()}`,
@@ -414,9 +393,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       }
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error, 'Erro ao conectar repositório')
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/62bce363-02cc-4065-932e-513e49bd2fed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gitsync-connect-debug',hypothesisId:'N4',location:'frontend/pages/ProjectDetail.tsx:handleConnectRepo:catch',message:'connect repo failed',data:{projectId,selectedRepo,errorName:error instanceof Error ? error.name : typeof error,errorMessage},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       toast.error(errorMessage)
       setGitSyncProgressEvents((prev) => [{
         id: `connect-error-${Date.now()}-${crypto.randomUUID()}`,
