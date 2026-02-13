@@ -190,28 +190,6 @@ export default function Contents() {
     router.push(`/contents/${tutorial.id}?tab=tutorials`)
   }, [router])
 
-  // Sync URL with state (posts pagination)
-  useEffect(() => {
-    if (contentsTab !== 'posts') return
-    const currentTab = searchParams?.get('tab') || 'home'
-    if (currentTab !== 'contents') return
-
-    const params = new URLSearchParams(searchParams?.toString() || '')
-    params.delete('type')
-    if (cardFeatures.currentPage > 1) {
-      params.set('page', String(cardFeatures.currentPage))
-    } else {
-      params.delete('page')
-    }
-    const qs = params.toString()
-    const newUrl = qs ? `/?${qs}` : '/'
-    const currentUrl = searchParams?.toString() ? `/?${searchParams.toString()}` : '/'
-
-    if (newUrl !== currentUrl) {
-      router.replace(newUrl, { scroll: false })
-    }
-  }, [cardFeatures.currentPage, searchParams, router, contentsTab])
-
   useEffect(() => {
     if (!didInitRef.current) {
       didInitRef.current = true
