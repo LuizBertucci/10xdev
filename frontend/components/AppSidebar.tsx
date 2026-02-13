@@ -8,11 +8,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
 import { Crown, LogOut, PanelLeft, Maximize2, Minimize2, MousePointerClick, Check } from "lucide-react"
+import { ROUTES, type TabKey } from '@/utils/routes'
 
-type SidebarMode = 'expanded' | 'collapsed' | 'hover'
-type TabKey = 'home' | 'codes' | 'contents' | 'projects' | 'admin'
-
-// Mapeamento de rotas para tabs
 const ROUTE_TO_TAB: Record<string, TabKey> = {
   '/home': 'home',
   '/codes': 'codes',
@@ -21,13 +18,7 @@ const ROUTE_TO_TAB: Record<string, TabKey> = {
   '/admin': 'admin'
 }
 
-const TAB_ROUTES: Record<TabKey, string> = {
-  home: '/home',
-  codes: '/codes',
-  contents: '/contents',
-  projects: '/projects',
-  admin: '/admin'
-}
+type SidebarMode = 'expanded' | 'collapsed' | 'hover'
 
 function AppSidebar() {
   const router = useRouter()
@@ -120,7 +111,7 @@ function AppSidebar() {
   ], [isAdmin])
 
   const handleNavClick = React.useCallback((key: TabKey) => {
-    router.push(TAB_ROUTES[key])
+    router.push(ROUTES[key])
     // Fecha a sidebar no mobile após clicar
     if (isMobile) {
       setOpenMobile(false)
