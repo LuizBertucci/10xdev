@@ -715,10 +715,3 @@ export default function Codes() {
   )
 }
 
-// Disable static generation for this page
-export async function getServerSideProps() {
-  return {
-    props: {}
-  }
-}
-
