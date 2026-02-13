@@ -20,6 +20,13 @@ export default function ImportGithubTokenPage() {
   const [message, setMessage] = useState('')
   const [pendingRedirect, setPendingRedirect] = useState<PendingRedirect | null>(null)
   const hasRedirectedRef = useRef(false)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     // Guard: verificar se searchParams está disponível (pode ser null durante SSR/hidratação)
@@ -137,9 +144,12 @@ export default function ImportGithubTokenPage() {
       })
 
       // Pequeno delay para UX (mostra mensagem de sucesso)
-      setTimeout(() => {
-        router.push(`/projects?${params.toString()}`)
+      const timeoutId = setTimeout(() => {
+        if (isMountedRef.current) {
+          router.push(`/projects?${params.toString()}`)
+        }
       }, 1500)
+      return () => clearTimeout(timeoutId)
     } catch (error: unknown) {
       console.error('Erro na validação:', error)
       setStatus('error')
