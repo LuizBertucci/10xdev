@@ -20,11 +20,27 @@ interface PackageJson {
   devDependencies?: Record<string, string>
 }
 
+export interface FileExclusionMetrics {
+  bySize: number
+  byIgnoredDir: number
+  byIgnoredFile: number
+  byUnsupportedExtension: number
+  byReadError: number
+  totalSkipped: number
+  samplePaths: string[]
+}
+
 // ================================================
 // CONFIGURATION
 // ================================================
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB por arquivo
+function getMaxFileSizeBytes(): number {
+  const mb = Number(process.env.GITHUB_IMPORT_MAX_FILE_SIZE_MB)
+  if (mb > 0) return mb * 1024 * 1024
+  const bytes = Number(process.env.GITHUB_IMPORT_MAX_FILE_SIZE_BYTES)
+  if (bytes > 0) return bytes
+  return 10 * 1024 * 1024 // 10MB default
+}
 
 const CODE_EXTENSIONS = [
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
@@ -39,26 +55,55 @@ const CODE_EXTENSIONS = [
   '.dockerfile', '.env'
 ]
 
-const IGNORED_DIRS = [
+const IGNORED_DIRS_BASE = [
   'node_modules', '.git', 'dist', 'build', '.next', '__pycache__',
   '.venv', 'venv', '.idea', '.vscode', 'coverage', '.cache', '.turbo',
   'vendor', '.yarn', '.pnpm', 'out', '.output', 'target', 'bin', 'obj',
-  '__tests__', '__mocks__', 'test', 'tests', 'spec', 'specs', 'e2e',
-  'cypress', 'playwright', '.github', '.husky'
+  '.husky'
 ]
 
-const IGNORED_FILES = [
+const IGNORED_DIRS_OPTIONAL = {
+  tests: ['__tests__', '__mocks__', 'test', 'tests', 'spec', 'specs', 'e2e', 'cypress', 'playwright'],
+  workflows: ['.github']
+}
+
+const IGNORED_FILES_BASE = [
   'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.DS_Store',
   'thumbs.db', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc',
-  '.prettierrc', '.prettierignore', '.eslintrc', '.eslintrc.js',
-  '.eslintrc.json', 'eslint.config.js', 'eslint.config.mjs',
-  'jest.config.js', 'jest.config.ts', 'vitest.config.ts',
-  'vite.config.ts', 'vite.config.js', 'next.config.js', 'next.config.mjs',
-  'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js',
-  'postcss.config.mjs', '.env.example', '.env.local', '.env.development',
+  '.prettierrc', '.prettierignore', '.env.example', '.env.local', '.env.development',
   '.env.production', 'LICENSE', 'LICENSE.md', 'CHANGELOG.md',
   'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', '.editorconfig'
 ]
+
+const IGNORED_FILES_CONFIG_OPTIONAL = [
+  '.eslintrc', '.eslintrc.js', '.eslintrc.json', 'eslint.config.js', 'eslint.config.mjs',
+  'jest.config.js', 'jest.config.ts', 'vitest.config.ts',
+  'vite.config.ts', 'vite.config.js', 'next.config.js', 'next.config.mjs',
+  'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js', 'postcss.config.mjs'
+]
+
+function getIgnoredDirs(): string[] {
+  const dirs = [...IGNORED_DIRS_BASE]
+  if (process.env.GITHUB_IMPORT_INCLUDE_TESTS !== 'true') {
+    dirs.push(...IGNORED_DIRS_OPTIONAL.tests)
+  }
+  if (process.env.GITHUB_IMPORT_INCLUDE_WORKFLOWS !== 'true') {
+    dirs.push(...IGNORED_DIRS_OPTIONAL.workflows)
+  }
+  const extra = process.env.GITHUB_IMPORT_IGNORED_DIRS?.split(',').map(s => s.trim()).filter(Boolean)
+  if (extra?.length) dirs.push(...extra)
+  return dirs
+}
+
+function getIgnoredFiles(): string[] {
+  const files = [...IGNORED_FILES_BASE]
+  if (process.env.GITHUB_IMPORT_INCLUDE_CONFIGS !== 'true') {
+    files.push(...IGNORED_FILES_CONFIG_OPTIONAL)
+  }
+  const extra = process.env.GITHUB_IMPORT_IGNORED_FILES?.split(',').map(s => s.trim()).filter(Boolean)
+  if (extra?.length) files.push(...extra)
+  return files
+}
 
 /** Mapeamento de extensões de arquivo para linguagens de programação.
  *  Usado para syntax highlighting e detecção de tech stack. */
@@ -232,11 +277,51 @@ export class GithubService {
     throw new Error('Não foi possível baixar o repositório. Se for privado, informe um token.')
   }
 
-  private static extractFilesFromZip(zipBuffer: Buffer): { files: FileEntry[]; skippedPaths: string[] } {
+  /** Retorna motivo da exclusão ou null se o arquivo deve ser incluído. */
+  private static getSkipReason(
+    relativePath: string,
+    ignoredDirs: string[],
+    ignoredFiles: string[]
+  ): { reason: 'ignored_dir' | 'ignored_file' | 'unsupported_extension'; path: string } | null {
+    const parts = relativePath.split('/')
+    const dirsLower = new Set(ignoredDirs.map(d => d.toLowerCase()))
+    for (const part of parts) {
+      if (dirsLower.has(part.toLowerCase())) {
+        return { reason: 'ignored_dir', path: relativePath }
+      }
+    }
+    const fileName = parts[parts.length - 1] || ''
+    if (ignoredFiles.includes(fileName)) {
+      return { reason: 'ignored_file', path: relativePath }
+    }
+    const ext = this.getFileExtension(relativePath)
+    if (!CODE_EXTENSIONS.includes(ext)) {
+      return { reason: 'unsupported_extension', path: relativePath }
+    }
+    return null
+  }
+
+  private static extractFilesFromZip(zipBuffer: Buffer): {
+    files: FileEntry[]
+    skippedPaths: string[]
+    exclusionMetrics: FileExclusionMetrics
+  } {
+    const ignoredDirs = getIgnoredDirs()
+    const ignoredFiles = getIgnoredFiles()
     const zip = new AdmZip(zipBuffer)
     const entries = zip.getEntries()
     const files: FileEntry[] = []
     const skippedPaths: string[] = []
+    const metrics = {
+      bySize: 0,
+      byIgnoredDir: 0,
+      byIgnoredFile: 0,
+      byUnsupportedExtension: 0,
+      byReadError: 0,
+      totalSkipped: 0,
+      samplePaths: [] as string[]
+    }
+    const maxSamplePaths = 20
 
     for (const entry of entries) {
       if (entry.isDirectory) continue
@@ -244,9 +329,29 @@ export class GithubService {
       parts.shift()
       const relativePath = parts.join('/')
       if (!relativePath) continue
-      if (!this.shouldIncludeFile(relativePath)) continue
-      if (entry.header.size > MAX_FILE_SIZE) {
-        skippedPaths.push(`${relativePath} (tamanho excede limite)`)
+
+      const skipReason = this.getSkipReason(relativePath, ignoredDirs, ignoredFiles)
+      if (skipReason) {
+        if (skipReason.reason === 'ignored_dir') metrics.byIgnoredDir++
+        else if (skipReason.reason === 'ignored_file') metrics.byIgnoredFile++
+        else metrics.byUnsupportedExtension++
+        skippedPaths.push(`${relativePath} (${skipReason.reason})`)
+        if (metrics.samplePaths.length < maxSamplePaths) metrics.samplePaths.push(relativePath)
+        continue
+      }
+      if (entry.header.size > getMaxFileSizeBytes()) {
+        const includeAsMetadata = process.env.GITHUB_IMPORT_INCLUDE_LARGE_FILES_AS_METADATA === 'true'
+        if (includeAsMetadata) {
+          files.push({
+            path: relativePath,
+            content: `// Arquivo grande (${(entry.header.size / 1024).toFixed(0)}KB) - conteúdo omitido. Path: ${relativePath}`,
+            size: entry.header.size
+          })
+        } else {
+          metrics.bySize++
+          skippedPaths.push(`${relativePath} (tamanho excede limite)`)
+          if (metrics.samplePaths.length < maxSamplePaths) metrics.samplePaths.push(relativePath)
+        }
         continue
       }
       try {
@@ -254,12 +359,17 @@ export class GithubService {
         files.push({ path: relativePath, content, size: entry.header.size })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
+        metrics.byReadError++
         console.warn(`[GithubService] Arquivo ignorado: ${relativePath} - ${msg}`)
         skippedPaths.push(`${relativePath}: ${msg}`)
+        if (metrics.samplePaths.length < maxSamplePaths) metrics.samplePaths.push(relativePath)
       }
     }
 
-    return { files, skippedPaths }
+    metrics.totalSkipped = skippedPaths.length
+    const exclusionMetrics: FileExclusionMetrics = { ...metrics }
+
+    return { files, skippedPaths, exclusionMetrics }
   }
 
   // ================================================
@@ -280,13 +390,7 @@ export class GithubService {
   }
 
   private static shouldIncludeFile(path: string): boolean {
-    const parts = path.split('/')
-    for (const part of parts) {
-      if (IGNORED_DIRS.includes(part.toLowerCase())) return false
-    }
-    const fileName = parts[parts.length - 1] || ''
-    if (IGNORED_FILES.includes(fileName)) return false
-    return CODE_EXTENSIONS.includes(this.getFileExtension(path))
+    return this.getSkipReason(path, getIgnoredDirs(), getIgnoredFiles()) === null
   }
 
   private static detectTech(files: FileEntry[], packageJson?: PackageJson): string {
@@ -458,7 +562,14 @@ export class GithubService {
     token?: string,
     options?: {
       useAi?: boolean
-      onProgress?: (update: { step: string; progress?: number; message?: string; cardEstimate?: number; cardCount?: number }) => void
+      onProgress?: (update: {
+        step: string
+        progress?: number
+        message?: string
+        cardEstimate?: number
+        cardCount?: number
+        exclusionMetrics?: FileExclusionMetrics
+      }) => void
       onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
     }
   ): Promise<{
@@ -469,6 +580,7 @@ export class GithubService {
     filesSkipped?: number
     filesFailed?: number
     errorDetails?: string[]
+    exclusionMetrics?: FileExclusionMetrics
   }> {
     const notify = (step: string, progress: number, message: string, extra?: { cardEstimate?: number; cardCount?: number }) =>
       options?.onProgress?.({ step, progress, message, ...extra })
@@ -476,13 +588,21 @@ export class GithubService {
     notify('downloading_zip', 5, 'Baixando o repositório do GitHub...')
     const zipBuffer = await this.downloadRepoAsZip(url, token)
 
-    const { files, skippedPaths } = this.extractFilesFromZip(zipBuffer)
+    const { files, skippedPaths, exclusionMetrics } = this.extractFilesFromZip(zipBuffer)
     const filesSkipped = skippedPaths.length
     if (files.length === 0) {
       const hint = filesSkipped > 0 ? ` (${filesSkipped} arquivo(s) ignorado(s))` : ''
       throw new Error(`Nenhum arquivo de código encontrado no repositório.${hint}`)
     }
     const errorDetails: string[] = skippedPaths.length > 0 ? [...skippedPaths] : []
+    if (exclusionMetrics.totalSkipped > 0 && options?.onProgress) {
+      options.onProgress({
+        step: 'extracting_files',
+        progress: 10,
+        message: `Extraídos ${files.length} arquivos (${exclusionMetrics.totalSkipped} excluídos)`,
+        exclusionMetrics
+      })
+    }
 
     const totalFiles = files.length
     let filesProcessed = 0
@@ -559,17 +679,30 @@ export class GithubService {
           const screens: CardFeatureScreen[] = []
           for (const s of aiCard.screens) {
             const blocks: ContentBlock[] = []
-            for (const filePath of s.files) {
+            const screenName = (s.name || '').trim().toLowerCase()
+            const isSummaryScreen = screenName === 'resumo' || screenName === 'overview'
+            for (const filePath of s.files || []) {
               const file = files.find(ff => ff.path === filePath)
               if (!file) continue
               blocks.push(this.fileToBlock(file, blocks.length))
               filesProcessed++
             }
-            if (blocks.length === 0) continue
+            if (blocks.length === 0) {
+              if (isSummaryScreen && s.description?.trim()) {
+                blocks.push({
+                  id: randomUUID(),
+                  type: ContentType.TEXT,
+                  content: cleanMarkdown(s.description),
+                  order: 0
+                })
+              } else {
+                continue
+              }
+            }
             screens.push({
-              name: s.name,
+              name: s.name || 'Resumo',
               description: cleanMarkdown(s.description || ''),
-              route: s.files[0] || '',
+              route: s.files?.[0] || '',
               blocks
             })
           }
@@ -592,7 +725,45 @@ export class GithubService {
           if (aiCard.tags && aiCard.tags.length > 0) {
             newCard.tags = normalizeTags(aiCard.tags)
           }
-          const cardWithSummary = this.addSummaryScreen(newCard)
+          let cardWithSummary = this.addSummaryScreen(newCard)
+          if (process.env.GITHUB_IMPORT_GENERATE_SUMMARY_AT_IMPORT === 'true') {
+            try {
+              const { summary } = await AiCardGroupingService.generateCardSummary({
+                cardTitle: cardWithSummary.title,
+                screens: cardWithSummary.screens.map(s => ({
+                  name: s.name || '',
+                  description: s.description || '',
+                  blocks: s.blocks.map(b => {
+                    const block: { type: ContentType; content: string; language?: string; title?: string; route?: string } = {
+                      type: b.type,
+                      content: b.content
+                    }
+                    if (b.language != null) block.language = b.language
+                    if (b.title != null) block.title = b.title
+                    if (b.route != null) block.route = b.route
+                    return block
+                  })
+                })),
+                ...(cardWithSummary.tech != null && { tech: cardWithSummary.tech }),
+                ...(cardWithSummary.language != null && { language: cardWithSummary.language })
+              })
+              const resumoIdx = cardWithSummary.screens.findIndex(s =>
+                (s.name || '').trim().toLowerCase() === 'resumo'
+              )
+              if (resumoIdx >= 0 && cardWithSummary.screens[resumoIdx]?.blocks?.[0]) {
+                cardWithSummary = {
+                  ...cardWithSummary,
+                  screens: cardWithSummary.screens.map((scr, i) =>
+                    i === resumoIdx
+                      ? { ...scr, blocks: [{ ...scr.blocks[0]!, content: summary }] }
+                      : scr
+                  )
+                }
+              }
+            } catch (summaryErr) {
+              console.warn('[GithubService] generateCardSummary falhou, usando resumo existente:', summaryErr)
+            }
+          }
           const validation = validateCard(cardWithSummary)
           if (!validation.valid) {
             console.error('[GithubService] Card IA inválido (pulando):', validation.errors)
@@ -646,7 +817,8 @@ export class GithubService {
         notify('generating_cards', 90, `${aiSummary} (${filesProcessed} arquivos)`, { cardEstimate: estimatedCards, cardCount: cards.length })
         return {
           cards, filesProcessed, aiUsed: true, aiCardsCreated,
-          ...(filesSkipped > 0 && { filesSkipped, errorDetails })
+          ...(filesSkipped > 0 && { filesSkipped, errorDetails }),
+          ...(exclusionMetrics.totalSkipped > 0 && { exclusionMetrics })
         }
       } catch (featureErr: unknown) {
         const msg = featureErr instanceof Error ? featureErr.message : String(featureErr)
