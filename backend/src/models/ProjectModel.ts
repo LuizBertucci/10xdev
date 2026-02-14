@@ -481,10 +481,9 @@ export class ProjectModel {
       }
 
       let cardsDeleted = 0
-      let cardIds: string[] = []
-      let warning: string | undefined
 
-// Se deleteCards=true, buscar IDs dos cards CRIADOS neste projeto ANTES de deletar o projeto
+      // Se deleteCards=true, buscar quantos cards CRIADOS neste projeto existem
+      // para retornar a contagem correta (CASCADE vai deletá-los automaticamente)
       if (deleteCards) {
         const { data: cards } = await executeQuery<{ id: string }[] | null>(
           supabaseAdmin
@@ -494,13 +493,12 @@ export class ProjectModel {
         )
 
         if (cards && cards.length > 0) {
-          cardIds = cards.map((c) => c.id)
+          cardsDeleted = cards.length
         }
       }
 
-      // CRÍTICO: Deletar o projeto PRIMEIRO
+      // Deletar o projeto - CASCADE vai deletar os cards automaticamente
       // Se isso falhar, nada foi modificado (fail-safe)
-      // As associações project_cards serão removidas por CASCADE do banco
       await executeQuery(
         supabaseAdmin
           .from('projects')
@@ -508,42 +506,9 @@ export class ProjectModel {
           .eq('id', id)
       )
 
-      // Após deletar o projeto com sucesso, deletar os cards se solicitado
-      // Se isso falhar, o projeto já foi deletado mas os cards permanecem
-      // (melhor que o inverso: perder cards mas manter projeto)
-      if (deleteCards && cardIds.length > 0) {
-        try {
-          const { count } = await executeQuery(
-            supabaseAdmin
-              .from('card_features')
-              .delete({ count: 'exact' })
-              .in('id', cardIds)
-          )
-          cardsDeleted = count || 0
-
-          // Detectar falha parcial: se deletou menos cards do que esperado
-          if (cardsDeleted < cardIds.length) {
-            warning = `Falha parcial ao deletar cards: ${cardsDeleted}/${cardIds.length} cards deletados`
-            console.warn(`Projeto ${id} deletado, mas apenas ${cardsDeleted} de ${cardIds.length} cards foram deletados`)
-          }
-        } catch (cardDeleteError: unknown) {
-          // Log detalhado do erro com contexto completo
-          const errorMessage = cardDeleteError instanceof Error ? cardDeleteError.message : 'Erro desconhecido'
-          console.error(
-            `Erro ao deletar cards após deletar projeto ${id}: ${errorMessage}. ` +
-            `Esperava deletar ${cardIds.length} cards (IDs: ${cardIds.slice(0, 5).join(', ')}${cardIds.length > 5 ? '...' : ''})`
-          )
-          warning = `Projeto deletado, mas falha ao deletar ${cardIds.length} cards associados: ${errorMessage}`
-        }
-      }
-
       return {
         success: true,
-        data: {
-          cardsDeleted,
-          ...(deleteCards && cardIds.length > 0 && { cardsExpected: cardIds.length }),
-          ...(warning && { warning })
-        },
+        data: { cardsDeleted },
         statusCode: 200
       }
     } catch (error: unknown) {

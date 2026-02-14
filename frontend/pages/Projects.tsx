@@ -369,7 +369,11 @@ export default function Projects() {
               Deletar Projeto
             </DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja deletar o projeto <strong>&quot;{projectToDelete?.name}&quot;</strong>? Esta ação não pode ser desfeita.
+              Tem certeza que deseja deletar o projeto <strong>&quot;{projectToDelete?.name}&quot;</strong>?
+              {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
+                <> Este projeto contém <strong>{projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''}</strong> que {(projectToDelete.cardsCreatedCount || 0) > 1 ? 'serão deletados' : 'será deletado'} permanentemente junto com o projeto.</>
+              )}
+              {' '}Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
 
