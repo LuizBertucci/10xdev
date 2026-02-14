@@ -119,20 +119,20 @@ type NormalizedScreen = { name: string; description: string; files: string[] }
 const PATH_PREFIX_TO_CARD: Array<{ match: RegExp | string; title: string; category: string }> = [
   { match: /constants/i, title: 'Constantes e Semântica', category: 'Configuração' },
   { match: /middleware/i, title: 'Middlewares', category: 'Infraestrutura' },
-  { match: /database|models|supabase/i, title: 'Acesso a Banco', category: 'Acesso a Dados' },
-  { match: /controllers|routes/i, title: 'Endpoints API', category: 'APIs REST' },
+  { match: /database|models|supabase/i, title: 'Camada de Persistência', category: 'Acesso a Dados' },
+  { match: /controllers|routes/i, title: 'Endpoints e Rotas API', category: 'APIs REST' },
   { match: /app\/admin|admin\//i, title: 'Painel Admin', category: 'Administrativo' },
-  { match: /components/i, title: 'Componentes', category: 'Componentes UI' },
-  { match: /scripts|\.claude/i, title: 'Scripts e Automação', category: 'Utilidades' },
+  { match: /components/i, title: 'Biblioteca de Componentes UI', category: 'Componentes UI' },
+  { match: /scripts|\.claude/i, title: 'Scripts e Ferramentas', category: 'Utilidades' },
   { match: /Dockerfile|docker-compose/i, title: 'Infraestrutura Docker', category: 'DevOps' },
-  { match: /package\.json|tsconfig|eslint|\.env/i, title: 'Configuração', category: 'Configuração' },
-  { match: /hooks/i, title: 'Hooks', category: 'Hooks e Estado' },
+  { match: /package\.json|tsconfig|eslint|\.env/i, title: 'Configuração do Projeto', category: 'Configuração' },
+  { match: /hooks/i, title: 'Hooks Customizados', category: 'Hooks e Estado' },
   { match: /services|lib|utils/i, title: 'Serviços e Utilitários', category: 'Utilidades' }
 ]
 
 /**
  * Last-resort: group missing files by path prefix and create multiple cards.
- * Avoids single monolithic "Outros" or triggering githubService fallback.
+ * Agrega por (title, category) para evitar múltiplos cards com mesmo título.
  */
 function createCardsFromPathGroups(missing: string[]): Array<{ title: string; description: string; category: string; screens: NormalizedScreen[] }> {
   const byPrefix = new Map<string, string[]>()
@@ -142,22 +142,32 @@ function createCardsFromPathGroups(missing: string[]): Array<{ title: string; de
     if (!byPrefix.has(prefix)) byPrefix.set(prefix, [])
     byPrefix.get(prefix)!.push(p)
   }
-  return Array.from(byPrefix.entries())
-    .filter(([, files]) => files.length > 0)
-    .map(([prefix, files]) => {
-      const pathStr = prefix.toLowerCase()
-      const rule = PATH_PREFIX_TO_CARD.find(r =>
-        typeof r.match === 'string' ? pathStr.includes(r.match) : r.match.test(prefix)
-      )
-      const title = rule?.title ?? `Arquivos - ${prefix.split('/').pop() || prefix}`
-      const category = rule?.category ?? 'Outros'
-      return {
-        title,
-        description: `Arquivos do diretório ${prefix}.`,
-        category,
-        screens: [{ name: 'Arquivos', description: '', files }] as NormalizedScreen[]
-      }
-    })
+  const byTitleCategory = new Map<string, { title: string; category: string; screens: NormalizedScreen[] }>()
+  for (const [prefix, files] of byPrefix) {
+    if (files.length === 0) continue
+    const pathStr = prefix.toLowerCase()
+    const rule = PATH_PREFIX_TO_CARD.find(r =>
+      typeof r.match === 'string' ? pathStr.includes(r.match) : r.match.test(prefix)
+    )
+    const title = rule?.title ?? `Arquivos - ${prefix.split('/').pop() || prefix}`
+    const category = rule?.category ?? 'Outros'
+    const key = `${title}::${category}`
+    if (!byTitleCategory.has(key)) {
+      byTitleCategory.set(key, { title, category, screens: [] })
+    }
+    const screenName = prefix.split('/').pop() || prefix
+    byTitleCategory.get(key)!.screens.push({
+      name: screenName,
+      description: '',
+      files
+    } as NormalizedScreen)
+  }
+  return Array.from(byTitleCategory.values()).map(({ title, category, screens }) => ({
+    title,
+    category,
+    description: `Arquivos dos diretórios: ${screens.map(s => s.name).join(', ')}.`,
+    screens
+  }))
 }
 
 /**
@@ -405,6 +415,34 @@ export class AiCardGroupingService {
     return { cards: [] }
   }
 
+  /** Mescla cards com título normalizado idêntico. Evita duplicatas da IA ou fallback. */
+  private static coalesceCardsByTitle(cards: AiCard[]): AiCard[] {
+    const byTitle = new Map<string, AiCard[]>()
+    const normalizeTitle = (t: string) => t.toLowerCase().replace(/\s+/g, ' ').trim()
+    for (const c of cards) {
+      const key = normalizeTitle(c.title || '')
+      if (!byTitle.has(key)) byTitle.set(key, [])
+      byTitle.get(key)!.push(c)
+    }
+    return Array.from(byTitle.values()).map(group => {
+      if (group.length === 1) return group[0]!
+      const allScreens = new Map<string, { desc: string; files: Set<string> }>()
+      for (const card of group) {
+        for (const s of (card.screens || []) as Array<{ name?: string; description?: string; files?: string[] }>) {
+          const name = s.name || 'Arquivos'
+          if (!allScreens.has(name)) allScreens.set(name, { desc: s.description || '', files: new Set() })
+          for (const f of s.files || []) allScreens.get(name)!.files.add(f)
+        }
+      }
+      return {
+        ...group[0]!,
+        screens: Array.from(allScreens.entries()).map(([name, { desc, files }]) =>
+          ({ name, description: desc, files: Array.from(files) })
+        )
+      } as AiCard
+    })
+  }
+
   /** Subdivide screens com >25 arquivos em várias screens temáticas. */
   private static expandOversizedScreens(cards: AiCard[]): AiCard[] {
     const MAX_FILES_PER_SCREEN = 25
@@ -456,6 +494,34 @@ export class AiCardGroupingService {
 
       return { ...card, screens: newScreens as unknown as AiCardScreen[] }
     })
+  }
+
+  /** Agrupa arquivos por prefixo de path (2-3 segmentos) para hints no prompt. */
+  private static buildPathGroupingHints(files: FileMeta[]): string {
+    const MIN_FILES_FOR_HINT = 8
+    const byPrefix = new Map<string, string[]>()
+    for (const f of files) {
+      const segments = f.path.split('/')
+      const prefix = segments.length <= 2 ? 'root' : segments.slice(0, 3).join('/')
+      if (!byPrefix.has(prefix)) byPrefix.set(prefix, [])
+      byPrefix.get(prefix)!.push(f.path)
+    }
+    const lines: string[] = []
+    for (const [prefix, paths] of byPrefix) {
+      if (paths.length < MIN_FILES_FOR_HINT) continue
+      const sample = paths.slice(0, 5).join(', ')
+      const more = paths.length > 5 ? `... +${paths.length - 5} mais` : ''
+      lines.push(`- ${prefix} (${paths.length} arquivos): ${sample}${more}`)
+    }
+    if (lines.length === 0) return ''
+    return [
+      '',
+      '## Sugestão de Agrupamento por Path (use como guia, não como obrigação)',
+      'Grupos com 8+ arquivos no mesmo diretório devem virar UM ÚNICO card com múltiplas screens — NÃO fragmente em vários cards genéricos.',
+      '',
+      ...lines,
+      ''
+    ].join('\n')
   }
 
   /** Consolida cards fragmentados (Configuração*, Skills Claude) em um único card. */
@@ -525,6 +591,9 @@ export class AiCardGroupingService {
       '{ "assignments": { "path/completo/arquivo.ts": "Título do Card", ... } }',
       '```',
       '',
+      '**Regra anti-duplicação:** Use NO MÁXIMO um título por tipo. Agrupe todos os arquivos relacionados sob o MESMO título.',
+      'Ex: todos os components → "Biblioteca de Componentes UI"; todos os hooks → "Hooks Customizados".',
+      '',
       'Para CADA path da lista abaixo, indique o título do card ao qual pertence (em português).',
       'O objeto assignments DEVE ter exatamente ' + allPaths.length + ' chaves — uma por arquivo.',
       '',
@@ -578,26 +647,40 @@ export class AiCardGroupingService {
     const MAX_CHARS_PER_FILE = Number(process.env.GITHUB_IMPORT_AI_MAX_CHARS_PER_FILE || 10000)
 
     const sortedFiles = [...params.files].sort((a, b) => a.path.localeCompare(b.path))
-    const filesTrimmed: FileMeta[] = []
-    for (const f of sortedFiles.slice(0, MAX_FILES)) {
-      const trimmed = (f.snippet || '').slice(0, MAX_CHARS_PER_FILE)
-      const imports = extractImportsFromSnippet(trimmed)
-      const exports = extractExportsFromSnippet(trimmed)
-      const hints = [
-        imports.length ? `// imports: ${imports.join(', ')}` : '',
-        exports.length ? `// exports: ${exports.join(', ')}` : ''
-      ].filter(Boolean).join('\n')
-      filesTrimmed.push({
-        path: f.path,
-        size: f.size,
-        snippet: trimmed + (hints ? `\n\n${hints}` : '')
-      })
+    const batches: FileMeta[][] = []
+    if (sortedFiles.length > MAX_FILES) {
+      for (let i = 0; i < sortedFiles.length; i += MAX_FILES) {
+        batches.push(sortedFiles.slice(i, i + MAX_FILES))
+      }
+      console.log(`[AiCardGroupingService] Batching: ${sortedFiles.length} arquivos em ${batches.length} lotes`)
+    } else {
+      batches.push(sortedFiles.slice(0, MAX_FILES))
     }
 
-    const graph = buildImportGraph(filesTrimmed)
-    const graphText = formatGraphForPrompt(graph)
+    const allCards: AiCard[] = []
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      const batchFiles = batches[batchIdx]!
+      const filesTrimmed: FileMeta[] = []
+      for (const f of batchFiles) {
+        const trimmed = (f.snippet || '').slice(0, MAX_CHARS_PER_FILE)
+        const imports = extractImportsFromSnippet(trimmed)
+        const exports = extractExportsFromSnippet(trimmed)
+        const hints = [
+          imports.length ? `// imports: ${imports.join(', ')}` : '',
+          exports.length ? `// exports: ${exports.join(', ')}` : ''
+        ].filter(Boolean).join('\n')
+        filesTrimmed.push({
+          path: f.path,
+          size: f.size,
+          snippet: trimmed + (hints ? `\n\n${hints}` : '')
+        })
+      }
 
-    const system = [
+      const graph = buildImportGraph(filesTrimmed)
+      const graphText = formatGraphForPrompt(graph)
+      const pathHints = this.buildPathGroupingHints(filesTrimmed)
+
+      const system = [
       'Você é um arquiteto de software especializado em organizar código de repositórios.',
       '',
       '## Tarefa',
@@ -634,9 +717,13 @@ export class AiCardGroupingService {
       '- "SyntaxHighlighter" (nome de componente interno, não categoria)',
       '- "Publichome" (nome de arquivo/página, não categoria)',
       '',
+      '## Definição de Feature',
+      '- Uma feature = uma funcionalidade de negócio completa (backend + frontend + testes da mesma área)',
+      '- Features distintas DEVEM virar cards distintos, mesmo que compartilhem keywords no path',
+      '',
       '## Regras de Agrupamento',
       '- Agrupe por **coesão semântica**: arquivos da mesma funcionalidade → 1 card',
-      '- Features distintas devem virar cards distintos',
+      '- Arquivos que compartilham >70% dos mesmos imports/exports tendem à mesma feature',
       '- Ex: "Auth Controller" + "Auth Service" + "Login Page" = 1 card "Sistema de Autenticação" (mesma feature)',
       '- Se arquivos estão no mesmo diretório/namespace, provavelmente são da mesma feature',
       '',
@@ -654,9 +741,10 @@ export class AiCardGroupingService {
       '- Crie quantos cards forem necessários para representar as features reais do repositório',
       '- Evite cards com menos de 3 arquivos (exceto features isoladas como server.ts)',
       '',
-      '## Anti-Fragmentação (CONSOLIDAR)',
-      '- **Configuração**: Cards "Configuração Frontend", "Backend", "Template", "Docker", "Projeto" → 1 card "Configuração e Infraestrutura" com screens por camada.',
-      '- **Skills Claude**: Cards "Skills N8N", "Skills Desenvolvimento", "Configurações de Agentes Claude" → 1 card "Skills e Configurações Claude" com screens por tipo.',
+      '## Anti-Fragmentação (consolidar apenas quando mesma feature)',
+      '- Só consolide quando for claramente a MESMA funcionalidade. Ex: "Importação GitHub" e "Agrupamento de Cards" são features distintas → cards distintos.',
+      '- **Configuração** (mesma feature): Cards "Configuração Frontend", "Backend", "Template", "Docker", "Projeto" → 1 card "Configuração e Infraestrutura" com screens por camada.',
+      '- **Skills Claude** (mesma feature): Cards "Skills N8N", "Skills Desenvolvimento", "Configurações de Agentes Claude" → 1 card "Skills e Configurações Claude" com screens por tipo.',
       '- **Componentes UI**: Se 30+ arquivos de componentes, OBRIGATORIAMENTE use várias screens (Buttons & Badges, Form Controls, Overlays) — NUNCA 1 screen "Arquivos" com tudo.',
       '',
       '## Cobertura Total (OBRIGATÓRIO)',
@@ -705,6 +793,23 @@ export class AiCardGroupingService {
       '❌ RUIM: Sub-detecção (features distintas em 1 card genérico)',
       '❌ RUIM: Sobre-fragmentação (1 card por arquivo)',
       '❌ RUIM: Nomes de arquivo como category',
+      '',
+      '## REGRA CRÍTICA: Títulos Únicos',
+      '- **NUNCA crie múltiplos cards com o mesmo título**',
+      '- Se você detectar que precisa de 2 cards "Componentes", isso é ERRO',
+      '- Em vez disso, crie 1 card "Sistema de Componentes UI" ou "Biblioteca de Componentes" com múltiplas abas',
+      '- Títulos PROIBIDOS (genéricos e causam fragmentação):',
+      '  - "Componentes" → use "Biblioteca de Componentes UI" ou "Sistema de Componentes UI"',
+      '  - "Hooks" → use "Hooks Customizados" ou "Utilitários React"',
+      '  - "Serviços" ou "Serviços e Utilitários" → use nome específico da feature',
+      '  - "Acesso a Banco" → use "Camada de Persistência" ou nome da feature',
+      '  - "Scripts e Automação" → use "Build Scripts", "Deploy Automation" ou nome específico',
+      '  - "Endpoints API" → use nome do domínio: "API de Autenticação", "API de Produtos"',
+      '  - "Configuração" → use "Configuração do Projeto" ou combine com feature relacionada',
+      '',
+      '- EXEMPLO CORRETO: 20 arquivos de componentes (Button.tsx, Input.tsx, Modal.tsx...)',
+      '  → 1 card "Biblioteca de Componentes UI" com abas: "Form Controls", "Layout", "Overlays"',
+      '- EXEMPLO ERRADO: 14 cards separados "Componentes #1", "Componentes #2"... NÃO FAÇA',
       '',
       '## Saída',
       'Retorne APENAS JSON válido com a chave "cards".'
@@ -819,6 +924,7 @@ export class AiCardGroupingService {
       `Tech: ${params.detectedTech}`,
       `Linguagem: ${params.detectedLanguage}`,
       '',
+      ...(pathHints ? [pathHints] : []),
       ...(graphText ? [
         '## Grafo de Dependências',
         'Arquivos que se importam tendem à mesma feature. Grupos com poucas conexões externas são boundaries naturais.',
@@ -880,7 +986,7 @@ export class AiCardGroupingService {
       const rawCount = Array.isArray(rawCards) ? rawCards.length : 0
 
       const normalized = this.normalizeAiOutput(parsed)
-      let cards = normalized?.cards ?? []
+      let cards = this.coalesceCardsByTitle(normalized?.cards ?? [])
       cards = this.expandOversizedScreens(cards)
       cards = this.mergeFragmentCards(cards)
       const normCount = cards.length
@@ -903,18 +1009,20 @@ export class AiCardGroupingService {
           missingCount: missing.length
         })
         if (assignmentsResult) {
-          return AiOutputSchema.parse(assignmentsResult)
+          const coalesced = this.coalesceCardsByTitle(assignmentsResult.cards as AiCard[])
+          const parsed = AiOutputSchema.parse({ cards: coalesced })
+          allCards.push(...(parsed.cards as AiCard[]))
+        } else {
+          const pathCards = createCardsFromPathGroups(missing)
+          const merged = this.coalesceCardsByTitle([...cards, ...pathCards])
+          console.warn(
+            `[AiCardGroupingService] Retry assignments falhou. Usando fallback path-based: ` +
+            `${pathCards.length} cards para ${missing.length} arquivos faltantes.`
+          )
+          allCards.push(...merged)
         }
-        const pathCards = createCardsFromPathGroups(missing)
-        const merged = [...cards, ...pathCards]
-        console.warn(
-          `[AiCardGroupingService] Retry assignments falhou. Usando fallback path-based: ` +
-          `${pathCards.length} cards para ${missing.length} arquivos faltantes.`
-        )
-        return AiOutputSchema.parse({ cards: merged })
-      }
-
-      console.log('[AiCardGroupingService] DIAGNÓSTICO OUTPUT:', {
+      } else {
+        console.log('[AiCardGroupingService] DIAGNÓSTICO OUTPUT:', {
         contentLength: content.length,
         rawCardsFromAI: rawCount,
         afterNormalize: normCount,
@@ -929,7 +1037,8 @@ export class AiCardGroupingService {
         })
       })
 
-      return AiOutputSchema.parse({ ...normalized, cards })
+        allCards.push(...cards)
+      }
     } catch (err: unknown) {
       console.error('[AiCardGroupingService] Erro LLM:', err instanceof Error ? err.message : String(err))
       const msg = String(err instanceof Error ? err.message : err)
@@ -950,7 +1059,7 @@ export class AiCardGroupingService {
         }
         
         const retryNormalized = this.normalizeAiOutput(retryParsed)
-        let retryCards = retryNormalized?.cards ?? []
+        let retryCards = this.coalesceCardsByTitle(retryNormalized?.cards ?? [])
         retryCards = this.expandOversizedScreens(retryCards)
         retryCards = this.mergeFragmentCards(retryCards)
         const retryAllPaths = filesTrimmed.map(f => f.path)
@@ -968,19 +1077,29 @@ export class AiCardGroupingService {
             allPaths: retryAllPaths,
             missingCount: retryMissing.length
           })
-          if (assignmentsResult) return AiOutputSchema.parse(assignmentsResult)
-          const pathCards = createCardsFromPathGroups(retryMissing)
-          const merged = [...retryCards, ...pathCards]
-          console.warn(
-            `[AiCardGroupingService] Retry assignments falhou. Fallback path-based: ` +
-            `${pathCards.length} cards para ${retryMissing.length} faltantes.`
-          )
-          return AiOutputSchema.parse({ cards: merged })
+          if (assignmentsResult) {
+            const coalesced = this.coalesceCardsByTitle(assignmentsResult.cards as AiCard[])
+            const parsed = AiOutputSchema.parse({ cards: coalesced })
+            allCards.push(...(parsed.cards as AiCard[]))
+          } else {
+            const pathCards = createCardsFromPathGroups(retryMissing)
+            const merged = this.coalesceCardsByTitle([...retryCards, ...pathCards])
+            console.warn(
+              `[AiCardGroupingService] Retry assignments falhou. Fallback path-based: ` +
+              `${pathCards.length} cards para ${retryMissing.length} faltantes.`
+            )
+            allCards.push(...merged)
+          }
+        } else {
+          allCards.push(...retryCards)
         }
-        return AiOutputSchema.parse({ ...retryNormalized, cards: retryCards })
+      } else {
+        throw err
       }
-      throw err
     }
+    }
+    const finalCards = this.coalesceCardsByTitle(allCards)
+    return AiOutputSchema.parse({ cards: finalCards })
   }
 
   static async generateCardSummary(params: {
