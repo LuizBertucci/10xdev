@@ -49,7 +49,7 @@ export class CardQualitySupervisor {
     options?: { onLog?: QualityLogHandler; conservativeMode?: boolean }
   ): QualityReport {
     const onLog = options?.onLog
-    const conservative = options?.conservativeMode ?? (process.env.GITHUB_IMPORT_SUPERVISOR_CONSERVATIVE === 'true')
+    const conservative = options?.conservativeMode ?? (process.env.GITHUB_IMPORT_SUPERVISOR_CONSERVATIVE !== 'false')
     this.emit(`[CardQualitySupervisor] Iniciando análise de qualidade de ${cards.length} cards${conservative ? ' (modo conservador)' : ''}`, onLog)
 
     const issues: QualityIssue[] = []
@@ -339,42 +339,82 @@ export class CardQualitySupervisor {
     return null
   }
 
+  private static levenshteinDistance(a: string, b: string): number {
+    const m = a.length
+    const n = b.length
+    const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+    for (let i = 0; i <= m; i++) dp[i]![0] = i
+    for (let j = 0; j <= n; j++) dp[0]![j] = j
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i]![j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1]![j - 1]!
+          : 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!)
+      }
+    }
+    return dp[m]![n]!
+  }
+
+  private static stringSimilarity(s1: string, s2: string): number {
+    if (s1 === s2) return 1
+    const [longer, shorter] = s1.length >= s2.length ? [s1, s2] : [s2, s1]
+    if (longer.length === 0) return 1
+    const dist = this.levenshteinDistance(longer, shorter)
+    return (longer.length - dist) / longer.length
+  }
+
   private static checkDuplicateTitles(
     cards: CreateCardFeatureRequest[],
     issues: QualityIssue[],
     cardsToMerge: Array<{ sourceIndex: number; targetIndex: number; reason: string }>,
     onLog?: QualityLogHandler
   ): void {
-    const titleMap = new Map<string, number[]>()
+    const threshold = Number(process.env.GITHUB_IMPORT_SIMILARITY_THRESHOLD) || 0.75
+    const titleGroups = new Map<string, number[]>()
 
     cards.forEach((card, index) => {
-      const normalizedTitle = this.normalizeString(card.title)
-      if (!titleMap.has(normalizedTitle)) {
-        titleMap.set(normalizedTitle, [])
-      }
-      titleMap.get(normalizedTitle)!.push(index)
+      const normalized = this.normalizeString(card.title)
+      if (!titleGroups.has(normalized)) titleGroups.set(normalized, [])
+      titleGroups.get(normalized)!.push(index)
     })
 
-    for (const [title, indices] of titleMap) {
-      if (indices.length > 1) {
-        this.emit(`[CardQualitySupervisor] Título duplicado encontrado: "${title}" (${indices.length} cards)`, onLog)
-
-        for (let i = 1; i < indices.length; i++) {
-          issues.push({
-            type: QualityIssueType.DUPLICATE_TITLE,
-            severity: 'high',
-            cardIndex: indices[i]!,
-            relatedCardIndex: indices[0]!,
-            message: `Card "${cards[indices[i]!]!.title}" tem título duplicado com card #${indices[0]!}`,
-            suggestion: 'Considerar merge dos cards'
-          })
-
-          cardsToMerge.push({
-            sourceIndex: indices[i]!,
-            targetIndex: indices[0]!,
-            reason: `Títulos idênticos: "${cards[indices[0]!]!.title}"`
-          })
+    const titles = Array.from(titleGroups.keys())
+    for (let i = 0; i < titles.length; i++) {
+      const ti = titles[i]!
+      if (!titleGroups.has(ti)) continue
+      for (let j = i + 1; j < titles.length; j++) {
+        const tj = titles[j]!
+        if (!titleGroups.has(tj)) continue
+        if (this.stringSimilarity(ti, tj) >= threshold) {
+          const gi = titleGroups.get(ti)!
+          const gj = titleGroups.get(tj)!
+          titleGroups.set(ti, [...gi, ...gj])
+          titleGroups.delete(tj)
         }
+      }
+    }
+
+    for (const [, indices] of titleGroups) {
+      if (indices.length <= 1) continue
+      const targetIndex = indices.reduce((best, idx) =>
+        this.countTotalFiles(cards[idx]!) > this.countTotalFiles(cards[best]!) ? idx : best
+      )
+      const sourceIndices = indices.filter(i => i !== targetIndex)
+      this.emit(`[CardQualitySupervisor] Título duplicado/similar encontrado: ${indices.length} cards`, onLog)
+      for (const src of sourceIndices) {
+        issues.push({
+          type: QualityIssueType.DUPLICATE_TITLE,
+          severity: 'high',
+          cardIndex: src,
+          relatedCardIndex: targetIndex,
+          message: `Card "${cards[src]!.title}" duplicado/similar a "${cards[targetIndex]!.title}"`,
+          suggestion: 'Merge automático'
+        })
+        cardsToMerge.push({
+          sourceIndex: src,
+          targetIndex,
+          reason: 'Título duplicado/similar'
+        })
       }
     }
   }
@@ -522,39 +562,47 @@ export class CardQualitySupervisor {
 
   static applyCorrections(
     cards: CreateCardFeatureRequest[],
-    report: QualityReport,
-    options?: { onLog?: QualityLogHandler }
+    _report: QualityReport,
+    options?: { onLog?: QualityLogHandler; maxIterations?: number }
   ): { correctedCards: CreateCardFeatureRequest[]; mergesApplied: number; cardsRemoved: number } {
     const onLog = options?.onLog
-    this.emit('[CardQualitySupervisor] Aplicando correções automáticas', onLog)
+    const maxIter = options?.maxIterations ?? 5
+    this.emit('[CardQualitySupervisor] Aplicando correções automáticas (modo recursivo)', onLog)
     this.emit(`Cards originais: ${cards.length}`, onLog)
-    this.emit(`Merges a aplicar: ${report.cardsToMerge.length}`, onLog)
-    this.emit(`Cards a remover: ${report.cardsToRemove.length}`, onLog)
 
-    let mergesApplied = 0
-    let cardsRemoved = 0
+    let workingCards = [...cards]
+    let totalMerges = 0
+    let totalRemoved = 0
 
-    const { mergedCards, mergeCount } = this.applyMerges(cards, report.cardsToMerge, onLog)
-    mergesApplied = mergeCount
-    let workingCards = mergedCards
+    for (let i = 0; i < maxIter; i++) {
+      const iterReport = this.analyzeQuality(workingCards, options)
+      if (iterReport.cardsToMerge.length === 0 && iterReport.cardsToRemove.length === 0) {
+        this.emit(`[CardQualitySupervisor] Convergiu após ${i} iteração(ões)`, onLog)
+        break
+      }
 
-    const { filteredCards, removeCount } = this.removeCards(workingCards, report.cardsToRemove)
-    cardsRemoved = removeCount
-    workingCards = filteredCards
+      const { mergedCards, mergeCount } = this.applyMerges(workingCards, iterReport.cardsToMerge, onLog)
+      const { filteredCards, removeCount } = this.removeCards(mergedCards, iterReport.cardsToRemove)
 
-    // Normalizar tags de todos os cards (safety-net final)
+      workingCards = filteredCards
+      totalMerges += mergeCount
+      totalRemoved += removeCount
+
+      this.emit(`[CardQualitySupervisor] Iteração ${i + 1}: ${mergeCount} merges, ${removeCount} removidos`, onLog)
+    }
+
     for (const card of workingCards) {
       if (card.tags) {
         card.tags = normalizeTags(card.tags)
       }
     }
 
-    this.emit(`[CardQualitySupervisor] Resultado: ${workingCards.length} cards (${mergesApplied} merges, ${cardsRemoved} removidos)`, onLog)
+    this.emit(`[CardQualitySupervisor] Resultado: ${workingCards.length} cards (${totalMerges} merges, ${totalRemoved} removidos)`, onLog)
 
     return {
       correctedCards: workingCards,
-      mergesApplied,
-      cardsRemoved
+      mergesApplied: totalMerges,
+      cardsRemoved: totalRemoved
     }
   }
 
