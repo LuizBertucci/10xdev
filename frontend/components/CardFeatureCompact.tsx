@@ -533,7 +533,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                           e.stopPropagation()
                           onExpand(snippet)
                         }}
-                        className="h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
+                        className="hidden md:inline-flex h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
                       >
                         <Expand className="h-3 w-3 mr-1" />
                         Tela cheia

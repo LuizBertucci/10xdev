@@ -234,21 +234,24 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
       )}
 
       <Dialog open={resolvedOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-4xl h-[520px] max-h-[520px]">
-          <DialogHeader>
+        <DialogContent className="max-w-sm md:max-w-4xl h-[80vh] md:h-[520px] max-h-[80vh] md:max-h-[520px] px-4 md:px-6">
+          <DialogHeader className="pb-2 md:pb-0">
             <DialogTitle>Sumário do Projeto</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs md:text-sm">
               Veja os cards organizados por categoria.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4 min-h-[320px]">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-2 md:gap-4 md:min-h-[320px]">
             <div className="space-y-2">
               <ProjectCategories
                 categories={summaryCategories}
                 counts={summaryCounts}
                 selectedCategory={selectedCategory}
-                onSelect={setSelectedCategory}
+                onSelect={(category) => {
+                  setSelectedCategory(category)
+                  handleOpenChange(false)
+                }}
                 allLabel={ALL_CATEGORIES_LABEL}
                 allValue={ALL_CATEGORIES_VALUE}
                 allCount={allSummaryCards.length}
@@ -257,14 +260,14 @@ export function ProjectSummary({ projectId, cardFeatures, isOpen, onOpenChange, 
                 emptyText="Sem categorias"
                 sortable
                 onOrderChange={handleOrderChange}
-                className="h-[420px] overflow-y-auto"
+                className="h-[calc(80vh-180px)] md:h-[420px] overflow-y-auto"
               />
               {savingOrder && (
-                <p className="text-xs text-gray-500 mt-2">Salvando ordem...</p>
+                <p className="hidden md:block text-xs text-gray-500 mt-2">Salvando ordem...</p>
               )}
             </div>
 
-            <div className="border rounded-lg p-3 max-h-[420px] overflow-y-auto">
+            <div className="hidden md:block border rounded-lg p-3 max-h-[calc(80vh-180px)] md:max-h-[420px] overflow-y-auto">
               {loading ? (
                 <p className="text-sm text-gray-500">Carregando cards...</p>
               ) : (() => {

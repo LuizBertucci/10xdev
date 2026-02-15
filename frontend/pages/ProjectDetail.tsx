@@ -24,7 +24,6 @@ import {
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureModal from "@/components/CardFeatureModal"
 import GitSyncProgressModal from "@/components/GitSyncProgressModal"
@@ -1272,51 +1271,38 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       {/* Tabs de navegação */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          {/* Botão toggle do Sumário - visível apenas na tab Códigos */}
-          {activeTab === 'codes' && (
-            <>
-              {/* Desktop: toggle simples do showCategories */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden md:inline-flex"
-                onClick={() => setShowCategories(prev => !prev)}
-              >
-                <List className="h-4 w-4 mr-2" />
-                {showCategories ? 'Ocultar' : 'Ver'} Sumário
-              </Button>
+          {/* Mobile: Painel de categorias condicional */}
+          {activeTab === 'codes' && isSummaryOpen && (
+            <div className="md:hidden">
+              <ProjectCategories
+                categories={orderedCategories}
+                counts={categoryGroups}
+                selectedCategory={selectedCategory}
+                onSelect={setSelectedCategory}
+                allLabel={ALL_CATEGORIES_LABEL}
+                allValue={ALL_CATEGORIES_VALUE}
+                allCount={uniqueCardFeatures.length}
+                loading={loadingCards}
+                loadingText="Carregando categorias..."
+                emptyText="Sem categorias"
+                sortable
+                onOrderChange={handleCategoryOrderChange}
+                className="max-h-[300px] overflow-y-auto"
+              />
+            </div>
+          )}
 
-              {/* Mobile: Collapsible com painel embutido */}
-              <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="w-full md:hidden">
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                  >
-                    <List className="h-4 w-4 mr-2" />
-                    {isSummaryOpen ? 'Ocultar' : 'Ver'} Sumário
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="mt-2">
-                  <ProjectCategories
-                    categories={orderedCategories}
-                    counts={categoryGroups}
-                    selectedCategory={selectedCategory}
-                    onSelect={setSelectedCategory}
-                    allLabel={ALL_CATEGORIES_LABEL}
-                    allValue={ALL_CATEGORIES_VALUE}
-                    allCount={uniqueCardFeatures.length}
-                    loading={loadingCards}
-                    loadingText="Carregando categorias..."
-                    emptyText="Sem categorias"
-                    sortable
-                    onOrderChange={handleCategoryOrderChange}
-                    className="max-h-[300px] overflow-y-auto"
-                  />
-                </CollapsibleContent>
-              </Collapsible>
-            </>
+          {/* Desktop: toggle simples do showCategories */}
+          {activeTab === 'codes' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden md:inline-flex"
+              onClick={() => setShowCategories(prev => !prev)}
+            >
+              <List className="h-4 w-4 mr-2" />
+              {showCategories ? 'Ocultar' : 'Ver'} Sumário
+            </Button>
           )}
 
           <div className="flex items-center gap-2 md:ml-auto">
@@ -1377,6 +1363,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                {activeTab === 'codes' && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => setIsSummaryOpen(prev => !prev)}
+                    title={isSummaryOpen ? 'Ocultar Sumário' : 'Ver Sumário'}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
               <ProjectSummary
