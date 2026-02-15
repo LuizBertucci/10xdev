@@ -35,7 +35,7 @@ export class CardFeatureModel {
     const userData = row.users || null
 
     // Derivar visibility a partir de is_private se não existir (compatibilidade)
-    const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+    const visibility = row.visibility || (row.is_private ? Visibility.UNLISTED : Visibility.PUBLIC)
 
     // IMPORTANTE: Usar nullish coalescing (??) ao invés de OR (||)
     // para não sobrescrever valores válidos como 'pending' ou 'rejected'
@@ -84,15 +84,12 @@ export class CardFeatureModel {
     //
     // IMPORTANTE: unlisted de OUTROS usuários NÃO aparece em listagens!
     // O acesso a unlisted de outros é apenas via link direto (findById)
-    if (userRole === 'admin') {
-      // Admin vê todos os cards - não aplica filtro base aqui
-    } else if (userId) {
-      // Usuário autenticado:
+    if (userId) {
+      // Usuário autenticado (incluindo admin):
       // - Público: somente aprovados (e, opcionalmente, os próprios pendentes quando filtrados)
-      // - Private/unlisted: somente do criador
+      // - Unlisted: somente do criador + compartilhados
       const conditions: string[] = [
         `and(visibility.eq.public,approval_status.eq.${ApprovalStatus.APPROVED})`,
-        `and(visibility.eq.private,created_by.eq.${userId})`,
         `and(visibility.eq.unlisted,created_by.eq.${userId})`,
         // Permite o usuário enxergar os próprios pendentes quando ele filtrar por pending
         `and(visibility.eq.public,approval_status.eq.${ApprovalStatus.PENDING},created_by.eq.${userId})`
@@ -122,10 +119,25 @@ export class CardFeatureModel {
     // Adicionar filtro por approval_status se fornecido nos params
     if (params.approval_status && params.approval_status !== 'all') {
       query = query.eq('approval_status', params.approval_status)
-      // Segurança extra: não-admin não pode listar pendentes de outros usuários
-      if (userRole !== 'admin' && params.approval_status === ApprovalStatus.PENDING && userId) {
+    }
+
+    // Filtro por ownership (apenas para "Seu Espaço" - visibility = unlisted)
+    // - created_by_me: apenas cards criados pelo usuário
+    // - shared_with_me: apenas cards compartilhados com o usuário
+    if (userId && (params.visibility === Visibility.UNLISTED || params.visibility === 'unlisted')) {
+      if (params.ownership === 'created_by_me') {
+        // Apenas cards criados pelo usuário
         query = query.eq('created_by', userId)
+      } else if (params.ownership === 'shared_with_me') {
+        // Apenas cards compartilhados (não os criados por ele)
+        if (sharedCardIds.length > 0) {
+          query = query.in('id', sharedCardIds).neq('created_by', userId)
+        } else {
+          // Se não tem compartilhamentos, retorna vazio
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000')
+        }
       }
+      // se ownership = 'all' ou não especificado, mantém a lógica padrão (criados + compartilhados)
     }
 
     // Filtros
@@ -201,7 +213,7 @@ export class CardFeatureModel {
       // e por padrão cria como UNLISTED (para usuários comuns).
       const visibility =
         data.visibility ||
-        (data.is_private ? Visibility.PRIVATE : Visibility.UNLISTED)
+        (data.is_private ? Visibility.UNLISTED : Visibility.UNLISTED)
 
       const now = new Date().toISOString()
 
@@ -233,7 +245,7 @@ export class CardFeatureModel {
         card_type: data.card_type || 'codigos',
         screens: processedScreens,
         created_by: userId,
-        is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
+        is_private: visibility === Visibility.UNLISTED, // LEGADO: mantido para compatibilidade
         visibility: visibility, // NOVO: usar visibility
         approval_status,
         approval_requested_at,
@@ -298,9 +310,8 @@ export class CardFeatureModel {
     try {
       // Para acesso DIRETO via link (findById):
       // - Admin vê todos
-      // - Unlisted: qualquer pessoa com o link pode ver
-      // - Public: qualquer pessoa pode ver
-      // - Private: apenas criador ou compartilhados
+      // - Public: qualquer pessoa pode ver (se aprovado)
+      // - Unlisted (Seu Espaço): apenas criador ou compartilhados
 
       // Primeiro, buscar o card SEM filtro de visibilidade
       const query = supabaseAdmin
@@ -320,7 +331,7 @@ export class CardFeatureModel {
       }
 
       // Derivar visibility a partir de is_private se não existir (compatibilidade)
-      const visibility = data.visibility || (data.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+      const visibility = data.visibility || (data.is_private ? Visibility.UNLISTED : Visibility.PUBLIC)
       const approvalStatus =
         data.approval_status ||
         (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
@@ -328,8 +339,6 @@ export class CardFeatureModel {
       // Verificar permissão baseado em visibility
       if (userRole === 'admin') {
         // Admin vê todos - OK
-      } else if (visibility === Visibility.UNLISTED) {
-        // Unlisted: qualquer pessoa com link pode ver - OK
       } else if (visibility === Visibility.PUBLIC) {
         // Public: apenas APPROVED é realmente público. Pending/Rejected só para criador.
         const isOwner = userId && data.created_by === userId
@@ -340,15 +349,25 @@ export class CardFeatureModel {
             statusCode: 403
           }
         }
-      } else if (visibility === Visibility.PRIVATE) {
-        // Private: apenas criador ou compartilhados
-        if (data.created_by !== userId) {
-          // TODO: Verificar se está nos compartilhados
-          // Por agora, apenas verifica se é o criador
-          return {
-            success: false,
-            error: 'Você não tem permissão para visualizar este card',
-            statusCode: 403
+      } else if (visibility === Visibility.UNLISTED) {
+        // Unlisted (Seu Espaço): apenas criador ou compartilhados
+        const isOwner = userId && data.created_by === userId
+        if (!isOwner) {
+          // Verificar se está nos compartilhados
+          const { data: share } = await executeQuery<{ id: string } | null>(
+            supabaseAdmin
+              .from('card_shares')
+              .select('id')
+              .eq('card_feature_id', id)
+              .eq('shared_with_user_id', userId)
+              .single()
+          )
+          if (!share) {
+            return {
+              success: false,
+              error: 'Você não tem permissão para visualizar este card',
+              statusCode: 403
+            }
           }
         }
       }
@@ -394,9 +413,9 @@ export class CardFeatureModel {
         matchedUserIds = users?.map((u: { id: string }) => u.id) || []
       }
 
-      // 2. Buscar IDs dos cards compartilhados com o usuário (se autenticado e não admin)
+      // 2. Buscar IDs dos cards compartilhados com o usuário
       let sharedCardIds: string[] = []
-      if (userId && userRole !== 'admin') {
+      if (userId) {
         try {
           const { data: shares } = await executeQuery<{ card_feature_id: string }[] | null>(
             supabaseAdmin
@@ -407,7 +426,6 @@ export class CardFeatureModel {
           sharedCardIds = shares?.map((s: { card_feature_id: string }) => s.card_feature_id).filter(Boolean) || []
         } catch (error) {
           console.error('Erro ao buscar cards compartilhados:', error)
-          // Continuar sem os cards compartilhados em caso de erro
         }
       }
 
@@ -858,7 +876,7 @@ export class CardFeatureModel {
         // e por padrão cria como UNLISTED (para usuários comuns) - mesma lógica do create
         const visibility =
           item.visibility ||
-          (item.is_private ? Visibility.PRIVATE : Visibility.UNLISTED)
+          (item.is_private ? Visibility.UNLISTED : Visibility.UNLISTED)
 
         // Regras de aprovação do diretório global (mesma lógica do create)
         let approvalStatus: ApprovalStatus = ApprovalStatus.NONE
@@ -888,7 +906,7 @@ export class CardFeatureModel {
           card_type: item.card_type || 'codigos',
           screens: processedScreens,
           created_by: userId,
-          is_private: visibility === Visibility.PRIVATE, // LEGADO: mantido para compatibilidade
+          is_private: visibility === Visibility.UNLISTED, // LEGADO: mantido para compatibilidade
           visibility: visibility, // NOVO: usar visibility
           approval_status: approvalStatus,
           approval_requested_at: approvalRequestedAt,
@@ -1001,7 +1019,7 @@ export class CardFeatureModel {
   // ================================================
 
   /**
-   * Compartilha um card privado com múltiplos usuários
+   * Compartilha um card de Seu Espaço com múltiplos usuários
    * Inspirado em ProjectModel.addMember
    */
   static async shareWithUsers(
@@ -1036,11 +1054,11 @@ export class CardFeatureModel {
         }
       }
 
-      // 3. Verificar se é privado
-      if (card.visibility !== 'private') {
+      // 3. Verificar se é unlisted (Seu Espaço) - pode ser compartilhado
+      if (card.visibility !== 'unlisted') {
         return {
           success: false,
-          error: 'Apenas cards privados podem ser compartilhados',
+          error: 'Apenas cards em Seu Espaço podem ser compartilhados',
           statusCode: 400
         }
       }

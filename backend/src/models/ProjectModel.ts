@@ -91,7 +91,7 @@ export class ProjectModel {
   }
 
   private static transformCardFeatureToResponse(row: CardFeatureRowWithUser): CardFeatureResponse {
-    const visibility = row.visibility || (row.is_private ? Visibility.PRIVATE : Visibility.PUBLIC)
+    const visibility = row.visibility || (row.is_private ? Visibility.UNLISTED : Visibility.PUBLIC)
     const approvalStatus =
       row.approval_status ??
       (visibility === Visibility.PUBLIC ? ApprovalStatus.APPROVED : ApprovalStatus.NONE)
