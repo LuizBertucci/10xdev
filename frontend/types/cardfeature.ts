@@ -29,9 +29,8 @@ export enum CardType {
  * Visibilidade do card
  */
 export enum Visibility {
-  PUBLIC = 'public',      // Aparece em listagens, qualquer um pode ver
-  PRIVATE = 'private',    // Só o criador (e compartilhados) pode ver
-  UNLISTED = 'unlisted'   // Não aparece em listagens, mas qualquer um com link pode ver
+  PUBLIC = 'public',      // Aparece em listagens públicas
+  UNLISTED = 'unlisted'  // Seu Espaço (owner + compartilhados)
 }
 
 /**
@@ -83,7 +82,7 @@ export interface CardFeature {
   screens: CardFeatureScreen[]  // Array de abas/arquivos
   createdBy?: string | null     // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   isPrivate?: boolean    // LEGADO: mantido para compatibilidade
-  visibility?: Visibility // NOVO: controle de visibilidade (public/private/unlisted)
+  visibility?: Visibility // NOVO: controle de visibilidade (public/unlisted)
   approvalStatus?: ApprovalStatus | string
   approvalRequestedAt?: string | null
   approvedAt?: string | null
@@ -129,7 +128,7 @@ export interface CreateCardFeatureData {
   card_type: CardType
   screens: CardFeatureScreen[]
   is_private?: boolean  // LEGADO: mantido para compatibilidade
-  visibility?: Visibility  // NOVO: controle de visibilidade (padrão: public)
+  visibility?: Visibility  // NOVO: controle de visibilidade (padrão: unlisted)
   approvalStatus?: ApprovalStatus | string
   created_in_project_id?: string  // ID do projeto onde será criado (opcional)
   // Campos opcionais para posts
