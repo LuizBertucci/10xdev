@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Search, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, Plus, FileJson, Globe, Lock, Link2, User, Pencil, Trash2 } from "lucide-react"
+import { Search, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, Plus, FileJson, Globe, Link2, User, Pencil, Trash2 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
@@ -113,7 +113,7 @@ export default function Codes() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [deletingSnippet, setDeletingSnippet] = useState<CardFeatureType | null>(null)
   const [selectedCardType, _setSelectedCardType] = useState<string>('codigos')
-  const [selectedDirectoryTab, setSelectedDirectoryTab] = useState<string>('approved')
+  const [selectedDirectoryTab, setSelectedDirectoryTab] = useState<string>('global')
   const [isCreatingJSON, setIsCreatingJSON] = useState(false)
   const [isCreatingJSONLoading, setIsCreatingJSONLoading] = useState(false)
   
@@ -122,17 +122,24 @@ export default function Codes() {
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
 
+  // Filtro de ownership para "Seu Espaço": all | created_by_me | shared_with_me
+  const [selectedOwnership, setSelectedOwnership] = useState<string>('all')
+
+  // Filtro de status para "Global": all | approved | pending
+  const [selectedGlobalStatus, setSelectedGlobalStatus] = useState<string>('all')
+
   const selectedVisibility =
-    selectedDirectoryTab === 'approved' || selectedDirectoryTab === 'validating'
+    selectedDirectoryTab === 'global'
       ? Visibility.PUBLIC
-      : (selectedDirectoryTab as Visibility)
+      : Visibility.UNLISTED
 
   const selectedApprovalStatus =
-    selectedDirectoryTab === 'approved'
-      ? ApprovalStatus.APPROVED
-      : selectedDirectoryTab === 'validating'
-        ? ApprovalStatus.PENDING
-        : 'all'
+    selectedDirectoryTab === 'global'
+      ? (selectedGlobalStatus === 'all' ? 'all' : selectedGlobalStatus)
+      : 'all'
+
+  const selectedOwnershipParam =
+    selectedDirectoryTab === 'seuEspaco' ? selectedOwnership : undefined
   
   // Estados locais para busca e filtro
   const [searchTerm, setSearchTerm] = useState<string>(searchParams?.get('search') || '')
@@ -144,6 +151,7 @@ export default function Codes() {
     selectedTech,
     selectedVisibility,
     selectedApprovalStatus,
+    selectedOwnership: selectedOwnershipParam,
     selectedCardType,
     setSearchTerm,
     setSelectedTech
@@ -376,8 +384,8 @@ export default function Codes() {
             />
           </div>
 
-          {/* Pencil Button (selection mode) - Only in unlisted/private tabs */}
-          {(selectedDirectoryTab === 'unlisted' || selectedDirectoryTab === 'private') && isProfileLoaded && isAuthed && (
+          {/* Pencil Button (selection mode) - Only in Seu Espaço */}
+          {selectedDirectoryTab === 'seuEspaco' && isProfileLoaded && isAuthed && (
             <Button
               onClick={handleToggleSelectionMode}
               disabled={cardFeatures.loading}
@@ -402,68 +410,82 @@ export default function Codes() {
           />
         </div>
 
-        {/* Visibility Tabs Row - Split into Global and Personal Groups */}
-        <Tabs value={selectedDirectoryTab} onValueChange={setSelectedDirectoryTab} className="w-full max-w-[900px] mx-auto mt-2 mb-6">
-          <div className="flex gap-3 sm:gap-6 items-end w-full">
-            {/* Group 1: Global Directory */}
-            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-              <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
-                <Globe className="h-3 w-3 mr-1 text-green-600/50" />
+        {/* Visibility Tabs Row - Simplified: Global + Seu Espaço */}
+        <Tabs value={selectedDirectoryTab} onValueChange={setSelectedDirectoryTab} className="w-full max-w-[900px] mx-auto mt-2 mb-4">
+          <div className="flex flex-col gap-3">
+            {/* Main tabs: Global / Seu Espaço */}
+            <TabsList className="h-10 w-full bg-white shadow-md rounded-lg p-1">
+              <TabsTrigger 
+                value="global" 
+                className="flex-1 gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm" 
+                disabled={cardFeatures.loading}
+              >
+                <Globe className="h-4 w-4" />
                 Global
-              </div>
-              <TabsList className="h-10 w-full grid grid-cols-2 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
-                <TabsTrigger 
-                  value="approved" 
-                  className="w-full text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 transition-all" 
-                  disabled={cardFeatures.loading}
-                >
-                  <div className="flex items-center justify-center">
-                    <BadgeCheck className="h-4 w-4 sm:mr-2 text-green-600" />
-                    <span className="hidden sm:inline">Aprovados</span>
-                  </div>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="validating" 
-                  className="w-full text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700 transition-all" 
-                  disabled={cardFeatures.loading}
-                >
-                  <div className="flex items-center justify-center">
-                    <ShieldCheck className="h-4 w-4 sm:mr-2 text-amber-600" />
-                    <span className="hidden sm:inline">Validando</span>
-                  </div>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            {/* Group 2: Personal Space */}
-            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-              <div className="flex items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 truncate">
-                <User className="h-3 w-3 mr-1 text-orange-600/50" />
+              </TabsTrigger>
+              <TabsTrigger 
+                value="seuEspaco" 
+                className="flex-1 gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm" 
+                disabled={cardFeatures.loading}
+              >
+                <User className="h-4 w-4" />
                 Seu Espaço
-              </div>
-              <TabsList className="h-10 w-full grid grid-cols-2 bg-gray-100 p-1 rounded-lg border border-gray-200/50">
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Sub-filters: Pendentes / Aprovados / Todos - only in Global */}
+            <Tabs value={selectedGlobalStatus} onValueChange={setSelectedGlobalStatus} className={`${selectedDirectoryTab === 'global' ? 'block' : 'hidden'} ml-auto`}>
+              <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
                 <TabsTrigger 
-                  value="unlisted" 
-                  className="text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 transition-all" 
-                  disabled={cardFeatures.loading}
+                  value="pending"
+                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700"
                 >
-                  <div className="flex items-center justify-center">
-                    <Link2 className="h-4 w-4 sm:mr-2 text-blue-600" />
-                    <span className="hidden sm:inline">Não Listados</span>
-                  </div>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Pendentes
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="private" 
-                  className="text-xs sm:text-sm h-8 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-orange-700 transition-all" 
-                  disabled={cardFeatures.loading}
+                  value="approved"
+                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700"
                 >
-                  <div className="flex items-center justify-center">
-                    <Lock className="h-4 w-4 sm:mr-2 text-orange-600" />
-                    <span className="hidden sm:inline">Privados</span>
-                  </div>
+                  <BadgeCheck className="h-3.5 w-3.5" />
+                  Aprovados
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="all"
+                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Todos
                 </TabsTrigger>
               </TabsList>
-            </div>
+            </Tabs>
+
+            {/* Sub-filters: Compartilhados / Criados / Todos - only in Seu Espaço */}
+            <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={`${selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'} ml-auto`}>
+              <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
+                <TabsTrigger 
+                  value="shared_with_me"
+                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-700"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Compartilhados
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="created_by_me"
+                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700"
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Criados por mim
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="all"
+                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Todos
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </Tabs>
       </div>
@@ -502,13 +524,13 @@ export default function Codes() {
         <div className="text-center py-12">
           <Code2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'global' || selectedGlobalStatus !== 'all'
               ? 'Nenhum snippet encontrado'
               : 'Nenhum card disponível'
             }
           </h3>
           <p className="text-gray-600">
-            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'approved'
+            {cardFeatures.searchTerm || cardFeatures.selectedTech !== 'all' || selectedDirectoryTab !== 'global' || selectedGlobalStatus !== 'all'
               ? 'Tente ajustar seus filtros de busca'
               : 'Ainda não há snippets de código disponíveis para visualização'
             }
@@ -544,7 +566,7 @@ export default function Codes() {
                     expandOnClick
                   />
 
-                  {selectedDirectoryTab === 'validating' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (
+                  {selectedDirectoryTab === 'global' && selectedGlobalStatus === 'pending' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleReject(snippet.id)}>
                         Rejeitar
