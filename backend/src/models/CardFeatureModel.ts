@@ -78,22 +78,28 @@ export class CardFeatureModel {
       .select('*', { count: 'exact', head })
 
     // Filtro de visibilidade para LISTAGENS:
-    // - Admin vê TODOS os cards (public + private + unlisted de todos)
+    // - Admin vê TODOS os cards (public + unlisted de todos + pendentes/rejeitados para moderação)
     // - Usuário autenticado vê: public + seus private + seus unlisted + compartilhados
     // - Não autenticado vê: apenas public
     //
     // IMPORTANTE: unlisted de OUTROS usuários NÃO aparece em listagens!
     // O acesso a unlisted de outros é apenas via link direto (findById)
     if (userId) {
-      // Usuário autenticado (incluindo admin):
+      // Usuário autenticado:
       // - Público: somente aprovados (e, opcionalmente, os próprios pendentes quando filtrados)
       // - Unlisted: somente do criador + compartilhados
       const conditions: string[] = [
         `and(visibility.eq.public,approval_status.eq.${ApprovalStatus.APPROVED})`,
         `and(visibility.eq.unlisted,created_by.eq.${userId})`,
-        // Permite o usuário enxergar os próprios pendentes quando ele filtrar por pending
+        // Permite o usuário enxergar os próprios pendentes
         `and(visibility.eq.public,approval_status.eq.${ApprovalStatus.PENDING},created_by.eq.${userId})`
       ]
+
+      // Admin também vê todos os pendentes e rejeitados (para moderação na aba "Validando")
+      if (userRole === 'admin') {
+        conditions.push(`and(visibility.eq.public,approval_status.eq.${ApprovalStatus.PENDING})`)
+        conditions.push(`and(visibility.eq.public,approval_status.eq.${ApprovalStatus.REJECTED})`)
+      }
 
       // Se houver cards compartilhados, adicionar condição para eles usando .in()
       if (sharedCardIds.length > 0) {
@@ -211,9 +217,7 @@ export class CardFeatureModel {
 
       // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private,
       // e por padrão cria como UNLISTED (para usuários comuns).
-      const visibility =
-        data.visibility ||
-        (data.is_private ? Visibility.UNLISTED : Visibility.UNLISTED)
+      const visibility = data.visibility || Visibility.UNLISTED
 
       const now = new Date().toISOString()
 
@@ -874,9 +878,7 @@ export class CardFeatureModel {
 
         // Derivar visibility: usa o campo visibility se fornecido, senão deriva de is_private,
         // e por padrão cria como UNLISTED (para usuários comuns) - mesma lógica do create
-        const visibility =
-          item.visibility ||
-          (item.is_private ? Visibility.UNLISTED : Visibility.UNLISTED)
+        const visibility = item.visibility || Visibility.UNLISTED
 
         // Regras de aprovação do diretório global (mesma lógica do create)
         let approvalStatus: ApprovalStatus = ApprovalStatus.NONE

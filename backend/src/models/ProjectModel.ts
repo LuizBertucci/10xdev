@@ -483,7 +483,7 @@ export class ProjectModel {
       let cardsDeleted = 0
 
       // Se deleteCards=true, buscar quantos cards CRIADOS neste projeto existem
-      // para retornar a contagem correta (CASCADE vai deletá-los automaticamente)
+      // para retornar a contagem correta (CASCADE deleta automaticamente)
       if (deleteCards) {
         const { data: cards } = await executeQuery<{ id: string }[] | null>(
           supabaseAdmin
