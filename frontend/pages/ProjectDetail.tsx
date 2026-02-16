@@ -1367,7 +1367,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 shrink-0"
+                    className="md:hidden h-9 w-9 shrink-0"
                     onClick={() => setIsSummaryOpen(prev => !prev)}
                     title={isSummaryOpen ? 'Ocultar Sumário' : 'Ver Sumário'}
                   >
