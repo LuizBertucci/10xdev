@@ -82,6 +82,7 @@ export interface FilterParams {
   search?: string
   visibility?: string
   approval_status?: string
+  ownership?: string
   card_type?: string
   content_type?: string
 }

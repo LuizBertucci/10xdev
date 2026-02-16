@@ -11,7 +11,8 @@
       "Bash(az account show:*)",
       "Bash(npx eslint:*)",
       "Bash(git fetch:*)",
-      "Bash(powershell.exe -Command:*)"
+      "Bash(powershell.exe -Command:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

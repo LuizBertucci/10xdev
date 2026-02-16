@@ -8,6 +8,8 @@
 .cursor/mcp.json
 .cursor/scratchpad.md
 
+.claude/settings.local.json
+
 # next.js
 /.next/
 /out/

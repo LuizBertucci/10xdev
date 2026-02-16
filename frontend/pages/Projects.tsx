@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
 
 export default function Projects() {
   const router = useRouter()
@@ -37,6 +36,7 @@ export default function Projects() {
   const [editingTemplate, setEditingTemplate] = useState<ProjectTemplate | null>(null)
   const [isTemplateAdmin, setIsTemplateAdmin] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
   const isFirstSearchEffect = useRef(true)
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
   const fallbackTemplate = useMemo<ProjectTemplate>(() => ({
@@ -56,7 +56,6 @@ export default function Projects() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [deleteCardsWithProject, setDeleteCardsWithProject] = useState(false)
 
   // Hook para detectar jobs de importação em andamento
   const projectIds = projects.map(p => p.id)
@@ -248,7 +247,7 @@ export default function Projects() {
     if (!projectToDelete) return
     try {
       setDeleting(true)
-      const response = await projectService.delete(projectToDelete.id, { deleteCards: deleteCardsWithProject })
+      const response = await projectService.delete(projectToDelete.id, { deleteCards: true })
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
         return
@@ -298,59 +297,24 @@ export default function Projects() {
         </div>
       </div>
 
-      {/* Templates */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Templates</h2>
-          <Button className="h-9 px-4 bg-gray-900 hover:bg-gray-800 text-white" onClick={openCreateTemplate}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Template
-          </Button>
-        </div>
-
-        {templatesLoading ? (
-          <div className="text-center py-6">
-            <p className="text-gray-500">Carregando templates...</p>
-          </div>
-        ) : templatesToShow.length === 0 ? (
-          <div className="text-center py-6">
-            <p className="text-gray-500">Nenhum template disponível</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {templatesToShow.map((template) => (
-              <TemplateCard
-                key={template.id}
-                template={template}
-                onDownload={handleDownloadTemplate}
-                onEdit={isTemplateAdmin ? openEditTemplate : undefined}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <TemplateForm
-        open={isTemplateDialogOpen}
-        mode={editingTemplate ? "edit" : "create"}
-        template={editingTemplate}
-        isAdmin={isTemplateAdmin}
-        onOpenChange={(open) => {
-          setIsTemplateDialogOpen(open)
-          if (!open) resetTemplateForm()
-        }}
-        onSaved={loadTemplates}
-      />
-
       {/* Projetos */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">Projetos</h2>
-          <ProjectForm
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-            onSaved={loadProjects}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="h-9 px-4"
+              onClick={() => setIsTemplatesModalOpen(true)}
+            >
+              Templates
+            </Button>
+            <ProjectForm
+              open={isCreateDialogOpen}
+              onOpenChange={setIsCreateDialogOpen}
+              onSaved={loadProjects}
+            />
+          </div>
         </div>
 
         {/* Search */}
@@ -403,30 +367,13 @@ export default function Projects() {
               Deletar Projeto
             </DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja deletar o projeto <strong>&quot;{projectToDelete?.name}&quot;</strong>? Esta ação não pode ser desfeita.
+              Tem certeza que deseja deletar o projeto <strong>"{projectToDelete?.name}"</strong>?
+              {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
+                <> Este projeto contém <strong>{projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''}</strong> que {(projectToDelete.cardsCreatedCount || 0) > 1 ? 'serão deletados' : 'será deletado'} permanentemente junto com o projeto.</>
+              )}
+              {' '}Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          
-          {/* Checkbox para deletar cards */}
-          {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
-            <div className="flex items-start gap-3 rounded-lg border-2 border-red-100 bg-red-50/50 p-4 my-2">
-              <Checkbox
-                id="delete-cards"
-                checked={deleteCardsWithProject}
-                onCheckedChange={(checked) => setDeleteCardsWithProject(checked === true)}
-                disabled={deleting}
-                className="mt-0.5"
-              />
-              <div className="space-y-1 flex-1">
-                <label htmlFor="delete-cards" className="text-sm font-medium leading-none text-red-900 cursor-pointer">
-                  Também excluir os {projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''} criados neste projeto
-                </label>
-                <p className="text-xs text-red-700 leading-relaxed">
-                  Os cards serão removidos permanentemente e não poderão ser recuperados. Cards apenas associados (não criados) ao projeto permanecerão intactos.
-                </p>
-              </div>
-            </div>
-          )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={deleting}>Cancelar</Button>
@@ -434,6 +381,66 @@ export default function Projects() {
               {deleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deletando...</> : <><Trash2 className="h-4 w-4 mr-2" />Deletar</>}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <TemplateForm
+        open={isTemplateDialogOpen}
+        mode={editingTemplate ? "edit" : "create"}
+        template={editingTemplate}
+        isAdmin={isTemplateAdmin}
+        onOpenChange={(open) => {
+          setIsTemplateDialogOpen(open)
+          if (!open) resetTemplateForm()
+        }}
+        onSaved={loadTemplates}
+      />
+
+      {/* Templates Modal */}
+      <Dialog open={isTemplatesModalOpen} onOpenChange={setIsTemplatesModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>Templates Disponíveis</DialogTitle>
+                <DialogDescription>
+                  Escolha um template para download ou crie novos templates (admin)
+                </DialogDescription>
+              </div>
+              {isTemplateAdmin && (
+                <Button
+                  className="h-9 px-4 bg-gray-900 hover:bg-gray-800 text-white"
+                  onClick={openCreateTemplate}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Template
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+            {templatesLoading ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Carregando templates...</p>
+              </div>
+            ) : templatesToShow.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Nenhum template disponível</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {templatesToShow.map((template) => (
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    onDownload={handleDownloadTemplate}
+                    onEdit={isTemplateAdmin ? openEditTemplate : undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

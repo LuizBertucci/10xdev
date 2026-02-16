@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Lock, Link2, Settings, Code2, Trash2, Upload, ExternalLink, Play } from "lucide-react"
+import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Link2, Settings, Code2, Trash2, Upload, ExternalLink, Play } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
@@ -23,7 +23,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
-  visibility: Visibility.PUBLIC, // Padrão: Público (vai para aprovação se não-admin)
+  visibility: Visibility.UNLISTED, // Padrão: Seu Espaço (owner + compartilhados)
   screens: [
     {
       name: 'Main',
@@ -262,7 +262,7 @@ export default function CardFeatureForm({
       description: initialData.description,
       content_type: initialData.content_type,
       card_type: initialData.card_type,
-      visibility: initialData.visibility ?? Visibility.PUBLIC,
+      visibility: initialData.visibility ?? Visibility.UNLISTED,
       screens: initialData.screens,
       // Campos opcionais para posts
       category: initialData.category,
@@ -350,7 +350,7 @@ export default function CardFeatureForm({
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
-        visibility: initialData.visibility ?? Visibility.PUBLIC,
+        visibility: initialData.visibility ?? Visibility.UNLISTED,
         screens: nextScreens,
         file_url: initialData.fileUrl,
         youtube_url: initialData.youtubeUrl,
@@ -878,13 +878,9 @@ export default function CardFeatureForm({
                           {formData.visibility === Visibility.UNLISTED && (
                             <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                           )}
-                          {formData.visibility === Visibility.PRIVATE && (
-                            <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
-                          )}
                           <span className="truncate">
                           {formData.visibility === Visibility.PUBLIC && "Público - enviar para validação"}
-                            {formData.visibility === Visibility.UNLISTED && "Não Listado"}
-                            {formData.visibility === Visibility.PRIVATE && "Privado"}
+                            {formData.visibility === Visibility.UNLISTED && "Seu Espaço"}
                           </span>
                         </div>
                       </SelectTrigger>
@@ -904,17 +900,8 @@ export default function CardFeatureForm({
                           <div className="flex items-center gap-2">
                             <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                             <div className="min-w-0">
-                              <div className="font-semibold text-xs">Não Listado</div>
-                              <div className="text-[10px] text-muted-foreground">Só quem tem o link pode ver</div>
-                            </div>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={Visibility.PRIVATE}>
-                          <div className="flex items-center gap-2">
-                            <Lock className="h-3.5 w-3.5 shrink-0 text-orange-600" />
-                            <div className="min-w-0">
-                              <div className="font-semibold text-xs">Privado</div>
-                              <div className="text-[10px] text-muted-foreground">Só você pode ver</div>
+                              <div className="font-semibold text-xs">Seu Espaço</div>
+                              <div className="text-[10px] text-muted-foreground">Você + compartilhados</div>
                             </div>
                           </div>
                         </SelectItem>

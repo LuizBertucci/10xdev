@@ -21,9 +21,8 @@ export enum CardType {
 
 // Enum para visibilidade do card
 export enum Visibility {
-  PUBLIC = 'public',      // Aparece em listagens, qualquer um pode ver
-  PRIVATE = 'private',    // Só o criador (e compartilhados) pode ver
-  UNLISTED = 'unlisted'   // Não aparece em listagens, mas qualquer um com link pode ver
+  PUBLIC = 'public',      // Aparece em listagens públicas
+  UNLISTED = 'unlisted'  // Seu Espaço (owner + compartilhados)
 }
 
 // Enum para status de aprovação do diretório global
@@ -66,7 +65,7 @@ export interface CardFeatureRow {
   screens: CardFeatureScreen[]
   created_by: string | null    // ID do usuário que criou o card (pode ser null quando autor é anônimo)
   is_private: boolean          // LEGADO: mantido para compatibilidade
-  visibility: Visibility       // NOVO: controle de visibilidade (public/private/unlisted)
+  visibility: Visibility       // NOVO: controle de visibilidade (public/unlisted)
   approval_status?: ApprovalStatus | string | null
   approval_requested_at?: string | null
   approved_at?: string | null
@@ -95,7 +94,7 @@ export interface CardFeatureInsert {
   screens: CardFeatureScreen[]
   created_by?: string          // ID do usuário (backend preenche automaticamente)
   is_private?: boolean         // LEGADO: mantido para compatibilidade
-  visibility?: Visibility      // NOVO: controle de visibilidade (padrão: public)
+  visibility?: Visibility      // NOVO: controle de visibilidade (padrão: unlisted)
   approval_status?: ApprovalStatus | string
   approval_requested_at?: string | null
   approved_at?: string | null
@@ -150,7 +149,7 @@ export interface CreateCardFeatureRequest {
   card_type: CardType
   screens: CardFeatureScreen[]
   is_private?: boolean         // LEGADO: mantido para compatibilidade
-  visibility?: Visibility      // NOVO: controle de visibilidade (padrão: public)
+  visibility?: Visibility      // NOVO: controle de visibilidade (padrão: unlisted)
   approval_status?: ApprovalStatus | string
   approval_requested_at?: string | null
   approved_at?: string | null
@@ -179,7 +178,7 @@ export interface CardFeatureResponse {
   createdBy: string | null     // ID do usuário que criou (camelCase para API). Pode ser null quando autor é anônimo
   author?: string | null       // Nome do usuário criador (vem do JOIN com users)
   isPrivate: boolean           // LEGADO: mantido para compatibilidade
-  visibility: Visibility       // NOVO: controle de visibilidade (public/private/unlisted)
+  visibility: Visibility       // NOVO: controle de visibilidade (public/unlisted)
   approvalStatus?: ApprovalStatus | string
   approvalRequestedAt?: string | null
   approvedAt?: string | null
@@ -221,6 +220,7 @@ export interface CardFeatureQueryParams {
   search?: string
   visibility?: string
   approval_status?: string
+  ownership?: string      // all | created_by_me | shared_with_me (para "Seu Espaço")
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'
 }

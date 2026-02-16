@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, Lock, ExternalLink, FileText, Video, Sparkles, Loader2, Expand } from "lucide-react"
+import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -222,7 +222,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       await onUpdate(snippet.id, { visibility: newVisibility })
       toast.success(`Visibilidade alterada para ${
         newVisibility === Visibility.PUBLIC ? 'Validando' :
-        newVisibility === Visibility.PRIVATE ? 'Privado' : 'Não Listado'
+        newVisibility === Visibility.UNLISTED ? 'Seu Espaço' : 'Público'
       }`)
     } catch {
       toast.error("Erro ao alterar visibilidade")
@@ -294,11 +294,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.UNLISTED)} className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-blue-600" />
-            <span>Não Listado</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.PRIVATE)} className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-orange-600" />
-            <span>Privado</span>
+            <span>Seu Espaço</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       )}
@@ -537,7 +533,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                           e.stopPropagation()
                           onExpand(snippet)
                         }}
-                        className="h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
+                        className="hidden md:inline-flex h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
                       >
                         <Expand className="h-3 w-3 mr-1" />
                         Tela cheia

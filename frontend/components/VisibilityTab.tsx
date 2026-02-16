@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { Lock, Link2, BadgeCheck, ShieldCheck } from "lucide-react"
+import { Link2, BadgeCheck, ShieldCheck } from "lucide-react"
 import { ApprovalStatus, Visibility } from "@/types"
 import { forwardRef } from "react"
 
@@ -23,7 +23,7 @@ const VisibilityTab = forwardRef<HTMLDivElement, VisibilityTabProps>(
     const iconClass = isSmall ? "h-2.5 w-2.5 mr-0.5" : "h-3 w-3 mr-1"
 
     // Lógica unificada: visibility prioriza isPrivate (legado)
-    const effectiveVisibility = visibility || (isPrivate ? Visibility.PRIVATE : Visibility.PUBLIC)
+    const effectiveVisibility = visibility || (isPrivate ? Visibility.UNLISTED : Visibility.PUBLIC)
 
     const renderBadge = (content: React.ReactNode, variantClass: string) => (
       <div ref={ref} {...props} className="inline-block">
@@ -53,21 +53,11 @@ const VisibilityTab = forwardRef<HTMLDivElement, VisibilityTabProps>(
       )
     }
 
-    if (effectiveVisibility === Visibility.PRIVATE) {
-      return renderBadge(
-        <>
-          <Lock className={iconClass} />
-          Privado
-        </>,
-        "border-orange-300 bg-orange-50 text-orange-700"
-      )
-    }
-
     if (effectiveVisibility === Visibility.UNLISTED) {
       return renderBadge(
         <>
           <Link2 className={iconClass} />
-          Não Listado
+          Seu Espaço
         </>,
         "border-blue-300 bg-blue-50 text-blue-700"
       )

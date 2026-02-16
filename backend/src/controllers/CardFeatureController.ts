@@ -74,6 +74,7 @@ export class CardFeatureController {
         search: req.query.search as string,
         visibility: req.query.visibility as string,
         approval_status: req.query.approval_status as string,
+        ownership: req.query.ownership as string,
         sortBy: req.query.sortBy as 'tech' | 'language' | 'created_at' | 'updated_at' | 'title',
         sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
