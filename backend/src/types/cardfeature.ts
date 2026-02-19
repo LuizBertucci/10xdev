@@ -78,6 +78,7 @@ export interface CardFeatureRow {
   youtube_url?: string        // URL do vídeo do YouTube
   video_id?: string          // ID do vídeo (extraído de youtube_url)
   thumbnail?: string          // URL da thumbnail
+  newsletter_url?: string     // URL da fonte original da newsletter
   created_at: string
   updated_at: string
 }
@@ -107,6 +108,7 @@ export interface CardFeatureInsert {
   youtube_url?: string        // URL do vídeo do YouTube
   video_id?: string          // ID do vídeo (extraído de youtube_url)
   thumbnail?: string          // URL da thumbnail
+  newsletter_url?: string     // URL da fonte original da newsletter
   created_at?: string
   updated_at?: string
 }
@@ -133,6 +135,7 @@ export interface CardFeatureUpdate {
   youtube_url?: string        // URL do vídeo do YouTube
   video_id?: string          // ID do vídeo (extraído de youtube_url)
   thumbnail?: string          // URL da thumbnail
+  newsletter_url?: string     // URL da fonte original da newsletter
   updated_at?: string
 }
 
@@ -162,6 +165,7 @@ export interface CreateCardFeatureRequest {
   youtube_url?: string        // URL do vídeo do YouTube
   video_id?: string          // ID do vídeo (extraído de youtube_url)
   thumbnail?: string          // URL da thumbnail
+  newsletter_url?: string     // URL da fonte original da newsletter
 }
 
 export interface UpdateCardFeatureRequest extends Partial<CreateCardFeatureRequest> {}
@@ -191,6 +195,7 @@ export interface CardFeatureResponse {
   youtubeUrl?: string         // URL do vídeo do YouTube (camelCase para API)
   videoId?: string           // ID do vídeo (camelCase para API)
   thumbnail?: string          // URL da thumbnail
+  newsletterUrl?: string      // URL da fonte original da newsletter (camelCase para API)
   createdAt: string
   updatedAt: string
 }

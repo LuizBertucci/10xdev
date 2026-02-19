@@ -684,6 +684,20 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   ) : (
                     <p className="text-sm text-gray-500 px-1 py-2">Nenhum conteúdo disponível</p>
                   )}
+                  {isSummaryTab && snippet.newsletterUrl && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <a
+                        href={snippet.newsletterUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Fonte original
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

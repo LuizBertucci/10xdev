@@ -95,6 +95,7 @@ export interface CardFeature {
   youtubeUrl?: string    // URL do vídeo do YouTube
   videoId?: string       // ID do vídeo (extraído de youtubeUrl)
   thumbnail?: string     // URL da thumbnail
+  newsletterUrl?: string // URL da fonte original da newsletter
   createdAt: string      // ISO string do backend
   updatedAt: string      // ISO string do backend
   author?: string        // Autor do card (opcional, mantido para compatibilidade)
@@ -138,6 +139,7 @@ export interface CreateCardFeatureData {
   youtube_url?: string   // URL do vídeo do YouTube
   video_id?: string      // ID do vídeo (extraído de youtube_url)
   thumbnail?: string     // URL da thumbnail
+  newsletter_url?: string // URL da fonte original da newsletter
 }
 
 /**
