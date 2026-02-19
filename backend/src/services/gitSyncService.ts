@@ -110,7 +110,6 @@ export class GitSyncService {
     userId: string,
     options?: {
       defaultBranch?: string
-      useAi?: boolean
       onProgress?: (step: string, progress: number, message: string) => Promise<void>
     }
   ): Promise<{ success: boolean; mappingsCreated: number; error?: string }> {
@@ -148,7 +147,6 @@ export class GitSyncService {
         files,
         repoUrl,
         {
-          useAi: options?.useAi || false,
           onProgress: async (p) => {
             if (options?.onProgress) {
               await options.onProgress(p.step, p.progress ?? 0, p.message ?? '')

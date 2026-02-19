@@ -59,7 +59,7 @@ export class ProjectController {
   /** POST /api/projects/import-from-github
    *  Cria projeto, responde 202, e processa import em background. */
   static importFromGithub = safeHandler(async (req, res) => {
-    const { url, token, name, description, useAi, installationId } = req.body as ImportFromGithubRequest
+    const { url, token, name, description, installationId } = req.body as ImportFromGithubRequest
     const userId = req.user!.id
     if (!url) throw badRequest('URL do repositório é obrigatória')
 
@@ -98,7 +98,7 @@ export class ProjectController {
       step: 'starting',
       progress: 0,
       message: 'Iniciando importação...',
-      ai_requested: useAi === true
+      ai_requested: true
     })
 
     res.status(202).json({
@@ -145,11 +145,10 @@ export class ProjectController {
           throw new Error('Nenhum arquivo de código encontrado no repositório.')
         }
 
-        const { cards, filesProcessed, aiUsed, aiCardsCreated } = await AiCardGroupingService.generateCardGroupsFromRepo(
+        const { cards, filesProcessed, aiCardsCreated } = await AiCardGroupingService.generateCardGroupsFromRepo(
           files,
           url,
           {
-            useAi: useAi === true,
             onProgress: async (p) => {
               await updateJob({
                 step: p.step as ImportJobStep,
@@ -196,7 +195,7 @@ export class ProjectController {
           message: 'Importação concluída.',
           cards_created: totalCardsCreated || cards.length,
           files_processed: totalFilesProcessed || filesProcessed,
-          ai_used: aiUsed,
+          ai_used: true,
           ai_cards_created: aiCardsCreated
         })
       } catch (e: unknown) {
@@ -459,7 +458,6 @@ export class ProjectController {
 
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
-    const useAi = process.env.GITHUB_IMPORT_USE_AI === 'true'
     const job = await ImportJobModel.create({
       project_id: id,
       created_by: req.user!.id,
@@ -467,7 +465,7 @@ export class ProjectController {
       step: 'starting',
       progress: 0,
       message: 'Iniciando conexão com o repositório...',
-      ai_requested: useAi
+      ai_requested: true
     })
 
     let lastProgress = 0
@@ -488,7 +486,6 @@ export class ProjectController {
         req.user!.id,
         {
           defaultBranch: defaultBranch || 'main',
-          useAi,
           onProgress: async (step, progress, message) => {
             await updateJob({
               step: step as ImportJobStep,
