@@ -3,6 +3,7 @@ import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
 import { GitSyncModel } from '@/models/GitSyncModel'
 import { GithubService } from '@/services/githubService'
+import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { GitSyncService } from '@/services/gitSyncService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
@@ -58,15 +59,21 @@ export class ProjectController {
   /** POST /api/projects/import-from-github
    *  Cria projeto, responde 202, e processa import em background. */
   static importFromGithub = safeHandler(async (req, res) => {
-    const { url, token, name, description, useAi } = req.body as ImportFromGithubRequest
+    const { url, token, name, description, installationId } = req.body as ImportFromGithubRequest
     const userId = req.user!.id
     if (!url) throw badRequest('URL do repositório é obrigatória')
+
+    // Obter token: usar installationId se disponível, senão usar token fornecido
+    let accessToken = token
+    if (!accessToken && installationId) {
+      accessToken = await GithubService.getInstallationToken(installationId)
+    }
 
     // Obter nome/descricao do repo (best-effort)
     let projectName = name
     let projectDescription = description
     if (!projectName) {
-      const repoInfo = await GithubService.getRepoDetails(url, token)
+      const repoInfo = await GithubService.getRepoDetails(url, accessToken)
       projectName = repoInfo.name
       projectDescription = projectDescription || repoInfo.description || undefined
     }
@@ -91,7 +98,7 @@ export class ProjectController {
       step: 'starting',
       progress: 0,
       message: 'Iniciando importação...',
-      ai_requested: useAi === true
+      ai_requested: true
     })
 
     res.status(202).json({
@@ -119,10 +126,29 @@ export class ProjectController {
 
       try {
         await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
-        const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-          url, token,
+
+        const repoInfo = GithubService.parseGithubUrl(url)
+        if (!repoInfo) {
+          throw new Error('URL do GitHub inválida')
+        }
+
+        // Obter token novamente (escopo correto)
+        let finalToken = accessToken
+        if (!finalToken && installationId) {
+          finalToken = await GithubService.getInstallationToken(installationId)
+        }
+
+        const branch = 'main'
+        const files = await GithubService.listRepoFiles(repoInfo.owner, repoInfo.repo, branch, finalToken || undefined)
+
+        if (files.length === 0) {
+          throw new Error('Nenhum arquivo de código encontrado no repositório.')
+        }
+
+        const { cards, filesProcessed, aiCardsCreated } = await AiCardGroupingService.generateCardGroupsFromRepo(
+          files,
+          url,
           {
-            useAi: useAi === true,
             onProgress: async (p) => {
               await updateJob({
                 step: p.step as ImportJobStep,
@@ -169,7 +195,7 @@ export class ProjectController {
           message: 'Importação concluída.',
           cards_created: totalCardsCreated || cards.length,
           files_processed: totalFilesProcessed || filesProcessed,
-          ai_used: aiUsed,
+          ai_used: true,
           ai_cards_created: aiCardsCreated
         })
       } catch (e: unknown) {
@@ -432,7 +458,6 @@ export class ProjectController {
 
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
-    const useAi = process.env.GITHUB_IMPORT_USE_AI === 'true'
     const job = await ImportJobModel.create({
       project_id: id,
       created_by: req.user!.id,
@@ -440,7 +465,7 @@ export class ProjectController {
       step: 'starting',
       progress: 0,
       message: 'Iniciando conexão com o repositório...',
-      ai_requested: useAi
+      ai_requested: true
     })
 
     let lastProgress = 0
@@ -461,7 +486,6 @@ export class ProjectController {
         req.user!.id,
         {
           defaultBranch: defaultBranch || 'main',
-          useAi,
           onProgress: async (step, progress, message) => {
             await updateJob({
               step: step as ImportJobStep,
