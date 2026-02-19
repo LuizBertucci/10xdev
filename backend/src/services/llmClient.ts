@@ -46,11 +46,26 @@ export async function callChatCompletions(args: {
   apiKey: string
   body: Record<string, unknown>
 }): Promise<{ content: string }> {
-  const res = await fetch(args.endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
-    body: JSON.stringify(args.body)
-  })
+  const timeoutMs = Number(process.env.LLM_TIMEOUT_MS) || 120_000
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  let res: Response
+  try {
+    res = await fetch(args.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
+      body: JSON.stringify(args.body),
+      signal: controller.signal
+    })
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`LLM timeout: requisição excedeu ${timeoutMs}ms`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
   const text = await res.text().catch((e) => {
     console.error('[llmClient] Erro ao ler body da resposta:', e?.message)
     return ''
