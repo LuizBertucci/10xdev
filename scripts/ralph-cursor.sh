@@ -125,9 +125,9 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   set +e
   if $USE_STANDALONE; then
     if [[ -n "$MODEL" ]]; then
-      $AGENT_BIN -p "$PROMPT_WITH_PROMISE" --output-format text --trust --model "$MODEL" 2>&1 | tee "$OUTPUT_TMP"
+      $AGENT_BIN -p "$PROMPT_WITH_PROMISE" --output-format text --trust --force --model "$MODEL" 2>&1 | tee "$OUTPUT_TMP"
     else
-      $AGENT_BIN -p "$PROMPT_WITH_PROMISE" --output-format text --trust 2>&1 | tee "$OUTPUT_TMP"
+      $AGENT_BIN -p "$PROMPT_WITH_PROMISE" --output-format text --trust --force 2>&1 | tee "$OUTPUT_TMP"
     fi
     EXIT_CODE=${PIPESTATUS[0]}
   else

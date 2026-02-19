@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Ralph loop para Claude CLI - estrutura mylab (branch origin/mylab).
-# Alternativas (PowerShell): .\scripts\ralph-cursor.ps1 | .\scripts\ralph-opencode.ps1
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
