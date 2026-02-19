@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { ContentType, CardType, Visibility } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
-import type { FileEntry } from './githubService'
+import type { FileEntry } from '@/services/githubService'
 import { cleanMarkdown } from '@/utils/markdownUtils'
 import { getFileExtension, getLanguageFromExtension } from '@/utils/fileFilters'
 
@@ -9,30 +9,30 @@ import { getFileExtension, getLanguageFromExtension } from '@/utils/fileFilters'
 // INTERFACES INTERNAS
 // ================================================
 
-export interface AiCardFile {
+export type AiCardFile = {
   path: string
   content?: string
 }
 
-export interface AiCardScreen {
+export type AiCardScreen = {
   name: string
   description: string
   files: AiCardFile[]
 }
 
-export interface AiCard {
+export type AiCard = {
   title?: string
   name?: string
   featureName?: string
   description?: string
   category?: string
-  tags?: string[] | string | unknown
-  tech?: string | unknown
-  language?: string | unknown
+  tags?: string[] | string
+  tech?: string
+  language?: string
   screens?: unknown
 }
 
-export interface AiOutput {
+export type AiOutput = {
   cards?: AiCard[]
 }
 
@@ -79,7 +79,7 @@ export function normalizeAiOutput(raw: unknown): AiOutput {
         const normalizedCard: AiCard = {
           title,
           description: cleanMarkdown(cardObj?.description || ''),
-          category: cleanMarkdown(String(cardObj?.category || (Array.isArray(cardObj?.tags) ? cardObj.tags[0] : 'Geral'))),
+          category: cleanMarkdown(String(cardObj?.category || (Array.isArray(cardObj?.tags) && cardObj.tags.length > 0 ? cardObj.tags[0] : 'Geral'))),
           screens: screens as unknown as AiCardScreen[]
         }
 

@@ -33,8 +33,9 @@ export function resolveChatCompletionsUrl(): string {
   if (raw.endsWith('/')) {
     const noSlash = raw.slice(0, -1)
     if (noSlash.endsWith('/v1')) return `${noSlash}/chat/completions`
+    return `${noSlash}/v1/chat/completions`
   }
-  return raw
+  return `${raw}/v1/chat/completions`
 }
 
 /**

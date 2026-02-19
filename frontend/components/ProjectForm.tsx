@@ -15,7 +15,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Github, Loader2, Plus, CheckCircle, ChevronDown } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Github, Loader2, Plus, CheckCircle } from "lucide-react"
 import { projectService, type User } from "@/services"
 import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
@@ -53,7 +54,6 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const [availableRepos, setAvailableRepos] = useState<GithubAppRepo[]>([])
   const [selectedRepo, setSelectedRepo] = useState<GithubAppRepo | null>(null)
   const [loadingRepos, setLoadingRepos] = useState(false)
-  const [showRepoDropdown, setShowRepoDropdown] = useState(false)
   const [importingGithub, setImportingGithub] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
 
@@ -134,8 +134,6 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   // Handle repo selection
   const handleSelectRepo = (repo: GithubAppRepo) => {
     setSelectedRepo(repo)
-    setShowRepoDropdown(false)
-    
     // Auto-fill fields
     setNewProjectName(repo.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
     setNewProjectDescription(repo.description || '')
@@ -315,44 +313,39 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
                         </div>
                       ) : (
                         <>
-                          <div className="relative">
+                          <div>
                             <Label className="block text-xs font-medium text-gray-600 mb-1.5">
                               Selecione um Repositório *
                             </Label>
-                            <button
-                              onClick={() => setShowRepoDropdown(!showRepoDropdown)}
+                            <Select
+                              value={selectedRepo?.full_name ?? ""}
+                              onValueChange={(value) => {
+                                const repo = availableRepos.find(r => r.full_name === value)
+                                if (repo) handleSelectRepo(repo)
+                              }}
                               disabled={loadingRepos}
-                              className="w-full flex items-center justify-between px-3 py-2 border border-gray-200 rounded-md bg-white text-sm text-left"
                             >
-                              <span className={selectedRepo ? "text-gray-900" : "text-gray-400"}>
-                                {selectedRepo ? selectedRepo.full_name : "Selecione um repositório..."}
-                              </span>
-                              <ChevronDown className="h-4 w-4 text-gray-400" />
-                            </button>
-                            
-                            {showRepoDropdown && (
-                              <div className="absolute z-10 w-full mt-1 border border-gray-200 rounded-md bg-white shadow-lg max-h-60 overflow-y-auto">
+                              <SelectTrigger className="w-full text-sm border-gray-200 bg-white">
+                                <SelectValue placeholder="Selecione um repositório..." />
+                              </SelectTrigger>
+                              <SelectContent>
                                 {availableRepos.length === 0 ? (
                                   <div className="px-3 py-2 text-xs text-gray-500">Nenhum repositório encontrado</div>
                                 ) : (
                                   availableRepos.map((repo) => (
-                                    <button
-                                      key={repo.full_name}
-                                      onClick={() => handleSelectRepo(repo)}
-                                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between"
-                                    >
+                                    <SelectItem key={repo.full_name} value={repo.full_name}>
                                       <span className="flex items-center gap-2">
                                         <Github className="h-3 w-3 text-gray-400" />
                                         {repo.full_name}
+                                        {repo.private && (
+                                          <Badge variant="secondary" className="text-xs ml-1">Privado</Badge>
+                                        )}
                                       </span>
-                                      {repo.private && (
-                                        <Badge variant="secondary" className="text-xs">Privado</Badge>
-                                      )}
-                                    </button>
+                                    </SelectItem>
                                   ))
                                 )}
-                              </div>
-                            )}
+                              </SelectContent>
+                            </Select>
                           </div>
 
                           {selectedRepo && (
