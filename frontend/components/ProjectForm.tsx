@@ -17,21 +17,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Github, Loader2, Plus, CheckCircle } from "lucide-react"
-import { projectService, type User } from "@/services"
+import { projectService, type User, type GithubAppRepo } from "@/services"
 import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
 import { IMPORT_JOB_LS_KEY } from "@/lib/importJobUtils"
 
 const INPUT_CLASS = "h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm"
 
-interface GithubAppRepo {
-  owner: { login: string }
-  name: string
-  full_name: string
-  default_branch: string
-  description: string | null
-  private: boolean
-}
 
 interface ProjectFormProps {
   open: boolean
@@ -88,14 +80,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
       setLoadingRepos(true)
       const response = await projectService.listGithubRepos(installId)
       if (response?.success && response.data) {
-        setAvailableRepos(response.data.map((repo: GithubAppRepo) => ({
-          owner: repo.owner,
-          name: repo.name,
-          full_name: repo.full_name,
-          default_branch: repo.default_branch,
-          description: repo.description,
-          private: repo.private
-        })))
+        setAvailableRepos(response.data)
       }
     } catch (error) {
       console.error('Error loading repos:', error)
@@ -119,8 +104,13 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
       ? 'http://localhost:3001'
       : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
 
-    // Store state for callback
-    const stateData = JSON.stringify({ origin: 'project-form' })
+    // Generate cryptographically-random nonce for CSRF protection
+    const nonceBytes = new Uint8Array(16)
+    crypto.getRandomValues(nonceBytes)
+    const nonce = Array.from(nonceBytes, b => b.toString(16).padStart(2, '0')).join('')
+    try { sessionStorage.setItem('oauth_state_nonce', nonce) } catch { /* ignore */ }
+
+    const stateData = JSON.stringify({ origin: window.location.origin, nonce })
     const state = btoa(stateData)
 
     const baseUrl = backendUrl.replace(/\/api$/, '')
@@ -147,7 +137,6 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
     setInstallationId(null)
     setSelectedRepo(null)
     setAvailableRepos([])
-    setShowRepoDropdown(false)
   }
 
   const handleOpenChange = (nextOpen: boolean) => {

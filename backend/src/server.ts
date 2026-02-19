@@ -25,6 +25,7 @@ import { GitSyncService } from '@/services/gitSyncService'
 type OAuthStateData = {
   origin?: string
   projectId?: string
+  nonce?: string
 }
 
 // Configurar variáveis de ambiente - carregar do diretório do backend
@@ -125,7 +126,8 @@ const parseStateParameter = (state?: string): OAuthStateData => {
 
       const origin = typeof parsed.origin === 'string' ? parsed.origin : undefined
       const projectId = typeof parsed.projectId === 'string' ? parsed.projectId : undefined
-      return { origin, projectId }
+      const nonce = typeof parsed.nonce === 'string' ? parsed.nonce : undefined
+      return { origin, projectId, nonce }
     } catch {
       // Retrocompatibilidade: state antigo codificado só com origin em texto.
       return { origin: decoded }
@@ -198,7 +200,8 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
     const params = new URLSearchParams({
       github_access_token: tokenData.access_token,
       ...(installationId ? { installation_id: installationId } : {}),
-      ...(projectId ? { project_id: projectId } : {})
+      ...(projectId ? { project_id: projectId } : {}),
+      ...(state ? { state } : {})
     })
 
     res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
