@@ -7,22 +7,22 @@ todos:
     status: pending
   - id: expandir_ai_card_grouping
     content: Expandir AiCardGroupingService - adicionar constantes de filtro e funções de build
-    status: pending
+    status: completed
   - id: criar_list_repo_files
     content: Criar GithubService.listRepoFiles() para baixar arquivos via API
-    status: pending
+    status: completed
   - id: criar_process_repo
-    content: Criar AiCardGroupingService.processRepo() como orquestrador
+    content: Criar AiCardGroupingService.processRepo() como orquestrador (USAR IA)
     status: pending
   - id: atualizar_card_quality_supervisor
     content: Garantir que AiCardGroupingService importe CardQualitySupervisor corretamente
     status: pending
   - id: atualizar_project_controller
     content: Atualizar ProjectController para usar novo fluxo
-    status: pending
+    status: completed
   - id: atualizar_git_sync_service
     content: Atualizar GitSyncService para usar novo fluxo
-    status: pending
+    status: completed
   - id: testar_importacao
     content: Testar importação via GitHub App
     status: pending
@@ -71,14 +71,52 @@ O Grok 4 Fast suporta **2 milhões de tokens** de context window. Portanto, envi
 **Estratégia**: Criar GitHub2Service.ts paralelo, testar, substituir.
 
 
-| Sprint | Escopo                                                                                                                                                                                                                    |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1**  | **GitHub2Service**: • CRIAR arquivo paralelo com métodos limpos • CRIAR listRepoFiles() via API GitHub • COPIAR: validateToken, getRepoDetails, getFileContent, GitHub App, Git operations, OAuth, verifyWebhookSignature |
-| **2**  | **AiCardGroupingService**: • Adicionar filtro (CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES) • Adicionar build (buildCard, addVisaoGeralScreen, createContentBlock) • CRIAR processRepo() como orquestrador               |
-| **3**  | **Testar/Validar**: • Testar GitHub2Service.listRepoFiles() com repo real • Verificar se AiCardGroupingService.processRepo() funciona                                                                                     |
-| **4**  | **Substituição**: • Atualizar ProjectController para usar novo fluxo • Atualizar GitSyncService se necessário • Remover GitHubService.ts • Renomear GitHub2Service.ts → GitHubService.ts                                  |
-| **5**  | **Testes Finais**: • Testar importação via GitHub App • Testar grouping via IA • Verificar quality supervisor                                                                                                             |
+| Sprint | Escopo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1**  | **GitHub2Service**: • CRIAR arquivo paralelo com métodos limpos • CRIAR listRepoFiles() via API GitHub • COPIAR: validateToken, getRepoDetails, getFileContent, GitHub App, Git operations, OAuth, verifyWebhookSignature                                                                                                                                                                                                                                                                                                                                            |
+| **2**  | **AiCardGroupingService**: • Adicionar filtro (CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES) • Adicionar build (buildCard, addVisaoGeralScreen, createContentBlock) • CRIAR processRepo() como orquestrador                                                                                                                                                                                                                                                                                                                                                          |
+| **3**  | **Testar/Validar**: • Testar GitHub2Service.listRepoFiles() com repo real • Verificar se AiCardGroupingService.processRepo() funciona                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **4**  | **Substituição**: • Atualizar ProjectController para usar novo fluxo • Atualizar GitSyncService se necessário • Remover GitHubService.ts • Renomear GitHub2Service.ts → GitHubService.ts                                                                                                                                                                                                                                                                                                                                                                             |
+| **5**  | **GitHub App (trocar PAT por OAuth)**: • REPLICAR fluxo OAuth do ProjectDetail para ProjectForm • SUBSTITUIR campos (URL repo, nome, descrição, instruções IA) por botão "Conectar GitHub" + dropdown de repos • Após selecionar repo: auto-preencher URL, nome, descrição • Usar endpoint existente listGithubRepos(installationId) • CORRIGIR callback OAuth: quando origin=project-form, redirecionar para home (/) ao invés de /projects para ficar no form • FLUXO: Botão → OAuth → Callback → installation_id → Select Repo → Auto-preencher campos → Importar |
+| **6**  | **Testes Finais**: • Testar importação via GitHub App • Testar grouping via IA • Verificar quality supervisor                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
+
+---
+
+## Sprints AiCardGroupingService (Sprint 2 Expandido)
+
+
+| Sprint  | Escopo                                                                                         | Status         |
+| ------- | ---------------------------------------------------------------------------------------------- | -------------- |
+| **2.1** | Constantes de filtro: CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES                             | ✓ Feito        |
+| **2.2** | Funções de filtro: shouldIncludeFile(), getFileExtension(), getLanguageFromExtension()         | ✓ Feito        |
+| **2.3** | Funções de build: buildCard(), addVisaoGeralScreen(), createContentBlock(), generateAutoTags() | ✓ Feito        |
+| **2.4** | Funções de IA: refineGrouping(), normalizeAiOutput(), generateCardSummary()                    | ✓ Feito        |
+| **2.5** | **processRepo() como orquestrador** - **USAR IA no grouping**                                  | ✗ **PENDENTE** |
+| **2.6** | CardQualitySupervisor: integrar para quality check após grouping                               | ✗ **PENDENTE** |
+| **2.7** | Testar grouping com repo real e verificar múltiplos cards                                      | ✗ **PENDENTE** |
+
+
+### Detalhamento Sprint 2.5 - processRepo() com IA
+
+**Problema atual**: O método `processRepo()` (linhas 910-962) apenas:
+
+- Recebe arquivos
+- Cria 1 card genérico "misc" com todos os arquivos
+- Retorna `aiUsed: false, aiCardsCreated: 0`
+
+**O que precisa fazer**:
+
+1. Filtrar arquivos com `shouldIncludeFile()`
+2. Preparar `FileMeta[]` com snippet de cada arquivo
+3. Chamar `this.refineGrouping()` para obter grouping da IA
+4. Para cada card retornado pela IA:
+  - Extrair arquivos referenciados nas screens
+  - Criar `ContentBlock[]` para cada screen
+  - Chamar `this.buildCard()` com os dados da IA
+  - Chamar `this.addVisaoGeralScreen()`
+  - Emitir card via `onCardReady()`
+5. Retornar cards criados com `aiUsed: true, aiCardsCreated: X`
 
 ---
 
