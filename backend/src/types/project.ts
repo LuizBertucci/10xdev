@@ -227,6 +227,7 @@ export interface ImportFromGithubRequest {
   name?: string
   description?: string
   useAi?: boolean
+  installationId?: number
 }
 
 export interface ShareProjectRequest {

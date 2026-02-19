@@ -3,6 +3,7 @@ import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
 import { GitSyncModel } from '@/models/GitSyncModel'
 import { GithubService } from '@/services/githubService'
+import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { GitSyncService } from '@/services/gitSyncService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
@@ -58,15 +59,21 @@ export class ProjectController {
   /** POST /api/projects/import-from-github
    *  Cria projeto, responde 202, e processa import em background. */
   static importFromGithub = safeHandler(async (req, res) => {
-    const { url, token, name, description, useAi } = req.body as ImportFromGithubRequest
+    const { url, token, name, description, useAi, installationId } = req.body as ImportFromGithubRequest
     const userId = req.user!.id
     if (!url) throw badRequest('URL do repositório é obrigatória')
+
+    // Obter token: usar installationId se disponível, senão usar token fornecido
+    let accessToken = token
+    if (!accessToken && installationId) {
+      accessToken = await GithubService.getInstallationToken(installationId)
+    }
 
     // Obter nome/descricao do repo (best-effort)
     let projectName = name
     let projectDescription = description
     if (!projectName) {
-      const repoInfo = await GithubService.getRepoDetails(url, token)
+      const repoInfo = await GithubService.getRepoDetails(url, accessToken)
       projectName = repoInfo.name
       projectDescription = projectDescription || repoInfo.description || undefined
     }
@@ -119,8 +126,28 @@ export class ProjectController {
 
       try {
         await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
-        const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-          url, token,
+
+        const repoInfo = GithubService.parseGithubUrl(url)
+        if (!repoInfo) {
+          throw new Error('URL do GitHub inválida')
+        }
+
+        // Obter token novamente (escopo correto)
+        let finalToken = accessToken
+        if (!finalToken && installationId) {
+          finalToken = await GithubService.getInstallationToken(installationId)
+        }
+
+        const branch = 'main'
+        const files = await GithubService.listRepoFiles(repoInfo.owner, repoInfo.repo, branch, finalToken || undefined)
+
+        if (files.length === 0) {
+          throw new Error('Nenhum arquivo de código encontrado no repositório.')
+        }
+
+        const { cards, filesProcessed, aiUsed, aiCardsCreated } = await AiCardGroupingService.generateCardGroupsFromRepo(
+          files,
+          url,
           {
             useAi: useAi === true,
             onProgress: async (p) => {

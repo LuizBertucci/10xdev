@@ -1,4 +1,5 @@
 import { GithubService } from '@/services/githubService'
+import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { GitSyncModel } from '@/models/GitSyncModel'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
@@ -141,9 +142,11 @@ export class GitSyncService {
 
       // 4. Processar repo e criar cards (reutiliza flow existente)
       const repoUrl = `https://github.com/${owner}/${repo}`
-      await GithubService.processRepoToCards(
+      const files = await GithubService.listRepoFiles(owner, repo, branch, token)
+      
+      await AiCardGroupingService.generateCardGroupsFromRepo(
+        files,
         repoUrl,
-        token,
         {
           useAi: options?.useAi || false,
           onProgress: async (p) => {
