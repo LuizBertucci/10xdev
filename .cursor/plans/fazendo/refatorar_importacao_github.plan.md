@@ -1,6 +1,6 @@
 ---
 name: refatorar_importacao_github
-overview: Separar responsabilidades - GithubService (apenas conexão GitHub via API) e AiCardGroupingService (processamento via IA, sem heurística).
+overview: Consolidar refatoração em duas frentes - GithubService completo com sync e AiCardGroupingService com pipeline IA único, quality supervision e Visão Geral forte.
 todos:
   - id: limpar_github_service
     content: Limpar GithubService - remover ZIP, heurística e constantes desnecessárias
@@ -12,10 +12,16 @@ todos:
     content: Criar GithubService.listRepoFiles() para baixar arquivos via API
     status: completed
   - id: criar_process_repo
-    content: Criar AiCardGroupingService.processRepo() como orquestrador (USAR IA)
+    content: Reestruturar pipeline IA do AiCardGroupingService (filtro -> grouping -> build -> quality -> visão geral), sem fallback
     status: pending
   - id: atualizar_card_quality_supervisor
-    content: Garantir que AiCardGroupingService importe CardQualitySupervisor corretamente
+    content: Integrar CardQualitySupervisor no pipeline final de cards (analyzeQuality + applyCorrections)
+    status: pending
+  - id: remover_aiused_fallback
+    content: Remover aiUsed/useAi e fallback sem IA do fluxo de importação
+    status: pending
+  - id: evoluir_visao_geral
+    content: Evoluir Visão Geral para resumo mais útil e estruturado por backend/frontend/outros
     status: pending
   - id: atualizar_project_controller
     content: Atualizar ProjectController para usar novo fluxo
@@ -25,6 +31,21 @@ todos:
     status: completed
   - id: testar_importacao
     content: Testar importação via GitHub App
+    status: pending
+  - id: macro1-mapear-contratos
+    content: Mapear contratos atuais de GitSyncService e definir API única no GithubService
+    status: pending
+  - id: macro1-migrar-sync
+    content: Migrar connect/syncFrom/syncTo/conflicts para GithubService com wrappers temporários
+    status: pending
+  - id: macro2-integrar-quality
+    content: Integrar CardQualitySupervisor no fluxo AI (analisar + corrigir + métricas)
+    status: pending
+  - id: macro2-melhorar-visao-geral
+    content: Refinar Visão Geral e padronizar resumo final dos cards
+    status: pending
+  - id: validar-fluxo-e-limpar-legado
+    content: Validar import/sync end-to-end e planejar remoção do legado
     status: pending
 isProject: false
 ---
@@ -38,19 +59,27 @@ Separar claramente as responsabilidades entre:
 - **GithubService**: Apenas conexão com GitHub para importar código (via GitHub App API)
 - **AiCardGroupingService**: Processamento via IA (sem heurística) - grouping, build, quality
 
-## Problema Atual
+### Decisões fechadas desta etapa
 
-O `GithubService` faz MUITO:
+- IA será **sempre ativa por padrão** na geração de cards
+- Não haverá mais fallback sem IA
+- Campo/retorno `aiUsed` (e controle `useAi`) deve ser removido gradualmente dos fluxos de importação
+- A tela **Visão Geral** deve ser tratada como parte obrigatória da qualidade final de cada card
 
-1. Conexão com GitHub (ok)
-2. Download de ZIP (EXCLUIR)
-3. Extração de arquivos do ZIP (EXCLUIR)
-4. Detecção de tech stack (EXCLUIR - IA faz)
-5. Detecção de features/semântica (EXCLUIR - IA faz)
-6. Agrupamento heurístico (EXCLUIR - não existirá mais, 100% IA)
-7. Build de cards (MOVER para AiCardGroupingService)
-8. Quality supervision (MOVER para AiCardGroupingService)
-9. Conexão com IA (já está no AiCardGroupingService)
+
+
+## Contexto consolidado (continuação)
+
+- Os 3 commits recentes desta frente foram:
+  - `refactor: separar GithubService e AiCardGroupingService`
+  - `feat: adicionar OAuth GitHub no ProjectForm`
+  - `chore: atualizar plano de refatoração`
+- Fluxo atual já conectado entre:
+  - `backend/src/services/githubService.ts`
+  - `backend/src/services/gitSyncService.ts`
+  - `backend/src/services/aiCardGroupingService.ts`
+  - `backend/src/services/cardQualitySupervisor.ts`
+  - `backend/src/controllers/ProjectController.ts`
 
 ---
 
@@ -66,20 +95,58 @@ O Grok 4 Fast suporta **2 milhões de tokens** de context window. Portanto, envi
 
 ---
 
-## Sprints de Implementação
+## Plano por macro (incremental)
 
-**Estratégia**: Criar GitHub2Service.ts paralelo, testar, substituir.
+### Macro 1 - Consolidar domínio GitHub + Sync
 
+- Estruturar `GithubService` por fronteiras:
+  - `RepoRead` (listar/baixar/metadados)
+  - `RepoWrite` (branch/commit/PR)
+  - `AppAuth` (JWT/install token/OAuth/webhook)
+  - `SyncOrchestration` (connect/syncFrom/syncTo/conflicts)
+- Migrar métodos de `gitSyncService` para `GithubService` com wrappers temporários.
+- Atualizar consumidores para usar ponto único sem quebrar contratos atuais.
+- Critério de sucesso:
+  - Sem regressão em connect repo, syncFromGithub e syncToGithub.
+  - `GitSyncService` reduzido a façade (ou removível) sem duplicação de regra.
 
-| Sprint | Escopo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1**  | **GitHub2Service**: • CRIAR arquivo paralelo com métodos limpos • CRIAR listRepoFiles() via API GitHub • COPIAR: validateToken, getRepoDetails, getFileContent, GitHub App, Git operations, OAuth, verifyWebhookSignature                                                                                                                                                                                                                                                                                                                                            |
-| **2**  | **AiCardGroupingService**: • Adicionar filtro (CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES) • Adicionar build (buildCard, addVisaoGeralScreen, createContentBlock) • CRIAR processRepo() como orquestrador                                                                                                                                                                                                                                                                                                                                                          |
-| **3**  | **Testar/Validar**: • Testar GitHub2Service.listRepoFiles() com repo real • Verificar se AiCardGroupingService.processRepo() funciona                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| **4**  | **Substituição**: • Atualizar ProjectController para usar novo fluxo • Atualizar GitSyncService se necessário • Remover GitHubService.ts • Renomear GitHub2Service.ts → GitHubService.ts                                                                                                                                                                                                                                                                                                                                                                             |
-| **5**  | **GitHub App (trocar PAT por OAuth)**: • REPLICAR fluxo OAuth do ProjectDetail para ProjectForm • SUBSTITUIR campos (URL repo, nome, descrição, instruções IA) por botão "Conectar GitHub" + dropdown de repos • Após selecionar repo: auto-preencher URL, nome, descrição • Usar endpoint existente listGithubRepos(installationId) • CORRIGIR callback OAuth: quando origin=project-form, redirecionar para home (/) ao invés de /projects para ficar no form • FLUXO: Botão → OAuth → Callback → installation_id → Select Repo → Auto-preencher campos → Importar |
-| **6**  | **Testes Finais**: • Testar importação via GitHub App • Testar grouping via IA • Verificar quality supervisor                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+### Macro 2 - Melhorar pipeline de geração de cards por IA
 
+- Reestruturar `AiCardGroupingService` como pipeline único:
+  - `filterFiles -> groupWithAI -> buildCards -> qualityPass -> emit/finalize`
+- Integrar `CardQualitySupervisor` como etapa obrigatória:
+  - `analyzeQuality`
+  - `applyCorrections`
+  - métricas de qualidade em progresso/log
+- Remover fallback sem IA e padronizar IA como caminho único.
+- Critério de sucesso:
+  - Redução de duplicidade/fragmentação
+  - Rastreabilidade de arquivos preservada (`route`)
+
+### Macro 3 - Evoluir qualidade da "Visão Geral"
+
+- Refinar `addVisaoGeralScreen` para:
+  - descrição orientada a problema/benefício
+  - capacidades principais sem ruído de implementação
+  - seção de arquivos consistente (contagem + backend/frontend/outros)
+- Reaproveitar `generateCardSummary` para pós-processamento textual.
+- Critério de sucesso:
+  - Todo card entregue com "Visão Geral" legível e padronizada.
+
+### Macro 4 - Validação técnica e rollout seguro
+
+- Validar importação real (repo público e privado com GitHub App).
+- Verificar updates de progresso e ausência de exceções no background job.
+- Rodar lint/smoke de sync antes de remover legado.
+- Critério de sucesso:
+  - Pipeline ponta a ponta funcionando sem regressão de OAuth/import/sync.
+
+## Ordem de execução sugerida
+
+1. Consolidar API de sync no `GithubService` com compatibilidade.
+2. Integrar `CardQualitySupervisor` no pipeline IA com métricas.
+3. Melhorar "Visão Geral" e formato final de summary.
+4. Validar cenários reais e só então limpar legado (`GitSyncService`).
 
 ---
 
@@ -92,31 +159,37 @@ O Grok 4 Fast suporta **2 milhões de tokens** de context window. Portanto, envi
 | **2.2** | Funções de filtro: shouldIncludeFile(), getFileExtension(), getLanguageFromExtension()         | ✓ Feito        |
 | **2.3** | Funções de build: buildCard(), addVisaoGeralScreen(), createContentBlock(), generateAutoTags() | ✓ Feito        |
 | **2.4** | Funções de IA: refineGrouping(), normalizeAiOutput(), generateCardSummary()                    | ✓ Feito        |
-| **2.5** | **processRepo() como orquestrador** - **USAR IA no grouping**                                  | ✗ **PENDENTE** |
-| **2.6** | CardQualitySupervisor: integrar para quality check após grouping                               | ✗ **PENDENTE** |
-| **2.7** | Testar grouping com repo real e verificar múltiplos cards                                      | ✗ **PENDENTE** |
+| **2.5** | **Pipeline IA único**: filtro -> grouping IA -> build -> quality -> visão geral                | ✗ **PENDENTE** |
+| **2.6** | **Sem fallback**: remover `aiUsed/useAi` e ramo de card único genérico                         | ✗ **PENDENTE** |
+| **2.7** | CardQualitySupervisor: integrar para quality check + correções automáticas                     | ✗ **PENDENTE** |
+| **2.8** | Evoluir "Visão Geral" (resumo claro, categoria/tecnologias, arquivos por camada)               | ✗ **PENDENTE** |
+| **2.9** | Testar grouping com repo real e verificar qualidade dos cards                                  | ✗ **PENDENTE** |
 
 
-### Detalhamento Sprint 2.5 - processRepo() com IA
+### Detalhamento Sprint 2.5 - Pipeline IA único (sem fallback)
 
-**Problema atual**: O método `processRepo()` (linhas 910-962) apenas:
+**Problema atual**: O fluxo atual ainda possui caminhos legados e sem qualidade final consolidada:
 
-- Recebe arquivos
-- Cria 1 card genérico "misc" com todos os arquivos
-- Retorna `aiUsed: false, aiCardsCreated: 0`
+- Mantém controle de fallback por `useAi/aiUsed`
+- Possui ramo de card único genérico (sem IA)
+- Ainda não aplica quality supervision obrigatoriamente no resultado final
+- Visão Geral ainda é básica e pouco orientada a valor funcional
 
 **O que precisa fazer**:
 
 1. Filtrar arquivos com `shouldIncludeFile()`
-2. Preparar `FileMeta[]` com snippet de cada arquivo
-3. Chamar `this.refineGrouping()` para obter grouping da IA
-4. Para cada card retornado pela IA:
+2. Preparar payload do repositório para IA (arquivos completos)
+3. Chamar IA para grouping e normalizar output
+4. Construir cards e garantir tela "Visão Geral" em cada card
+5. Rodar `CardQualitySupervisor.analyzeQuality()` e `applyCorrections()`
+6. Emitir somente cards finais corrigidos via `onCardReady()`
+7. Ajustar retorno para não depender de `aiUsed` (IA é padrão)
+8. Para cada card retornado pela IA:
   - Extrair arquivos referenciados nas screens
   - Criar `ContentBlock[]` para cada screen
   - Chamar `this.buildCard()` com os dados da IA
   - Chamar `this.addVisaoGeralScreen()`
-  - Emitir card via `onCardReady()`
-5. Retornar cards criados com `aiUsed: true, aiCardsCreated: X`
+  - Enviar para quality pass antes de emitir
 
 ---
 
@@ -207,235 +280,6 @@ Lógica de **processamento de código via IA** (AI only, sem heurística):
 **CardQualitySupervisor**: Usado internamente para análise de qualidade (detecta duplicados, fragmentação, conteúdo fraco; aplica correções)
 
 ---
-
-## Arquitetura-Alvo
-
-### GithubService (apenas conexão)
-
-```typescript
-class GithubService {
-  // GitHub App - já existe
-  static generateAppJWT()
-  static getInstallationToken(installationId)
-  static listInstallationRepos(installationId)
-  
-  // Novas funções - baixar arquivos via API
-  static async listRepoFiles(owner, repo, branch, token): Promise<FileEntry[]>
-  static async getFileContent(owner, repo, path, token): Promise<string>
-  static async getRepoDetails(url, token): GithubRepoInfo
-  
-  // OAuth - já existe
-  static validateToken(token)
-  static exchangeCodeForToken(code)
-  static getUserInstallations(token)
-  
-  // Git operations - já existe
-  static getLatestCommitSha(token, owner, repo, branch)
-  static getCommitDiff(token, owner, repo, baseSha, headSha)
-  static createBranch(token, owner, repo, branchName, fromSha)
-  static updateFileContent(token, owner, repo, filePath, content, message, fileSha, branch)
-  static createPullRequest(token, owner, repo, options)
-  static verifyWebhookSignature(payload, signature)
-}
-```
-
-### AiCardGroupingService (AI only, sem heurística)
-
-```typescript
-class AiCardGroupingService {
-  // =====================
-  // CONSTANTES (apenas para filtro de arquivos)
-  // =====================
-  // CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES
-  // (para filtrar arquivos antes de enviar para IA)
-
-  // =====================
-  // HELPER
-  // =====================
-  static cleanMarkdown(text): string
-
-  // =====================
-  // IA - GROUPING
-  // =====================
-  static isEnabled(): boolean
-  static hasConfig(): boolean
-  static resolveApiKey(): string
-  static mode(): 'metadata' | 'full'
-  static resolveChatCompletionsUrl(): string
-  static callChatCompletions(endpoint, apiKey, body)
-  static normalizeAiOutput(raw): AiOutput
-  static generateCardGroups(params): Promise<AiOutput>
-
-  // =====================
-  // IA - RESUMO
-  // =====================
-  static generateCardSummary(params, customPrompt?): Promise<{ summary: string }>
-
-  // =====================
-  // BUILD (transformar output IA em cards)
-  // =====================
-  static buildCard(featureName, screens, tech, lang, featureFiles, aiOverrides?): CreateCardFeatureRequest
-  static addVisaoGeralScreen(card): CreateCardFeatureRequest
-  static generateAutoTags(featureName, tech): string[]
-  static fileToBlock(file, order): ContentBlock
-
-  // =====================
-  // PROCESSAMENTO COMPLETO (orquestrador)
-  // =====================
-  static async processRepo(
-    files: FileEntry[],
-    repoUrl: string,
-    options?: {
-      onProgress?: (update) => void
-      onCardReady?: (card) => Promise<void>
-    }
-  ): Promise<{ cards, filesProcessed }>
-
-  // =====================
-  // QUALITY (usa CardQualitySupervisor)
-  // =====================
-  static analyzeQuality(cards, options?): QualityReport
-  static applyCorrections(cards, qualityReport, options?)
-}
-```
-
-## Tarefas de Implementação
-
-### 1. Limpar GithubService
-
-**MANTER** (já existem):
-
-- `parseGithubUrl()` - helper interno
-- `getHeaders()` - helper interno
-- `validateToken()`
-- `getRepoDetails()`
-- `listRepoFiles()` - NOVO: lista arquivos via GitHub API (não mais ZIP)
-- `getFileContent()`
-- `generateAppJWT()`
-- `getInstallationToken()`
-- `listInstallationRepos()`
-- `getLatestCommitSha()`
-- `getCommitDiff()`
-- `createBranch()`
-- `updateFileContent()`
-- `createPullRequest()`
-- `exchangeCodeForToken()`
-- `getUserInstallations()`
-- `verifyWebhookSignature()`
-
-**EXCLUIR** (não faz sentido sem heurística):
-
-- `downloadRepoAsZip()`
-- `extractFilesFromZip()`
-- `processRepoToCards()` - método principal
-- `MAX_FILE_SIZE`
-- `CODE_EXTENSIONS`
-- `IGNORED_DIRS`
-- `IGNORED_FILES`
-- `EXTENSION_TO_LANGUAGE`
-- `TECH_DETECTION`
-- `LAYER_PATTERNS`
-- `LAYER_TO_SCREEN_NAME`
-- `FEATURE_SEMANTIC_MAP`
-- `FEATURE_TITLES`
-- `LANGUAGE_FILE_MAP`
-- `LANGUAGE_SUFFIX_MAP`
-- `PATH_PATTERN_MAP`
-- `detectTech()`
-- `detectMainLanguage()`
-- `detectFileLayer()`
-- `extractFeatureName()`
-- `normalizeFeatureName()`
-- `mapToSemanticFeature()`
-- `groupFilesByFeature()`
-- `consolidateFeatures()`
-- `generateFeatureTitle()`
-- `generateFeatureDescription()`
-- `makeSnippet()`
-- `estimateCardsCount()`
-
----
-
-### 2. Expandir AiCardGroupingService
-
-**JÁ EXISTE** (manter):
-
-- `AiOutputSchema`
-- `cleanMarkdown()`
-- `isEnabled()`
-- `hasConfig()`
-- `resolveApiKey()`
-- `mode()`
-- `resolveChatCompletionsUrl()`
-- `callChatCompletions()`
-- `normalizeAiOutput()`
-- `generateCardGroups()`
-- `generateCardSummary()`
-
-**MOVER do GithubService** (apenas o necessário):
-
-- `CODE_EXTENSIONS`
-- `IGNORED_DIRS`
-- `IGNORED_FILES`
-- `FileEntry` (interface)
-- `PackageJson` (interface)
-- `getFileExtension()` - para filter
-- `getLanguageFromExtension()` - para filter
-- `shouldIncludeFile()` - para filter
-- `buildCard()`
-- `addVisaoGeralScreen()`
-- `generateAutoTags()`
-- `fileToBlock()`
-
-**NOVO método**: `processRepo(files, repoUrl, options)`
-
----
-
-### 3. CardQualitySupervisor
-
-**OBS**: O CardQualitySupervisor é uma dependência interna do AiCardGroupingService (não é um serviço separado no fluxo). 
-**AÇÃO**: Apenas garantir que está sendo importado corretamente pelo AiCardGroupingService.
-
-### 4. Atualizar ProjectController
-
-O controller deve:
-
-1. Chamar `GithubService.listRepoFiles()` para obter arquivos
-2. Chamar `AiCardGroupingService.processRepo()` com os arquivos
-3. Remover dependência direta de `AiCardGroupingService.isEnabled()` e `hasConfig()`
-
-```typescript
-// Antes (ProjectController.ts:122)
-const { cards, filesProcessed, aiUsed, aiCardsCreated } = await GithubService.processRepoToCards(
-  url, token,
-  { useAi, onProgress, onCardReady }
-)
-
-// Depois
-const repoInfo = await GithubService.getRepoDetails(url, token)
-const files = await GithubService.listRepoFiles(owner, repo, branch, token)
-const { cards, filesProcessed, aiUsed, aiCardsCreated } = await AiCardGroupingService.processRepo(
-  files, url,
-  { useAi, onProgress, onCardReady }
-)
-```
-
-### 5. Atualizar gitSyncService
-
-Verificar se há outras dependências de `processRepoToCards`:
-
-```bash
-grep -r "processRepoToCards" backend/src/
-```
-
-Atualizar para novo fluxo.
-
-## Dependências a Atualizar
-
-1. **backend/src/controllers/ProjectController.ts** - linha 122
-2. **backend/src/services/gitSyncService.ts** - linha 144
-
-3.Possíveis outros serviços/controllers
 
 ## Testes
 
