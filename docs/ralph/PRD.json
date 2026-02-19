@@ -53,7 +53,7 @@
     {
       "id": "ralph_commit_only",
       "title": "Ralph: executar skill /commit ate o fim",
-      "status": "pending",
+      "status": "done",
       "scope_files": [],
       "acceptance": [
         "skill /commit executada do inicio ao fim",
@@ -63,7 +63,7 @@
         {
           "id": "commit_skill_full",
           "title": "Executar .claude/skills/commit/SKILL.md COMPLETA: 1) git status + diff. 2) npm run lint + build se 3+ arquivos. 3) Agrupar commits. 4) CodeRabbit se 3+ arquivos. 5) git add + commit (aspas simples, nunca backticks) + push. Execute TUDO automaticamente. Ao concluir output: DONE",
-          "status": "pending",
+          "status": "done",
           "tests": ["npm run lint"],
           "notes": []
         }
@@ -156,5 +156,14 @@
     "validacao": "lint/build/testes executados e resultados",
     "observacoes": "bloqueios, riscos, proximo passo"
   },
-  "updates": []
+  "updates": [
+    {
+      "ts": "2025-02-19 12:00",
+      "microtask_id": "commit_skill_full",
+      "feito": "skill commit executada: lint ok, build ok, 5 commits agrupados, push",
+      "status": "ok",
+      "validacao": "npm run lint ok, npm run build ok",
+      "observacoes": "CodeRabbit nao executou (rejeitado). Commits: claude/clinerules/cursor, root config, backend, frontend, templates/scripts/docs."
+    }
+  ]
 }
