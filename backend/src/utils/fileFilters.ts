@@ -61,9 +61,9 @@ export function getFileExtension(filePath: string): string {
   const fileName = filePath.split('/').pop() || ''
   if (fileName.toLowerCase() === 'dockerfile') return '.dockerfile'
   if (fileName.startsWith('.env')) return '.env'
-  const lastDot = filePath.lastIndexOf('.')
+  const lastDot = fileName.lastIndexOf('.')
   if (lastDot === -1) return ''
-  return filePath.substring(lastDot).toLowerCase()
+  return fileName.substring(lastDot).toLowerCase()
 }
 
 export function getLanguageFromExtension(ext: string): string {
@@ -76,6 +76,6 @@ export function shouldIncludeFile(filePath: string): boolean {
     if (IGNORED_DIRS.includes(part.toLowerCase())) return false
   }
   const fileName = parts[parts.length - 1] || ''
-  if (IGNORED_FILES.includes(fileName)) return false
+  if (IGNORED_FILES.includes(fileName.toLowerCase())) return false
   return CODE_EXTENSIONS.includes(getFileExtension(filePath))
 }

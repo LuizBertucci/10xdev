@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import type { GithubRepoInfo } from '@/types/project'
+import { CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES } from '@/utils/fileFilters'
 
 interface ParsedRepoInfo {
   owner: string
@@ -16,39 +17,8 @@ export interface FileEntry {
   size: number
 }
 
-const CODE_EXTENSIONS = [
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-  '.py', '.pyw', '.java', '.kt', '.kts',
-  '.go', '.rs', '.rb', '.php',
-  '.c', '.cpp', '.cc', '.h', '.hpp',
-  '.cs', '.swift', '.vue', '.svelte',
-  '.html', '.htm', '.css', '.scss', '.sass', '.less',
-  '.json', '.yaml', '.yml', '.toml',
-  '.md', '.mdx', '.sql',
-  '.sh', '.bash', '.zsh',
-  '.dockerfile', '.env'
-]
-
-const IGNORED_DIRS = [
-  'node_modules', '.git', 'dist', 'build', '.next', '__pycache__',
-  '.venv', 'venv', '.idea', '.vscode', 'coverage', '.cache', '.turbo',
-  'vendor', '.yarn', '.pnpm', 'out', '.output', 'target', 'bin', 'obj',
-  '__tests__', '__mocks__', 'test', 'tests', 'spec', 'specs', 'e2e',
-  'cypress', 'playwright', '.github', '.husky'
-]
-
-const IGNORED_FILES = [
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.DS_Store',
-  'thumbs.db', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc',
-  '.prettierrc', '.prettierignore', '.eslintrc', '.eslintrc.js',
-  '.eslintrc.json', 'eslint.config.js', 'eslint.config.mjs',
-  'jest.config.js', 'jest.config.ts', 'vitest.config.ts',
-  'vite.config.ts', 'vite.config.js', 'next.config.js', 'next.config.mjs',
-  'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js',
-  'postcss.config.mjs', '.env.example', '.env.local', '.env.development',
-  '.env.production', 'LICENSE', 'LICENSE.md', 'CHANGELOG.md',
-  'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', '.editorconfig'
-]
+const CONCURRENCY = 8
+const MAX_FILES = 200
 
 export class GithubService {
 
@@ -80,9 +50,9 @@ export class GithubService {
     const fileName = filePath.split('/').pop() || ''
     if (fileName.toLowerCase() === 'dockerfile') return '.dockerfile'
     if (fileName.startsWith('.env')) return '.env'
-    const lastDot = filePath.lastIndexOf('.')
+    const lastDot = fileName.lastIndexOf('.')
     if (lastDot === -1) return ''
-    return filePath.substring(lastDot).toLowerCase()
+    return fileName.substring(lastDot).toLowerCase()
   }
 
   // ================================================
@@ -154,36 +124,40 @@ export class GithubService {
     )
 
     const files: FileEntry[] = []
-    const tree = treeResponse.data.tree || []
+    const tree: Array<{ type?: string; path?: string; size?: number }> = treeResponse.data.tree || []
 
-    for (const item of tree) {
-      if (item.type !== 'blob') continue
+    if (treeResponse.data.truncated) {
+      console.warn(`[GithubService] Tree truncated for ${owner}/${repo}; some files may be missing`)
+    }
 
-      const filePath = item.path || ''
-      if (!filePath) continue
+    const filteredItems = tree
+      .filter((item) => {
+        if (item.type !== 'blob' || !item.path) return false
+        const ext = this.getFileExtension(item.path)
+        if (!CODE_EXTENSIONS.includes(ext)) return false
+        const parts = item.path.split('/')
+        if (parts.some((p) => IGNORED_DIRS.includes(p.toLowerCase()))) return false
+        const fileName = parts[parts.length - 1] || ''
+        return !IGNORED_FILES.includes(fileName.toLowerCase())
+      })
+      .slice(0, MAX_FILES)
 
-      const ext = this.getFileExtension(filePath)
-      if (!CODE_EXTENSIONS.includes(ext)) continue
-
-      const parts = filePath.split('/')
-      if (parts.some((p: string) => IGNORED_DIRS.includes(p.toLowerCase()))) continue
-
-      const fileName = parts[parts.length - 1] || ''
-      if (IGNORED_FILES.includes(fileName)) continue
-
-      try {
-        const contentResponse = await axios.get(
-          `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${commitSha}`,
-          { headers, timeout: 30000 }
+    for (let i = 0; i < filteredItems.length; i += CONCURRENCY) {
+      const chunk = filteredItems.slice(i, i + CONCURRENCY)
+      const results = await Promise.allSettled(
+        chunk.map((item) =>
+          axios.get(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${item.path}?ref=${commitSha}`,
+            { headers, timeout: 30000 }
+          ).then((r) => ({
+            path: item.path!,
+            content: Buffer.from(r.data.content, 'base64').toString('utf8'),
+            size: item.size || 0
+          }))
         )
-        const content = Buffer.from(contentResponse.data.content, 'base64').toString('utf8')
-        files.push({
-          path: filePath,
-          content,
-          size: item.size || content.length
-        })
-      } catch {
-        continue
+      )
+      for (const r of results) {
+        if (r.status === 'fulfilled') files.push(r.value)
       }
     }
 
@@ -199,7 +173,7 @@ export class GithubService {
 
     const response = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
-      { headers: this.getHeaders(token), params }
+      { headers: this.getHeaders(token), params, timeout: 15000 }
     )
 
     const content = Buffer.from(response.data.content, 'base64').toString('utf8')
@@ -212,7 +186,7 @@ export class GithubService {
   ): Promise<string> {
     const response = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`,
-      { headers: this.getHeaders(token) }
+      { headers: this.getHeaders(token), timeout: 15000 }
     )
     return response.data.object.sha
   }
@@ -223,7 +197,7 @@ export class GithubService {
   ): Promise<Array<{ filename: string; status: string; additions: number; deletions: number }>> {
     const response = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}/compare/${baseSha}...${headSha}`,
-      { headers: this.getHeaders(token) }
+      { headers: this.getHeaders(token), timeout: 15000 }
     )
 
     return (response.data.files || []).map((f: unknown) => ({
@@ -241,7 +215,7 @@ export class GithubService {
     await axios.post(
       `https://api.github.com/repos/${owner}/${repo}/git/refs`,
       { ref: `refs/heads/${branchName}`, sha: fromSha },
-      { headers: this.getHeaders(token) }
+      { headers: this.getHeaders(token), timeout: 15000 }
     )
   }
 
@@ -255,7 +229,7 @@ export class GithubService {
     const response = await axios.put(
       `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
       { message, content: encoded, sha: fileSha, branch },
-      { headers: this.getHeaders(token) }
+      { headers: this.getHeaders(token), timeout: 15000 }
     )
 
     return { sha: response.data.content.sha }
@@ -274,7 +248,7 @@ export class GithubService {
         base: options.base,
         body: options.body
       },
-      { headers: this.getHeaders(token) }
+      { headers: this.getHeaders(token), timeout: 15000 }
     )
 
     return {
@@ -324,7 +298,8 @@ export class GithubService {
           Authorization: `Bearer ${jwtToken}`,
           Accept: 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28'
-        }
+        },
+        timeout: 15000
       }
     )
 

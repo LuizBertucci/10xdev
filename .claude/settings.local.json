@@ -12,7 +12,8 @@
       "Bash(npx eslint:*)",
       "Bash(git fetch:*)",
       "Bash(powershell.exe -Command:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=4096\" npm run build:*)"
     ],
     "deny": []
   }

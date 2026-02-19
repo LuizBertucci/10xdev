@@ -67,6 +67,7 @@ export class CardFeatureModel {
     if (row.tech !== undefined) response.tech = row.tech
     if (row.language !== undefined) response.language = row.language
     if (row.tags) response.tags = row.tags
+    if (row.newsletter_url) response.newsletterUrl = row.newsletter_url
 
     return response
   }
@@ -262,6 +263,7 @@ export class CardFeatureModel {
         ...(data.youtube_url ? { youtube_url: data.youtube_url } : {}),
         ...(data.video_id ? { video_id: data.video_id } : {}),
         ...(data.thumbnail ? { thumbnail: data.thumbnail } : {}),
+        ...(data.newsletter_url ? { newsletter_url: data.newsletter_url } : {}),
         created_at: now,
         updated_at: now
       }
@@ -921,6 +923,7 @@ export class CardFeatureModel {
           ...(item.youtube_url ? { youtube_url: item.youtube_url } : {}),
           ...(item.video_id ? { video_id: item.video_id } : {}),
           ...(item.thumbnail ? { thumbnail: item.thumbnail } : {}),
+          ...(item.newsletter_url ? { newsletter_url: item.newsletter_url } : {}),
           created_at: now,
           updated_at: now
         }

@@ -9,6 +9,7 @@
 .cursor/scratchpad.md
 
 .claude/settings.local.json
+.claude/settings.json
 
 # next.js
 /.next/
@@ -17,9 +18,6 @@
 # production
 /build
 /backend/dist/
-
-# ralph logs
-/logs/
 
 # debug
 npm-debug.log*

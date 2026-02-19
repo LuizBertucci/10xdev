@@ -42,7 +42,10 @@ export class AiCardGroupingService {
     const emitCard = async (card: CreateCardFeatureRequest) => {
       if (options?.onCardReady) {
         try { await options.onCardReady(card) }
-        catch (err) { console.error(`Erro ao criar card "${card.title}":`, err) }
+        catch (err) {
+          console.error(`Erro ao criar card "${card.title}":`, err)
+          throw err
+        }
       }
     }
 
