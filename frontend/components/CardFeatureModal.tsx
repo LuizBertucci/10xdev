@@ -13,6 +13,7 @@ import { Check, Edit, GripVertical, Link2, Loader2, Sparkles, Trash2 } from "luc
 import ContentRenderer from "./ContentRenderer"
 import { Textarea } from "@/components/ui/textarea"
 import type { CardFeature } from "@/types"
+import { CardType } from "@/types/cardfeature"
 import {
   Dialog,
   DialogContent,
@@ -329,7 +330,7 @@ export default function CardFeatureModal({
   }, [onResizeMove, stopResizing])
 
   const onScreenDragStart = useCallback(
-    (screenId: string, event: ReactDragEvent<HTMLDivElement>) => {
+    (screenId: string, event: ReactDragEvent<HTMLElement>) => {
       setDraggingScreenId(screenId)
       event.dataTransfer.effectAllowed = 'move'
       event.dataTransfer.setData('text/plain', screenId)
@@ -410,7 +411,7 @@ export default function CardFeatureModal({
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
   const appBaseUrl = isLocalhost ? 'http://localhost:3000' : 'https://10xdev.com.br'
   const apiBaseUrl = isLocalhost ? 'http://localhost:3001/api' : 'https://api.10xdev.com.br/api'
-  const cardShareUrl = `${appBaseUrl}/codes/${snippet.id}`
+  const cardShareUrl = `${appBaseUrl}/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
 
   const handleCopyShareUrl = async () => {

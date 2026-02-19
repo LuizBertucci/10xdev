@@ -80,7 +80,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const appBaseUrl = isLocalhost
     ? 'http://localhost:3000'
     : 'https://10xdev.com.br'
-  const cardShareUrl = `${appBaseUrl}/codes/${snippet.id}`
+  const cardShareUrl = `${appBaseUrl}/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`
 
   // Cálculo local de acesso (evita chamada individual GET /access por card)
   const accessInfo = useMemo(() => {

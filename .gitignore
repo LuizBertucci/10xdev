@@ -9,6 +9,7 @@
 .cursor/scratchpad.md
 
 .claude/settings.local.json
+.claude/settings.json
 
 # next.js
 /.next/
