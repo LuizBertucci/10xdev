@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureModal from "@/components/CardFeatureModal"
 import GitSyncProgressModal from "@/components/GitSyncProgressModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
@@ -32,7 +33,7 @@ import { ProjectCategories } from "@/components/ProjectCategories"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
-import { ContentType } from "@/types"
+import { ContentType, type CreateCardFeatureData } from "@/types"
 
 type ImportJobState = {
   id: string
@@ -99,6 +100,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [expandModalCard, setExpandModalCard] = useState<CardFeature | null>(null)
+  const [editingCard, setEditingCard] = useState<CardFeature | null>(null)
+  const [isEditingCard, setIsEditingCard] = useState(false)
+  const [updatingCard, setUpdatingCard] = useState(false)
   const [isGeneratingModalSummary, setIsGeneratingModalSummary] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
@@ -813,6 +817,38 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
+  const handleEditCard = (card: CardFeature) => {
+    setEditingCard(card)
+    setIsEditingCard(true)
+  }
+
+  const handleEditCardClose = () => {
+    setEditingCard(null)
+    setIsEditingCard(false)
+  }
+
+  const handleEditCardSubmit = async (data: Partial<CreateCardFeatureData>) => {
+    if (!editingCard) return null
+    setUpdatingCard(true)
+    try {
+      const response = await cardFeatureService.update(editingCard.id, data)
+      if (response?.success && response.data) {
+        setCardFeatures((prev) => prev.map((c) => (c.id === editingCard.id ? response.data! : c)))
+        toast.success('Card atualizado com sucesso!')
+        handleEditCardClose()
+        return response.data
+      }
+      toast.error(response?.error || 'Erro ao atualizar card')
+      return null
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro ao atualizar card'
+      toast.error(msg)
+      return null
+    } finally {
+      setUpdatingCard(false)
+    }
+  }
+
   const handleDeleteProject = async () => {
     if (!projectId) return
     
@@ -1400,7 +1436,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <div key={cardFeature.id} className="relative group min-w-0 overflow-hidden">
                         <CardFeatureCompact
                           snippet={cardFeature}
-                          onEdit={() => {}} // Não permitir editar aqui
+                          onEdit={handleEditCard}
                           onDelete={() => {}} // Não permitir deletar aqui
                           expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
@@ -2025,6 +2061,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         onGenerateSummary={handleGenerateSummaryFromModal}
         onSaveSummary={handleSaveSummaryFromModal}
       />
+
+      {user && (
+        <CardFeatureForm
+          isOpen={isEditingCard}
+          mode="edit"
+          initialData={editingCard ?? undefined}
+          isLoading={updatingCard}
+          onClose={handleEditCardClose}
+          onSubmit={handleEditCardSubmit}
+        />
+      )}
     </div>
   )
 }
