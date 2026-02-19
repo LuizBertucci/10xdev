@@ -36,6 +36,29 @@ function TextBlockContainer({ children, className }: { children: React.ReactNode
   )
 }
 
+// Container para blocos NEWSLETTER - estilo artigo/substack
+function NewsletterBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
+  return (
+    <div
+      className={`newsletter-container mb-4 w-full overflow-hidden rounded-xl border-l-4 border-amber-400 shadow-sm ${className}`}
+      style={{
+        background: 'linear-gradient(to bottom, #fffdf7, #faf6ee)',
+        padding: '1.5rem 2rem',
+      }}
+    >
+      <div className="prose prose-base max-w-none w-full
+        prose-headings:font-semibold prose-headings:text-gray-800
+        prose-p:leading-relaxed prose-p:text-gray-700
+        prose-strong:text-gray-900
+        prose-a:text-amber-700 prose-a:no-underline hover:prose-a:underline"
+        style={{ fontFamily: 'Georgia, Cambria, serif', lineHeight: '1.8' }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 // Container para blocos TERMINAL - área preta/verde
 function TerminalBlockContainer({ children, className }: { children: React.ReactNode, className?: string }) {
   return (
@@ -163,7 +186,16 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
             </ReactMarkdown>
           </div>
         </TextBlockContainer>
-      )    
+      )
+
+    case ContentType.NEWSLETTER:
+      return (
+        <NewsletterBlockContainer className={className}>
+          <ReactMarkdown>
+            {block.content}
+          </ReactMarkdown>
+        </NewsletterBlockContainer>
+      )
     case ContentType.TERMINAL:
       return (
         <TerminalBlockContainer className={className}>

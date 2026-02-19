@@ -1193,8 +1193,9 @@ export default function CardFeatureForm({
                                     <Textarea
                                       placeholder={
                                         block.type === ContentType.CODE ? 'Cole seu código aqui...' :
-                                      block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
-                                      '$ comando...'
+                                        block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
+                                        block.type === ContentType.NEWSLETTER ? 'Conteúdo da newsletter em markdown...' :
+                                        '$ comando...'
                                       }
                                       value={block.content}
                                       onChange={(e) => handleBlockChange(index, blockIndex, 'content', e.target.value)}
@@ -1331,6 +1332,16 @@ export default function CardFeatureForm({
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Terminal
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => addBlock(index, ContentType.NEWSLETTER)}
+                          className="h-7 px-2.5 text-[11px] bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800 border border-orange-200 rounded-md transition-all"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Newsletter
                         </Button>
                       </div>
                     </div>
