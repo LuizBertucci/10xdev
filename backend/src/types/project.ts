@@ -226,7 +226,7 @@ export interface ImportFromGithubRequest {
   token?: string
   name?: string
   description?: string
-  useAi?: boolean
+  installationId?: number
 }
 
 export interface ShareProjectRequest {
