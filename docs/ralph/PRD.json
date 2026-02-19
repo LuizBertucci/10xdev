@@ -90,11 +90,13 @@
         {
           "id": "fix_edit_analyze",
           "title": "Analisar o problema: ProjectDetail.tsx tem onEdit vazio (linha ~1403). Ver como Codes.tsx e Contents.tsx implementam edicao. Identificar fluxo necessario.",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "frontend: npm run lint"
           ],
-          "notes": []
+          "notes": [
+            "ProjectDetail ja tem onEdit=handleEditCard e fluxo completo. fix_edit_analyze.md detalha analise. canEdit pode limitar edicao a nao-donos."
+          ]
         },
         {
           "id": "fix_edit_implement",
@@ -157,6 +159,14 @@
     "observacoes": "bloqueios, riscos, proximo passo"
   },
   "updates": [
+    {
+      "ts": "2025-02-19 14:30",
+      "microtask_id": "fix_edit_analyze",
+      "feito": "analise: ProjectDetail ja tem fluxo de edicao completo; doc fix_edit_analyze.md criado",
+      "status": "ok",
+      "validacao": "npm run lint ok",
+      "observacoes": "fix_edit_implement: verificar se fluxo atual funciona ou se canEdit/onUpdate precisam ajuste"
+    },
     {
       "ts": "2025-02-19 12:00",
       "microtask_id": "commit_skill_full",
