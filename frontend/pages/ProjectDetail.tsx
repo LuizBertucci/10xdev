@@ -1438,6 +1438,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           snippet={cardFeature}
                           onEdit={handleEditCard}
                           onDelete={() => {}} // Não permitir deletar aqui
+                          canEditOverride={canEditProject}
                           expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
                         />

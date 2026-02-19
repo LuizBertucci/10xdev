@@ -40,6 +40,8 @@ interface CardFeatureCompactProps {
   onEdit: (snippet: CardFeatureType) => void
   onDelete: (snippetId: string) => void
   onUpdate?: (id: string, data: Partial<CardFeatureType>) => Promise<void>
+  /** Override canEdit quando contexto permite (ex: editor do projeto) */
+  canEditOverride?: boolean
   className?: string
   isSelectionMode?: boolean
   isSelected?: boolean
@@ -48,7 +50,7 @@ interface CardFeatureCompactProps {
   onExpand?: (snippet: CardFeatureType) => void
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, canEditOverride, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
@@ -67,7 +69,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   // Estado local para screens - permite atualização imediata após gerar resumo
   const [localScreens, setLocalScreens] = useState(snippet.screens)
   
-  const canEdit = user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
+  const canEdit = !!canEditOverride || user?.role === 'admin' || (!!user?.id && snippet.createdBy === user.id)
   
   // URL da API baseada no ambiente
   const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
