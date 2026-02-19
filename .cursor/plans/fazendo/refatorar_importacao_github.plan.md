@@ -68,14 +68,16 @@ O Grok 4 Fast suporta **2 milhões de tokens** de context window. Portanto, envi
 
 ## Sprints de Implementação
 
+**Estratégia**: Criar GitHub2Service.ts paralelo, testar, substituir.
 
-| Sprint | Escopo                                                                                                                                                                                                                                                      |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1**  | **GithubService**: • EXCLUIR: downloadRepoAsZip, extractFilesFromZip, processRepoToCards, heurística, constants de detection • CRIAR: listRepoFiles() via API GitHub                                                                                        |
-| **2**  | **AiCardGroupingService**: • Adicionar filtro (CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES) • Adicionar build (buildCard, addVisaoGeralScreen, createContentBlock) • RENOMEAR: refineGrouping → generateCardGroups, addSummaryScreen → addVisaoGeralScreen |
-| **3**  | **AiCardGroupingService**: • CRIAR método processRepo() do zero (substitui antigo GithubService.processRepoToCards)                                                                                                                                         |
-| **4**  | **Controllers**: • Atualizar ProjectController • Atualizar GitSyncService                                                                                                                                                                                   |
-| **5**  | **Testes**: • Testar importação via GitHub App • Testar grouping via IA                                                                                                                                                                                     |
+
+| Sprint | Escopo                                                                                                                                                                                                                    |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1**  | **GitHub2Service**: • CRIAR arquivo paralelo com métodos limpos • CRIAR listRepoFiles() via API GitHub • COPIAR: validateToken, getRepoDetails, getFileContent, GitHub App, Git operations, OAuth, verifyWebhookSignature |
+| **2**  | **AiCardGroupingService**: • Adicionar filtro (CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES) • Adicionar build (buildCard, addVisaoGeralScreen, createContentBlock) • CRIAR processRepo() como orquestrador               |
+| **3**  | **Testar/Validar**: • Testar GitHub2Service.listRepoFiles() com repo real • Verificar se AiCardGroupingService.processRepo() funciona                                                                                     |
+| **4**  | **Substituição**: • Atualizar ProjectController para usar novo fluxo • Atualizar GitSyncService se necessário • Remover GitHubService.ts • Renomear GitHub2Service.ts → GitHubService.ts                                  |
+| **5**  | **Testes Finais**: • Testar importação via GitHub App • Testar grouping via IA • Verificar quality supervisor                                                                                                             |
 
 
 ---
