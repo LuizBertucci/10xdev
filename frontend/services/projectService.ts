@@ -159,6 +159,7 @@ class ProjectService {
     name?: string
     description?: string
     useAi?: boolean
+    installationId?: number
   }): Promise<ApiResponse<{ project: Project; jobId: string }> | undefined> {
     return apiClient.post<{ project: Project; jobId: string }>(`${this.endpoint}/import-from-github`, data)
   }
