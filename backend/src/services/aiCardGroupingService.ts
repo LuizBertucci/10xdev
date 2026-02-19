@@ -1,116 +1,12 @@
 import { randomUUID } from 'crypto'
-import { ContentType, CardType, Visibility } from '@/types/cardfeature'
+import { ContentType } from '@/types/cardfeature'
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
-import { FileEntry } from './githubService'
+import type { FileEntry } from './githubService'
 import { CardQualitySupervisor } from './cardQualitySupervisor'
-
-interface AiCardFile {
-  path: string
-  content?: string
-}
-
-interface AiCardScreen {
-  name: string
-  description: string
-  files: AiCardFile[]
-}
-
-interface AiCard {
-  title?: string
-  name?: string
-  featureName?: string
-  description?: string
-  category?: string
-  tags?: string[] | string | unknown
-  tech?: string | unknown
-  language?: string | unknown
-  screens?: unknown
-}
-
-interface AiOutput {
-  cards?: AiCard[]
-}
-
-// ================================================
-// FILTER CONSTANTS
-// ================================================
-
-const CODE_EXTENSIONS = [
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-  '.py', '.pyw', '.java', '.kt', '.kts',
-  '.go', '.rs', '.rb', '.php',
-  '.c', '.cpp', '.cc', '.h', '.hpp',
-  '.cs', '.swift', '.vue', '.svelte',
-  '.html', '.htm', '.css', '.scss', '.sass', '.less',
-  '.json', '.yaml', '.yml', '.toml',
-  '.md', '.mdx', '.sql',
-  '.sh', '.bash', '.zsh',
-  '.dockerfile', '.env'
-]
-
-const IGNORED_DIRS = [
-  'node_modules', '.git', 'dist', 'build', '.next', '__pycache__',
-  '.venv', 'venv', '.idea', '.vscode', 'coverage', '.cache', '.turbo',
-  'vendor', '.yarn', '.pnpm', 'out', '.output', 'target', 'bin', 'obj',
-  '__tests__', '__mocks__', 'test', 'tests', 'spec', 'specs', 'e2e',
-  'cypress', 'playwright', '.github', '.husky'
-]
-
-const IGNORED_FILES = [
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.DS_Store',
-  'thumbs.db', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc',
-  '.prettierrc', '.prettierignore', '.eslintrc', '.eslintrc.js',
-  '.eslintrc.json', 'eslint.config.js', 'eslint.config.mjs',
-  'jest.config.js', 'jest.config.ts', 'vitest.config.ts',
-  'vite.config.ts', 'vite.config.js', 'next.config.js', 'next.config.mjs',
-  'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js',
-  'postcss.config.mjs', '.env.example', '.env.local', '.env.development',
-  '.env.production', 'LICENSE', 'LICENSE.md', 'CHANGELOG.md',
-  'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', '.editorconfig'
-]
-
-const EXTENSION_TO_LANGUAGE: Record<string, string> = {
-  '.ts': 'typescript', '.tsx': 'typescript',
-  '.js': 'javascript', '.jsx': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript',
-  '.py': 'python', '.pyw': 'python',
-  '.java': 'java', '.kt': 'kotlin', '.kts': 'kotlin',
-  '.go': 'go', '.rs': 'rust', '.rb': 'ruby', '.php': 'php',
-  '.c': 'c', '.cpp': 'cpp', '.cc': 'cpp', '.h': 'c', '.hpp': 'cpp',
-  '.cs': 'csharp', '.swift': 'swift',
-  '.vue': 'vue', '.svelte': 'svelte',
-  '.html': 'html', '.htm': 'html',
-  '.css': 'css', '.scss': 'scss', '.sass': 'sass', '.less': 'less',
-  '.json': 'json', '.yaml': 'yaml', '.yml': 'yaml', '.toml': 'toml',
-  '.md': 'markdown', '.mdx': 'markdown',
-  '.sql': 'sql', '.sh': 'bash', '.bash': 'bash', '.zsh': 'bash',
-  '.dockerfile': 'dockerfile', '.env': 'plaintext'
-}
-
-/**
- * Remove formatação Markdown de texto (negrito, itálico, links, etc)
- */
-function cleanMarkdown(text: string): string {
-  if (!text) return text
-
-  return text
-    // Remove **negrito**
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    // Remove *itálico*
-    .replace(/\*([^*]+)\*/g, '$1')
-    // Remove __sublinhado__
-    .replace(/__([^_]+)__/g, '$1')
-    // Remove ~~riscado~~
-    .replace(/~~([^~]+)~~/g, '$1')
-    // Remove `código inline`
-    .replace(/`([^`]+)`/g, '$1')
-    // Remove # Headers (##, ###, etc) - apenas no início da linha
-    .replace(/^#{1,6}\s+/gm, '')
-    // Remove links [texto](url)
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove bullet points (-, *, +) no início da linha
-    .replace(/^\s*[-*+]\s+/gm, '')
-    .trim()
-}
+import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from './llmClient'
+import { shouldIncludeFile } from '@/utils/fileFilters'
+import { cleanMarkdown } from '@/utils/markdownUtils'
+import { normalizeAiOutput, buildCardsFromAiOutput } from './aiCardBuilder'
 
 export class AiCardGroupingService {
   static isEnabled(): boolean {
@@ -118,73 +14,11 @@ export class AiCardGroupingService {
   }
 
   static hasConfig(): boolean {
-    return Boolean(this.resolveApiKey())
-  }
-
-  private static resolveApiKey(): string | undefined {
-    // Priorizar chave do Grok; fallback para OPENAI_API_KEY se não houver
-    const key = process.env.GROK_API_KEY || process.env.OPENAI_API_KEY
-    
-    // Log non-sensitive API key status (development only)
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const apiKeyPresent = Boolean(key)
-        const keyLength = key?.length || 0
-        // Log only presence and length (capped for security)
-        const cappedLength = keyLength > 0 ? `${keyLength > 20 ? '20+' : keyLength} chars` : '0'
-        console.debug('[AiCardGroupingService] API key status:', {
-          apiKeyPresent,
-          keyLength: cappedLength,
-          source: process.env.GROK_API_KEY ? 'GROK_API_KEY' : (process.env.OPENAI_API_KEY ? 'OPENAI_API_KEY' : 'none')
-        })
-      } catch (err) {
-        // Log error but don't fail the function
-        console.error('[AiCardGroupingService] Error logging API key status:', err)
-      }
-    }
-    
-    return key
-  }
-
-  private static resolveChatCompletionsUrl(): string {
-    const raw = (process.env.OPENAI_BASE_URL || 'https://api.x.ai/v1/chat/completions').trim()
-    if (raw.endsWith('/chat/completions')) return raw
-    if (raw.endsWith('/v1')) return `${raw}/chat/completions`
-    if (raw.endsWith('/')) {
-      const noSlash = raw.slice(0, -1)
-      if (noSlash.endsWith('/v1')) return `${noSlash}/chat/completions`
-    }
-    return raw
-  }
-
-  private static async callChatCompletions(args: { endpoint: string; apiKey: string; body: Record<string, unknown> }): Promise<{ content: string }> {
-    const res = await fetch(args.endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
-      body: JSON.stringify(args.body)
-    })
-    const text = await res.text().catch((e) => {
-      console.error('[AiCardGroupingService] Erro ao ler body da resposta:', e?.message)
-      return ''
-    })
-    if (!res.ok) throw new Error(`LLM HTTP ${res.status}: ${text || res.statusText}`)
-    let json: unknown
-    try { json = JSON.parse(text) } catch { throw new Error('LLM retornou resposta não-JSON') }
-    
-    if (!json || typeof json !== 'object') throw new Error('LLM retornou resposta inválida')
-    const obj = json as Record<string, unknown>
-    if (!obj.choices || !Array.isArray(obj.choices)) throw new Error('LLM retornou resposta inválida')
-    if (!obj.choices[0] || typeof obj.choices[0] !== 'object') throw new Error('LLM retornou resposta inválida')
-    const choice = obj.choices[0] as Record<string, unknown>
-    if (!choice.message || typeof choice.message !== 'object') throw new Error('LLM retornou resposta inválida')
-    const message = choice.message as Record<string, unknown>
-    const content = message.content
-    if (!content || typeof content !== 'string') throw new Error('LLM retornou resposta inválida')
-    return { content }
+    return Boolean(resolveApiKey())
   }
 
   // ================================================
-  // IA - GENERATE CARD GROUPS (REPO INTEIRO - SEM LIMITS)
+  // AI - GERAR CARDS DO REPOSITÓRIO (REPO INTEIRO)
   // ================================================
 
   /** Gera cards via IA enviando o repositório INTEIRO sem limits.
@@ -212,17 +46,17 @@ export class AiCardGroupingService {
       }
     }
 
-    const apiKey = this.resolveApiKey()
+    const apiKey = resolveApiKey()
     if (!apiKey) {
       throw new Error('API key não configurada. A importação depende de IA por padrão.')
     }
 
     const model = process.env.OPENAI_MODEL || 'grok-4-fast'
-    const endpoint = this.resolveChatCompletionsUrl()
+    const endpoint = resolveChatCompletionsUrl()
 
     notify('ai_preparing', 10, 'Preparando dados para IA...')
 
-    const filteredFiles = files.filter(file => this.shouldIncludeFile(file.path))
+    const filteredFiles = files.filter(file => shouldIncludeFile(file.path))
     if (filteredFiles.length === 0) {
       throw new Error('Nenhum arquivo elegível para processamento por IA.')
     }
@@ -286,37 +120,36 @@ export class AiCardGroupingService {
       response_format: { type: 'json_object' }
     }
 
-    try {
-      const { content } = await this.callChatCompletions({ endpoint, apiKey, body })
-      notify('ai_processing', 70, 'Processando resposta da IA...')
-
+    const runPipeline = async (responseContent: string) => {
       let parsed: unknown
       try {
-        parsed = JSON.parse(content)
+        parsed = JSON.parse(responseContent)
       } catch {
         throw new Error('Resposta da IA não é JSON válido')
       }
-
-      const normalized = this.normalizeAiOutput(parsed)
+      const normalized = normalizeAiOutput(parsed)
       const aiCards = normalized.cards || []
-
-      notify('ai_building', 90, `🤖 ${aiCards.length} cards gerados pela IA`)
-
-      const builtCards = this.buildCardsFromAiOutput(aiCards, filteredFiles)
+      const builtCards = buildCardsFromAiOutput(aiCards, filteredFiles)
       if (builtCards.length === 0) {
         throw new Error('IA não retornou cards válidos para o repositório.')
       }
-
-      notify('quality_analyzing', 92, 'Analisando qualidade dos cards...')
       const qualityReport = CardQualitySupervisor.analyzeQuality(builtCards, {
         onLog: (message) => console.log(`[AiCardGroupingService] ${message}`)
       })
-
-      notify('quality_corrections', 95, 'Aplicando correções de qualidade...')
       const corrections = CardQualitySupervisor.applyCorrections(builtCards, qualityReport, {
         onLog: (message) => console.log(`[AiCardGroupingService] ${message}`)
       })
+      return { qualityReport, corrections }
+    }
 
+    try {
+      const { content } = await callChatCompletions({ endpoint, apiKey, body })
+      notify('ai_processing', 70, 'Processando resposta da IA...')
+
+      const { qualityReport, corrections } = await runPipeline(content)
+      notify('ai_building', 90, `🤖 ${corrections.correctedCards.length} cards gerados pela IA`)
+
+      notify('quality_corrections', 95, 'Aplicando correções de qualidade...')
       const finalCards = corrections.correctedCards.map(card => this.addVisaoGeralScreen(card))
       for (const card of finalCards) {
         await emitCard(card)
@@ -347,23 +180,8 @@ export class AiCardGroupingService {
             { role: 'system', content: repoPathCodeContext }
           ]
         }
-        const { content } = await this.callChatCompletions({ endpoint, apiKey, body: body2 })
-        
-        let parsed: unknown
-        try {
-          parsed = JSON.parse(content)
-        } catch {
-          throw new Error('Resposta da IA não é JSON válido após retry')
-        }
-        const normalized = this.normalizeAiOutput(parsed)
-
-        const builtCards = this.buildCardsFromAiOutput(normalized.cards || [], filteredFiles)
-        if (builtCards.length === 0) {
-          throw new Error('IA não retornou cards válidos no retry.')
-        }
-
-        const qualityReport = CardQualitySupervisor.analyzeQuality(builtCards)
-        const corrections = CardQualitySupervisor.applyCorrections(builtCards, qualityReport)
+        const { content } = await callChatCompletions({ endpoint, apiKey, body: body2 })
+        const { qualityReport, corrections } = await runPipeline(content)
         const finalCards = corrections.correctedCards.map(card => this.addVisaoGeralScreen(card))
 
         for (const card of finalCards) {
@@ -390,7 +208,7 @@ export class AiCardGroupingService {
   }
 
   // ================================================
-  // IA - GENERATE ABA VISÃO GERAL
+  // AI - GERAR RESUMO DO CARD
   // ================================================
 
   static async generateCardSummary(params: {
@@ -400,19 +218,19 @@ export class AiCardGroupingService {
     language?: string
   }, customPrompt?: string): Promise<{ summary: string }> {
     console.log('[generateCardSummary] Iniciando...')
-    const apiKey = this.resolveApiKey()
+    const apiKey = resolveApiKey()
     console.log('[generateCardSummary] API Key presente:', Boolean(apiKey))
-    
+
     if (!apiKey) {
       console.error('[generateCardSummary] ERRO: API key não configurada')
       throw new Error('API key não configurada')
     }
-    
+
     const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
-    const endpoint = this.resolveChatCompletionsUrl()
+    const endpoint = resolveChatCompletionsUrl()
     console.log('[generateCardSummary] Model:', model)
     console.log('[generateCardSummary] Endpoint:', endpoint)
-    
+
     const screensContext = params.screens.slice(0, 10).map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
@@ -481,9 +299,9 @@ export class AiCardGroupingService {
       'Gere o resumo no formato EXATO especificado acima.',
       ...(trimmedPrompt ? ['', 'Instruções adicionais do usuário:', trimmedPrompt] : [])
     ].join('\n')
-    
+
     console.log('[generateCardSummary] Chamando API de IA...')
-    const { content } = await this.callChatCompletions({
+    const { content } = await callChatCompletions({
       endpoint,
       apiKey,
       body: {
@@ -496,7 +314,7 @@ export class AiCardGroupingService {
         ]
       }
     })
-    
+
     console.log('[generateCardSummary] Resposta recebida da IA, processando...')
     const summary = content
       .replace(/\n{3,}/g, '\n\n')
@@ -543,6 +361,10 @@ export class AiCardGroupingService {
     console.log('[generateCardSummary] Resumo processado:', finalSummary?.substring(0, 100) + '...')
     return { summary: finalSummary }
   }
+
+  // ================================================
+  // VISÃO GERAL
+  // ================================================
 
   static addVisaoGeralScreen(card: CreateCardFeatureRequest): CreateCardFeatureRequest {
     const content = this.buildVisaoGeralContent(card)
@@ -624,202 +446,4 @@ export class AiCardGroupingService {
         : [])
     ].join('\n').trim()
   }
-
-  // ================================================
-  // NORMALIZE AI OUTPUT
-  // ================================================
-
-  /**
-   * Normalizes raw AI output to match AiOutputSchema expectations.
-   * Handles various LLM response formats by mapping name→title, populating
-   * missing descriptions, ensuring proper types, and filtering invalid entries.
-   */
-  private static normalizeAiOutput(raw: unknown): AiOutput {
-    if (!raw || typeof raw !== 'object') {
-      return { cards: [] }
-    }
-
-    const obj = raw as Record<string, unknown>
-    if (obj?.cards && Array.isArray(obj.cards)) {
-      const normalizedCards = obj.cards
-        .map((card: unknown, cardIdx: number) => {
-          if (!card || typeof card !== 'object') return null
-          const cardObj = card as AiCard
-          // Map name→title with fallbacks
-          const title = cleanMarkdown(cardObj?.title || cardObj?.name || cardObj?.featureName || `Card ${cardIdx + 1}`)
-
-          // Normalize screens array
-          const screensRaw = Array.isArray(cardObj?.screens) ? cardObj.screens : []
-          const screens = screensRaw
-            .map((s:unknown, screenIdx: number) => {
-              const screen = s as AiCardScreen
-              const name = cleanMarkdown(screen?.name || `Screen ${screenIdx + 1}`)
-              const description = cleanMarkdown(screen?.description || '')
-              const files = Array.isArray(screen?.files) ? screen.files : []
-              if (!files.length) return null
-              return { name, description, files }
-            })
-            .filter(Boolean)
-
-          // Filter out invalid cards (no title or no screens)
-          if (!title || !screens.length) return null
-
-          // Build normalized card with required fields
-          const normalizedCard: AiCard = {
-            title,
-            description: cleanMarkdown(cardObj?.description || ''),
-            category: cleanMarkdown(String(cardObj?.category || (Array.isArray(cardObj?.tags) ? cardObj.tags[0] : 'Geral'))),
-            screens: screens as unknown as AiCardScreen[]
-          }
-
-          // Add optional fields if present
-          if (cardObj?.tech) (normalizedCard as { tech?: string }).tech = String(cardObj.tech)
-          if (cardObj?.language) (normalizedCard as { language?: string }).language = String(cardObj.language)
-
-          // Handle tags if present (coerce to array)
-          if (cardObj?.tags !== undefined) {
-            if (Array.isArray(cardObj.tags)) {
-              (normalizedCard as { tags?: string[] }).tags = cardObj.tags.map((t: unknown) => String(t))
-            } else if (typeof cardObj.tags === 'string') {
-              (normalizedCard as { tags?: string[] }).tags = [String(cardObj.tags)]
-            }
-          }
-
-          return normalizedCard
-        })
-        .filter((c): c is AiCard => c !== null)
-
-      return { cards: normalizedCards }
-    }
-
-    return { cards: [] }
-  }
-
-  // ================================================
-  // FILTER HELPERS
-  // ================================================
-
-  static getFileExtension(filePath: string): string {
-    const fileName = filePath.split('/').pop() || ''
-    if (fileName.toLowerCase() === 'dockerfile') return '.dockerfile'
-    if (fileName.startsWith('.env')) return '.env'
-    const lastDot = filePath.lastIndexOf('.')
-    if (lastDot === -1) return ''
-    return filePath.substring(lastDot).toLowerCase()
-  }
-
-  static getLanguageFromExtension(ext: string): string {
-    return EXTENSION_TO_LANGUAGE[ext] || 'plaintext'
-  }
-
-  static shouldIncludeFile(filePath: string): boolean {
-    const parts = filePath.split('/')
-    for (const part of parts) {
-      if (IGNORED_DIRS.includes(part.toLowerCase())) return false
-    }
-    const fileName = parts[parts.length - 1] || ''
-    if (IGNORED_FILES.includes(fileName)) return false
-    return CODE_EXTENSIONS.includes(this.getFileExtension(filePath))
-  }
-
-  // ================================================
-  // BUILD FUNCTIONS
-  // ================================================
-
-  static createContentBlock(file: FileEntry, order: number): ContentBlock {
-    const ext = this.getFileExtension(file.path)
-    return {
-      id: randomUUID(),
-      type: ContentType.CODE,
-      content: file.content,
-      language: this.getLanguageFromExtension(ext),
-      title: file.path.split('/').pop() || file.path,
-      route: file.path,
-      order
-    }
-  }
-
-  static buildCard(
-    featureName: string,
-    screens: CardFeatureScreen[],
-    tech: string,
-    lang: string,
-    _featureFiles: FileEntry[],
-    aiOverrides?: { title: string; description?: string; tech?: string; language?: string; category?: string; tags?: string[] }
-  ): CreateCardFeatureRequest {
-    return {
-      title: aiOverrides?.title ? cleanMarkdown(aiOverrides.title) : featureName,
-      description: cleanMarkdown(aiOverrides?.description || ''),
-      tech: aiOverrides?.tech || tech,
-      language: aiOverrides?.language || lang,
-      content_type: ContentType.CODE,
-      card_type: CardType.CODIGOS,
-      category: aiOverrides?.category || featureName,
-      tags: aiOverrides?.tags || [],
-      visibility: Visibility.UNLISTED,
-      screens
-    }
-  }
-
-  private static buildCardsFromAiOutput(aiCards: AiCard[], files: FileEntry[]): CreateCardFeatureRequest[] {
-    const fileMap = new Map<string, FileEntry>()
-    files.forEach(f => fileMap.set(f.path, f))
-
-    const resultCards: CreateCardFeatureRequest[] = []
-
-    for (const aiCard of aiCards) {
-      const screens: CardFeatureScreen[] = []
-      const rawScreens = aiCard.screens
-      const screenArray = Array.isArray(rawScreens) ? rawScreens : []
-
-      for (const screen of screenArray) {
-        const screenObj = screen as AiCardScreen
-        const blocks: ContentBlock[] = []
-        const screenFiles = screenObj.files || []
-
-        for (const fileItem of screenFiles) {
-          const filePath = typeof fileItem === 'string' ? fileItem : fileItem.path
-          const file = fileMap.get(filePath)
-          if (file) {
-            blocks.push(this.createContentBlock(file, blocks.length))
-          }
-        }
-
-        if (blocks.length > 0) {
-          screens.push({
-            name: screenObj.name || 'Screen',
-            description: screenObj.description || '',
-            route: '',
-            blocks
-          })
-        }
-      }
-
-      if (screens.length > 0) {
-        const cardOverrides: { title: string; description?: string; category?: string; tags?: string[] } = {
-          title: aiCard.title || 'Card',
-          description: aiCard.description || '',
-          tags: Array.isArray(aiCard.tags) ? aiCard.tags : []
-        }
-
-        if (aiCard.category) {
-          cardOverrides.category = aiCard.category
-        }
-
-        const card = this.buildCard(
-          aiCard.category || 'misc',
-          screens,
-          String(aiCard.tech || 'General'),
-          String(aiCard.language || 'typescript'),
-          files,
-          cardOverrides
-        )
-
-        resultCards.push(card)
-      }
-    }
-
-    return resultCards
-  }
-
 }
