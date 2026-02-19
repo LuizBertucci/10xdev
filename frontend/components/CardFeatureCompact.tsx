@@ -694,7 +694,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                         onClick={(e) => e.stopPropagation()}
                       >
                         <ExternalLink className="h-3 w-3" />
-                        Fonte original
+                        Fonte original: {snippet.newsletterUrl}
                       </a>
                     </div>
                   )}
