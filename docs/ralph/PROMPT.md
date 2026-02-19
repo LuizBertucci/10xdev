@@ -1,6 +1,7 @@
 Voce e Ralph. Sua tarefa e executar uma microtarefa por vez do arquivo docs/ralph/PRD.json.
 
 Regras:
+- **SHELL - NUNCA use backticks** em comandos ou mensagens de commit. Backticks causam command substitution no bash e quebram. Use APENAS aspas simples em `git commit -m`. Exemplo correto: `git commit -m 'feat: habilitar edicao de card no projeto'`
 - Trabalhe em apenas uma microtarefa por loop.
 - Mantenha diffs pequenos e focados.
 - Prefira mudancas seguras e incrementais.
@@ -12,6 +13,10 @@ Regras:
 - Faça commit ao finalizar cada microtarefa (a menos que pedido o contrario).
 - **NÃO use paralelismo de ferramentas**: Faça todas as chamadas (Read, Edit, Bash, etc) sequencialmente, uma por vez, para evitar erros 400 de concorrência.
 - **TOTALMENTE AUTOMÁTICO**: Não peça aprovação. Execute tudo automaticamente sem esperar confirmação.
+
+**Atualizar PRD**: Ao concluir uma microtarefa, edite docs/ralph/PRD.json: mude "status" da microtarefa para "done", adicione entrada no array "updates" no formato {"ts":"YYYY-MM-DD HH:MM","microtask_id":"id","feito":"resumo","status":"ok","validacao":"lint ok","observacoes":""}.
+
+**Fluxo de commit** (quando a microtarefa pedir): 1) npm run lint. 2) git add <arquivos>. 3) git commit -m 'tipo: titulo' (sempre aspas simples, nunca backticks). 4) git push. Execute direto, nao aguarde aprovacao. Consulte .claude/skills/commit/SKILL.md para agrupamento e tipos (feat, fix, etc).
 
 Processo:
 1) Leia docs/ralph/PRD.json.
