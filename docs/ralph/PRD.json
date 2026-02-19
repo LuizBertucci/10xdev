@@ -27,6 +27,8 @@
     "frontend_dir": "frontend",
     "backend_dir": "backend",
     "ralph_commands": {
+      "cursor": "scripts/ralph-cursor.sh",
+      "claude": "scripts/ralph.sh",
       "start": "nohup ./scripts/ralph.sh > ralph.log 2>&1 &",
       "status": "pgrep -af ralph.sh || echo \"Ralph nao esta rodando\"",
       "stop": "pkill -f ralph.sh && echo \"Ralph parado\"",
@@ -50,6 +52,7 @@
     "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco."
   },
   "task_sequence": [
+    "ralph_commit_only",
     "logo_remove_black",
     "sidebar_dark_mode_toggle",
     "git_import_grouping_agent",
@@ -57,6 +60,25 @@
     "rewrite_cardfeature_clawdbot"
   ],
   "tasks": [
+    {
+      "id": "ralph_commit_only",
+      "title": "Ralph: executar skill /commit ate o fim",
+      "status": "pending",
+      "scope_files": [],
+      "acceptance": [
+        "skill /commit executada do inicio ao fim",
+        "lint, build se aplicavel, commits, push"
+      ],
+      "microtasks": [
+        {
+          "id": "commit_skill_full",
+          "title": "Executar .claude/skills/commit/SKILL.md COMPLETA: 1) git status + diff. 2) npm run lint + build se 3+ arquivos. 3) Agrupar commits. 4) CodeRabbit se 3+ arquivos. 5) git add + commit (aspas simples, nunca backticks) + push. Execute TUDO automaticamente. Ao concluir output: DONE",
+          "status": "pending",
+          "tests": ["npm run lint"],
+          "notes": []
+        }
+      ]
+    },
     {
       "id": "logo_remove_black",
       "title": "Remover o logo preto da 10xdev",
