@@ -14,7 +14,8 @@ export enum ContentType {
   TEXT = 'text',
   TERMINAL = 'terminal',
   YOUTUBE = 'youtube',
-  PDF = 'pdf'
+  PDF = 'pdf',
+  NEWSLETTER = 'newsletter'
 }
 
 /**
