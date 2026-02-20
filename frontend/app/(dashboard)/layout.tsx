@@ -1,14 +1,20 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import AppSidebar from '@/components/AppSidebar'
+import ImportProgressModal from '@/components/ImportProgressModal'
+import ImportProgressWidget from '@/components/ImportProgressWidget'
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode
 }): React.JSX.Element {
+  const pathname = usePathname()
+  const isProjectDetailPage = pathname?.match(/^\/projects\/[^/]+$/)
+
   return (
     <ProtectedRoute>
       <SidebarProvider>
@@ -24,6 +30,8 @@ export default function AppLayout({
           </div>
         </SidebarInset>
       </SidebarProvider>
+      <ImportProgressModal />
+      {!isProjectDetailPage && <ImportProgressWidget />}
     </ProtectedRoute>
   )
 }

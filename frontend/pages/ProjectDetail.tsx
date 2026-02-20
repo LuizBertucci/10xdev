@@ -29,6 +29,7 @@ import CardFeatureModal from "@/components/CardFeatureModal"
 import GitSyncProgressModal from "@/components/GitSyncProgressModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
+import ImportProgressWidget from "@/components/ImportProgressWidget"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
@@ -1306,6 +1307,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           )}
 
           <div className="flex items-center gap-2 md:ml-auto">
+            {projectId && (
+              <ImportProgressWidget inline projectId={projectId} />
+            )}
             <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
               <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
                 <Settings className="h-3.5 w-3.5" />

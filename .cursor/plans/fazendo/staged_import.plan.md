@@ -226,7 +226,7 @@ Responde "por que meu arquivo X não foi importado?" sem precisar de uma UI sepa
   - Botão `[Ver Projeto →]` que navega para `/projects/:id` e fecha o modal
 2. **Layout** (onde `ImportProgressWidget` é renderizado) — adicionar `ImportProgressModal` ao lado do widget.
 3. `**frontend/components/ProjectForm.tsx`** — ao receber resposta do import (`jobId` + `projectId`), setar flag de modal aberto no `localStorage` além do `IMPORT_JOB_LS_KEY` existente.
-4. `**frontend/components/ImportProgressWidget.tsx**` — virar estado "minimizado": só aparece quando o modal está fechado; clicando nele reabre o modal.
+4. `**frontend/components/ImportProgressWidget.tsx`** — virar estado "minimizado": só aparece quando o modal está fechado; clicando nele reabre o modal.
 
 ---
 
