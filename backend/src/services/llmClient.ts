@@ -38,6 +38,12 @@ export function resolveChatCompletionsUrl(): string {
   return `${raw}/v1/chat/completions`
 }
 
+export interface LlmUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
 /**
  * Faz uma chamada ao endpoint de chat completions e retorna o conteúdo da resposta.
  */
@@ -45,7 +51,7 @@ export async function callChatCompletions(args: {
   endpoint: string
   apiKey: string
   body: Record<string, unknown>
-}): Promise<{ content: string }> {
+}): Promise<{ content: string; usage?: LlmUsage }> {
   const timeoutMs = Number(process.env.LLM_TIMEOUT_MS) || 120_000
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -83,5 +89,17 @@ export async function callChatCompletions(args: {
   const message = choice.message as Record<string, unknown>
   const content = message.content
   if (!content || typeof content !== 'string') throw new Error('LLM retornou resposta inválida')
-  return { content }
+
+  const usage = obj.usage && typeof obj.usage === 'object'
+    ? (obj.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number })
+    : undefined
+  const llmUsage: LlmUsage | undefined = usage && typeof usage.prompt_tokens === 'number' && typeof usage.completion_tokens === 'number'
+    ? {
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens ?? usage.prompt_tokens + usage.completion_tokens
+      }
+    : undefined
+
+  return { content, ...(llmUsage && { usage: llmUsage }) }
 }

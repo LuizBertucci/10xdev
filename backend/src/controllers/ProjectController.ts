@@ -109,11 +109,12 @@ export class ProjectController {
 
     // Background: processar repo e criar cards
     setImmediate(async () => {
-      let lastProgress = 0
+        let lastProgress = 0
       let totalCardsCreated = 0
       let totalFilesProcessed = 0
       let _isProcessing = true
       const progressInterval: NodeJS.Timeout | null = null
+      const progressLog: string[] = []
 
       /** Atualiza job garantindo progresso monotônico (nunca decresce). */
       const updateJob = async (patch: ImportJobUpdate) => {
@@ -125,7 +126,8 @@ export class ProjectController {
       }
 
       try {
-        await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...' })
+        progressLog.push('Baixando o repositório...')
+        await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...', progress_log: [...progressLog] })
 
         const repoInfo = GithubService.parseGithubUrl(url)
         if (!repoInfo) {
@@ -139,21 +141,42 @@ export class ProjectController {
         }
 
         const branch = 'main'
-        const files = await GithubService.listRepoFiles(repoInfo.owner, repoInfo.repo, branch, finalToken || undefined)
+        const skippedFiles: Array<{ path: string; reason: string }> = []
+        const files = await GithubService.listRepoFiles(
+          repoInfo.owner, repoInfo.repo, branch, finalToken || undefined,
+          { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
+        )
+
+        progressLog.push(`Arquivos listados: ${files.length} incluídos, ${skippedFiles.length} ignorados`)
+        await updateJob({
+          file_report_json: {
+            included: files.map(f => f.path),
+            ignored: skippedFiles
+          },
+          progress_log: [...progressLog]
+        })
 
         if (files.length === 0) {
           throw new Error('Nenhum arquivo de código encontrado no repositório.')
         }
 
-        const { cards, filesProcessed, aiCardsCreated } = await AiCardGroupingService.generateCardGroupsFromRepo(
+        const { cards, filesProcessed, aiCardsCreated, tokenUsage } = await AiCardGroupingService.generateCardGroupsFromRepo(
           files,
           url,
           {
+            onLog: async (msg) => {
+              progressLog.push(msg)
+              await ImportJobModel.update(job.id, { progress_log: [...progressLog] })
+            },
             onProgress: async (p) => {
+              const msg = p.message ?? null
+              const msgWithTokens = p.tokenUsage && msg
+                ? `${msg} (${p.tokenUsage.prompt_tokens} + ${p.tokenUsage.completion_tokens} tokens)`
+                : msg
               await updateJob({
                 step: p.step as ImportJobStep,
                 progress: p.progress ?? 0,
-                message: p.message ?? null,
+                message: msgWithTokens,
                 cards_created: totalCardsCreated,
                 files_processed: totalFilesProcessed
               })
@@ -190,9 +213,12 @@ export class ProjectController {
         }
 
         await updateJob({ step: 'linking_cards', progress: 95, message: 'Finalizando...' })
+        const doneMessage = tokenUsage
+          ? `Importação concluída. Tokens: ${tokenUsage.prompt_tokens} prompt + ${tokenUsage.completion_tokens} completion = ${tokenUsage.total_tokens} total`
+          : 'Importação concluída.'
         await updateJob({
           status: 'done', step: 'done', progress: 100,
-          message: 'Importação concluída.',
+          message: doneMessage,
           cards_created: totalCardsCreated || cards.length,
           files_processed: totalFilesProcessed || filesProcessed,
           ai_used: true,
