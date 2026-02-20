@@ -51,27 +51,12 @@ export async function callChatCompletions(args: {
   endpoint: string
   apiKey: string
   body: Record<string, unknown>
-}): Promise<{ content: string; usage?: LlmUsage }> {
-  const timeoutMs = Number(process.env.LLM_TIMEOUT_MS) || 120_000
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-
-  let res: Response
-  try {
-    res = await fetch(args.endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
-      body: JSON.stringify(args.body),
-      signal: controller.signal
-    })
-  } catch (err) {
-    if (controller.signal.aborted) {
-      throw new Error(`LLM timeout: requisição excedeu ${timeoutMs}ms`)
-    }
-    throw err
-  } finally {
-    clearTimeout(timer)
-  }
+}): Promise<{ content: string; usage?: LlmUsage; finish_reason?: string }> {
+  const res = await fetch(args.endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
+    body: JSON.stringify(args.body),
+  })
   const text = await res.text().catch((e) => {
     console.error('[llmClient] Erro ao ler body da resposta:', e?.message)
     return ''
@@ -101,5 +86,7 @@ export async function callChatCompletions(args: {
       }
     : undefined
 
-  return { content, ...(llmUsage && { usage: llmUsage }) }
+  const finishReason = typeof choice.finish_reason === 'string' ? choice.finish_reason : undefined
+
+  return { content, ...(llmUsage && { usage: llmUsage }), ...(finishReason && { finish_reason: finishReason }) }
 }
