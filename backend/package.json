@@ -10,7 +10,8 @@
     "test": "jest",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "analyze-cards": "ts-node src/scripts/analyze-project-cards.ts"
+    "analyze-cards": "ts-node src/scripts/analyze-project-cards.ts",
+    "seed-claude-ralph-card": "ts-node -r tsconfig-paths/register src/scripts/seed-claude-ralph-card.ts"
   },
   "keywords": [
     "api",

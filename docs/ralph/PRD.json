@@ -484,10 +484,15 @@
         {
           "id": "cardfeature_delete_and_create",
           "title": "Apagar o card atual e criar um novo com telas/abas",
-          "status": "pending",
+          "status": "done",
           "tests": [
             "backend: npm run lint",
             "backend: npm run build"
+          ],
+          "notes": [
+            "Criado script backend/src/scripts/seed-claude-ralph-card.ts que remove card 00fa3cca e cria novo com 7 telas",
+            "Telas: Claude CLI (Visão Geral, Instalação, Comandos), Ralph (Conceito, Comandos, PRD.json, Workflow)",
+            "Comandos Claude CLI e Ralph em blocos code/terminal. Script: npm run seed-claude-ralph-card"
           ]
         },
         {
@@ -695,6 +700,14 @@
       "status": "ok",
       "validacao": "npm run lint (passou), npm run build (passou)",
       "observacoes": "Tarefa ralph_commit_only concluida. Proxima tarefa: rewrite_cardfeature_clawdbot (cardfeature_delete_and_create)"
+    },
+    {
+      "ts": "2026-02-20 17:30",
+      "microtask_id": "cardfeature_delete_and_create",
+      "feito": "Criado script seed-claude-ralph-card.ts: remove card antigo 00fa3cca, cria novo com 7 telas (Claude CLI + Ralph). Comandos instalacao e Ralph em blocos code.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Script executavel com npm run seed-claude-ralph-card. Proxima microtarefa: cardfeature_verify_content"
     }
   ]
 }
