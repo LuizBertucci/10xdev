@@ -171,6 +171,63 @@ Disponível em ambos os modos — modal e painel:
 
 Responde "por que meu arquivo X não foi importado?" sem precisar de uma UI separada.
 
+### Implementação — passo a passo
+
+**Backend — 4 arquivos**
+
+1. `**backend/src/utils/fileFilters.ts`** — adicionar `classifyFile()` que retorna o motivo da exclusão sem alterar `shouldIncludeFile`:
+
+```ts
+   export type FileExclusionReason = 'ignored_dir' | 'ignored_file' | 'invalid_extension'
+   export type FileClassification = { included: true } | { included: false; reason: FileExclusionReason }
+   export function classifyFile(filePath: string): FileClassification
+   
+
+```
+
+1. `**backend/src/services/githubService.ts**` — `listRepoFiles()` aceitar callback opcional `onSkipped(path, reason)` e chamá-lo para cada item descartado do `tree`:
+
+```ts
+   static async listRepoFiles(
+     owner, repo, branch, token?,
+     opts?: { onSkipped?: (path: string, reason: FileExclusionReason) => void }
+   ): Promise<FileEntry[]>
+   
+
+```
+
+1. `**backend/src/models/ImportJobModel.ts**` — adicionar `file_report_json` às interfaces `ImportJobRow`, `ImportJobInsert`, `ImportJobUpdate`:
+
+```ts
+   file_report_json?: { included: string[]; ignored: { path: string; reason: string }[] } | null
+   
+
+```
+
+1. `**backend/src/controllers/ProjectController.ts**` — em `importFromGithub`, usar `onSkipped` para acumular o relatório e salvar via `ImportJobModel.update` ao final do job.
+
+**Frontend — 5 arquivos (1 novo)**
+
+1. `**frontend/lib/importJobUtils.ts`** — adicionar tipo `FileReport` e campo `file_report_json` no `ImportJob`:
+
+```ts
+   export interface FileReport { included: string[]; ignored: { path: string; reason: string }[] }
+   // + file_report_json?: FileReport | null no ImportJob
+   
+
+```
+
+1. **Novo `frontend/components/ImportProgressModal.tsx`** — componente central da seção 1:
+  - Modo modal (centralizado) ou painel lateral (~320px à direita) com toggle e preferência em `localStorage`
+  - Progress bar + mensagem + contadores (arquivos, cards)
+  - Lista de cards em realtime: subscrição em `project_cards` com join em `card_features` para o `projectId`
+  - Indicador "⟳ Gerando próximo card..." enquanto `step === 'generating_cards'`
+  - Seção "Arquivos ignorados" colapsável, agrupada por `reason` (via `file_report_json`)
+  - Botão `[Ver Projeto →]` que navega para `/projects/:id` e fecha o modal
+2. **Layout** (onde `ImportProgressWidget` é renderizado) — adicionar `ImportProgressModal` ao lado do widget.
+3. `**frontend/components/ProjectForm.tsx`** — ao receber resposta do import (`jobId` + `projectId`), setar flag de modal aberto no `localStorage` além do `IMPORT_JOB_LS_KEY` existente.
+4. `**frontend/components/ImportProgressWidget.tsx**` — virar estado "minimizado": só aparece quando o modal está fechado; clicando nele reabre o modal.
+
 ---
 
 ## 2. Feedback por Card (Melhoria Pós-Import)
@@ -268,4 +325,3 @@ Usuário clica "Importar atualizações do GitHub"
 O import criou 3 cards de 10 esperados e parou por erro. O usuário quer completar.
 
 **Flow:** mesmo botão, mesma lógica. O que já existe é ignorado, o que falta é gerado.
-
