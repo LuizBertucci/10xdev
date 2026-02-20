@@ -45,7 +45,6 @@ import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '
 import type { FileEntry } from './githubService'
 import { CardQualitySupervisor } from './cardQualitySupervisor'
 import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions, type LlmUsage } from './llmClient'
-import { shouldIncludeFile } from '@/utils/fileFilters'
 import { cleanMarkdown } from '@/utils/markdownUtils'
 import { normalizeAiOutput, buildCardsFromAiOutput } from './aiCardBuilder'
 
@@ -103,7 +102,7 @@ export class AiCardGroupingService {
     notify('ai_preparing', 10, 'Preparando dados para IA...')
     options?.onLog?.('Preparando dados para IA...')
 
-    const filteredFiles = files.filter(file => shouldIncludeFile(file.path))
+    const filteredFiles = files
     if (filteredFiles.length === 0) {
       throw new Error('Nenhum arquivo elegível para processamento por IA.')
     }
@@ -115,30 +114,35 @@ export class AiCardGroupingService {
     }))
 
     const groupingSystemPrompt = [
-      'Você é um arquiteto de software especializado em organizar código de repositórios.',
+      'Você é um arquiteto de software especializado em documentar repositórios como cards de features.',
       '',
       '## Tarefa',
-      'Analise o repositório completo e organize os arquivos em "cards" por funcionalidade de negócio. Cada card representa uma feature coesa.',
-      'Você receberá em uma segunda mensagem um JSON contendo repoUrl, totalFiles e files (path, size, content).',
+      'Analise o repositório e organize os arquivos em cards. Cada card representa uma feature completa de ponta a ponta.',
+      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, content).',
       '',
-      '## Regras de Categorização',
-      '- Category deve ter 2-4 palavras em português (ex: "Autenticação", "Componentes UI", "APIs REST")',
-      '- Target: 5-15 categorias DISTINTAS para todo o projeto',
-      '- Cards relacionados DEVEM compartilhar a mesma category',
+      '## O que é um card',
+      'Um card = um fluxo completo do usuário. Inclua todos os arquivos que fazem essa feature funcionar:',
+      'frontend, backend, middleware, modelos — se servem ao mesmo fluxo, ficam no mesmo card.',
       '',
-      '## Regras de Agrupamento',
-      '- AGRUPE TUDO relacionado em 1 card só',
-      '- Ex: "auth controller" + "auth service" + "login page" = 1 card "Sistema de Autenticação"',
-      '- Não fragmente: 1 card pode ter dozens de arquivos se são da mesma feature',
+      '## Exemplos',
+      '- "Sistema de Autenticação": login page + auth controller + JWT middleware + auth service → 1 card',
+      '- Dentro da categoria "Projetos": "Importação GitHub" e "Geração de Cards via IA" são fluxos distintos → 2 cards separados',
+      '',
+      '## Regras',
+      '- Separe em cards distintos quando os fluxos têm propósitos diferentes para o usuário',
+      '- Agrupe no mesmo card quando os arquivos servem ao mesmo fluxo de ponta a ponta',
+      '- Repositórios com 50+ arquivos tipicamente geram 15-40 cards',
+      '- Category = domínio amplo (ex: "Autenticação", "Projetos", "Componentes UI")',
+      '- Vários cards DEVEM compartilhar a mesma category',
       '',
       '## Formato de Saída (JSON)',
-      'Retorne APENAS JSON válido com estrutura:',
+      'Retorne APENAS JSON válido:',
       '{',
       '  "cards": [',
       '    {',
       '      "title": "Nome da Feature",',
       '      "category": "Categoria",',
-      '      "description": "O que a feature faz",',
+      '      "description": "O que essa feature faz para o usuário",',
       '      "tech": "Tecnologia principal",',
       '      "tags": ["tag1", "tag2"],',
       '      "screens": [',
@@ -158,7 +162,10 @@ export class AiCardGroupingService {
     notify('ai_analyzing', 30, '🤖 IA analisando repositório completo...')
     options?.onLog?.('🤖 IA analisando repositório completo...')
 
-    const maxTokens = process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : undefined
+    // Grok 4 Fast tem 2M de contexto total (input + output).
+    // Sem max_tokens explícito o playground usa 600 — insuficiente para JSON de 40 cards.
+    // Passando 2M: a API limita automaticamente ao que sobra após o input.
+    const maxTokens = process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : 2_000_000
     const body: Record<string, unknown> = {
       model,
       temperature: 0.2,
@@ -166,9 +173,9 @@ export class AiCardGroupingService {
         { role: 'system', content: groupingSystemPrompt },
         { role: 'system', content: repoPathCodeContext }
       ],
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      max_tokens: maxTokens
     }
-    if (typeof maxTokens === 'number' && maxTokens > 0) body.max_tokens = maxTokens
 
     const runPipeline = async (responseContent: string) => {
       const parsed = extractJsonFromAiResponse(responseContent)
@@ -183,12 +190,21 @@ export class AiCardGroupingService {
         options?.onLog?.(msg)
       }
       const qualityReport = CardQualitySupervisor.analyzeQuality(builtCards, { onLog })
-      const corrections = CardQualitySupervisor.applyCorrections(builtCards, qualityReport, { onLog })
+      // Supervisor desabilitado temporariamente — avaliar impacto do novo prompt
+      const corrections = { correctedCards: builtCards, mergesApplied: 0, cardsRemoved: 0 }
       return { qualityReport, corrections }
     }
 
     try {
-      const { content, usage } = await callChatCompletions({ endpoint, apiKey, body })
+      const { content, usage, finish_reason } = await callChatCompletions({ endpoint, apiKey, body })
+
+      if (finish_reason === 'length') {
+        throw new Error(
+          `Resposta da IA truncada (limite de ${maxTokens} tokens de saída atingido). ` +
+          `Defina LLM_MAX_TOKENS com valor maior ou reduza o repositório.`
+        )
+      }
+
       notify('ai_processing', 70, 'Processando resposta da IA...', usage)
       if (usage) {
         const tokenMsg = `Tokens: ${usage.prompt_tokens} prompt + ${usage.completion_tokens} completion = ${usage.total_tokens} total`
