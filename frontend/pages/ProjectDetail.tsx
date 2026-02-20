@@ -778,7 +778,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   const canEditCard = (card: CardFeature) => {
-    return user?.role === 'admin' || (!!user?.id && card.createdBy === user.id)
+    if (!user?.id) return false
+    if (user.role === 'admin') return true
+    if (card.createdBy === user.id) return true
+    const isProjectMember = members.some((m) => m.userId === user.id)
+    const isCardInProject = cardFeatures.some((c) => c.id === card.id)
+    return isProjectMember && isCardInProject
   }
 
   const handleEditCard = (card: CardFeature) => {
@@ -1477,6 +1482,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           onDelete={handleDeleteCard}
                           expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
+                          canEdit={canEditCard(cardFeature)}
                         />
 
                         {/* Painel flutuante de ações (apenas no modo de edição) */}
