@@ -92,24 +92,34 @@ export default function ImportGithubTokenPage() {
   /** Handles GitHub App OAuth callback (from backend /api/gitsync/callback redirect) */
   const handleGitSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null, state: string | null) => {
     // Validate CSRF nonce before accepting installation_id
+    let storedNonce: string | null
     try {
-      const storedNonce = sessionStorage.getItem('oauth_state_nonce')
-      if (storedNonce) {
-        let nonceMatch = false
-        if (state) {
-          try {
-            const decoded = JSON.parse(atob(state)) as Record<string, unknown>
-            nonceMatch = decoded?.nonce === storedNonce
-          } catch { /* parse failure = no match */ }
-        }
-        sessionStorage.removeItem('oauth_state_nonce')
-        if (!nonceMatch) {
-          setStatus('error')
-          setMessage('Falha na verificação de segurança OAuth. Tente novamente.')
-          return
-        }
-      }
-    } catch { /* ignore sessionStorage errors */ }
+      storedNonce = sessionStorage.getItem('oauth_state_nonce')
+    } catch {
+      setStatus('error')
+      setMessage('Erro ao verificar segurança OAuth. Tente novamente.')
+      return
+    }
+
+    if (!storedNonce) {
+      setStatus('error')
+      setMessage('Sessão OAuth inválida ou expirada. Tente novamente.')
+      return
+    }
+
+    let nonceMatch = false
+    if (state) {
+      try {
+        const decoded = JSON.parse(atob(state)) as Record<string, unknown>
+        nonceMatch = decoded?.nonce === storedNonce
+      } catch { /* parse failure = no match */ }
+    }
+    try { sessionStorage.removeItem('oauth_state_nonce') } catch { /* ignore */ }
+    if (!nonceMatch) {
+      setStatus('error')
+      setMessage('Falha na verificação de segurança OAuth. Tente novamente.')
+      return
+    }
 
     setStatus('loading')
     setMessage('Conexão com GitHub realizada! Preparando...')

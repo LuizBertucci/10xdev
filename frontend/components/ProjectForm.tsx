@@ -47,6 +47,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const [selectedRepo, setSelectedRepo] = useState<GithubAppRepo | null>(null)
   const [loadingRepos, setLoadingRepos] = useState(false)
   const [importingGithub, setImportingGithub] = useState(false)
+  const [storageError, setStorageError] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
 
   // Check for OAuth callback
@@ -108,7 +109,14 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
     const nonceBytes = new Uint8Array(16)
     crypto.getRandomValues(nonceBytes)
     const nonce = Array.from(nonceBytes, b => b.toString(16).padStart(2, '0')).join('')
-    try { sessionStorage.setItem('oauth_state_nonce', nonce) } catch { /* ignore */ }
+    try {
+      sessionStorage.setItem('oauth_state_nonce', nonce)
+    } catch (err) {
+      console.error('[OAuth] Falha ao salvar nonce no sessionStorage:', err)
+      setStorageError(true)
+      toast.error('Não foi possível iniciar o fluxo OAuth. Tente novamente.')
+      return
+    }
 
     const stateData = JSON.stringify({ origin: window.location.origin, nonce })
     const state = btoa(stateData)
@@ -137,6 +145,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
     setInstallationId(null)
     setSelectedRepo(null)
     setAvailableRepos([])
+    setStorageError(false)
   }
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -284,15 +293,18 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
 
                       {!isGithubConnected ? (
                         <div className="text-center py-6">
-                          <Button 
+                          <Button
                             onClick={handleConnectGithub}
+                            disabled={storageError}
                             className="bg-gray-900 hover:bg-gray-800 text-white"
                           >
                             <Github className="h-4 w-4 mr-2" />
                             Conectar GitHub
                           </Button>
                           <p className="text-xs text-gray-500 mt-2">
-                            Você será redirecionado para autorizar o acesso
+                            {storageError
+                              ? 'Armazenamento de sessão indisponível. Tente em outro navegador.'
+                              : 'Você será redirecionado para autorizar o acesso'}
                           </p>
                         </div>
                       ) : loadingRepos ? (
