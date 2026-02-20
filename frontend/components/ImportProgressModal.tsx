@@ -15,6 +15,7 @@ import {
   defaultMessage,
   safeParse,
 } from '@/lib/importJobUtils'
+import FileTreeView from '@/components/FileTreeView'
 
 interface ModalCard {
   id: string
@@ -73,6 +74,7 @@ export default function ImportProgressModal() {
   const [job, setJob] = useState<ImportJob | null>(null)
   const [cards, setCards] = useState<ModalCard[]>([])
   const [fileReportOpen, setFileReportOpen] = useState(true)
+  const [includedOpen, setIncludedOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(true)
@@ -81,6 +83,14 @@ export default function ImportProgressModal() {
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [progressLog.length])
+
+  const isAiAnalyzing = job?.step === 'ai_analyzing' && job?.status === 'running'
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  useEffect(() => {
+    if (!isAiAnalyzing) { setElapsedSeconds(0); return }
+    const interval = setInterval(() => setElapsedSeconds(s => s + 1), 1000)
+    return () => clearInterval(interval)
+  }, [isAiAnalyzing])
 
   const handleClearAll = useCallback(() => {
     setActive(null)
@@ -250,7 +260,7 @@ export default function ImportProgressModal() {
       if (!groups[item.reason]) groups[item.reason] = []
       groups[item.reason]!.push(item.path)
     }
-    return { total: job.file_report_json.ignored.length, groups }
+    return { total: job.file_report_json.ignored.length, groups, included: job.file_report_json.included ?? [] }
   }, [job?.file_report_json])
 
   if (!open || !active?.jobId) return null
@@ -293,13 +303,13 @@ export default function ImportProgressModal() {
 
       {/* Progress */}
       <div className="px-4 py-3 border-b flex-shrink-0">
-        <Progress value={progress} className="h-2" />
+        <Progress value={progress} className={isAiAnalyzing ? 'h-2 animate-pulse' : 'h-2'} />
         <div className="mt-2 flex items-center justify-between">
           <p className="text-[11px] text-gray-600 truncate max-w-[220px]">{message}</p>
           <span className="text-[11px] font-semibold text-blue-700 ml-2">{progress}%</span>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-gray-500">
-          <span>📁 {job?.files_processed ?? 0} arquivos</span>
+          <span>📁 {job?.file_report_json?.included?.length ?? job?.files_processed ?? 0} arquivos</span>
           <span>🗂️ {job?.cards_created ?? 0} cards</span>
           {job?.ai_requested && (
             <span className={job?.ai_used ? 'text-green-600' : 'text-blue-500'}>
@@ -333,6 +343,16 @@ export default function ImportProgressModal() {
                   {line}
                 </div>
               ))}
+              {isAiAnalyzing && (
+                <div className="flex items-center gap-2 py-1 text-[10px] text-purple-600">
+                  <span className="flex gap-0.5">
+                    <span className="animate-bounce [animation-delay:0ms]">●</span>
+                    <span className="animate-bounce [animation-delay:150ms]">●</span>
+                    <span className="animate-bounce [animation-delay:300ms]">●</span>
+                  </span>
+                  <span>IA processando... {elapsedSeconds > 0 ? `(${elapsedSeconds}s)` : ''}</span>
+                </div>
+              )}
               <div ref={logEndRef} />
             </div>
           )}
@@ -366,6 +386,26 @@ export default function ImportProgressModal() {
             <p className="text-[10px] text-gray-400 py-1.5">Aguardando cards...</p>
           )}
         </div>
+
+        {/* Arquivos avaliados — dentro da área rolável */}
+        {fileReport && fileReport.included.length > 0 && (
+          <div className="border-t flex-shrink-0">
+            <button
+              onClick={() => setIncludedOpen(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-2 text-[11px] text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              <span>Arquivos avaliados: {fileReport.included.length}</span>
+              {includedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+            {includedOpen && (
+              <div className="px-4 pb-3 bg-gray-50 border-t">
+                <div className="pt-2">
+                  <FileTreeView paths={fileReport.included} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* File report — dentro da área rolável */}
         {fileReport && (
