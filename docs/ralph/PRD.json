@@ -109,7 +109,7 @@
     {
       "id": "ralph_commit_only",
       "title": "Ralph: executar skill /commit ate o fim",
-      "status": "pending",
+      "status": "done",
       "scope_files": [],
       "acceptance": [
         "skill /commit executada do inicio ao fim",
@@ -119,9 +119,9 @@
         {
           "id": "commit_skill_full",
           "title": "Executar .claude/skills/commit/SKILL.md COMPLETA: 1) git status + diff. 2) npm run lint + build se 3+ arquivos. 3) Agrupar commits. 4) CodeRabbit se 3+ arquivos. 5) git add + commit (aspas simples, nunca backticks) + push. Execute TUDO automaticamente. Ao concluir output: DONE",
-          "status": "pending",
+          "status": "done",
           "tests": ["npm run lint"],
-          "notes": []
+          "notes": ["Executada skill commit: status/diff, lint (ok), build (ok), CodeRabbit nao instalado. 2 commits: fix ProjectDetail edit/delete, chore ralph prompt+script. Push realizado."]
         }
       ]
     },
@@ -687,6 +687,14 @@
       "status": "ok",
       "validacao": "npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Tarefa fix_cel_user_creation concluida. Proxima tarefa: ralph_commit_only"
+    },
+    {
+      "ts": "2026-02-20 16:45",
+      "microtask_id": "commit_skill_full",
+      "feito": "Executada skill commit completa: git status/diff, npm run lint (ok), npm run build (ok). CodeRabbit nao instalado. 2 commits: fix ProjectDetail edit/delete, chore ralph prompt+script. Push realizado.",
+      "status": "ok",
+      "validacao": "npm run lint (passou), npm run build (passou)",
+      "observacoes": "Tarefa ralph_commit_only concluida. Proxima tarefa: rewrite_cardfeature_clawdbot (cardfeature_delete_and_create)"
     }
   ]
 }
