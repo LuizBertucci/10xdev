@@ -227,7 +227,9 @@ function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton>
               <Avatar className="size-6">
-                <AvatarImage src={user?.avatarUrl || ""} />
+                {user?.avatarUrl ? (
+                  <AvatarImage src={user.avatarUrl} referrerPolicy="no-referrer" alt="" />
+                ) : null}
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 text-left text-sm" key={user?.id || 'no-user'}>

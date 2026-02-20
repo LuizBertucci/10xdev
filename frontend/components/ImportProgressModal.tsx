@@ -127,12 +127,7 @@ export default function ImportProgressModal() {
     }
   }, [])
 
-  // Logar erro no console quando status for error (para debug)
-  useEffect(() => {
-    if (job?.status === 'error' && job?.error) {
-      console.error('[ImportProgressModal] Erro na importação:', job.error)
-    }
-  }, [job?.status, job?.error])
+  // Erro de importação é exibido na UI do modal; não logar no console para evitar ruído
 
   // Re-sync after navigation (router.push can happen before React commits state updates)
   useEffect(() => {
