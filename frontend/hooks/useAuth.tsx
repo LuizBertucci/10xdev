@@ -275,7 +275,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             name: data.name,
             full_name: data.name,
-            ...(data.phone && { phone: data.phone })
+            phone: data.phone,
+            cel: data.phone
           }
         }
       })

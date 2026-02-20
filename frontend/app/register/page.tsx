@@ -37,7 +37,7 @@ export default function RegisterPage() {
     e.preventDefault()
 
     // Validação básica
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !phone?.trim() || !password || !confirmPassword) {
       toast.error('Por favor, preencha todos os campos')
       return
     }
@@ -54,7 +54,7 @@ export default function RegisterPage() {
 
     setIsSubmitting(true)
     try {
-      await register({ name, email, password, phone: phone || undefined })
+      await register({ name, email, password, phone: phone.trim() })
       toast.success('Conta criada com sucesso! Redirecionando...')
       // Redirecionar para home (tela inicial - default após registro)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -188,6 +188,7 @@ export default function RegisterPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   disabled={isSubmitting}
+                  required
                   className="h-11"
                 />
               </div>

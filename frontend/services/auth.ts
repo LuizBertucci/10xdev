@@ -17,7 +17,7 @@ export type RegisterData = {
   name: string
   email: string
   password: string
-  phone?: string
+  phone: string
 }
 
 export type LoginData = {
