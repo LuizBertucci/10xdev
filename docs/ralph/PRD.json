@@ -85,7 +85,7 @@
     {
       "id": "fix_cel_user_creation",
       "title": "Fix: adicionar campo cel (telefone) na criacao do usuario",
-      "status": "pending",
+      "status": "done",
       "scope_files": [
         "frontend/app/register/page.tsx",
         "frontend/services/auth.ts",
@@ -100,9 +100,9 @@
         {
           "id": "fix_cel_register_form",
           "title": "Adicionar campo cel (opcional) no registro: 1) RegisterData em auth.ts com phone?: string. 2) register/page.tsx: state phone, Input com label Celular, placeholder (11) 99999-9999, passar no handleSubmit. 3) useAuth register: incluir phone em options.data ao signUp. Campo opcional, sem validacao extra.",
-          "status": "pending",
+          "status": "done",
           "tests": ["npm run lint", "frontend: npm run build"],
-          "notes": []
+          "notes": ["RegisterData com phone?: string; register/page.tsx: state phone, Input Celular placeholder (11) 99999-9999, tipo tel; useAuth: phone em options.data (user_metadata); campo opcional. Lint e build passaram."]
         }
       ]
     },
@@ -679,6 +679,14 @@
       "status": "ok",
       "validacao": "npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Implementacao ja estava completa. Proxima tarefa: fix_cel_user_creation"
+    },
+    {
+      "ts": "2026-02-20 15:25",
+      "microtask_id": "fix_cel_register_form",
+      "feito": "Campo Celular opcional adicionado ao registro: RegisterData com phone; formulario com Input tipo tel, placeholder (11) 99999-9999; useAuth inclui phone em user_metadata ao signUp.",
+      "status": "ok",
+      "validacao": "npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Tarefa fix_cel_user_creation concluida. Proxima tarefa: ralph_commit_only"
     }
   ]
 }
