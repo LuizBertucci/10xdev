@@ -18,7 +18,6 @@ export interface FileEntry {
 }
 
 const CONCURRENCY = 8
-const MAX_FILES = 200
 
 export class GithubService {
 
@@ -144,10 +143,8 @@ export class GithubService {
       }
     }
 
-    const sliced = filteredItems.slice(0, MAX_FILES)
-
-    for (let i = 0; i < sliced.length; i += CONCURRENCY) {
-      const chunk = sliced.slice(i, i + CONCURRENCY)
+    for (let i = 0; i < filteredItems.length; i += CONCURRENCY) {
+      const chunk = filteredItems.slice(i, i + CONCURRENCY)
       const results = await Promise.allSettled(
         chunk.map((item) =>
           axios.get(
