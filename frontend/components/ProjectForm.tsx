@@ -20,7 +20,7 @@ import { Github, Loader2, Plus, CheckCircle } from "lucide-react"
 import { projectService, type User, type GithubAppRepo } from "@/services"
 import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
-import { IMPORT_JOB_LS_KEY } from "@/lib/importJobUtils"
+import { IMPORT_JOB_LS_KEY, IMPORT_MODAL_OPEN_KEY, IMPORT_MODAL_CHANGE_EVENT } from "@/lib/importJobUtils"
 
 const INPUT_CLASS = "h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm"
 
@@ -231,6 +231,8 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
         
         try {
           localStorage.setItem(IMPORT_JOB_LS_KEY, JSON.stringify({ jobId, projectId: project.id, createdAt: new Date().toISOString() }))
+          localStorage.setItem(IMPORT_MODAL_OPEN_KEY, 'true')
+          window.dispatchEvent(new CustomEvent(IMPORT_MODAL_CHANGE_EVENT))
         } catch { /* ignore */ }
 
         router.push(`/projects/${project.id}?jobId=${encodeURIComponent(jobId)}`)

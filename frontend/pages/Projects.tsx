@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function Projects() {
   const router = useRouter()
@@ -56,6 +57,7 @@ export default function Projects() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteCardsWithProject, setDeleteCardsWithProject] = useState(true)
 
   // Hook para detectar jobs de importação em andamento
   const projectIds = projects.map(p => p.id)
@@ -213,7 +215,7 @@ export default function Projects() {
       return
     }
     setProjectToDelete(project)
-    setDeleteCardsWithProject(false) // Reset checkbox state
+    setDeleteCardsWithProject(true) // Reset checkbox state
     setIsDeleteDialogOpen(true)
   }
 
@@ -247,7 +249,7 @@ export default function Projects() {
     if (!projectToDelete) return
     try {
       setDeleting(true)
-      const response = await projectService.delete(projectToDelete.id, { deleteCards: true })
+      const response = await projectService.delete(projectToDelete.id, { deleteCards: deleteCardsWithProject })
       if (!response) {
         toast.error('Nenhuma resposta do servidor ao deletar o projeto.')
         return
@@ -366,12 +368,24 @@ export default function Projects() {
               <AlertTriangle className="h-5 w-5 text-red-500" />
               Deletar Projeto
             </DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja deletar o projeto <strong>"{projectToDelete?.name}"</strong>?
-              {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
-                <> Este projeto contém <strong>{projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''}</strong> que {(projectToDelete.cardsCreatedCount || 0) > 1 ? 'serão deletados' : 'será deletado'} permanentemente junto com o projeto.</>
-              )}
-              {' '}Esta ação não pode ser desfeita.
+            <DialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Tem certeza que deseja deletar o projeto <strong>"{projectToDelete?.name}"</strong>?
+                  {' '}Esta ação não pode ser desfeita.
+                </p>
+                {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox
+                      checked={deleteCardsWithProject}
+                      onCheckedChange={(checked) => setDeleteCardsWithProject(checked === true)}
+                    />
+                    <span>
+                      Excluir também os <strong>{projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''}</strong> criados neste projeto
+                    </span>
+                  </label>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
 
