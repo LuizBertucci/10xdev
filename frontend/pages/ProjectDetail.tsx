@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, MoreVertical } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, MoreVertical, Activity } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -29,9 +29,11 @@ import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureModal from "@/components/CardFeatureModal"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import GitSyncProgressModal from "@/components/GitSyncProgressModal"
+import ImportProgressModal from "@/components/ImportProgressModal"
 import { ProjectSummary } from "@/components/ProjectSummary"
 import { ProjectCategories } from "@/components/ProjectCategories"
-import ImportProgressWidget from "@/components/ImportProgressWidget"
+
+import { IMPORT_MODAL_OPEN_KEY, IMPORT_MODAL_CHANGE_EVENT, IMPORT_JOB_LS_KEY, safeParse } from "@/lib/importJobUtils"
 import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
@@ -158,6 +160,31 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const handleGitSyncProgressModalChange = (open: boolean) => {
     setShowGitSyncProgressModal(open)
     if (open) setShowRepoDialog(false)
+  }
+
+  const handleOpenImportProgress = async () => {
+    try {
+      // Se já há um job ativo no localStorage para este projeto, apenas abre o modal
+      const saved = safeParse(localStorage.getItem(IMPORT_JOB_LS_KEY) ?? null)
+      if (!saved?.jobId || saved?.projectId !== projectId) {
+        // Busca o último job de importação deste projeto no banco
+        const supabaseClient = createClient()
+        const { data } = await supabaseClient
+          .from('import_jobs')
+          .select('id, project_id')
+          .eq('project_id', projectId as string)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (data) {
+          const row = data as { id: string; project_id: string }
+          localStorage.setItem(IMPORT_JOB_LS_KEY, JSON.stringify({ jobId: row.id, projectId: row.project_id }))
+          window.dispatchEvent(new CustomEvent(IMPORT_MODAL_CHANGE_EVENT))
+        }
+      }
+      localStorage.setItem(IMPORT_MODAL_OPEN_KEY, 'true')
+      window.dispatchEvent(new CustomEvent(IMPORT_MODAL_CHANGE_EVENT))
+    } catch { /* ignore */ }
   }
 
   // Import job state
@@ -1321,6 +1348,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </div>
                 <p className="text-sm text-gray-700 mt-1 truncate">
                   {importJob.message || 'Processando...'}
+                  {importJob.step === 'ai_analyzing' && importJob.status === 'running' && (
+                    <span className="text-xs text-purple-600 animate-pulse ml-1">IA pensando...</span>
+                  )}
                 </p>
                 {importJob.status === 'running' && (
                   <Progress value={importJob.progress} className="h-2 mt-2" />
@@ -1381,9 +1411,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           )}
 
           <div className="flex items-center gap-2 md:ml-auto">
-            {projectId && (
-              <ImportProgressWidget inline projectId={projectId} />
-            )}
+            <button
+              onClick={handleOpenImportProgress}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Importações
+            </button>
             <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
               <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
                 <Settings className="h-3.5 w-3.5" />
@@ -2020,6 +2054,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         job={importJob}
         events={gitSyncProgressEvents}
       />
+
+      <ImportProgressModal />
 
       {/* Dialog: Selecionar Repositório GitHub */}
       <Dialog open={showRepoDialog} onOpenChange={handleRepoDialogChange}>
