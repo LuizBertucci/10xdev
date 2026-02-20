@@ -28,13 +28,18 @@
     "backend_dir": "backend",
     "ralph_commands": {
       "cursor": "scripts/ralph-cursor.sh",
+      "opencode": "scripts/ralph-opencode.sh",
       "claude": "scripts/ralph.sh",
       "start": "nohup ./scripts/ralph.sh > ralph.log 2>&1 &",
       "status": "pgrep -af ralph.sh || echo \"Ralph nao esta rodando\"",
       "stop": "pkill -f ralph.sh && echo \"Ralph parado\"",
       "stop_by_pid": "pgrep -af ralph.sh && pkill -f ralph.sh",
       "stop_and_tail": "pkill -f ralph.sh && tail -n 20 ralph.log",
-      "tail_log": "tail -n 200 ralph.log"
+      "tail_log": "tail -n 200 ralph.log",
+      "start_opencode": "nohup ./scripts/ralph-opencode.sh > ralph-opencode.log 2>&1 &",
+      "status_opencode": "pgrep -af ralph-opencode.sh || echo \"Ralph OpenCode nao esta rodando\"",
+      "stop_opencode": "pkill -f ralph-opencode.sh && echo \"Ralph OpenCode parado\"",
+      "tail_log_opencode": "tail -n 200 logs/ralph-opencode/ralph-opencode-*.log"
     },
     "commands": {
       "frontend": {
