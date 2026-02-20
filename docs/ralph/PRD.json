@@ -27,6 +27,8 @@
     "frontend_dir": "frontend",
     "backend_dir": "backend",
     "ralph_commands": {
+      "cursor": "scripts/ralph-cursor.sh",
+      "claude": "scripts/ralph.sh",
       "start": "nohup ./scripts/ralph.sh > ralph.log 2>&1 &",
       "status": "pgrep -af ralph.sh || echo \"Ralph nao esta rodando\"",
       "stop": "pkill -f ralph.sh && echo \"Ralph parado\"",
@@ -50,6 +52,9 @@
     "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco."
   },
   "task_sequence": [
+    "fix_edit_card_in_project",
+    "fix_cel_user_creation",
+    "ralph_commit_only",
     "logo_remove_black",
     "sidebar_dark_mode_toggle",
     "git_import_grouping_agent",
@@ -57,6 +62,69 @@
     "rewrite_cardfeature_clawdbot"
   ],
   "tasks": [
+    {
+      "id": "fix_edit_card_in_project",
+      "title": "Fix: permitir editar e excluir card dentro do Projeto",
+      "status": "done",
+      "scope_files": ["frontend/pages/ProjectDetail.tsx"],
+      "acceptance": [
+        "botoes Editar e Excluir do card funcionam na pagina ProjectDetail",
+        "ao clicar Editar, abre CardFeatureForm em modo edicao",
+        "ao excluir, remove o card e atualiza a lista do projeto"
+      ],
+      "microtasks": [
+        {
+          "id": "fix_edit_card_wire_handlers",
+          "title": "Em ProjectDetail.tsx: substituir onEdit e onDelete vazios por handlers reais. Adicionar estado cardToEdit, CardFeatureForm modal, e handlers que: onEdit(card) abre form em modo edit com initialData=card; onDelete(cardId) exibe confirmacao, chama cardFeatureService.delete, remove do projeto se necessario, recarrega loadProjectCards. Respeitar canEdit (admin ou dono do card). Usar padrao de Contents/Codes.",
+          "status": "done",
+          "tests": ["npm run lint", "frontend: npm run build"],
+          "notes": ["Implementacao ja presente em ProjectDetail.tsx: handleEditCard, handleDeleteCard, cardToEdit/cardToDelete state, CardFeatureForm modal (modo edit), DeleteConfirmationDialog, canEditCard (admin ou dono). Lint e build passaram."]
+        }
+      ]
+    },
+    {
+      "id": "fix_cel_user_creation",
+      "title": "Fix: adicionar campo cel (telefone) na criacao do usuario",
+      "status": "pending",
+      "scope_files": [
+        "frontend/app/register/page.tsx",
+        "frontend/services/auth.ts",
+        "frontend/hooks/useAuth.tsx"
+      ],
+      "acceptance": [
+        "formulario de registro exibe campo Celular (opcional)",
+        "valor do cel e enviado no signUp e salvo em user_metadata",
+        "padrao de qualidade do projeto mantido"
+      ],
+      "microtasks": [
+        {
+          "id": "fix_cel_register_form",
+          "title": "Adicionar campo cel (opcional) no registro: 1) RegisterData em auth.ts com phone?: string. 2) register/page.tsx: state phone, Input com label Celular, placeholder (11) 99999-9999, passar no handleSubmit. 3) useAuth register: incluir phone em options.data ao signUp. Campo opcional, sem validacao extra.",
+          "status": "pending",
+          "tests": ["npm run lint", "frontend: npm run build"],
+          "notes": []
+        }
+      ]
+    },
+    {
+      "id": "ralph_commit_only",
+      "title": "Ralph: executar skill /commit ate o fim",
+      "status": "pending",
+      "scope_files": [],
+      "acceptance": [
+        "skill /commit executada do inicio ao fim",
+        "lint, build se aplicavel, commits, push"
+      ],
+      "microtasks": [
+        {
+          "id": "commit_skill_full",
+          "title": "Executar .claude/skills/commit/SKILL.md COMPLETA: 1) git status + diff. 2) npm run lint + build se 3+ arquivos. 3) Agrupar commits. 4) CodeRabbit se 3+ arquivos. 5) git add + commit (aspas simples, nunca backticks) + push. Execute TUDO automaticamente. Ao concluir output: DONE",
+          "status": "pending",
+          "tests": ["npm run lint"],
+          "notes": []
+        }
+      ]
+    },
     {
       "id": "logo_remove_black",
       "title": "Remover o logo preto da 10xdev",
@@ -603,6 +671,14 @@
       "status": "ok",
       "validacao": "Planejamento criado com estrutura completa: telas, blocos, tipos de conteudo (text/code), linguagens (bash/json)",
       "observacoes": "Microtarefa cardfeature_plan_new_content concluida. Estrutura planejada: 3 telas sobre Claude CLI (visao geral, instalacao, comandos) + 4 telas sobre Ralph (conceito, comandos, PRD.json, workflow). Proxima microtarefa: cardfeature_delete_and_create para apagar card antigo e criar novo"
+    },
+    {
+      "ts": "2026-02-20 12:00",
+      "microtask_id": "fix_edit_card_wire_handlers",
+      "feito": "Validado que ProjectDetail.tsx ja possui handlers reais: handleEditCard, handleDeleteCard, CardFeatureForm modal, DeleteConfirmationDialog, canEditCard (admin ou dono). Tarefa fix_edit_card_in_project concluida.",
+      "status": "ok",
+      "validacao": "npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Implementacao ja estava completa. Proxima tarefa: fix_cel_user_creation"
     }
   ]
 }
