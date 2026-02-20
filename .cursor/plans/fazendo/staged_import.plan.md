@@ -4,10 +4,10 @@ overview: Melhorar a importação de repositórios com streaming de cards em tem
 todos:
   - id: modal_progresso
     content: Modal de progresso de importação com cards aparecendo em tempo real
-    status: pending
+    status: completed
   - id: streaming_cards
     content: Cards aparecem no projeto assim que cada um é construído pela IA
-    status: pending
+    status: completed
   - id: feedback_por_card
     content: Mecanismo de feedback por card que aciona IA para buscar arquivos faltantes
     status: pending
@@ -16,7 +16,7 @@ todos:
     status: pending
   - id: relatorio_arquivos
     content: Visibilidade de arquivos incluídos vs ignorados no modal
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -227,6 +227,32 @@ Responde "por que meu arquivo X não foi importado?" sem precisar de uma UI sepa
 2. **Layout** (onde `ImportProgressWidget` é renderizado) — adicionar `ImportProgressModal` ao lado do widget.
 3. `**frontend/components/ProjectForm.tsx`** — ao receber resposta do import (`jobId` + `projectId`), setar flag de modal aberto no `localStorage` além do `IMPORT_JOB_LS_KEY` existente.
 4. `**frontend/components/ImportProgressWidget.tsx`** — virar estado "minimizado": só aparece quando o modal está fechado; clicando nele reabre o modal.
+
+### O que já foi feito (Etapa 1)
+
+**Backend**
+
+- `fileFilters.ts`: `classifyFile()` e `FileExclusionReason` para relatório de arquivos ignorados
+- `ImportJobModel`: coluna `progress_log` (JSONB) para logs em streaming
+- `ProjectController`: callback `onLog` em `generateCardGroupsFromRepo`, atualiza `progress_log` e `message` com token usage
+- `aiCardGroupingService`: `extractJsonFromAiResponse` para tratar JSON inválido/truncado da IA; `max_tokens: 32768` para evitar truncamento
+- `llmClient`: retorna `usage` (prompt_tokens, completion_tokens)
+
+**Frontend**
+
+- `ImportProgressModal.tsx`: modal com progress bar, cards em realtime agrupados por categoria, log colapsável, seção "Arquivos ignorados" (aberta por padrão), badge de tokens (prompt/saída formatados), toggle modal/painel lateral, botão "Ver Projeto"
+- `ImportProgressWidget`: modo inline no header da página do projeto (à esquerda de Configurações); modo flutuante em outras páginas; exibe "Importação concluída" com "Ver detalhes" para reabrir o modal
+- `layout.tsx`: ImportProgressModal + ImportProgressWidget; widget flutuante oculto na página do projeto
+- `ProjectDetail.tsx`: widget inline quando há import ativa para o projeto
+- `importJobUtils.ts`: tipo `ImportJob` com `progress_log` e `file_report_json`
+
+### Lições aprendidas
+
+1. **exactOptionalPropertyTypes (backend)**: não é possível passar `undefined` explicitamente para propriedades opcionais. Usar spread condicional: `...(valor && { prop: valor })`.
+2. **Resposta da IA**: a IA pode retornar JSON inválido, truncado ou envolto em markdown. Usar `extractJsonFromAiResponse` para extrair JSON de blocos de código, texto extra ou entre chaves. Definir `max_tokens` alto (ex.: 32768) para evitar truncamento.
+3. **App Router vs Pages**: rotas do dashboard usam `app/(dashboard)/layout.tsx`. O modal precisa estar nesse layout, não só em `pages/_app.tsx`, para aparecer em todas as rotas do dashboard.
+4. **Re-sincronização após navegação**: `router.push` pode ocorrer antes do React aplicar o estado. Usar `useEffect` com `pathname` para re-sincronizar com `localStorage` quando a rota muda.
+5. **Scroll do modal**: aplicar `overflow-y-auto` no conteúdo do modal inteiro, não em seções individuais, para evitar scroll aninhado e conteúdo cortado.
 
 ---
 
