@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import type { GithubRepoInfo } from '@/types/project'
-import { CODE_EXTENSIONS, IGNORED_DIRS, IGNORED_FILES } from '@/utils/fileFilters'
+import { classifyFile, type FileExclusionReason } from '@/utils/fileFilters'
 
 interface ParsedRepoInfo {
   owner: string
@@ -104,11 +104,14 @@ export class GithubService {
 
   /** Lista arquivos do repositório via GitHub API (Tree API).
    *  Retorna todos os arquivos da branch padrão recursivamente. */
+  /** Lista arquivos do repositório via GitHub API (Tree API).
+   *  Retorna todos os arquivos da branch padrão recursivamente. */
   static async listRepoFiles(
     owner: string,
     repo: string,
     branch: string,
-    token?: string
+    token?: string,
+    opts?: { onSkipped?: (path: string, reason: FileExclusionReason) => void }
   ): Promise<FileEntry[]> {
     const headers = this.getHeaders(token)
 
@@ -130,20 +133,21 @@ export class GithubService {
       console.warn(`[GithubService] Tree truncated for ${owner}/${repo}; some files may be missing`)
     }
 
-    const filteredItems = tree
-      .filter((item) => {
-        if (item.type !== 'blob' || !item.path) return false
-        const ext = this.getFileExtension(item.path)
-        if (!CODE_EXTENSIONS.includes(ext)) return false
-        const parts = item.path.split('/')
-        if (parts.some((p) => IGNORED_DIRS.includes(p.toLowerCase()))) return false
-        const fileName = parts[parts.length - 1] || ''
-        return !IGNORED_FILES.includes(fileName.toLowerCase())
-      })
-      .slice(0, MAX_FILES)
+    const filteredItems: Array<{ type?: string; path?: string; size?: number }> = []
+    for (const item of tree) {
+      if (item.type !== 'blob' || !item.path) continue
+      const classification = classifyFile(item.path)
+      if (classification.included) {
+        filteredItems.push(item)
+      } else {
+        opts?.onSkipped?.(item.path, classification.reason)
+      }
+    }
 
-    for (let i = 0; i < filteredItems.length; i += CONCURRENCY) {
-      const chunk = filteredItems.slice(i, i + CONCURRENCY)
+    const sliced = filteredItems.slice(0, MAX_FILES)
+
+    for (let i = 0; i < sliced.length; i += CONCURRENCY) {
+      const chunk = sliced.slice(i, i + CONCURRENCY)
       const results = await Promise.allSettled(
         chunk.map((item) =>
           axios.get(
