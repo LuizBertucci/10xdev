@@ -1517,6 +1517,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
                           canEdit={canEditCard(cardFeature)}
+                          hideVisibility
                         />
 
                         {/* Painel flutuante de ações (apenas no modo de edição) */}

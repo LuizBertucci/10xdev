@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, ChevronDown, ChevronUp, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -47,15 +47,17 @@ interface CardFeatureCompactProps {
   expandOnClick?: boolean
   onExpand?: (snippet: CardFeatureType) => void
   canEdit?: boolean
+  defaultExpanded?: boolean
+  hideVisibility?: boolean
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
   const { user } = useAuth()
   // Estado para controlar se o código está expandido
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false)
   // Estado para controlar a aba ativa - persiste na URL
   const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
@@ -383,7 +385,16 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCopyShareUrl(e)
+                        }}
+                      >
+                        {shareLinkCopied ? <Check className="h-4 w-4 mr-2 text-green-600" /> : <Link2 className="h-4 w-4 mr-2" />}
+                        {shareLinkCopied ? 'Copiado!' : 'Compartilhar'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation()
                             onEdit(snippet)
@@ -460,11 +471,13 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 {/* Ícones em linha horizontal - alinhados à direita */}
                 <div className="flex items-center justify-between gap-2">
                   {/* Badge de Visibilidade (Lado Esquerdo) */}
-                  <div className="flex-shrink-0">
-                    <VisibilityDropdown size="small" />
-                  </div>
+                  {!hideVisibility && (
+                    <div className="flex-shrink-0">
+                      <VisibilityDropdown size="small" />
+                    </div>
+                  )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-6 ml-auto">
                     {hasFile && (
                       <Button
                         variant="outline"
@@ -503,21 +516,10 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     )}
 
-                    {/* Botão Compartilhar */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className={`h-7 px-2 text-xs ${shareLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyShareUrl}
-                    >
-                      {shareLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
-                      {shareLinkCopied ? 'Copiado!' : 'Compartilhar'}
-                    </Button>
-
                     {/* Botão Link para IA */}
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className={`h-7 px-2 text-xs ${apiLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
                       onClick={handleCopyApiUrl}
                     >
@@ -525,45 +527,43 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
                     </Button>
 
-                    {/* Botão Tela cheia */}
+                    {/* Ícone Tela cheia — sem borda */}
                     {onExpand && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onExpand(snippet)
-                        }}
-                        className="hidden md:inline-flex h-7 px-2 text-xs text-gray-600 hover:text-blue-600 hover:border-blue-300"
-                      >
-                        <Expand className="h-3 w-3 mr-1" />
-                        Tela cheia
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onExpand(snippet)
+                            }}
+                            className="hidden md:inline-flex h-5 w-5 items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                          >
+                            <Expand className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Tela cheia</p></TooltipContent>
+                      </Tooltip>
                     )}
 
-                    {/* Toggle - extrema direita */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleExpanded()
-                          }}
-                          className="text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all duration-200 p-1 h-7 w-7"
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{isExpanded ? "Recolher código" : "Expandir código"}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    {/* Ícone Acessar — oculto quando onExpand existe (contexto de projeto) */}
+                    {!onExpand && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`)
+                            }}
+                            className="h-5 w-5 inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Acessar</p></TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </div>
               </div>
