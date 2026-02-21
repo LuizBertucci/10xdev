@@ -357,26 +357,8 @@ export class CardFeatureModel {
           }
         }
       } else if (visibility === Visibility.UNLISTED) {
-        // Unlisted (Seu Espaço): apenas criador ou compartilhados
-        const isOwner = userId && data.created_by === userId
-        if (!isOwner) {
-          // Verificar se está nos compartilhados
-          const { data: share } = await executeQuery<{ id: string } | null>(
-            supabaseAdmin
-              .from('card_shares')
-              .select('id')
-              .eq('card_feature_id', id)
-              .eq('shared_with_user_id', userId)
-              .single()
-          )
-          if (!share) {
-            return {
-              success: false,
-              error: 'Você não tem permissão para visualizar este card',
-              statusCode: 403
-            }
-          }
-        }
+        // Unlisted: acessível por link direto (quem tem o UUID pode ver).
+        // A proteção é o UUID aleatório — card não aparece em listagens públicas.
       }
 
       // Buscar dados do usuário criador
