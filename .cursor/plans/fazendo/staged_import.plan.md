@@ -312,3 +312,23 @@ Usuário clica "Importar atualizações do GitHub"
 O import criou 3 cards de 10 esperados e parou por erro. O usuário quer completar.
 
 **Flow:** mesmo botão, mesma lógica. O que já existe é ignorado, o que falta é gerado.
+
+---
+
+## 4. Navegação contextual do card (ideia futura)
+
+Hoje o botão "Acessar" no `CardFeatureCompact` navega para `/codes/:cardId` — perdendo o contexto do projeto de onde o usuário veio.
+
+**Ideia:** quando o card está dentro de um projeto, criar uma rota aninhada `/projects/:projectId/codes/:cardId`. O breadcrumb ficaria:
+
+```
+Projetos → [Nome do Projeto] → [Nome do Card]
+```
+
+**O que seria necessário:**
+
+- Nova rota `frontend/app/(dashboard)/projects/[id]/codes/[cardId]/page.tsx`
+- O botão "Acessar" passaria o `projectId` ao navegar (disponível via `snippet.createdInProjectId` ou via prop)
+- A página do projeto já usa `expandOnClick` + `onExpand` — o "Acessar" poderia ser substituído por essa rota contextual
+
+**Estado atual:** "Acessar" está hidden quando `onExpand` está disponível (contexto de projeto), pois "Tela cheia" já cobre o caso de uso. A rota aninhada seria implementada quando houver necessidade de permalink contextual.
