@@ -69,7 +69,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
         visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
         approval_status: externalFilters?.selectedApprovalStatus !== 'all' ? externalFilters?.selectedApprovalStatus : undefined,
-        ownership: externalFilters?.selectedOwnership,
+        ownership: externalFilters?.selectedOwnership !== 'all' ? externalFilters?.selectedOwnership : undefined,
         card_type: externalFilters?.selectedCardType !== 'all' ? externalFilters?.selectedCardType : undefined
       }
       
@@ -418,7 +418,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         tech: params?.tech,
         visibility: params?.visibility || externalFilters?.selectedVisibility,
         approval_status: params?.approval_status || externalFilters?.selectedApprovalStatus,
-        ownership: params?.ownership || externalFilters?.selectedOwnership,
+        ownership: params?.ownership !== 'all' ? (params?.ownership || externalFilters?.selectedOwnership) : undefined,
         card_type: params?.card_type || externalFilters?.selectedCardType
       })
     }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedOwnership, externalFilters?.selectedCardType]),
@@ -429,7 +429,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         search: searchTerm.trim() || undefined,
         visibility: externalFilters?.selectedVisibility,
         approval_status: externalFilters?.selectedApprovalStatus,
-        ownership: externalFilters?.selectedOwnership,
+        ownership: externalFilters?.selectedOwnership !== 'all' ? externalFilters?.selectedOwnership : undefined,
         card_type: externalFilters?.selectedCardType
       })
     }, [fetchCardFeaturesWithPagination, itemsPerPage, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedOwnership, externalFilters?.selectedCardType]),

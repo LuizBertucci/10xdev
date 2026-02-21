@@ -213,7 +213,6 @@ export default function Projects() {
       return
     }
     setProjectToDelete(project)
-    setDeleteCardsWithProject(false) // Reset checkbox state
     setIsDeleteDialogOpen(true)
   }
 
@@ -366,12 +365,13 @@ export default function Projects() {
               <AlertTriangle className="h-5 w-5 text-red-500" />
               Deletar Projeto
             </DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja deletar o projeto <strong>"{projectToDelete?.name}"</strong>?
-              {projectToDelete && (projectToDelete.cardsCreatedCount || 0) > 0 && (
-                <> Este projeto contém <strong>{projectToDelete.cardsCreatedCount} card{(projectToDelete.cardsCreatedCount || 0) > 1 ? 's' : ''}</strong> que {(projectToDelete.cardsCreatedCount || 0) > 1 ? 'serão deletados' : 'será deletado'} permanentemente junto com o projeto.</>
-              )}
-              {' '}Esta ação não pode ser desfeita.
+            <DialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Tem certeza que deseja deletar o projeto <strong>"{projectToDelete?.name}"</strong>?
+                  {' '}Esta ação não pode ser desfeita.
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
 

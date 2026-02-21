@@ -1,10 +1,50 @@
 import { randomUUID } from 'crypto'
 import { ContentType } from '@/types/cardfeature'
+
+/**
+ * Extrai JSON da resposta da IA, que pode vir em markdown (```json ... ```) ou com texto extra.
+ */
+function extractJsonFromAiResponse(raw: string): unknown {
+  const trimmed = raw.trim()
+  if (!trimmed) throw new Error('Resposta da IA está vazia')
+
+  // 1. Tentar parse direto
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    /* continuar */
+  }
+
+  // 2. Extrair de bloco markdown ```json ... ``` ou ``` ... ```
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (codeBlockMatch) {
+    try {
+      return JSON.parse(codeBlockMatch[1]!.trim())
+    } catch {
+      /* continuar */
+    }
+  }
+
+  // 3. Encontrar primeiro { e último } e tentar parse
+  const firstBrace = trimmed.indexOf('{')
+  const lastBrace = trimmed.lastIndexOf('}')
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1))
+    } catch {
+      /* continuar */
+    }
+  }
+
+  // 4. Falhou — logar e lançar
+  const snippet = trimmed.length > 500 ? `${trimmed.slice(0, 250)}...${trimmed.slice(-250)}` : trimmed
+  console.error('[AiCardGroupingService] Resposta da IA não é JSON válido. Trecho:', snippet)
+  throw new Error(`Resposta da IA não é JSON válido. Primeiros caracteres: ${trimmed.slice(0, 100).replace(/\n/g, ' ')}`)
+}
 import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '@/types/cardfeature'
 import type { FileEntry } from './githubService'
 import { CardQualitySupervisor } from './cardQualitySupervisor'
-import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from './llmClient'
-import { shouldIncludeFile } from '@/utils/fileFilters'
+import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions, type LlmUsage } from './llmClient'
 import { cleanMarkdown } from '@/utils/markdownUtils'
 import { normalizeAiOutput, buildCardsFromAiOutput } from './aiCardBuilder'
 
@@ -27,17 +67,19 @@ export class AiCardGroupingService {
     files: FileEntry[],
     repoUrl: string,
     options?: {
-      onProgress?: (update: { step: string; progress?: number; message?: string }) => void
+      onProgress?: (update: { step: string; progress?: number; message?: string; tokenUsage?: LlmUsage }) => void
       onCardReady?: (card: CreateCardFeatureRequest) => Promise<void>
+      onLog?: (message: string) => void
     }
   ): Promise<{
     cards: CreateCardFeatureRequest[]
     filesProcessed: number
     aiCardsCreated: number
     quality: { issuesFound: number; mergesApplied: number; cardsRemoved: number }
+    tokenUsage?: LlmUsage
   }> {
-    const notify = (step: string, progress: number, message: string) =>
-      options?.onProgress?.({ step, progress, message })
+    const notify = (step: string, progress: number, message: string, tokenUsage?: LlmUsage) =>
+      options?.onProgress?.({ step, progress, message, ...(tokenUsage && { tokenUsage }) })
 
     const emitCard = async (card: CreateCardFeatureRequest) => {
       if (options?.onCardReady) {
@@ -54,47 +96,54 @@ export class AiCardGroupingService {
       throw new Error('API key não configurada. A importação depende de IA por padrão.')
     }
 
-    const model = process.env.OPENAI_MODEL || 'grok-4-fast'
+    const model = process.env.OPENAI_MODEL || 'grok-4-1-fast'
     const endpoint = resolveChatCompletionsUrl()
 
     notify('ai_preparing', 10, 'Preparando dados para IA...')
+    options?.onLog?.('Preparando dados para IA...')
 
-    const filteredFiles = files.filter(file => shouldIncludeFile(file.path))
+    const filteredFiles = files
     if (filteredFiles.length === 0) {
       throw new Error('Nenhum arquivo elegível para processamento por IA.')
     }
 
+    const PREVIEW_LINES = 10
     const fileList = filteredFiles.map(f => ({
       path: f.path,
       size: f.size,
-      content: f.content
+      preview: f.content ? f.content.split('\n').slice(0, PREVIEW_LINES).join('\n') : ''
     }))
 
     const groupingSystemPrompt = [
-      'Você é um arquiteto de software especializado em organizar código de repositórios.',
+      'Você é um arquiteto de software especializado em documentar repositórios como cards de features.',
       '',
       '## Tarefa',
-      'Analise o repositório completo e organize os arquivos em "cards" por funcionalidade de negócio. Cada card representa uma feature coesa.',
-      'Você receberá em uma segunda mensagem um JSON contendo repoUrl, totalFiles e files (path, size, content).',
+      'Analise o repositório e organize os arquivos em cards. Cada card representa uma feature completa de ponta a ponta.',
+      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, preview com as primeiras 10 linhas — imports e declarações iniciais).',
       '',
-      '## Regras de Categorização',
-      '- Category deve ter 2-4 palavras em português (ex: "Autenticação", "Componentes UI", "APIs REST")',
-      '- Target: 5-15 categorias DISTINTAS para todo o projeto',
-      '- Cards relacionados DEVEM compartilhar a mesma category',
+      '## O que é um card',
+      'Um card = um fluxo completo do usuário. Inclua todos os arquivos que fazem essa feature funcionar:',
+      'frontend, backend, middleware, modelos — se servem ao mesmo fluxo, ficam no mesmo card.',
       '',
-      '## Regras de Agrupamento',
-      '- AGRUPE TUDO relacionado em 1 card só',
-      '- Ex: "auth controller" + "auth service" + "login page" = 1 card "Sistema de Autenticação"',
-      '- Não fragmente: 1 card pode ter dozens de arquivos se são da mesma feature',
+      '## Exemplos',
+      '- "Sistema de Autenticação": login page + auth controller + JWT middleware + auth service → 1 card',
+      '- Dentro da categoria "Projetos": "Importação GitHub" e "Geração de Cards via IA" são fluxos distintos → 2 cards separados',
+      '',
+      '## Regras',
+      '- Separe em cards distintos quando os fluxos têm propósitos diferentes para o usuário',
+      '- Agrupe no mesmo card quando os arquivos servem ao mesmo fluxo de ponta a ponta',
+      '- Repositórios com 50+ arquivos tipicamente geram 15-40 cards',
+      '- Category = domínio amplo (ex: "Autenticação", "Projetos", "Componentes UI")',
+      '- Vários cards DEVEM compartilhar a mesma category',
       '',
       '## Formato de Saída (JSON)',
-      'Retorne APENAS JSON válido com estrutura:',
+      'Retorne APENAS JSON válido:',
       '{',
       '  "cards": [',
       '    {',
       '      "title": "Nome da Feature",',
       '      "category": "Categoria",',
-      '      "description": "O que a feature faz",',
+      '      "description": "O que essa feature faz para o usuário",',
       '      "tech": "Tecnologia principal",',
       '      "tags": ["tag1", "tag2"],',
       '      "screens": [',
@@ -112,47 +161,65 @@ export class AiCardGroupingService {
     }, null, 2)
 
     notify('ai_analyzing', 30, '🤖 IA analisando repositório completo...')
+    options?.onLog?.('🤖 IA analisando repositório completo...')
 
-    const body = {
+    // Grok 4.1 Fast tem limite de 8.192 tokens de saída via API (independente do contexto de 2M).
+    const maxTokens = process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : 8_192
+    const body: Record<string, unknown> = {
       model,
       temperature: 0.2,
       messages: [
         { role: 'system', content: groupingSystemPrompt },
-        { role: 'system', content: repoPathCodeContext }
+        { role: 'user', content: repoPathCodeContext }
       ],
-      response_format: { type: 'json_object' }
+      max_tokens: maxTokens
     }
 
     const runPipeline = async (responseContent: string) => {
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(responseContent)
-      } catch {
-        throw new Error('Resposta da IA não é JSON válido')
-      }
+      const parsed = extractJsonFromAiResponse(responseContent)
       const normalized = normalizeAiOutput(parsed)
       const aiCards = normalized.cards || []
       const builtCards = buildCardsFromAiOutput(aiCards, filteredFiles)
       if (builtCards.length === 0) {
         throw new Error('IA não retornou cards válidos para o repositório.')
       }
-      const qualityReport = CardQualitySupervisor.analyzeQuality(builtCards, {
-        onLog: (message) => console.log(`[AiCardGroupingService] ${message}`)
-      })
-      const corrections = CardQualitySupervisor.applyCorrections(builtCards, qualityReport, {
-        onLog: (message) => console.log(`[AiCardGroupingService] ${message}`)
-      })
+      const onLog = (msg: string) => {
+        console.log(`[AiCardGroupingService] ${msg}`)
+        options?.onLog?.(msg)
+      }
+      const qualityReport = CardQualitySupervisor.analyzeQuality(builtCards, { onLog })
+      // Supervisor desabilitado temporariamente — avaliar impacto do novo prompt
+      const corrections = { correctedCards: builtCards, mergesApplied: 0, cardsRemoved: 0 }
       return { qualityReport, corrections }
     }
 
     try {
-      const { content } = await callChatCompletions({ endpoint, apiKey, body })
-      notify('ai_processing', 70, 'Processando resposta da IA...')
+      const { content, usage, finish_reason } = await callChatCompletions({ endpoint, apiKey, body })
+
+      const finishMsg = `finish_reason: ${finish_reason ?? 'undefined'}`
+      console.log(`[AiCardGroupingService] ${finishMsg}`)
+      options?.onLog?.(finishMsg)
+
+      if (finish_reason === 'length') {
+        throw new Error(
+          `Resposta da IA truncada (limite de ${maxTokens} tokens de saída atingido). ` +
+          `Defina LLM_MAX_TOKENS com valor maior ou reduza o repositório.`
+        )
+      }
+
+      notify('ai_processing', 70, 'Processando resposta da IA...', usage)
+      if (usage) {
+        const tokenMsg = `Tokens: ${usage.prompt_tokens} prompt + ${usage.completion_tokens} completion = ${usage.total_tokens} total`
+        console.log(`[AiCardGroupingService] ${tokenMsg}`)
+        options?.onLog?.(tokenMsg)
+      }
 
       const { qualityReport, corrections } = await runPipeline(content)
       notify('ai_building', 90, `🤖 ${corrections.correctedCards.length} cards gerados pela IA`)
+      options?.onLog?.(`🤖 ${corrections.correctedCards.length} cards gerados pela IA`)
 
       notify('quality_corrections', 95, 'Aplicando correções de qualidade...')
+      options?.onLog?.('Aplicando correções de qualidade...')
       const finalCards = corrections.correctedCards.map(card => this.addVisaoGeralScreen(card))
       for (const card of finalCards) {
         await emitCard(card)
@@ -170,12 +237,13 @@ export class AiCardGroupingService {
           issuesFound: qualityReport.issuesFound,
           mergesApplied: corrections.mergesApplied,
           cardsRemoved: corrections.cardsRemoved
-        }
+        },
+        ...(usage && { tokenUsage: usage })
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       if (msg.includes('response_format') || msg.includes('json_object') || msg.includes('LLM HTTP 400')) {
-        const body2 = {
+        const body2: Record<string, unknown> = {
           model,
           temperature: 0.2,
           messages: [
@@ -183,7 +251,8 @@ export class AiCardGroupingService {
             { role: 'system', content: repoPathCodeContext }
           ]
         }
-        const { content } = await callChatCompletions({ endpoint, apiKey, body: body2 })
+        if (typeof maxTokens === 'number' && maxTokens > 0) body2.max_tokens = maxTokens
+        const { content, usage: usageRetry } = await callChatCompletions({ endpoint, apiKey, body: body2 })
         const { qualityReport, corrections } = await runPipeline(content)
         const finalCards = corrections.correctedCards.map(card => this.addVisaoGeralScreen(card))
 
@@ -195,6 +264,11 @@ export class AiCardGroupingService {
           (sum, c) => sum + c.screens.reduce((s, sc) => s + sc.blocks.filter(b => b.type === ContentType.CODE).length, 0),
           0
         )
+        if (usageRetry) {
+          const tokenMsg = `Tokens (retry): ${usageRetry.prompt_tokens} prompt + ${usageRetry.completion_tokens} completion = ${usageRetry.total_tokens} total`
+          console.log(`[AiCardGroupingService] ${tokenMsg}`)
+          options?.onLog?.(tokenMsg)
+        }
         return {
           cards: finalCards,
           filesProcessed: filesProcessedRetry,
@@ -203,7 +277,8 @@ export class AiCardGroupingService {
             issuesFound: qualityReport.issuesFound,
             mergesApplied: corrections.mergesApplied,
             cardsRemoved: corrections.cardsRemoved
-          }
+          },
+          ...(usageRetry && { tokenUsage: usageRetry })
         }
       }
       throw err

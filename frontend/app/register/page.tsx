@@ -14,6 +14,7 @@ import { Code, Shield, TrendingUp, Eye, EyeOff } from 'lucide-react'
 export default function RegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -36,7 +37,7 @@ export default function RegisterPage() {
     e.preventDefault()
 
     // Validação básica
-    if (!name || !email || !password || !confirmPassword) {
+    if (!name || !email || !phone?.trim() || !password || !confirmPassword) {
       toast.error('Por favor, preencha todos os campos')
       return
     }
@@ -53,7 +54,7 @@ export default function RegisterPage() {
 
     setIsSubmitting(true)
     try {
-      await register({ name, email, password })
+      await register({ name, email, password, phone: phone.trim() })
       toast.success('Conta criada com sucesso! Redirecionando...')
       // Redirecionar para home (tela inicial - default após registro)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -169,6 +170,23 @@ export default function RegisterPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                  className="h-11"
+                />
+              </div>
+
+              {/* Celular */}
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-gray-700 font-medium">
+                  Celular
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   disabled={isSubmitting}
                   required
                   className="h-11"

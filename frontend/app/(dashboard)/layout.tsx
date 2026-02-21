@@ -9,6 +9,7 @@ export default function AppLayout({
 }: {
   children: React.ReactNode
 }): React.JSX.Element {
+
   return (
     <ProtectedRoute>
       <SidebarProvider>

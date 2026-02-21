@@ -30,6 +30,8 @@ export interface ImportJobRow {
   ai_cards_created: number
   files_processed: number
   cards_created: number
+  file_report_json: { included: string[]; ignored: { path: string; reason: string }[] } | null
+  progress_log: string[] | null
   created_at: string
   updated_at: string
 }
@@ -48,6 +50,8 @@ export interface ImportJobInsert {
   ai_cards_created?: number
   files_processed?: number
   cards_created?: number
+  file_report_json?: { included: string[]; ignored: { path: string; reason: string }[] } | null
+  progress_log?: string[] | null
 }
 
 export interface ImportJobUpdate {
@@ -60,6 +64,8 @@ export interface ImportJobUpdate {
   ai_cards_created?: number
   files_processed?: number
   cards_created?: number
+  file_report_json?: { included: string[]; ignored: { path: string; reason: string }[] } | null
+  progress_log?: string[] | null
 }
 
 export class ImportJobModel {

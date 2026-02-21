@@ -1,27 +1,50 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { X, ExternalLink } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
+import { ChevronRight, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { type ActiveImportRef, type ImportJob, IMPORT_JOB_LS_KEY, safeParse, clearActiveImport, defaultMessage } from '@/lib/importJobUtils'
+import {
+  type ActiveImportRef,
+  type ImportJob,
+  IMPORT_JOB_LS_KEY,
+  IMPORT_MODAL_CHANGE_EVENT,
+  IMPORT_MODAL_OPEN_KEY,
+  clearActiveImport,
+  defaultMessage,
+  safeParse,
+} from '@/lib/importJobUtils'
 
-export default function ImportProgressWidget() {
-  const router = useRouter()
+interface ImportProgressWidgetProps {
+  /** Quando true, renderiza inline (sem fixed) para uso no header da página do projeto */
+  inline?: boolean
+  /** Quando inline, só exibe se o job for do projeto atual */
+  projectId?: string
+}
+
+export default function ImportProgressWidget({ inline, projectId }: ImportProgressWidgetProps = {}) {
   const supabase = useMemo(() => { try { return createClient() } catch { return null } }, [])
 
   const [active, setActive] = useState<ActiveImportRef | null>(null)
   const [job, setJob] = useState<ImportJob | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
   const lastStatusRef = useRef<string | null>(null)
 
-  // Restaurar job ativo do localStorage (se existir)
+  // Restaurar job ativo do localStorage
   useEffect(() => {
     try {
       const saved = safeParse(localStorage.getItem(IMPORT_JOB_LS_KEY))
       if (saved?.jobId && saved?.projectId) setActive(saved)
     } catch { /* ignore */ }
+  }, [])
+
+  // Sincronizar estado do modal
+  useEffect(() => {
+    const sync = () => {
+      try { setModalOpen(localStorage.getItem(IMPORT_MODAL_OPEN_KEY) === 'true') } catch { /* ignore */ }
+    }
+    sync()
+    window.addEventListener(IMPORT_MODAL_CHANGE_EVENT, sync)
+    return () => window.removeEventListener(IMPORT_MODAL_CHANGE_EVENT, sync)
   }, [])
 
   // Realtime do job
@@ -45,10 +68,6 @@ export default function ImportProgressWidget() {
 
       const jobData = data as ImportJob
       setJob(jobData)
-
-      if (jobData.status === 'done' || jobData.status === 'error') {
-        setTimeout(() => { if (mounted) clearActiveImport(setActive, setJob) }, 5000)
-      }
     }
 
     fetchInitial()
@@ -69,9 +88,6 @@ export default function ImportProgressWidget() {
         const status = (row as { status?: unknown }).status as string | undefined
         if (status && status !== lastStatusRef.current) {
           lastStatusRef.current = status
-          if (status === 'done' || status === 'error') {
-            setTimeout(() => clearActiveImport(setActive, setJob), 5000)
-          }
         }
       })
       .subscribe()
@@ -82,64 +98,63 @@ export default function ImportProgressWidget() {
     }
   }, [supabase, active?.jobId])
 
-  const ui = useMemo(() => {
-    if (!active?.jobId || !job || job.status !== 'running') return null
-    const progress = Math.max(0, Math.min(100, Number(job.progress ?? 0)))
-    const message = job.message || defaultMessage(job.step || 'starting')
-    return { progress, message }
-  }, [active?.jobId, job])
-
-  if (!ui) return null
-
-  const handleOpenProject = () => {
-    if (!active?.projectId || !active?.jobId) return
-    router.push(`/projects/${active.projectId}?jobId=${encodeURIComponent(active.jobId)}`)
+  const handleOpenModal = () => {
+    try {
+      localStorage.setItem(IMPORT_MODAL_OPEN_KEY, 'true')
+      window.dispatchEvent(new CustomEvent(IMPORT_MODAL_CHANGE_EVENT))
+    } catch { /* ignore */ }
   }
 
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    clearActiveImport(setActive, setJob)
+    try {
+      localStorage.setItem(IMPORT_MODAL_OPEN_KEY, 'false')
+      window.dispatchEvent(new CustomEvent(IMPORT_MODAL_CHANGE_EVENT))
+    } catch { /* ignore */ }
+  }
+
+  if (!active?.jobId || !job || modalOpen) return null
+  if (inline && projectId && active.projectId !== projectId) return null
+
+  const isRunning = job.status === 'running'
+  const progress = Math.max(0, Math.min(100, Number(job.progress ?? 0)))
+  const message = job.message || defaultMessage(job.step || 'starting')
+
+  const baseClass = inline
+    ? 'w-auto min-w-[200px] bg-white rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-shadow'
+    : 'fixed bottom-4 right-4 z-40 w-72 bg-white rounded-xl border shadow-lg cursor-pointer hover:shadow-xl transition-shadow'
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-xl border bg-white shadow-lg">
-      <div className="p-3">
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">Importação em andamento</p>
-                <p className="text-xs text-gray-600 mt-0.5 truncate">{ui.message}</p>
-              </div>
-              <button
-                onClick={() => clearActiveImport(setActive, setJob)}
-                className="text-gray-500 hover:text-gray-700"
-                aria-label="Fechar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-3">
-              <Progress value={ui.progress} className="h-2" />
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-blue-700">{ui.progress}%</span>
-                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={handleOpenProject}>
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Abrir
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-2 text-[11px] text-gray-600 flex flex-wrap gap-x-3 gap-y-1">
-              <span>📁 {job?.files_processed ?? 0} arquivos</span>
-              <span>🗂️ {job?.cards_created ?? 0} cards</span>
-              {job?.ai_requested && (
-                <span className={job?.ai_used ? 'text-green-600 font-medium' : 'text-blue-600'}>
-                  {job?.ai_used ? `🤖 IA: ${job?.ai_cards_created ?? 0} cards` : '🤖 IA: processando...'}
-                </span>
-              )}
-              {!job?.ai_requested && <span className="text-gray-500">📋 Modo heurístico</span>}
-            </div>
-          </div>
+    <div
+      className={baseClass}
+      onClick={handleOpenModal}
+    >
+      <div className="px-3 py-2.5 flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-gray-900">
+            {isRunning ? 'Importação em andamento' : job.status === 'error' ? 'Erro na importação' : 'Importação concluída'}
+          </p>
+          <p className="text-[11px] text-gray-500 truncate mt-0.5">
+            {isRunning ? `${progress}% · ${message}` : `${job.cards_created ?? 0} cards criados`}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          {!isRunning && (
+            <span className="text-[10px] font-medium text-blue-600 flex items-center gap-0.5">
+              Ver detalhes
+              <ChevronRight className="h-3 w-3" />
+            </span>
+          )}
+          <button
+            onClick={handleDismiss}
+            className="text-gray-400 hover:text-gray-700 p-1 flex-shrink-0"
+            aria-label="Fechar"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </div>
   )
 }
-

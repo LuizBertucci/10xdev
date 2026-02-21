@@ -294,6 +294,15 @@ export async function middleware(req: NextRequest) {
     })
   }
 
+  // Se usuário logado acessa a raiz, redireciona para /home
+  if (pathname === '/' && hasSession) {
+    const url = req.nextUrl.clone()
+    url.pathname = '/home'
+    const redirect = NextResponse.redirect(url)
+    applyResponseCookies(redirect, res)
+    return redirect
+  }
+
   // Evita acesso a login/register se já autenticado
   // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
   if ((pathname === '/login' || pathname === '/register') && hasSession) {

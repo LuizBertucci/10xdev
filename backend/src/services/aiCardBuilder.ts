@@ -158,24 +158,36 @@ export function buildCardsFromAiOutput(aiCards: AiCard[], files: FileEntry[]): C
 
     for (const screen of screenArray) {
       const screenObj = screen as AiCardScreen
-      const blocks: ContentBlock[] = []
       const screenFiles = screenObj.files || []
 
+      const matchedFiles: FileEntry[] = []
       for (const fileItem of screenFiles) {
         const filePath = typeof fileItem === 'string' ? fileItem : fileItem.path
         const file = fileMap.get(filePath)
-        if (file) {
-          blocks.push(createContentBlock(file, blocks.length))
-        }
+        if (file) matchedFiles.push(file)
       }
 
-      if (blocks.length > 0) {
+      if (matchedFiles.length === 0) continue
+
+      if (matchedFiles.length === 1) {
+        // Um arquivo: mantém o nome dado pela IA para a screen
+        const file = matchedFiles[0]!
         screens.push({
-          name: screenObj.name || 'Screen',
+          name: screenObj.name || file.path.split('/').pop() || file.path,
           description: screenObj.description || '',
           route: '',
-          blocks
+          blocks: [createContentBlock(file, 0)]
         })
+      } else {
+        // Múltiplos arquivos: uma aba por arquivo, nomeada pelo filename
+        for (const file of matchedFiles) {
+          screens.push({
+            name: file.path.split('/').pop() || file.path,
+            description: screenObj.description || '',
+            route: '',
+            blocks: [createContentBlock(file, 0)]
+          })
+        }
       }
     }
 

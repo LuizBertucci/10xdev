@@ -70,12 +70,16 @@ export function getLanguageFromExtension(ext: string): string {
   return EXTENSION_TO_LANGUAGE[ext] || 'plaintext'
 }
 
-export function shouldIncludeFile(filePath: string): boolean {
+export type FileExclusionReason = 'ignored_dir' | 'ignored_file' | 'invalid_extension'
+export type FileClassification = { included: true } | { included: false; reason: FileExclusionReason }
+
+export function classifyFile(filePath: string): FileClassification {
   const parts = filePath.split('/')
   for (const part of parts) {
-    if (IGNORED_DIRS.includes(part.toLowerCase())) return false
+    if (IGNORED_DIRS.includes(part.toLowerCase())) return { included: false, reason: 'ignored_dir' }
   }
   const fileName = parts[parts.length - 1] || ''
-  if (IGNORED_FILES.includes(fileName.toLowerCase())) return false
-  return CODE_EXTENSIONS.includes(getFileExtension(filePath))
+  if (IGNORED_FILES.includes(fileName.toLowerCase())) return { included: false, reason: 'ignored_file' }
+  if (!CODE_EXTENSIONS.includes(getFileExtension(filePath))) return { included: false, reason: 'invalid_extension' }
+  return { included: true }
 }

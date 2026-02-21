@@ -38,6 +38,12 @@ export function resolveChatCompletionsUrl(): string {
   return `${raw}/v1/chat/completions`
 }
 
+export interface LlmUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
 /**
  * Faz uma chamada ao endpoint de chat completions e retorna o conteúdo da resposta.
  */
@@ -45,11 +51,11 @@ export async function callChatCompletions(args: {
   endpoint: string
   apiKey: string
   body: Record<string, unknown>
-}): Promise<{ content: string }> {
+}): Promise<{ content: string; usage?: LlmUsage; finish_reason?: string }> {
   const res = await fetch(args.endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${args.apiKey}` },
-    body: JSON.stringify(args.body)
+    body: JSON.stringify(args.body),
   })
   const text = await res.text().catch((e) => {
     console.error('[llmClient] Erro ao ler body da resposta:', e?.message)
@@ -68,5 +74,19 @@ export async function callChatCompletions(args: {
   const message = choice.message as Record<string, unknown>
   const content = message.content
   if (!content || typeof content !== 'string') throw new Error('LLM retornou resposta inválida')
-  return { content }
+
+  const usage = obj.usage && typeof obj.usage === 'object'
+    ? (obj.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number })
+    : undefined
+  const llmUsage: LlmUsage | undefined = usage && typeof usage.prompt_tokens === 'number' && typeof usage.completion_tokens === 'number'
+    ? {
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens ?? usage.prompt_tokens + usage.completion_tokens
+      }
+    : undefined
+
+  const finishReason = typeof choice.finish_reason === 'string' ? choice.finish_reason : undefined
+
+  return { content, ...(llmUsage && { usage: llmUsage }), ...(finishReason && { finish_reason: finishReason }) }
 }

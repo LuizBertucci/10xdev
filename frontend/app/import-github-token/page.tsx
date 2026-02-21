@@ -39,10 +39,11 @@ export default function ImportGithubTokenPage() {
     const installationId = searchParams.get('installation_id')
     const projectId = searchParams.get('project_id')
     const errorParam = searchParams.get('error')
+    const stateParam = searchParams.get('state')
 
     // GitHub App OAuth callback (github_access_token + installation_id via backend redirect)
     if (accessToken || installationId) {
-      handleGitSyncCallback(accessToken, installationId, projectId)
+      handleGitSyncCallback(accessToken, installationId, projectId, stateParam)
       return
     }
 
@@ -89,7 +90,37 @@ export default function ImportGithubTokenPage() {
   }, [pendingRedirect, router])
 
   /** Handles GitHub App OAuth callback (from backend /api/gitsync/callback redirect) */
-  const handleGitSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null) => {
+  const handleGitSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null, state: string | null) => {
+    // Validate CSRF nonce before accepting installation_id
+    let storedNonce: string | null
+    try {
+      storedNonce = sessionStorage.getItem('oauth_state_nonce')
+    } catch {
+      setStatus('error')
+      setMessage('Erro ao verificar segurança OAuth. Tente novamente.')
+      return
+    }
+
+    if (!storedNonce) {
+      setStatus('error')
+      setMessage('Sessão OAuth inválida ou expirada. Tente novamente.')
+      return
+    }
+
+    let nonceMatch = false
+    if (state) {
+      try {
+        const decoded = JSON.parse(atob(state)) as Record<string, unknown>
+        nonceMatch = decoded?.nonce === storedNonce
+      } catch { /* parse failure = no match */ }
+    }
+    try { sessionStorage.removeItem('oauth_state_nonce') } catch { /* ignore */ }
+    if (!nonceMatch) {
+      setStatus('error')
+      setMessage('Falha na verificação de segurança OAuth. Tente novamente.')
+      return
+    }
+
     setStatus('loading')
     setMessage('Conexão com GitHub realizada! Preparando...')
 

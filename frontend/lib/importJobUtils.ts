@@ -1,6 +1,13 @@
 import { createClient } from '@/lib/supabase'
 
 export const IMPORT_JOB_LS_KEY = 'activeImportJob'
+export const IMPORT_MODAL_OPEN_KEY = 'importModalOpen'
+export const IMPORT_MODAL_CHANGE_EVENT = 'import-modal-change'
+
+export interface FileReport {
+  included: string[]
+  ignored: { path: string; reason: string }[]
+}
 
 export interface ImportJob {
   id: string
@@ -15,6 +22,8 @@ export interface ImportJob {
   ai_requested: boolean
   ai_used: boolean
   ai_cards_created: number
+  file_report_json?: FileReport | null
+  progress_log?: string[] | null
 }
 
 export interface ActiveImportRef {
