@@ -107,10 +107,11 @@ export class AiCardGroupingService {
       throw new Error('Nenhum arquivo elegível para processamento por IA.')
     }
 
+    const PREVIEW_LINES = 10
     const fileList = filteredFiles.map(f => ({
       path: f.path,
       size: f.size,
-      content: f.content
+      preview: f.content ? f.content.split('\n').slice(0, PREVIEW_LINES).join('\n') : ''
     }))
 
     const groupingSystemPrompt = [
@@ -118,7 +119,7 @@ export class AiCardGroupingService {
       '',
       '## Tarefa',
       'Analise o repositório e organize os arquivos em cards. Cada card representa uma feature completa de ponta a ponta.',
-      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, content).',
+      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, preview com as primeiras 10 linhas — imports e declarações iniciais).',
       '',
       '## O que é um card',
       'Um card = um fluxo completo do usuário. Inclua todos os arquivos que fazem essa feature funcionar:',
@@ -162,18 +163,15 @@ export class AiCardGroupingService {
     notify('ai_analyzing', 30, '🤖 IA analisando repositório completo...')
     options?.onLog?.('🤖 IA analisando repositório completo...')
 
-    // Grok 4 Fast tem 2M de contexto total (input + output).
-    // Sem max_tokens explícito o playground usa 600 — insuficiente para JSON de 40 cards.
-    // Passando 2M: a API limita automaticamente ao que sobra após o input.
-    const maxTokens = process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : 2_000_000
+    // Grok 4.1 Fast tem limite de 8.192 tokens de saída via API (independente do contexto de 2M).
+    const maxTokens = process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : 8_192
     const body: Record<string, unknown> = {
       model,
       temperature: 0.2,
       messages: [
         { role: 'system', content: groupingSystemPrompt },
-        { role: 'system', content: repoPathCodeContext }
+        { role: 'user', content: repoPathCodeContext }
       ],
-      response_format: { type: 'json_object' },
       max_tokens: maxTokens
     }
 
@@ -197,6 +195,10 @@ export class AiCardGroupingService {
 
     try {
       const { content, usage, finish_reason } = await callChatCompletions({ endpoint, apiKey, body })
+
+      const finishMsg = `finish_reason: ${finish_reason ?? 'undefined'}`
+      console.log(`[AiCardGroupingService] ${finishMsg}`)
+      options?.onLog?.(finishMsg)
 
       if (finish_reason === 'length') {
         throw new Error(

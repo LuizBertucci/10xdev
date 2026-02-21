@@ -73,9 +73,10 @@ export default function ImportProgressModal() {
   const [active, setActive] = useState<ActiveImportRef | null>(null)
   const [job, setJob] = useState<ImportJob | null>(null)
   const [cards, setCards] = useState<ModalCard[]>([])
-  const [fileReportOpen, setFileReportOpen] = useState(true)
+  const [fileReportOpen, setFileReportOpen] = useState(false)
   const [includedOpen, setIncludedOpen] = useState(false)
   const [logOpen, setLogOpen] = useState(true)
+  const [cardsOpen, setCardsOpen] = useState(true)
   const logEndRef = useRef<HTMLDivElement>(null)
   const mountedRef = useRef(true)
 
@@ -84,7 +85,7 @@ export default function ImportProgressModal() {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [progressLog.length])
 
-  const isAiAnalyzing = job?.step === 'ai_analyzing' && job?.status === 'running'
+  const isAiAnalyzing = job?.ai_requested === true && job?.status === 'running'
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   useEffect(() => {
     if (!isAiAnalyzing) { setElapsedSeconds(0); return }
@@ -166,9 +167,15 @@ export default function ImportProgressModal() {
       .channel(`import_prog_modal:${active.jobId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'import_jobs', filter: `id=eq.${active.jobId}` }, (payload) => {
         if ((payload as { eventType?: string }).eventType === 'DELETE') { handleClearAll(); return }
-        const row = (payload as { new?: ImportJob })?.new
+        const row = (payload as unknown as { new?: ImportJob })?.new
         if (!row) return
-        setJob(row)
+        setJob(prev => {
+          const merged = prev ? { ...prev, ...row } : row
+          if (prev && typeof row.progress === 'number' && typeof prev.progress === 'number') {
+            merged.progress = Math.max(prev.progress, row.progress)
+          }
+          return merged
+        })
       })
       .subscribe()
 
@@ -326,64 +333,74 @@ export default function ImportProgressModal() {
         </div>
       </div>
 
-      {/* Log do progresso (streaming) */}
-      {progressLog.length > 0 && (
-        <div className="border-t flex-shrink-0">
+      {/* Área rolável única: log + cards + file reports */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col">
+
+        {/* Log do progresso (streaming) */}
+        {progressLog.length > 0 && (
+          <div className="border-t">
+            <button
+              onClick={() => setLogOpen(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-2 text-[11px] text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              <span>Log ({progressLog.length})</span>
+              {logOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+            {logOpen && (
+              <div className="px-4 pb-3 bg-gray-50 border-t font-mono text-[10px] leading-relaxed">
+                {progressLog.map((line, i) => (
+                  <div key={i} className="py-0.5 text-gray-700 break-words">
+                    {line}
+                  </div>
+                ))}
+                {isAiAnalyzing && (
+                  <div className="flex items-center gap-2 py-1 text-[10px] text-purple-600">
+                    <span className="flex gap-0.5">
+                      <span className="animate-bounce [animation-delay:0ms]">●</span>
+                      <span className="animate-bounce [animation-delay:150ms]">●</span>
+                      <span className="animate-bounce [animation-delay:300ms]">●</span>
+                    </span>
+                    <span>IA processando... {elapsedSeconds > 0 ? `(${elapsedSeconds}s)` : ''}</span>
+                  </div>
+                )}
+                <div ref={logEndRef} />
+              </div>
+            )}
+          </div>
+        )}
+        <div className="border-t">
           <button
-            onClick={() => setLogOpen(v => !v)}
+            onClick={() => setCardsOpen(v => !v)}
             className="w-full flex items-center justify-between px-4 py-2 text-[11px] text-gray-500 hover:bg-gray-50 transition-colors"
           >
-            <span>Log ({progressLog.length})</span>
-            {logOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            <span>Cards criados{cards.length > 0 ? `: ${cards.length}` : ''}</span>
+            {cardsOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
-          {logOpen && (
-            <div className="px-4 pb-3 max-h-32 overflow-y-auto bg-gray-50 border-t font-mono text-[10px] leading-relaxed">
-              {progressLog.map((line, i) => (
-                <div key={i} className="py-0.5 text-gray-700 break-words">
-                  {line}
+          {cardsOpen && (
+            <div className="px-4 pb-3 border-t">
+              {Object.entries(cardsByCategory).map(([category, groupCards]) => (
+                <div key={category} className="mb-2 last:mb-0 pt-2">
+                  <p className="text-[9px] font-semibold text-gray-600 mb-1">{category}</p>
+                  {groupCards.map(card => (
+                    <div key={card.id} className="flex items-start gap-1.5 py-0.5">
+                      <span className="text-green-500 text-[10px] leading-tight mt-0.5">✓</span>
+                      <p className="text-[10px] font-medium text-gray-800 leading-tight truncate min-w-0">
+                        {card.title} · {card.screensCount} screens
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ))}
-              {isAiAnalyzing && (
-                <div className="flex items-center gap-2 py-1 text-[10px] text-purple-600">
-                  <span className="flex gap-0.5">
-                    <span className="animate-bounce [animation-delay:0ms]">●</span>
-                    <span className="animate-bounce [animation-delay:150ms]">●</span>
-                    <span className="animate-bounce [animation-delay:300ms]">●</span>
-                  </span>
-                  <span>IA processando... {elapsedSeconds > 0 ? `(${elapsedSeconds}s)` : ''}</span>
+              {isGenerating && (
+                <div className="flex items-center gap-2 text-[10px] text-gray-400 py-1">
+                  <span className="inline-block animate-spin">⟳</span>
+                  Gerando próximo card...
                 </div>
               )}
-              <div ref={logEndRef} />
+              {cards.length === 0 && !isGenerating && (
+                <p className="text-[10px] text-gray-400 py-1.5">Aguardando cards...</p>
+              )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Cards list + File report — área rolável */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-        <div className="px-4 py-2">
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5">Cards criados</p>
-          {Object.entries(cardsByCategory).map(([category, groupCards]) => (
-            <div key={category} className="mb-2 last:mb-0">
-              <p className="text-[9px] font-semibold text-gray-600 mb-1">{category}</p>
-              {groupCards.map(card => (
-                <div key={card.id} className="flex items-start gap-1.5 py-0.5">
-                  <span className="text-green-500 text-[10px] leading-tight mt-0.5">✓</span>
-                  <p className="text-[10px] font-medium text-gray-800 leading-tight truncate min-w-0">
-                    {card.title} · {card.screensCount} screens
-                  </p>
-                </div>
-              ))}
-            </div>
-          ))}
-          {isGenerating && (
-            <div className="flex items-center gap-2 text-[10px] text-gray-400 py-1">
-              <span className="inline-block animate-spin">⟳</span>
-              Gerando próximo card...
-            </div>
-          )}
-          {cards.length === 0 && !isGenerating && (
-            <p className="text-[10px] text-gray-400 py-1.5">Aguardando cards...</p>
           )}
         </div>
 
