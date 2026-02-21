@@ -26,6 +26,13 @@ export enum Visibility {
   UNLISTED = 'unlisted'  // Seu Espaço (owner + compartilhados)
 }
 
+// Enum para filtro de ownership (Seu Espaço)
+export enum OwnershipFilter {
+  ALL = 'all',
+  CREATED_BY_ME = 'created_by_me',
+  SHARED_WITH_ME = 'shared_with_me'
+}
+
 // Enum para status de aprovação do diretório global
 export enum ApprovalStatus {
   NONE = 'none',         // Não foi enviado para aprovação do diretório global
@@ -226,7 +233,7 @@ export interface CardFeatureQueryParams {
   search?: string
   visibility?: string
   approval_status?: string
-  ownership?: string      // all | created_by_me | shared_with_me (para "Seu Espaço")
+  ownership?: OwnershipFilter | string  // Aceita enum ou string para compatibilidade
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'
 }

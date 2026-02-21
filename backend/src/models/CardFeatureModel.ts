@@ -140,8 +140,9 @@ export class CardFeatureModel {
         if (sharedCardIds.length > 0) {
           query = query.in('id', sharedCardIds).neq('created_by', userId)
         } else {
-          // Se não tem compartilhamentos, retorna vazio
-          query = query.eq('id', '00000000-0000-0000-0000-000000000000')
+          // Se não tem compartilhamentos, usa condição impossível para retornar vazio
+          // (neq com valor null garante que nenhuma linha será retornada)
+          query = query.neq('id', null as unknown as string)
         }
       }
       // se ownership = 'all' ou não especificado, mantém a lógica padrão (criados + compartilhados)
@@ -1068,7 +1069,17 @@ export class CardFeatureModel {
         }
       }
 
-      // 4. Verificar se os usuários existem
+      // 4. Verificar se há tentativa de compartilhar consigo mesmo
+      const invalidUsers = userIds.filter(id => id === ownerId)
+      if (invalidUsers.length > 0) {
+        return {
+          success: false,
+          error: 'Não é possível compartilhar um card consigo mesmo',
+          statusCode: 400
+        }
+      }
+
+      // 5. Verificar se os usuários existem
       const { data: users, error: usersError } = await executeQuery<{ id: string }[] | null>(
         supabaseAdmin
           .from('users')
@@ -1197,9 +1208,9 @@ export class CardFeatureModel {
   /**
    * Lista todos os usuários com quem o card está compartilhado
    */
-  static async getSharedUsers(cardId: string, ownerId: string): Promise<ModelResult<Record<string, unknown>[]>> {
+  static async getSharedUsers(cardId: string, requesterId: string): Promise<ModelResult<Record<string, unknown>[]>> {
     try {
-      // 1. Verificar se o card existe e pertence ao owner
+      // 1. Verificar se o card existe
       const { data: card, error: cardError } = await executeQuery<{ id: string; created_by: string } | null>(
         supabaseAdmin
           .from('card_features')
@@ -1216,15 +1227,31 @@ export class CardFeatureModel {
         }
       }
 
-      if (card.created_by !== ownerId) {
+      // 2. Verificar permissão: criador OU usuário com quem foi compartilhado
+      const isOwner = card.created_by === requesterId
+      let isSharedWithRequester = false
+
+      if (!isOwner) {
+        const { data: share } = await executeQuery<{ id: string } | null>(
+          supabaseAdmin
+            .from('card_shares')
+            .select('id')
+            .eq('card_feature_id', cardId)
+            .eq('shared_with_user_id', requesterId)
+            .single()
+        )
+        isSharedWithRequester = !!share
+      }
+
+      if (!isOwner && !isSharedWithRequester) {
         return {
           success: false,
-          error: 'Apenas o criador pode ver os compartilhamentos',
+          error: 'Apenas o criador ou pessoas com quem o card foi compartilhado podem ver esta lista',
           statusCode: 403
         }
       }
 
-      // 2. Buscar usuários compartilhados (JOIN com users)
+      // 3. Buscar usuários compartilhados (JOIN com users)
       type ShareWithUser = {
         id: string
         created_at: string

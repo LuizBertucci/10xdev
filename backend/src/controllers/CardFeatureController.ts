@@ -64,17 +64,27 @@ export class CardFeatureController {
       const userId = req.user?.id // Opcional: permite acesso público
       const userRole = req.user?.role // Admin vê todos os cards
 
+      const VALID_OWNERSHIP_VALUES = ['all', 'created_by_me', 'shared_with_me']
+      const ownership = req.query.ownership as string | undefined
+      if (ownership !== undefined && !VALID_OWNERSHIP_VALUES.includes(ownership)) {
+        res.status(400).json({
+          success: false,
+          error: 'Parâmetro ownership inválido. Valores válidos: all, created_by_me, shared_with_me'
+        })
+        return
+      }
+
       const params: CardFeatureQueryParams = {
         page,
         limit,
-        tech: req.query.tech as string,
-        language: req.query.language as string,
-        content_type: req.query.content_type as string,
-        card_type: req.query.card_type as string,
-        search: req.query.search as string,
-        visibility: req.query.visibility as string,
-        approval_status: req.query.approval_status as string,
-        ownership: req.query.ownership as string,
+        ...(req.query.tech && { tech: req.query.tech as string }),
+        ...(req.query.language && { language: req.query.language as string }),
+        ...(req.query.content_type && { content_type: req.query.content_type as string }),
+        ...(req.query.card_type && { card_type: req.query.card_type as string }),
+        ...(req.query.search && { search: req.query.search as string }),
+        ...(req.query.visibility && { visibility: req.query.visibility as string }),
+        ...(req.query.approval_status && { approval_status: req.query.approval_status as string }),
+        ...(ownership && { ownership }),
         sortBy: req.query.sortBy as 'tech' | 'language' | 'created_at' | 'updated_at' | 'title',
         sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
