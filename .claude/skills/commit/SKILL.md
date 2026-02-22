@@ -55,7 +55,16 @@ Rode **apenas** se: 3+ arquivos alterados, **ou** o usuario pediu explicitamente
 
 ### Tabela enriquecida
 
-Mapeie as sugestoes do CodeRabbit aos commits e apresente a tabela com status:
+**IMPORTANTE:** Apos montar os commits, sempre apresente titulo + corpo de cada commit para o usuario aprovar antes de executar. Use o formato abaixo — cada commit como bloco separado:
+
+---
+
+**#N** — `tipo: titulo`
+> Corpo descritivo em 2-3 linhas explicando o que foi feito e o motivo.
+
+---
+
+Em seguida, se houver sugestoes do CodeRabbit, apresente a tabela de status:
 
 | # | Commit (titulo) | Arquivos | Status |
 |---|-----------------|----------|--------|
