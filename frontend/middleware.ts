@@ -18,42 +18,46 @@ const sessionCache = new Map<string, CacheEntry>()
 const CACHE_TTL = 30000 // 30 segundos
 const CACHE_TTL_ERROR = 5000 // 5 segundos para erros
 
-function getCacheKey(req: NextRequest): string | null {
-  let projectRef: string | null = null
-  
-  // Tenta extrair project_ref da URL do Supabase usando URL constructor
+function getProjectRef(): string | null {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  if (supabaseUrl) {
-    try {
-      const url = new URL(supabaseUrl)
-      const hostname = url.hostname
-      
-      // Tenta extrair subdomain (primeira parte antes de .supabase)
-      const parts = hostname.split('.')
-      if (parts.length >= 2 && parts[parts.length - 2] !== 'supabase') {
-        projectRef = parts[0]
-      }
-    } catch {
-      // URL inválida, projectRef permanece null
+  if (!supabaseUrl) return null
+  try {
+    const url = new URL(supabaseUrl)
+    const hostname = url.hostname
+    const parts = hostname.split('.')
+    // xxx.supabase.co → projectRef = xxx; custom domains também usam subdomain como ref
+    if (parts.length >= 2) {
+      return parts[0]
     }
+  } catch {
+    /* URL inválida */
   }
-  
-  // Tenta encontrar o cookie de sessão
-  // Primeiro: se temos projectRef, tenta o cookie específico
+  return null
+}
+
+function getCacheKey(req: NextRequest): string | null {
+  const projectRef = getProjectRef()
+
+  // Prioriza cookies do projeto atual (evita mistura com outros projetos Supabase)
   if (projectRef) {
-    const cookieValue = req.cookies.get(`sb-${projectRef}-auth-token`)?.value
-    if (cookieValue) return cookieValue
+    const baseCookie = req.cookies.get(`sb-${projectRef}-auth-token`)?.value
+    if (baseCookie) return baseCookie
+    // Supabase chunked cookies: sb-{ref}-auth-token.0, .1, etc
+    const chunk0 = req.cookies.get(`sb-${projectRef}-auth-token.0`)?.value
+    if (chunk0) return chunk0
   }
-  
-  // Fallback: scaneia todos os cookies para encontrar qualquer sb-*-auth-token
-  // Isso funciona para localhost, custom domains, etc.
+
+  // Fallback: localhost ou config sem projectRef
   const allCookies = req.cookies.getAll()
   for (const cookie of allCookies) {
     if (/^sb-[^-]+-auth-token$/.test(cookie.name)) {
       return cookie.value
     }
+    if (/^sb-[^-]+-auth-token\.0$/.test(cookie.name)) {
+      return cookie.value
+    }
   }
-  
+
   return null
 }
 
@@ -195,8 +199,16 @@ export async function middleware(req: NextRequest) {
 
   // Verifica cache antes de chamar Supabase para reduzir rate limiting
   const cacheKey = getCacheKey(req)
-  const cachedResult = getCachedSession(cacheKey)
-  
+  let cachedResult = getCachedSession(cacheKey)
+  const supabaseCookieNames = getSupabaseCookieNames(req)
+  const hasAnySupabaseCookies = supabaseCookieNames.length > 0
+
+  // Evita loop de redirect pós-login: se cache diz "sem sessão" mas há cookies auth,
+  // revalida com Supabase (cache negativo pode estar obsoleto logo após login)
+  if (cachedResult === false && hasAnySupabaseCookies) {
+    cachedResult = null
+  }
+
   let hasSession = false
   if (cachedResult !== null) {
     // Usa resultado do cache
@@ -230,6 +242,10 @@ export async function middleware(req: NextRequest) {
           cookiesRemoveCount,
         })
       }
+      // Cache negativo com cookies auth: TTL curto (2s) para revalidar logo após login
+      const negativeTtl = hasAnySupabaseCookies ? 2000 : CACHE_TTL
+      setCachedSession(cacheKey, hasSession, hasSession ? CACHE_TTL : negativeTtl)
+
       if (!hasSession && !isPublic) {
         const supabaseCookies = getSupabaseCookieNames(req)
         console.warn('[middleware][auth] sessão ausente no getSession', {
@@ -242,8 +258,6 @@ export async function middleware(req: NextRequest) {
           sessionExpiresInMs
         })
       }
-      // Armazena no cache (mesmo se não houver sessão, para evitar chamadas repetidas)
-      setCachedSession(cacheKey, hasSession)
     } catch (error) {
       // Em caso de erro (rate limit, etc), não bloqueia a requisição
       // O cliente tratará a autenticação no lado do browser
