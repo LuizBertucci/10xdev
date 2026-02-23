@@ -38,7 +38,8 @@ export default function LoginPage() {
     if (!isLoading && isAuthenticated) {
       const redirect = getRedirectTarget()
       if (redirect) {
-        router.push(redirect)
+        // Full navigation garante que cookies de sessão sejam enviados (evita loop de redirect)
+        window.location.href = redirect
       } else {
         router.push(getDefaultRoute())
       }
@@ -59,7 +60,8 @@ export default function LoginPage() {
       toast.success('Login realizado com sucesso!')
       const redirect = getRedirectTarget()
       if (redirect) {
-        router.push(redirect)
+        // Full navigation garante que cookies de sessão sejam enviados (evita loop de redirect)
+        window.location.href = redirect
       } else {
         router.push(getDefaultRoute())
       }
