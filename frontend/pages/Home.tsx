@@ -356,20 +356,42 @@ const buildAmazingApp = async () => {
       {/* CTA Final */}
       <section className="py-24 md:py-32 text-center">
         <div className="container mx-auto px-4 max-w-3xl">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
-            Pronto para codar em outro nível?
-          </h2>
-          <p className="text-xl text-muted-foreground mb-10">
-            Junte-se a milhares de desenvolvedores que estão construindo o futuro
-            agora.
-          </p>
-          <Button
-            asChild
-            size="lg"
-            className="h-14 px-8 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
-          >
-            <Link href="/register">Criar conta gratuitamente</Link>
-          </Button>
+          {isPublic ? (
+            <>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
+                Pronto para codar em outro nível?
+              </h2>
+              <p className="text-xl text-muted-foreground mb-10">
+                Junte-se a milhares de desenvolvedores que estão construindo o futuro
+                agora.
+              </p>
+              <Button
+                asChild
+                size="lg"
+                className="h-14 px-8 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
+              >
+                <Link href="/register">Criar conta gratuitamente</Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6">
+                Velocidade com qualidade. É o que você merece.
+              </h2>
+              <p className="text-xl text-muted-foreground mb-10">
+                Você já está aqui. Agora é só explorar códigos prontos, conteúdos que
+                ensinam de verdade e projetos para elevar seu nível. O futuro que você
+                constrói começa no próximo snippet.
+              </p>
+              <Button
+                size="lg"
+                className="h-14 px-8 text-lg rounded-full shadow-lg hover:shadow-xl transition-all"
+                onClick={() => router.push('/codes')}
+              >
+                Explorar Códigos <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </>
+          )}
         </div>
       </section>
     </>
