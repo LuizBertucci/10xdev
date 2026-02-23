@@ -65,7 +65,7 @@ export default function Home({ isPublic = false }: HomeProps) {
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900">
             Devs,{" "}
             <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              bora construir algo foda
+              bora construir algo incrível
             </span>
           </h1>
 
