@@ -27,7 +27,6 @@ import {
 
 interface HomeProps {
   isPublic?: boolean
-  videoUrl?: string
 }
 
 const DIFFERENCIAL_ITEMS = [
@@ -36,7 +35,7 @@ const DIFFERENCIAL_ITEMS = [
   'Snippets validados e atualizados',
 ]
 
-export default function Home({ isPublic = false, videoUrl }: HomeProps) {
+export default function Home({ isPublic = false }: HomeProps) {
   const router = useRouter()
 
   const goToLoginWithRedirect = (redirectTo: string) => {
@@ -74,7 +73,7 @@ export default function Home({ isPublic = false, videoUrl }: HomeProps) {
   return (
     <>
       {/* Hero Section */}
-      <section className="relative py-20 md:py-32 overflow-hidden">
+      <section className="relative pt-8 pb-12 md:pt-12 md:pb-16 overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]" />
         <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary/20 opacity-20 blur-[100px]" />
         <div className="container mx-auto px-4 flex flex-col items-center text-center">
@@ -88,7 +87,7 @@ export default function Home({ isPublic = false, videoUrl }: HomeProps) {
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl mb-6 text-foreground">
             Devs, bora construir <br className="hidden md:block" />{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
-              algo foda.
+              algo incrível.
             </span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mb-10 leading-relaxed">
@@ -118,35 +117,7 @@ export default function Home({ isPublic = false, videoUrl }: HomeProps) {
         </div>
       </section>
 
-      {/* Vídeo + Imagina só (mesma section) */}
-      <section className="py-24 md:py-32 bg-muted/30">
-        {/* Bloco de vídeo */}
-        <div className="mt-0 mb-24 w-full max-w-5xl mx-auto relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
-          <div className="relative aspect-video rounded-xl bg-muted/50 border border-white/10 overflow-hidden shadow-2xl flex items-center justify-center group-hover:scale-[1.01] transition-transform duration-500">
-            <div className="absolute inset-0 bg-gradient-to-tr from-background/80 via-background/20 to-transparent z-10" />
-            {videoUrl ? (
-              <iframe
-                src={videoUrl}
-                title="Vídeo de apresentação"
-                className="absolute inset-0 w-full h-full"
-                allowFullScreen
-              />
-            ) : (
-              <div className="z-20 flex flex-col items-center gap-4">
-                <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 cursor-pointer hover:bg-white/20 transition-all group-hover:scale-110">
-                  <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-white border-b-[10px] border-b-transparent ml-1" />
-                </div>
-                <p className="text-sm font-medium text-muted-foreground/80 uppercase tracking-wider">
-                  saiba quem somos
-                </p>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-grid-white/5 bg-[size:20px_20px] [mask-image:linear-gradient(to_bottom,white,transparent)]" />
-          </div>
-        </div>
-
-        {/* Imagina só */}
+      <section className="py-16 md:py-24 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight mb-4">Imagina só...</h2>
