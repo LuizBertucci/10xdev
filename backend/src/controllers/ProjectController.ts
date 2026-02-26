@@ -116,6 +116,12 @@ export class ProjectController {
       const progressInterval: NodeJS.Timeout | null = null
       const progressLog: string[] = []
 
+      /** Verifica se o job foi cancelado; retorna true para abortar. */
+      const isCancelled = async (): Promise<boolean> => {
+        const row = await ImportJobModel.findById(job.id)
+        return !row || row.status !== 'running'
+      }
+
       /** Atualiza job garantindo progresso monotônico (nunca decresce). */
       const updateJob = async (patch: ImportJobUpdate) => {
         if (typeof patch.progress === 'number') {
@@ -126,8 +132,12 @@ export class ProjectController {
       }
 
       try {
+        if (await isCancelled()) return
+
         progressLog.push('Baixando o repositório...')
         await updateJob({ step: 'downloading_zip', progress: 5, message: 'Baixando o repositório...', progress_log: [...progressLog] })
+
+        if (await isCancelled()) return
 
         const repoInfo = GithubService.parseGithubUrl(url)
         if (!repoInfo) {
@@ -159,6 +169,8 @@ export class ProjectController {
         if (files.length === 0) {
           throw new Error('Nenhum arquivo de código encontrado no repositório.')
         }
+
+        if (await isCancelled()) return
 
         const { cards, filesProcessed, aiCardsCreated, tokenUsage } = await AiCardGroupingService.generateCardGroupsFromRepo(
           files,
@@ -203,6 +215,8 @@ export class ProjectController {
         _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
 
+        if (await isCancelled()) return
+
         if (totalCardsCreated === 0 && cards.length === 0) {
           await updateJob({
             status: 'error', step: 'error', progress: 100,
@@ -233,6 +247,24 @@ export class ProjectController {
         })
       }
     })
+  })
+
+  /** DELETE /api/projects/:id/import-jobs/:jobId
+   *  Cancela um import job em execução (apenas dono do projeto ou criador do job). */
+  static cancelImportJob = safeHandler(async (req, res) => {
+    const projectId = requireId(req)
+    const jobId = req.params.jobId
+    if (!jobId) throw badRequest('ID do job é obrigatório')
+
+    assertResult(await ProjectModel.findById(projectId, req.user!.id))
+
+    const job = await ImportJobModel.findById(jobId)
+    if (!job) throw badRequest('Import job não encontrado')
+    if (job.project_id !== projectId) throw badRequest('Job não pertence a este projeto')
+    if (job.status !== 'running') throw badRequest('Import job não está em execução')
+
+    await ImportJobModel.cancel(jobId)
+    res.json({ success: true, message: 'Importação cancelada com sucesso' })
   })
 
   /** POST /api/projects */

@@ -151,5 +151,26 @@ export class ImportJobModel {
       message: (row.message as string | null) ?? null
     }
   }
+
+  static async findById(id: string): Promise<ImportJobRow | null> {
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('import_jobs')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+    )
+    return (data as ImportJobRow | null) ?? null
+  }
+
+  /** Marca o job como cancelado (status=error, message='Cancelado pelo usuario') */
+  static async cancel(id: string): Promise<void> {
+    await ImportJobModel.update(id, {
+      status: 'error',
+      step: 'error',
+      message: 'Cancelado pelo usuário',
+      error: 'Cancelado pelo usuário'
+    })
+  }
 }
 

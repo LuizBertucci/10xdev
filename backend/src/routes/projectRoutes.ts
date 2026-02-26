@@ -23,6 +23,7 @@ router.get('/gitsync/repos', ProjectController.listGithubRepos)
 // CRUD OPERATIONS
 router.post('/', ProjectController.create)
 router.get('/', ProjectController.getAll)
+router.delete('/:id/import-jobs/:jobId', ProjectController.cancelImportJob)
 router.get('/:id', ProjectController.getById)
 router.put('/:id', ProjectController.update)
 router.delete('/:id', ProjectController.delete)

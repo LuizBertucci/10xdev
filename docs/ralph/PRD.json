@@ -18,6 +18,7 @@
     "diffs pequenos apenas",
     "escopo bem definido",
     "usar feedback (lint, build, testes)",
+    "coderabbit antes do commit: revisar arquivos nao commitados, aplicar sugestoes, depois rodar skill /commit",
     "commit quando a microtarefa terminar",
     "evitar atualizar dependencias sem necessidade",
     "registrar decisoes neste PRD"
@@ -54,19 +55,48 @@
         "test": "npm test"
       }
     },
-    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco."
+    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco. CodeRabbit: coderabbit review --plain --type uncommitted."
   },
   "task_sequence": [
-    "fix_edit_card_in_project",
-    "fix_cel_user_creation",
-    "ralph_commit_only",
-    "logo_remove_black",
-    "sidebar_dark_mode_toggle",
-    "git_import_grouping_agent",
-    "card_quality_supervisor_agent",
-    "rewrite_cardfeature_clawdbot"
+    "import_cancel_stuck"
   ],
   "tasks": [
+    {
+      "id": "import_cancel_stuck",
+      "title": "Permitir cancelar ou deletar import travado em alguma porcentagem",
+      "status": "pending",
+      "scope_files": [
+        "backend/src/models/ImportJobModel.ts",
+        "backend/src/controllers/ProjectController.ts",
+        "backend/src/routes/projectRoutes.ts",
+        "frontend/components/ImportProgressWidget.tsx",
+        "frontend/components/ImportProgressModal.tsx",
+        "frontend/pages/ProjectDetail.tsx",
+        "frontend/lib/importJobUtils.ts"
+      ],
+      "acceptance": [
+        "usuario pode cancelar ou deletar um import que travou em alguma porcentagem",
+        "botao/ação visivel no widget de progresso e no modal de detalhes quando status=running",
+        "ao cancelar: job e marcado como error/cancelled ou removido; UI limpa e para de exibir o import",
+        "processo em background no backend deve interromper ou nao continuar processando job cancelado"
+      ],
+      "microtasks": [
+        {
+          "id": "import_cancel_backend",
+          "title": "Backend: endpoint DELETE ou PATCH para cancelar import job. ImportJobModel: add metodo cancel/delete. ProjectController: rota para cancelar (verificar dono/projeto). Ao cancelar: update status=error com message='Cancelado pelo usuario' ou deletar row. No setImmediate do ProjectController, verificar antes de cada step se job foi cancelado/deletado e abortar loop.",
+          "status": "done",
+          "tests": ["backend: npm run lint", "backend: npm run build"],
+          "notes": ["ImportJobModel: findById, cancel (status=error). ProjectController: cancelImportJob, DELETE /:id/import-jobs/:jobId. setImmediate: isCancelled() antes de cada step. Lint e build passaram."]
+        },
+        {
+          "id": "import_cancel_frontend",
+          "title": "Frontend: botao Cancelar no ImportProgressWidget e ImportProgressModal quando job.status=running. ImportProgressModal e GitSyncProgressModal (ProjectDetail) tambem devem ter botao. Chamar API para cancelar e ao sucesso: clearActiveImport/localStorage; realtime DELETE ja dispara clear. Adicionar funcao cancelImportJob em importJobUtils ou service.",
+          "status": "pending",
+          "tests": ["frontend: npm run lint", "frontend: npm run build"],
+          "notes": []
+        }
+      ]
+    },
     {
       "id": "fix_edit_card_in_project",
       "title": "Fix: permitir editar e excluir card dentro do Projeto",
@@ -724,6 +754,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Tarefa rewrite_cardfeature_clawdbot concluida. Todas as microtarefas do PRD finalizadas."
+    },
+    {
+      "ts": "2026-02-26 19:47",
+      "microtask_id": "import_cancel_backend",
+      "feito": "Backend: ImportJobModel findById/cancel; ProjectController cancelImportJob; DELETE /:id/import-jobs/:jobId; setImmediate verifica isCancelled() antes de cada step.",
+      "status": "ok",
+      "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
+      "observacoes": "Proxima microtarefa: import_cancel_frontend (botao Cancelar no widget e modal)."
     }
   ]
 }
