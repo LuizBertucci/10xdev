@@ -55,7 +55,7 @@
         "test": "npm test"
       }
     },
-    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco. CodeRabbit: coderabbit --type uncommitted."
+    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco. CodeRabbit: coderabbit --prompt-only --type uncommitted (aguardar termino, so depois aplicar e lint/build)."
   },
   "task_sequence": [
     "video_delete_trash_icon"
@@ -82,14 +82,14 @@
           "title": "CardTutorial: adicionar icone Trash2 (lucide-react) no card de video. Props onDelete?: (id: string) => void e canDelete?: boolean. Posicionar icone no canto (ex: top-right do thumbnail). onClick do icone: e.stopPropagation para nao abrir o video; chamar confirmacao e onDelete(id).",
           "status": "done",
           "tests": ["frontend: npm run lint", "frontend: npm run build"],
-          "notes": ["Adicionados props onDelete e canDelete. Icone Trash2 no top-right do thumbnail. stopPropagation + confirm antes de onDelete(id). Visivel apenas com canDelete."]
+          "notes": ["Implementacao ja presente em CardTutorial.tsx: Trash2, props onDelete/canDelete, icone top-right do thumbnail, e.stopPropagation, window.confirm e onDelete(id). Lint e build passaram."]
         },
         {
           "id": "video_trash_contents_wire",
           "title": "Contents.tsx: na grid de tutoriais, passar onDelete e canDelete para CardTutorial. onDelete chama contentService.delete(id), remove da lista ou recarrega tutoriais. canDelete = isAdmin. Dialog de confirmacao antes de deletar (usar AlertDialog ou confirm).",
-          "status": "done",
+          "status": "pending",
           "tests": ["frontend: npm run lint", "frontend: npm run build"],
-          "notes": ["Contents.tsx: handleDeleteTutorial chama contentService.delete(id), remove da lista via filter. onDelete e canDelete passados ao CardTutorial. canDelete=isAdmin. CardTutorial usa window.confirm antes de onDelete. Lint e build passaram."]
+          "notes": []
         },
         {
           "id": "video_trash_detail_view",
@@ -767,20 +767,12 @@
       "observacoes": "Proxima microtarefa: import_cancel_frontend (botao Cancelar no widget e modal)."
     },
     {
-      "ts": "2026-02-26 20:15",
+      "ts": "2026-02-26 20:20",
       "microtask_id": "video_trash_cardtutorial",
-      "feito": "CardTutorial: icone Trash2 no top-right do thumbnail. Props onDelete e canDelete. stopPropagation + confirm antes de onDelete(id). Visivel apenas com canDelete.",
+      "feito": "CardTutorial ja possui Trash2, props onDelete/canDelete, icone top-right do thumbnail, e.stopPropagation, confirmacao e onDelete(id). Verificado e validado.",
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
-      "observacoes": "Proxima microtarefa: video_trash_contents_wire (Contents.tsx: passar onDelete e canDelete)."
-    },
-    {
-      "ts": "2026-02-26 20:58",
-      "microtask_id": "video_trash_contents_wire",
-      "feito": "Contents.tsx: onDelete e canDelete passados ao CardTutorial. handleDeleteTutorial chama contentService.delete(id), remove da lista. canDelete=isAdmin. Confirmacao via window.confirm no CardTutorial.",
-      "status": "ok",
-      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
-      "observacoes": "Proxima microtarefa: video_trash_detail_view (TutorialDetailView: botao lixeira para deletar video)."
+      "observacoes": "Proxima microtarefa: video_trash_contents_wire (Contents.tsx wire onDelete/canDelete)."
     }
   ]
 }
