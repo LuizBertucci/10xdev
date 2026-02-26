@@ -55,42 +55,45 @@
         "test": "npm test"
       }
     },
-    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco. CodeRabbit: coderabbit review --plain --type uncommitted."
+    "notes": "Preferir lint/build para a area tocada; rodar testes quando houver risco. CodeRabbit: coderabbit --type uncommitted."
   },
   "task_sequence": [
-    "import_cancel_stuck"
+    "video_delete_trash_icon"
   ],
   "tasks": [
     {
-      "id": "import_cancel_stuck",
-      "title": "Permitir cancelar ou deletar import travado em alguma porcentagem",
+      "id": "video_delete_trash_icon",
+      "title": "Adicionar icone de lixeira para deletar conteudo em video (apenas o video, card permanece)",
       "status": "pending",
       "scope_files": [
-        "backend/src/models/ImportJobModel.ts",
-        "backend/src/controllers/ProjectController.ts",
-        "backend/src/routes/projectRoutes.ts",
-        "frontend/components/ImportProgressWidget.tsx",
-        "frontend/components/ImportProgressModal.tsx",
-        "frontend/pages/ProjectDetail.tsx",
-        "frontend/lib/importJobUtils.ts"
+        "frontend/components/CardTutorial.tsx",
+        "frontend/pages/Contents.tsx",
+        "frontend/components/TutorialDetailView.tsx"
       ],
       "acceptance": [
-        "usuario pode cancelar ou deletar um import que travou em alguma porcentagem",
-        "botao/ação visivel no widget de progresso e no modal de detalhes quando status=running",
-        "ao cancelar: job e marcado como error/cancelled ou removido; UI limpa e para de exibir o import",
-        "processo em background no backend deve interromper ou nao continuar processando job cancelado"
+        "icone de lixeira (Trash2) visivel no conteudo em video",
+        "ao clicar, exibe confirmacao antes de excluir",
+        "ao confirmar: deleta apenas o conteudo (video) via contentService.delete; o card atrelado (selectedCardFeatureId) permanece intacto",
+        "so admin pode ver/usar o icone"
       ],
       "microtasks": [
         {
-          "id": "import_cancel_backend",
-          "title": "Backend: endpoint DELETE ou PATCH para cancelar import job. ImportJobModel: add metodo cancel/delete. ProjectController: rota para cancelar (verificar dono/projeto). Ao cancelar: update status=error com message='Cancelado pelo usuario' ou deletar row. No setImmediate do ProjectController, verificar antes de cada step se job foi cancelado/deletado e abortar loop.",
+          "id": "video_trash_cardtutorial",
+          "title": "CardTutorial: adicionar icone Trash2 (lucide-react) no card de video. Props onDelete?: (id: string) => void e canDelete?: boolean. Posicionar icone no canto (ex: top-right do thumbnail). onClick do icone: e.stopPropagation para nao abrir o video; chamar confirmacao e onDelete(id).",
           "status": "done",
-          "tests": ["backend: npm run lint", "backend: npm run build"],
-          "notes": ["ImportJobModel: findById, cancel (status=error). ProjectController: cancelImportJob, DELETE /:id/import-jobs/:jobId. setImmediate: isCancelled() antes de cada step. Lint e build passaram."]
+          "tests": ["frontend: npm run lint", "frontend: npm run build"],
+          "notes": ["Adicionados props onDelete e canDelete. Icone Trash2 no top-right do thumbnail. stopPropagation + confirm antes de onDelete(id). Visivel apenas com canDelete."]
         },
         {
-          "id": "import_cancel_frontend",
-          "title": "Frontend: botao Cancelar no ImportProgressWidget e ImportProgressModal quando job.status=running. ImportProgressModal e GitSyncProgressModal (ProjectDetail) tambem devem ter botao. Chamar API para cancelar e ao sucesso: clearActiveImport/localStorage; realtime DELETE ja dispara clear. Adicionar funcao cancelImportJob em importJobUtils ou service.",
+          "id": "video_trash_contents_wire",
+          "title": "Contents.tsx: na grid de tutoriais, passar onDelete e canDelete para CardTutorial. onDelete chama contentService.delete(id), remove da lista ou recarrega tutoriais. canDelete = isAdmin. Dialog de confirmacao antes de deletar (usar AlertDialog ou confirm).",
+          "status": "pending",
+          "tests": ["frontend: npm run lint", "frontend: npm run build"],
+          "notes": []
+        },
+        {
+          "id": "video_trash_detail_view",
+          "title": "TutorialDetailView: adicionar botao/icone de lixeira para deletar o video (conteudo). Ao deletar: contentService.delete(id), redirecionar para lista de tutoriais (onGoToTutorials). Card relacionado nao e afetado. So admin vê o botao.",
           "status": "pending",
           "tests": ["frontend: npm run lint", "frontend: npm run build"],
           "notes": []
@@ -762,6 +765,14 @@
       "status": "ok",
       "validacao": "backend: npm run lint (passou), backend: npm run build (passou)",
       "observacoes": "Proxima microtarefa: import_cancel_frontend (botao Cancelar no widget e modal)."
+    },
+    {
+      "ts": "2026-02-26 20:15",
+      "microtask_id": "video_trash_cardtutorial",
+      "feito": "CardTutorial: icone Trash2 no top-right do thumbnail. Props onDelete e canDelete. stopPropagation + confirm antes de onDelete(id). Visivel apenas com canDelete.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Proxima microtarefa: video_trash_contents_wire (Contents.tsx: passar onDelete e canDelete)."
     }
   ]
 }

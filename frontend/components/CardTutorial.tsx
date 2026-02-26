@@ -2,16 +2,18 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Play, Clock } from "lucide-react"
+import { Play, Clock, Trash2 } from "lucide-react"
 import type { Content } from "@/types/content"
 
 interface CardTutorialProps {
   tutorial: Content
   onClick: (tutorial: Content) => void
+  onDelete?: (id: string) => void
+  canDelete?: boolean
   className?: string
 }
 
-export default function CardTutorial({ tutorial, onClick, className }: CardTutorialProps) {
+export default function CardTutorial({ tutorial, onClick, onDelete, canDelete, className }: CardTutorialProps) {
   // Thumbnail do YouTube ou placeholder
   const thumbnailUrl = tutorial.thumbnail || 
     (tutorial.videoId ? `https://img.youtube.com/vi/${tutorial.videoId}/hqdefault.jpg` : '/placeholder.svg')
@@ -50,6 +52,23 @@ export default function CardTutorial({ tutorial, onClick, className }: CardTutor
               {tutorial.category}
             </Badge>
           </div>
+        )}
+
+        {/* Delete icon - only for admin */}
+        {canDelete && onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (window.confirm('Excluir este vídeo? O card permanecerá.')) {
+                onDelete(tutorial.id)
+              }
+            }}
+            className="absolute top-2 right-2 p-2 rounded-full bg-white/90 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors opacity-0 group-hover:opacity-100 shadow-sm"
+            aria-label="Excluir vídeo"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         )}
       </div>
 
