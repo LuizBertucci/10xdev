@@ -13,12 +13,8 @@ import {
   FolderGit2,
   Layout,
   MessageCircle,
-  Play,
   Terminal,
 } from 'lucide-react'
-
-const UNSPLASH_IMG =
-  'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=2070&auto=format&fit=crop'
 const WHATSAPP_URL = 'https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc'
 
 export default function LandingPage() {
@@ -33,7 +29,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section
         id="diferencial"
-        className="relative pt-16 pb-24 md:pt-24 md:pb-36 overflow-hidden"
+        className="relative pt-16 pb-4 md:pt-24 md:pb-8 overflow-hidden"
       >
         <div
           className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]"
@@ -62,8 +58,8 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mb-10 leading-relaxed font-light">
-            Chega de perder tempo com código duplicado. A 10xDev equipa você para
-            alcançar o ápice da produtividade sem criar débito técnico.
+            A 10xDev te equipa - com códigos prontos, conteúdos validados e IA de
+            ponta - a produzir 10x mais e tirar seus projetos do papel.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-12">
@@ -85,31 +81,7 @@ export default function LandingPage() {
             </Button>
           </div>
 
-          <div className="mt-0 mb-24 w-full max-w-5xl mx-auto relative group">
-            <div
-              className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-purple-500 to-teal-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"
-              aria-hidden
-            />
-            <div className="relative aspect-video rounded-xl bg-background border border-border/50 overflow-hidden shadow-2xl flex items-center justify-center group-hover:scale-[1.01] transition-transform duration-500">
-              <div
-                className="absolute inset-0 bg-gradient-to-tr from-background/10 via-background/5 to-transparent z-10"
-                aria-hidden
-              />
-              <div
-                className="absolute inset-0 bg-cover bg-center opacity-10"
-                style={{ backgroundImage: `url('${UNSPLASH_IMG}')` }}
-                aria-hidden
-              />
-              <div className="z-20 flex flex-col items-center gap-5">
-                <div className="w-20 h-20 bg-background/30 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 cursor-pointer hover:bg-background/50 transition-all group-hover:scale-110 shadow-lg">
-                  <Play className="w-6 h-6 text-foreground fill-foreground ml-0.5" />
-                </div>
-                <p className="text-xs font-semibold text-foreground/80 uppercase tracking-widest border px-3 py-1 rounded-full border-foreground/10 bg-background/50 backdrop-blur-sm">
-                  saiba quem somos
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Área de vídeo da hero temporariamente oculta até disponibilizarmos o vídeo oficial. */}
         </div>
       </section>
 
@@ -201,7 +173,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
                 Empacotamos funcionalidades completas e te disponibilizamos
-                através de <strong>Cards</strong>. Cada Card resolve um problema
+                através de <strong>Cards</strong>. Cada um resolve um problema
                 de ponta a ponta: arquitetura, backend, frontend e integrações.
               </p>
               <ul className="space-y-4 mb-8">
@@ -383,36 +355,33 @@ export default function LandingPage() {
                 Importação Git Inteligente
               </div>
               <h2 className="text-2xl md:text-4xl font-bold mb-5 tracking-tight">
-                De Repositório para <br />
-                <span className="text-teal-600">CardFeatures</span>.
+                Seu <span className="text-teal-600">Repositório Inteligente</span>
               </h2>
               <p className="text-base text-muted-foreground mb-6 leading-relaxed">
-                Conecte seu Git e veja a mágica acontecer. Nosso sistema analisa
-                seu projeto e o converte automaticamente em{' '}
-                <strong>CardFeatures</strong>: snippets separados, detalhados e
-                prontos para reutilização.
+                Conecte seu GitHub e veja a mágica acontecer. A 10xDev processa
+                seu código, segmenta funcionalidades e entrega tudo em cards
+                estruturados.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2.5 shrink-0" />
                   <p className="text-muted-foreground">
-                    Transforme monolitos em componentes reutilizáveis
-                    instantaneamente.
+                    Acesse cada funcionalidade do início ao fim em uma
+                    visualização única.
                   </p>
                 </li>
                 <li className="flex items-start gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2.5 shrink-0" />
                   <p className="text-muted-foreground">
-                    Documentação automática de cada funcionalidade extraída.
+                    Trabalhe com IA integrada para acelerar seu desenvolvimento.
                   </p>
                 </li>
               </ul>
               <Button
-                variant="link"
-                className="text-teal-600 pl-0 mt-5 font-semibold text-base"
-                onClick={() => goToLoginWithRedirect('/codes')}
+                className="mt-5 bg-teal-600 hover:bg-teal-700 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg shadow-teal-500/20"
+                onClick={() => window.open('https://10xdev.com.br', '_blank')}
               >
-                Ver demonstração da conversão
+                Acessar 10xdev.com.br
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>

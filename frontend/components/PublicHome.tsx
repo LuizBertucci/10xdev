@@ -5,8 +5,6 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import LandingPage from '@/components/LandingPage'
 
-const LOGO_URL =
-  'https://customer-assets.emergentagent.com/job_snippet-central/artifacts/ay9ovqle_WhatsApp%20Image%202026-02-23%20at%2001.18.28.jpeg'
 const WHATSAPP_URL = 'https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc'
 
 export default function PublicHome() {
@@ -14,13 +12,12 @@ export default function PublicHome() {
     <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <img
-              src={LOGO_URL}
-              alt="10xDev Logo"
-              className="h-20 w-auto filter invert mix-blend-multiply object-contain scale-[1.6]"
-            />
-          </div>
+          <Link
+            href="/"
+            className="text-2xl font-bold tracking-tight text-foreground hover:text-primary transition-colors"
+          >
+            10xDev
+          </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-xs font-medium text-muted-foreground">
             <a href="#diferencial" className="hover:text-primary transition-colors">
@@ -56,15 +53,14 @@ export default function PublicHome() {
 
       <footer className="border-t bg-background py-12">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-10">
+          <div className="grid md:grid-cols-3 gap-10">
             <div className="space-y-4">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <img
-                  src={LOGO_URL}
-                  alt="10xDev Logo"
-                  className="h-14 w-auto filter invert mix-blend-multiply object-contain"
-                />
-              </div>
+              <Link
+                href="/"
+                className="inline-block text-2xl font-bold tracking-tight text-foreground hover:text-primary transition-colors"
+              >
+                10xDev
+              </Link>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Plataforma de produtividade feita por devs para devs. Focada em
                 eliminar trabalho repetitivo e garantir qualidade.
@@ -87,22 +83,6 @@ export default function PublicHome() {
                 <li>
                   <a href="#comunidade" className="hover:text-primary transition-colors">
                     Comunidade
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-5 text-sm">Legal</h4>
-              <ul className="space-y-2 text-xs text-muted-foreground">
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Termos de Uso
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary transition-colors">
-                    Privacidade
                   </a>
                 </li>
               </ul>
