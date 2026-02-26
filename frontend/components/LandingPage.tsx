@@ -17,6 +17,19 @@ import {
 } from 'lucide-react'
 const WHATSAPP_URL = 'https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc'
 
+function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M19.11 4.93A9.92 9.92 0 0 0 12.07 2C6.58 2 2.11 6.47 2.11 11.96c0 1.76.46 3.48 1.33 4.99L2 22l5.21-1.37a9.9 9.9 0 0 0 4.86 1.24h.01c5.49 0 9.96-4.47 9.96-9.96 0-2.66-1.04-5.16-2.93-6.98ZM12.08 20.2h-.01a8.2 8.2 0 0 1-4.17-1.13l-.3-.18-3.09.81.83-3.01-.19-.31a8.26 8.26 0 0 1-1.27-4.42c0-4.56 3.71-8.27 8.28-8.27 2.21 0 4.28.86 5.84 2.43a8.2 8.2 0 0 1 2.42 5.84c0 4.56-3.71 8.27-8.27 8.27Zm4.54-6.19c-.25-.12-1.48-.73-1.71-.81-.23-.08-.39-.12-.55.12-.17.25-.64.81-.79.98-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.21-.73-.65-1.23-1.45-1.37-1.7-.15-.25-.02-.39.11-.52.11-.11.25-.29.37-.44.12-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.07-.12-.56-1.35-.77-1.85-.2-.48-.41-.41-.55-.42h-.47c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.23.9 2.43 1.02 2.6.12.17 1.76 2.68 4.25 3.76.59.26 1.05.41 1.41.53.59.19 1.13.16 1.55.1.47-.07 1.48-.6 1.69-1.18.21-.58.21-1.08.14-1.18-.06-.1-.23-.16-.48-.29Z" />
+    </svg>
+  )
+}
+
 export default function LandingPage() {
   const router = useRouter()
 
@@ -68,15 +81,16 @@ export default function LandingPage() {
               className="text-sm px-8 h-12 rounded-full bg-primary hover:bg-primary/90 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
               onClick={goToRegister}
             >
-              Começar agora
+              Acessar 10xdev.com.br
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="text-sm px-8 h-12 rounded-full border-muted-foreground/20 hover:bg-muted/50 backdrop-blur-sm"
+              className="text-sm px-8 h-12 rounded-full border-green-500/40 text-green-700 hover:bg-green-50 hover:text-green-800 backdrop-blur-sm"
               onClick={() => window.open(WHATSAPP_URL, '_blank')}
             >
+              <WhatsAppIcon className="mr-2 h-4 w-4" />
               Ver comunidade
             </Button>
           </div>
@@ -230,7 +244,7 @@ export default function LandingPage() {
                 className="mt-6 rounded-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-6 py-5 h-auto text-base"
                 onClick={() => goToLoginWithRedirect('/contents')}
               >
-                Explorar Séries
+                Acessar 10xdev.com.br
               </Button>
             </div>
 
@@ -379,7 +393,7 @@ export default function LandingPage() {
               </ul>
               <Button
                 className="mt-5 bg-teal-600 hover:bg-teal-700 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg shadow-teal-500/20"
-                onClick={() => window.open('https://10xdev.com.br', '_blank')}
+                onClick={() => goToLoginWithRedirect('/projects')}
               >
                 Acessar 10xdev.com.br
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -424,7 +438,7 @@ export default function LandingPage() {
                 className="bg-green-600 hover:bg-green-700 text-white rounded-full px-8 h-12 text-base border-0 shadow-[0_0_20px_rgba(22,163,74,0.4)]"
                 onClick={() => window.open(WHATSAPP_URL, '_blank')}
               >
-                Entrar no WhatsApp Agora
+                Acessar 10xdev.com.br
               </Button>
             </div>
           </div>
@@ -448,7 +462,7 @@ export default function LandingPage() {
               className="h-12 px-8 text-base rounded-full shadow-lg hover:shadow-xl transition-all"
               onClick={goToRegister}
             >
-              Criar conta gratuitamente
+              Acessar 10xdev.com.br
             </Button>
           </div>
         </div>
