@@ -87,9 +87,9 @@
         {
           "id": "video_trash_contents_wire",
           "title": "Contents.tsx: na grid de tutoriais, passar onDelete e canDelete para CardTutorial. onDelete chama contentService.delete(id), remove da lista ou recarrega tutoriais. canDelete = isAdmin. Dialog de confirmacao antes de deletar (usar AlertDialog ou confirm).",
-          "status": "pending",
+          "status": "done",
           "tests": ["frontend: npm run lint", "frontend: npm run build"],
-          "notes": []
+          "notes": ["Contents.tsx: handleDeleteTutorial chama contentService.delete(id), remove da lista via filter. onDelete e canDelete passados ao CardTutorial. canDelete=isAdmin. CardTutorial usa window.confirm antes de onDelete. Lint e build passaram."]
         },
         {
           "id": "video_trash_detail_view",
@@ -773,6 +773,14 @@
       "status": "ok",
       "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
       "observacoes": "Proxima microtarefa: video_trash_contents_wire (Contents.tsx: passar onDelete e canDelete)."
+    },
+    {
+      "ts": "2026-02-26 20:58",
+      "microtask_id": "video_trash_contents_wire",
+      "feito": "Contents.tsx: onDelete e canDelete passados ao CardTutorial. handleDeleteTutorial chama contentService.delete(id), remove da lista. canDelete=isAdmin. Confirmacao via window.confirm no CardTutorial.",
+      "status": "ok",
+      "validacao": "frontend: npm run lint (passou), frontend: npm run build (passou)",
+      "observacoes": "Proxima microtarefa: video_trash_detail_view (TutorialDetailView: botao lixeira para deletar video)."
     }
   ]
 }

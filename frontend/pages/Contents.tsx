@@ -119,6 +119,8 @@ export default function Contents() {
   })
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const [, setIsDeletingTutorial] = useState(false)
+
   // ================================================
   // POSTS STATE (CardFeatures with card_type='post')
   // ================================================
@@ -189,6 +191,24 @@ export default function Contents() {
   const handleTutorialClick = useCallback((tutorial: Content) => {
     router.push(`/contents/${tutorial.id}?tab=tutorials`)
   }, [router])
+
+  const handleDeleteTutorial = useCallback(async (id: string) => {
+    setIsDeletingTutorial(true)
+    try {
+      const res = await contentService.delete(id)
+      if (res?.success) {
+        setTutorials((prev) => prev.filter((t) => t.id !== id))
+        toast({ title: 'Sucesso!', description: 'Vídeo excluído. O card permanece intacto.' })
+      } else {
+        toast({ title: 'Erro', description: res?.error || 'Erro ao excluir vídeo.', variant: 'destructive' })
+      }
+    } catch (e) {
+      console.error('Erro ao deletar vídeo:', e)
+      toast({ title: 'Erro', description: 'Erro ao excluir vídeo.', variant: 'destructive' })
+    } finally {
+      setIsDeletingTutorial(false)
+    }
+  }, [toast])
 
   useEffect(() => {
     if (!didInitRef.current) {
@@ -498,6 +518,8 @@ export default function Contents() {
                     key={tutorial.id}
                     tutorial={tutorial}
                     onClick={handleTutorialClick}
+                    onDelete={handleDeleteTutorial}
+                    canDelete={isAdmin}
                   />
                 ))}
               </div>
