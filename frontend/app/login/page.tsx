@@ -21,12 +21,12 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Resolve redirect: prioriza sessionStorage (GitSync) pois redirect param pode perder id ao ter &
+  // Resolve redirect: prioriza sessionStorage (GithubSync) pois redirect param pode perder id ao ter &
   const getRedirectTarget = (): string | null => {
     try {
-      const stored = sessionStorage.getItem('gitsync_redirect_after_login')
+      const stored = sessionStorage.getItem('github_sync_redirect_after_login')
       if (stored) {
-        sessionStorage.removeItem('gitsync_redirect_after_login')
+        sessionStorage.removeItem('github_sync_redirect_after_login')
         return stored
       }
     } catch { /* ignore */ }

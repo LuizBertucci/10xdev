@@ -60,7 +60,7 @@ type GitSyncProgressEvent = {
   message: string
 }
 
-const getGitSyncHistoryStorageKey = (projectId: string) => `gitsync_progress_events:${projectId}`
+const getGitSyncHistoryStorageKey = (projectId: string) => `github_sync_progress_events:${projectId}`
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error) return error.message
@@ -291,16 +291,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   useEffect(() => {
     if (!searchParams || !projectId) return
 
-    const gitsyncFlag = searchParams.get('gitsync')
+    const githubSyncFlag = searchParams.get('github_sync')
     const hasOAuthReturnFlag = searchParams.has('oauth_return')
     const hasInstallationInUrl = searchParams.has('installation_id')
     const isOAuthCallbackFlow =
-      gitsyncFlag === 'true' || hasOAuthReturnFlag || hasInstallationInUrl
+      githubSyncFlag === 'true' || hasOAuthReturnFlag || hasInstallationInUrl
     if (!isOAuthCallbackFlow) return
 
     let installationId = searchParams.get('installation_id') || null
     if (!installationId && isOAuthCallbackFlow) {
-      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('gitsync_installation_id') : null
+      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('github_sync_installation_id') : null
     }
 
     const shouldShowRepoDialog = Boolean(installationId)
@@ -311,14 +311,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     if (handledOAuthFlowRef.current === flowKey) return
     handledOAuthFlowRef.current = flowKey
 
-    const storedProjectId = sessionStorage.getItem('gitsync_project_id')
+    const storedProjectId = sessionStorage.getItem('github_sync_project_id')
     const isForThisProject = (storedProjectId && storedProjectId === projectId) || !storedProjectId
 
     if (isForThisProject) {
-      if (storedProjectId) sessionStorage.removeItem('gitsync_project_id')
+      if (storedProjectId) sessionStorage.removeItem('github_sync_project_id')
       loadAvailableRepos(Number(installationId), () => {
         const params = new URLSearchParams(searchParams.toString())
-        params.delete('gitsync')
+        params.delete('github_sync')
         params.delete('installation_id')
         const newQuery = params.toString()
         if (newQuery !== searchParams.toString()) {
@@ -369,7 +369,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       return
     }
 
-    const installationId = sessionStorage.getItem('gitsync_installation_id')
+    const installationId = sessionStorage.getItem('github_sync_installation_id')
     if (!installationId) {
       toast.error('Installation ID não encontrado')
       return
@@ -412,7 +412,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         }, ...prev].slice(0, 120))
         setSelectedRepo("")
         await loadSyncStatus()
-        sessionStorage.removeItem('gitsync_installation_id')
       } else {
         toast.error(response?.error || 'Erro ao conectar repositório')
         setGitSyncProgressEvents((prev) => [{
@@ -474,6 +473,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       toast.error('Erro ao desconectar repositório')
     }
   }
+
+  const canSyncFromGithub = Boolean(
+    syncStatus?.active && (syncStatus.hasUpdates || !syncStatus.lastSyncSha)
+  )
 
   useEffect(() => {
     if (project?.name && !isEditingName) {
@@ -1696,6 +1699,27 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       </Badge>
                     </div>
 
+                    {syncStatus.remoteCheckError ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-xs text-amber-800">
+                          Não foi possível verificar atualizações agora. Você pode tentar novamente em alguns segundos.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className={`p-3 border rounded-lg ${syncStatus.hasUpdates ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <p className={`text-sm font-medium ${syncStatus.hasUpdates ? 'text-blue-900' : 'text-gray-700'}`}>
+                          {syncStatus.hasUpdates
+                            ? 'Atualizações encontradas no GitHub'
+                            : 'Projeto já está sincronizado com o GitHub'}
+                        </p>
+                        {syncStatus.remoteSha && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            SHA remoto: {syncStatus.remoteSha.substring(0, 7)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {syncStatus.conflicts > 0 && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex items-start gap-2">
@@ -1715,7 +1739,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <div className="flex gap-2">
                       <Button
                         onClick={handleSync}
-                        disabled={syncing}
+                        disabled={syncing || !canSyncFromGithub}
                         className="flex-1"
                         size="sm"
                       >
@@ -1727,7 +1751,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         ) : (
                           <>
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            Sincronizar agora
+                            {syncStatus.hasUpdates || !syncStatus.lastSyncSha
+                              ? 'Sincronizar agora'
+                              : 'Sem atualizações'}
                           </>
                         )}
                       </Button>
@@ -1769,7 +1795,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       onClick={() => {
                         // Store project ID for post-OAuth redirect
                         try {
-                          sessionStorage.setItem('gitsync_project_id', projectId || '')
+                          sessionStorage.setItem('github_sync_project_id', projectId || '')
                         } catch { /* ignore */ }
 
                         // Redirect to GitHub OAuth
@@ -1780,20 +1806,31 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           return
                         }
 
+                        // CSRF protection: gerar nonce e persistir para validação no callback
+                        const nonceBytes = new Uint8Array(16)
+                        crypto.getRandomValues(nonceBytes)
+                        const nonce = Array.from(nonceBytes, b => b.toString(16).padStart(2, '0')).join('')
+                        try {
+                          sessionStorage.setItem('oauth_state_nonce', nonce)
+                        } catch {
+                          toast.error('Não foi possível iniciar o fluxo OAuth. Tente novamente.')
+                          return
+                        }
+
                         // Detect if running on localhost to use correct backend URL
                         const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
                         const backendUrl = isLocalhost
                           ? 'http://localhost:3001'
                           : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
 
-                        // Encode frontend origin and projectId in state parameter
+                        // Encode frontend origin, projectId e nonce no state parameter
                         const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-                        const stateData = JSON.stringify({ origin: frontendOrigin, projectId: projectId || '' })
+                        const stateData = JSON.stringify({ origin: frontendOrigin, projectId: projectId || '', nonce })
                         const state = btoa(stateData)
 
                         // Remove /api suffix if present to avoid duplication
                         const baseUrl = backendUrl.replace(/\/api$/, '')
-                        const redirectUri = `${baseUrl}/api/gitsync/callback`
+                        const redirectUri = `${baseUrl}/api/github/callback`
                         const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
 
                         window.location.href = githubAuthUrl

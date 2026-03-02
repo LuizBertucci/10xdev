@@ -43,7 +43,7 @@ export default function ImportGithubTokenPage() {
 
     // GitHub App OAuth callback (github_access_token + installation_id via backend redirect)
     if (accessToken || installationId) {
-      handleGitSyncCallback(accessToken, installationId, projectId, stateParam)
+      handleGithubSyncCallback(accessToken, installationId, projectId, stateParam)
       return
     }
 
@@ -70,7 +70,7 @@ export default function ImportGithubTokenPage() {
     setMessage('Nenhum token ou código de autorização detectado. Tente novamente.')
   }, [searchParams])
 
-  /** Redireciona para o projeto com gitsync - sem checar sessão (evita timing getSession/useAuth).
+  /** Redireciona para o projeto com github_sync - sem checar sessão (evita timing getSession/useAuth).
    * Se não houver sessão, ProtectedRoute manda para login; sessionStorage preserva dest. */
   useEffect(() => {
     if (!pendingRedirect || hasRedirectedRef.current) return
@@ -78,19 +78,19 @@ export default function ImportGithubTokenPage() {
     hasRedirectedRef.current = true
     const { projectId, installationId } = pendingRedirect
     const dest = projectId
-      ? `/projects/${projectId}?gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
-      : `/projects?gitsync=true${installationId ? `&installation_id=${installationId}` : ''}`
+      ? `/projects/${projectId}?github_sync=true${installationId ? `&installation_id=${installationId}` : ''}`
+      : `/projects?github_sync=true${installationId ? `&installation_id=${installationId}` : ''}`
 
     try {
-      sessionStorage.setItem('gitsync_redirect_after_login', dest)
+      sessionStorage.setItem('github_sync_redirect_after_login', dest)
     } catch { /* ignore */ }
 
     router.push(dest)
     setPendingRedirect(null)
   }, [pendingRedirect, router])
 
-  /** Handles GitHub App OAuth callback (from backend /api/gitsync/callback redirect) */
-  const handleGitSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null, state: string | null) => {
+  /** Handles GitHub App OAuth callback (from backend /api/github/callback redirect) */
+  const handleGithubSyncCallback = (accessToken: string | null, installationId: string | null, projectId: string | null, state: string | null) => {
     // Validate CSRF nonce before accepting installation_id
     let storedNonce: string | null
     try {
@@ -126,10 +126,10 @@ export default function ImportGithubTokenPage() {
 
     try {
       if (installationId) {
-        sessionStorage.setItem('gitsync_installation_id', installationId)
+        sessionStorage.setItem('github_sync_installation_id', installationId)
       }
       if (accessToken) {
-        sessionStorage.setItem('gitsync_access_token', accessToken)
+        sessionStorage.setItem('github_sync_access_token', accessToken)
       }
     } catch {
       // ignore storage errors

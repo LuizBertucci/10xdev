@@ -29,7 +29,7 @@ interface Project {
   githubOwner?: string | null
   githubRepo?: string | null
   defaultBranch?: string | null
-  gitsyncActive?: boolean
+  githubSyncActive?: boolean
   lastSyncAt?: string | null
   lastSyncSha?: string | null
 }
@@ -120,6 +120,9 @@ export interface SyncStatusResponse {
   active: boolean
   lastSyncAt: string | null
   lastSyncSha: string | null
+  remoteSha: string | null
+  hasUpdates: boolean
+  remoteCheckError?: string | null
   githubOwner: string | null
   githubRepo: string | null
   defaultBranch: string | null
@@ -256,19 +259,19 @@ class ProjectService {
   }
 
   // ================================================
-  // GITSYNC
+  // GITHUB SYNC
   // ================================================
 
   /** Lista repos acessiveis pela GitHub App installation */
   async listGithubRepos(installationId: number): Promise<ApiResponse<GithubAppRepo[]> | undefined> {
-    return apiClient.get<GithubAppRepo[]>(`${this.endpoint}/gitsync/repos`, { installation_id: installationId })
+    return apiClient.get<GithubAppRepo[]>(`${this.endpoint}/github/repos`, { installation_id: installationId })
   }
 
   /** Conecta um projeto a um repo GitHub */
   async connectRepo(projectId: string, data: ConnectRepoData): Promise<ApiResponse<Project> | undefined> {
     // Conexao inicial pode levar mais tempo por processamento AI/import
     return apiClient.postWithTimeout<Project>(
-      `${this.endpoint}/${projectId}/gitsync/connect`,
+      `${this.endpoint}/${projectId}/github/connect`,
       data,
       120000
     )
@@ -276,27 +279,27 @@ class ProjectService {
 
   /** Desconecta o projeto do GitHub */
   async disconnectRepo(projectId: string): Promise<ApiResponse<null> | undefined> {
-    return apiClient.delete<null>(`${this.endpoint}/${projectId}/gitsync/connect`)
+    return apiClient.delete<null>(`${this.endpoint}/${projectId}/github/connect`)
   }
 
   /** Obtem status de sync do projeto */
   async getSyncStatus(projectId: string): Promise<ApiResponse<SyncStatusResponse> | undefined> {
-    return apiClient.get<SyncStatusResponse>(`${this.endpoint}/${projectId}/gitsync/status`)
+    return apiClient.get<SyncStatusResponse>(`${this.endpoint}/${projectId}/github/status`)
   }
 
   /** Trigger manual de sync GitHub -> Cards */
   async syncProject(projectId: string): Promise<ApiResponse<null> | undefined> {
-    return apiClient.post<null>(`${this.endpoint}/${projectId}/gitsync/sync`, {})
+    return apiClient.post<null>(`${this.endpoint}/${projectId}/github/sync`, {})
   }
 
   /** Envia mudancas de um card para o GitHub como PR */
   async pushToGithub(projectId: string, cardFeatureId: string): Promise<ApiResponse<{ prUrl: string; prNumber: number }> | undefined> {
-    return apiClient.post<{ prUrl: string; prNumber: number }>(`${this.endpoint}/${projectId}/gitsync/push`, { cardFeatureId })
+    return apiClient.post<{ prUrl: string; prNumber: number }>(`${this.endpoint}/${projectId}/github/push`, { cardFeatureId })
   }
 
   /** Resolve conflito de sync */
   async resolveConflict(projectId: string, fileMappingId: string, resolution: 'keep_card' | 'keep_github'): Promise<ApiResponse<Record<string, unknown>> | undefined> {
-    return apiClient.post<Record<string, unknown>>(`${this.endpoint}/${projectId}/gitsync/resolve`, { fileMappingId, resolution })
+    return apiClient.post<Record<string, unknown>>(`${this.endpoint}/${projectId}/github/resolve`, { fileMappingId, resolution })
   }
 }
 

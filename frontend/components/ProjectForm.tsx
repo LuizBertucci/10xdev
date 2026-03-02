@@ -50,26 +50,37 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const [storageError, setStorageError] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
 
-  // Check for OAuth callback
+  // Hidrata conexão GitHub (callback OAuth ou sessão existente)
   useEffect(() => {
     if (!open) return
 
     const installationIdParam = searchParams?.get('installation_id')
-    if (installationIdParam) {
-      const id = Number(installationIdParam)
-      if (!isNaN(id) && id > 0) {
-        setInstallationId(id)
-        setIsGithubConnected(true)
-        loadAvailableRepos(id)
-        
-        // Clean URL
-        if (searchParams) {
-          const params = new URLSearchParams(searchParams.toString())
-          params.delete('installation_id')
-          const newQuery = params.toString()
-          if (newQuery !== searchParams.toString()) {
-            router.replace(`?${newQuery}`)
-          }
+    const installationIdSession = typeof window !== 'undefined'
+      ? sessionStorage.getItem('github_sync_installation_id')
+      : null
+    const rawId = installationIdParam || installationIdSession
+    if (!rawId) return
+
+    const id = Number(rawId)
+    if (!isNaN(id) && id > 0) {
+      setInstallationId(id)
+      setIsGithubConnected(true)
+      loadAvailableRepos(id)
+
+      // Persistir para reuso entre aberturas do modal
+      try {
+        sessionStorage.setItem('github_sync_installation_id', String(id))
+      } catch {
+        // ignore storage errors
+      }
+
+      // Clean URL (quando veio do callback)
+      if (installationIdParam && searchParams) {
+        const params = new URLSearchParams(searchParams.toString())
+        params.delete('installation_id')
+        const newQuery = params.toString()
+        if (newQuery !== searchParams.toString()) {
+          router.replace(`?${newQuery}`)
         }
       }
     }
@@ -122,7 +133,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
     const state = btoa(stateData)
 
     const baseUrl = backendUrl.replace(/\/api$/, '')
-    const redirectUri = `${baseUrl}/api/gitsync/callback`
+    const redirectUri = `${baseUrl}/api/github/callback`
     
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
     
@@ -132,19 +143,13 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   // Handle repo selection
   const handleSelectRepo = (repo: GithubAppRepo) => {
     setSelectedRepo(repo)
-    // Auto-fill fields
-    setNewProjectName(repo.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))
-    setNewProjectDescription(repo.description || '')
   }
 
   const resetForm = () => {
     setLeftTab("create")
     setNewProjectName("")
     setNewProjectDescription("")
-    setIsGithubConnected(false)
-    setInstallationId(null)
     setSelectedRepo(null)
-    setAvailableRepos([])
     setStorageError(false)
   }
 
@@ -207,8 +212,6 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
       
       const response = await projectService.importFromGithub({
         url,
-        name: newProjectName,
-        description: newProjectDescription || undefined,
         useAi: true,
         installationId: installationId || undefined
       })
@@ -352,32 +355,6 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
                           </div>
 
                           {selectedRepo && (
-                            <>
-                              <div>
-                                <Label htmlFor="import-project-name" className="block text-xs font-medium text-gray-600 mb-1.5">Nome do Projeto *</Label>
-                                <Input 
-                                  id="import-project-name" 
-                                  value={newProjectName} 
-                                  onChange={(e) => setNewProjectName(e.target.value)} 
-                                  placeholder="Ex: E-commerce Completo" 
-                                  className={INPUT_CLASS} 
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="import-project-description" className="block text-xs font-medium text-gray-600 mb-1.5">Descrição</Label>
-                                <Textarea 
-                                  id="import-project-description" 
-                                  value={newProjectDescription} 
-                                  onChange={(e) => setNewProjectDescription(e.target.value)} 
-                                  placeholder="Descreva o objetivo do projeto..." 
-                                  rows={2} 
-                                  className="bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-xs resize-none" 
-                                />
-                              </div>
-                            </>
-                          )}
-
-                          {selectedRepo && (
                             <div className="rounded-lg bg-green-50 p-4 border-2 border-green-200">
                               <div className="text-sm font-semibold text-green-900 flex items-center gap-2">
                                 <CheckCircle className="h-4 w-4" />
@@ -406,7 +383,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={creating || importingGithub} className="h-11 px-6">Cancelar</Button>
           <Button
             onClick={leftTab === "import" ? handleImportFromGithub : handleCreateProject}
-            disabled={creating || importingGithub || !newProjectName.trim() || (leftTab === "import" && !selectedRepo)}
+            disabled={creating || importingGithub || (leftTab === "create" && !newProjectName.trim()) || (leftTab === "import" && !selectedRepo)}
             className="h-11 px-6"
           >
             {creating || importingGithub ? (
