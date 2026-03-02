@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Bot } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -347,7 +347,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full min-w-0 overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
+      <Card className={`shadow-sm hover:shadow-md transition-shadow w-full min-w-0 overflow-hidden ${!isExpanded ? 'min-h-[9.5rem]' : ''} ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
         <CardContent className="p-3 md:p-4 min-w-0">
           {/* Layout Unificado - Vertical para mobile e desktop */}
           <div
@@ -368,7 +368,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   </div>
                 )}
                 
-                <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1">
+                <h3 className="font-semibold text-gray-900 leading-snug break-words flex-1 min-h-[2.5rem]">
                   {snippet.title}
                 </h3>
                 
@@ -385,15 +385,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleCopyShareUrl(e)
-                        }}
-                      >
-                        {shareLinkCopied ? <Check className="h-4 w-4 mr-2 text-green-600" /> : <Link2 className="h-4 w-4 mr-2" />}
-                        {shareLinkCopied ? 'Copiado!' : 'Compartilhar'}
-                      </DropdownMenuItem>
                       <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation()
@@ -421,7 +412,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
               </div>
 
               {/* Badges */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 min-h-[1.25rem]">
                 <Badge
                   variant="secondary"
                   className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
@@ -523,9 +514,26 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       className={`h-7 px-2 text-xs ${apiLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
                       onClick={handleCopyApiUrl}
                     >
-                      {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
+                      {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Bot className="h-3 w-3 mr-1" />}
                       {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
                     </Button>
+
+                    {/* Botão Compartilhar */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopyShareUrl(e)
+                          }}
+                          className="h-5 w-5 inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          {shareLinkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Link2 className="h-4 w-4" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>{shareLinkCopied ? 'Copiado!' : 'Compartilhar'}</p></TooltipContent>
+                    </Tooltip>
 
                     {/* Ícone Tela cheia — sem borda */}
                     {onExpand && (

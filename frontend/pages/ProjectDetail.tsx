@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, Activity } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, GitBranch, RefreshCw, ExternalLink, Unplug, Activity, Code2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureModal from "@/components/CardFeatureModal"
@@ -1234,6 +1233,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
         {/* Ações */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => {
+              if (window.innerWidth < 768) {
+                setIsSummaryOpen(prev => !prev)
+              } else {
+                setShowCategories(prev => !prev)
+              }
+            }}
+            title={showCategories ? 'Ocultar Sumário' : 'Ver Sumário'}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+
           {project.userRole && (
             <Button
               variant="ghost"
@@ -1246,14 +1261,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </Button>
           )}
 
-          <Button
-            size="sm"
-            onClick={() => setIsAddCardDialogOpen(true)}
-            className="h-8 px-3 whitespace-nowrap"
-          >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Adicionar Card</span>
-          </Button>
+          <div className="flex items-center justify-center bg-background rounded-md border p-1 gap-1 w-20">
+            <Button
+              variant={activeTab === 'settings' ? 'default' : 'ghost'}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setActiveTab('settings')}
+              title="Configurações"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={activeTab === 'codes' ? 'default' : 'ghost'}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setActiveTab('codes')}
+              title="Código"
+            >
+              <Code2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1335,11 +1362,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Tabs de navegação */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      {/* Conteúdo principal */}
+      <div className="w-full">
+        {activeTab === 'codes' && (
+        <div className="space-y-3">
           {/* Mobile: Painel de categorias condicional */}
-          {activeTab === 'codes' && isSummaryOpen && (
+          {isSummaryOpen && (
             <div className="md:hidden">
               <ProjectCategories
                 categories={orderedCategories}
@@ -1358,35 +1386,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               />
             </div>
           )}
-
-          {/* Desktop: toggle simples do showCategories */}
-          {activeTab === 'codes' && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="hidden md:inline-flex h-8 w-8"
-              onClick={() => setShowCategories(prev => !prev)}
-              title={showCategories ? 'Ocultar Sumário' : 'Ver Sumário'}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          )}
-
-          <div className="flex items-center gap-2 ml-auto">
-            <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
-              <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
-                <Settings className="h-3.5 w-3.5" />
-                Configurações
-              </TabsTrigger>
-              <TabsTrigger value="codes" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
-                <Code2 className="h-3.5 w-3.5" />
-                Códigos
-              </TabsTrigger>
-            </TabsList>
-          </div>
-        </div>
-
-        <TabsContent value="codes" className="space-y-3">
 
           {/* Grid dinâmico: 1 coluna quando escondido, 2 colunas quando visível */}
           <div className={`gap-4 ${showCategories ? 'grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]' : 'grid grid-cols-1'}`}>
@@ -1430,17 +1429,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                {activeTab === 'codes' && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="md:hidden h-9 w-9 shrink-0"
-                    onClick={() => setIsSummaryOpen(prev => !prev)}
-                    title={isSummaryOpen ? 'Ocultar Sumário' : 'Ver Sumário'}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
 
               <ProjectSummary
@@ -1555,9 +1543,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               )}
             </div>
           </div>
-        </TabsContent>
+        </div>
+        )}
 
-        <TabsContent value="settings">
+        {activeTab === 'settings' && (
           <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
             {/* Sidebar - Menu de Configurações (apenas desktop) */}
             <div className="hidden md:block">
@@ -1688,11 +1677,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       </div>
                     )}
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
                       <Button
                         onClick={handleSync}
                         disabled={syncing || !canSyncFromGithub}
-                        className="flex-1"
+                        className="w-full"
                         size="sm"
                       >
                         {syncing ? (
@@ -1713,6 +1702,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => window.open(`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`, '_blank')}
+                        className="w-full"
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Abrir no GitHub
@@ -1912,8 +1902,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             )}
           </div>
         </div>
-      </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       {/* Dialog Adicionar Card */}
       <Dialog open={isAddCardDialogOpen} onOpenChange={setIsAddCardDialogOpen}>
