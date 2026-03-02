@@ -1,18 +1,18 @@
 import { supabaseAdmin } from '@/database/supabase'
 import type {
-  GitSyncFileMappingRow,
-  GitSyncFileMappingInsert,
-  GitSyncFileMappingUpdate,
+  GithubSyncFileMappingRow,
+  GithubSyncFileMappingInsert,
+  GithubSyncFileMappingUpdate,
   ModelResult,
   ModelListResult
 } from '@/types/project'
 
 // ================================================
-// GITSYNC MODEL
-// Operacoes de banco para gitsync_file_mappings
+// GITHUB MODEL
+// Operacoes de banco para github_file_mappings
 // ================================================
 
-export class GitSyncModel {
+export class GithubModel {
 
   // ================================================
   // FILE MAPPINGS - CRUD
@@ -20,11 +20,11 @@ export class GitSyncModel {
 
   /** Cria um mapeamento arquivo <-> card */
   static async createMapping(
-    data: GitSyncFileMappingInsert
-  ): Promise<ModelResult<GitSyncFileMappingRow>> {
+    data: GithubSyncFileMappingInsert
+  ): Promise<ModelResult<GithubSyncFileMappingRow>> {
     try {
       const { data: row, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .insert({
           project_id: data.project_id,
           card_feature_id: data.card_feature_id,
@@ -48,8 +48,8 @@ export class GitSyncModel {
 
   /** Cria mapeamentos em bulk (apos import inicial) */
   static async createMappingsBulk(
-    mappings: GitSyncFileMappingInsert[]
-  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+    mappings: GithubSyncFileMappingInsert[]
+  ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
     try {
       if (mappings.length === 0) {
         return { success: true, data: [], count: 0 }
@@ -66,7 +66,7 @@ export class GitSyncModel {
       }))
 
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .insert(rows)
         .select()
 
@@ -81,8 +81,8 @@ export class GitSyncModel {
 
   /** Upsert em bulk por (project_id, file_path), reutilizando ou realocando mappings existentes */
   static async upsertMappingsBulk(
-    mappings: GitSyncFileMappingInsert[]
-  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+    mappings: GithubSyncFileMappingInsert[]
+  ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
     try {
       if (mappings.length === 0) {
         return { success: true, data: [], count: 0 }
@@ -99,7 +99,7 @@ export class GitSyncModel {
       }))
 
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .upsert(rows, { onConflict: 'project_id,file_path' })
         .select()
 
@@ -119,10 +119,10 @@ export class GitSyncModel {
   /** Busca todos os mapeamentos de um projeto */
   static async getMappingsByProject(
     projectId: string
-  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+  ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
     try {
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .select('*')
         .eq('project_id', projectId)
         .order('file_path')
@@ -139,10 +139,10 @@ export class GitSyncModel {
   /** Busca mapeamentos de um card especifico */
   static async getMappingsByCard(
     cardFeatureId: string
-  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+  ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
     try {
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .select('*')
         .eq('card_feature_id', cardFeatureId)
         .order('file_path')
@@ -160,10 +160,10 @@ export class GitSyncModel {
   static async getMappingByFilePath(
     projectId: string,
     filePath: string
-  ): Promise<ModelResult<GitSyncFileMappingRow>> {
+  ): Promise<ModelResult<GithubSyncFileMappingRow>> {
     try {
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .select('*')
         .eq('project_id', projectId)
         .eq('file_path', filePath)
@@ -188,11 +188,11 @@ export class GitSyncModel {
   /** Atualiza um mapeamento (SHA, timestamps, PR info) */
   static async updateMapping(
     id: string,
-    data: GitSyncFileMappingUpdate
-  ): Promise<ModelResult<GitSyncFileMappingRow>> {
+    data: GithubSyncFileMappingUpdate
+  ): Promise<ModelResult<GithubSyncFileMappingRow>> {
     try {
       const { data: row, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .update(data)
         .eq('id', id)
         .select()
@@ -210,10 +210,10 @@ export class GitSyncModel {
   /** Atualiza card_modified_at para um card (chamado quando card e editado) */
   static async markCardModified(
     cardFeatureId: string
-  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+  ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
     try {
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .update({ card_modified_at: new Date().toISOString() })
         .eq('card_feature_id', cardFeatureId)
         .select()
@@ -236,10 +236,10 @@ export class GitSyncModel {
    *  PostgREST nao suporta comparacao entre colunas, entao busca candidatos e filtra em JS. */
   static async getConflicts(
     projectId: string
-  ): Promise<ModelListResult<GitSyncFileMappingRow>> {
+  ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
     try {
       const { data, error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .select('*')
         .eq('project_id', projectId)
         .not('card_modified_at', 'is', null)
@@ -273,7 +273,7 @@ export class GitSyncModel {
   static async deleteByProject(projectId: string): Promise<ModelResult> {
     try {
       const { error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .delete()
         .eq('project_id', projectId)
 
@@ -290,7 +290,7 @@ export class GitSyncModel {
   static async deleteByCard(cardFeatureId: string): Promise<ModelResult> {
     try {
       const { error } = await supabaseAdmin
-        .from('gitsync_file_mappings')
+        .from('github_file_mappings')
         .delete()
         .eq('card_feature_id', cardFeatureId)
 

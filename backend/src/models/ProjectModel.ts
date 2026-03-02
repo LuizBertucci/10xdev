@@ -52,12 +52,12 @@ export class ProjectModel {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       createdBy: row.created_by,
-      // GitSync fields
+      // GitHub Sync fields
       ...(row.github_installation_id !== undefined ? { githubInstallationId: row.github_installation_id } : {}),
       ...(row.github_owner !== undefined ? { githubOwner: row.github_owner } : {}),
       ...(row.github_repo !== undefined ? { githubRepo: row.github_repo } : {}),
       ...(row.default_branch !== undefined ? { defaultBranch: row.default_branch } : {}),
-      ...(row.gitsync_active !== undefined ? { gitsyncActive: row.gitsync_active } : {}),
+      ...(row.github_sync_active !== undefined ? { githubSyncActive: row.github_sync_active } : {}),
       ...(row.last_sync_at !== undefined ? { lastSyncAt: row.last_sync_at } : {}),
       ...(row.last_sync_sha !== undefined ? { lastSyncSha: row.last_sync_sha } : {})
     }
@@ -1323,10 +1323,10 @@ export class ProjectModel {
   }
 
   // ================================================
-  // GITSYNC - Metodos de sincronizacao
+  // GITHUB SYNC - Metodos de sincronizacao
   // ================================================
 
-  /** Atualiza campos gitsync de um projeto */
+  /** Atualiza campos github sync de um projeto */
   static async updateSyncInfo(
     projectId: string,
     data: {
@@ -1334,7 +1334,7 @@ export class ProjectModel {
       github_owner?: string | null
       github_repo?: string | null
       default_branch?: string | null
-      gitsync_active?: boolean
+      github_sync_active?: boolean
       last_sync_at?: string | null
       last_sync_sha?: string | null
     }
@@ -1369,7 +1369,7 @@ export class ProjectModel {
       const { data } = await executeQuery<ProjectRow | null>(
         supabaseAdmin
           .from('projects')
-          .select('id, github_installation_id, github_owner, github_repo, default_branch, gitsync_active, last_sync_at, last_sync_sha')
+          .select('id, github_installation_id, github_owner, github_repo, default_branch, github_sync_active, last_sync_at, last_sync_sha')
           .eq('id', projectId)
           .single()
       )
@@ -1396,7 +1396,7 @@ export class ProjectModel {
           .select('*')
           .eq('github_owner', owner)
           .eq('github_repo', repo)
-          .eq('gitsync_active', true)
+          .eq('github_sync_active', true)
           .maybeSingle()
       )
       const row = data as ProjectRow | null
