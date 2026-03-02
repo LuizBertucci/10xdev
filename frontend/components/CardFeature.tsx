@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Expand, Edit, Trash2, Link2, Sparkles, Loader2 } from "lucide-react"
+import { Expand, Edit, Trash2, Link2, Sparkles, Loader2, Lock } from "lucide-react"
 import { cardFeatureService } from '@/services/cardFeatureService'
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
@@ -38,7 +38,7 @@ interface CardFeatureProps {
 }
 
 export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: CardFeatureProps) {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false)
@@ -197,7 +197,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
                   >
                     <Link2 className="h-3 w-3 mr-1" />
-                    Seu Espaço
+                    Meus Códigos
                   </Badge>
                 )}
               </div>
@@ -304,21 +304,31 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                {visibleScreens.map((screen, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setActiveTab(index)}
-                    className={`
-                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative whitespace-nowrap flex-shrink-0
-                      ${activeTab === index 
-                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
-                      }
-                    `}
-                  >
-                    {screen.name || `Aba ${index + 1}`}
-                  </button>
-                ))}
+                {visibleScreens.map((screen, index) => {
+                  const isLocked = index > 0 && !isAuthenticated
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        if (isLocked) return
+                        setActiveTab(index)
+                      }}
+                      disabled={isLocked}
+                      className={`
+                        px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative whitespace-nowrap flex-shrink-0
+                        ${activeTab === index 
+                          ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold' 
+                          : isLocked
+                            ? 'text-gray-400 cursor-not-allowed opacity-60'
+                            : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
+                        }
+                      `}
+                    >
+                      {screen.name || `Aba ${index + 1}`}
+                      {isLocked && <Lock className="h-3 w-3 ml-1 inline" />}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -379,10 +389,18 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
               </div>
               
               <div className="codeblock-scroll relative z-10 h-full overflow-y-auto -mx-6 px-6 pt-2">
-                <ContentRenderer
-                  blocks={activeScreen.blocks || []}
-                  className="h-full"
-                />
+                {activeTab > 0 && !isAuthenticated ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <Lock className="h-12 w-12 text-gray-300 mb-3" />
+                    <p className="text-gray-500 font-medium mb-1">Faça login para acessar</p>
+                    <p className="text-gray-400 text-sm">Entre na sua conta para ver todo o conteúdo</p>
+                  </div>
+                ) : (
+                  <ContentRenderer
+                    blocks={activeScreen.blocks || []}
+                    className="h-full"
+                  />
+                )}
               </div>
               {/* <div className="absolute inset-0 opacity-60 group-hover:opacity-30 transition-opacity" style={{background: 'linear-gradient(to top, #374151 0%, transparent 50%, transparent 100%)'}}></div> */}
             </div>

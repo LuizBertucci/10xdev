@@ -14,7 +14,9 @@ import {
   Layout,
   MessageCircle,
   Terminal,
+  Lock,
 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 const WHATSAPP_URL = 'https://chat.whatsapp.com/BdMZsIsUsDv7F2KAXVBatb?mode=hqrc'
 
 function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -32,6 +34,7 @@ function WhatsAppIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function LandingPage() {
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
 
   const goToRegister = () => router.push('/register')
   const goToLoginWithRedirect = (path: string) =>
@@ -76,14 +79,26 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mb-12">
-            <Button
-              size="lg"
-              className="text-sm px-8 h-12 rounded-full bg-primary hover:bg-primary/90 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-              onClick={goToRegister}
-            >
-              Acessar 10xdev.com.br
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            {isAuthenticated ? (
+              <Button
+                size="lg"
+                className="text-sm px-8 h-12 rounded-full bg-primary hover:bg-primary/90 shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                onClick={goToRegister}
+              >
+                Acessar 10xdev.com.br
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="text-sm px-8 h-12 rounded-full bg-gray-400 border-gray-500 text-white hover:bg-gray-500 cursor-not-allowed transition-all duration-300"
+                disabled
+                title="Logue para ter acesso completo"
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                Logue para ter acesso completo
+              </Button>
+            )}
             <Button
               variant="outline"
               size="lg"
@@ -205,13 +220,24 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg shadow-blue-500/20"
-                onClick={() => goToLoginWithRedirect('/codes')}
-              >
-                Acessar 10xdev.com.br
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              {isAuthenticated ? (
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg shadow-blue-500/20"
+                  onClick={() => goToLoginWithRedirect('/codes')}
+                >
+                  Acessar 10xdev.com.br
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  className="bg-gray-400 hover:bg-gray-500 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg cursor-not-allowed"
+                  disabled
+                  title="Logue para ter acesso completo"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  Logue para ter acesso completo
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -239,13 +265,25 @@ export default function LandingPage() {
                   consumido pela sua IA também.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                className="mt-6 rounded-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-6 py-5 h-auto text-base"
-                onClick={() => goToLoginWithRedirect('/contents')}
-              >
-                Acessar 10xdev.com.br
-              </Button>
+              {isAuthenticated ? (
+                <Button
+                  variant="outline"
+                  className="mt-6 rounded-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-6 py-5 h-auto text-base"
+                  onClick={() => goToLoginWithRedirect('/contents')}
+                >
+                  Acessar 10xdev.com.br
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="mt-6 rounded-full border-gray-300 text-gray-500 bg-gray-100 px-6 py-5 h-auto text-base cursor-not-allowed"
+                  disabled
+                  title="Logue para ter acesso completo"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  Logue para ter acesso completo
+                </Button>
+              )}
             </div>
 
             <div className="relative">
@@ -391,13 +429,24 @@ export default function LandingPage() {
                   </p>
                 </li>
               </ul>
-              <Button
-                className="mt-5 bg-teal-600 hover:bg-teal-700 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg shadow-teal-500/20"
-                onClick={() => goToLoginWithRedirect('/projects')}
-              >
-                Acessar 10xdev.com.br
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              {isAuthenticated ? (
+                <Button
+                  className="mt-5 bg-teal-600 hover:bg-teal-700 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg shadow-teal-500/20"
+                  onClick={() => goToLoginWithRedirect('/projects')}
+                >
+                  Acessar 10xdev.com.br
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  className="mt-5 bg-gray-400 hover:bg-gray-500 text-white rounded-full px-8 py-6 h-auto text-lg shadow-lg cursor-not-allowed"
+                  disabled
+                  title="Logue para ter acesso completo"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  Logue para ter acesso completo
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -433,13 +482,25 @@ export default function LandingPage() {
                 Não construa sozinho. Tire dúvidas, compartilhe conquistas e
                 faça networking com devs que estão no mesmo corre que você.
               </p>
-              <Button
-                size="lg"
-                className="bg-green-600 hover:bg-green-700 text-white rounded-full px-8 h-12 text-base border-0 shadow-[0_0_20px_rgba(22,163,74,0.4)]"
-                onClick={() => window.open(WHATSAPP_URL, '_blank')}
-              >
-                Acessar 10xdev.com.br
-              </Button>
+              {isAuthenticated ? (
+                <Button
+                  size="lg"
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-full px-8 h-12 text-base border-0 shadow-[0_0_20px_rgba(22,163,74,0.4)]"
+                  onClick={() => window.open(WHATSAPP_URL, '_blank')}
+                >
+                  Acessar 10xdev.com.br
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  className="bg-gray-400 hover:bg-gray-500 text-white rounded-full px-8 h-12 text-base border-0 shadow-lg cursor-not-allowed"
+                  disabled
+                  title="Logue para ter acesso completo"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  Logue para ter acesso completo
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -457,13 +518,25 @@ export default function LandingPage() {
             futuro agora.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              size="lg"
-              className="h-12 px-8 text-base rounded-full shadow-lg hover:shadow-xl transition-all"
-              onClick={goToRegister}
-            >
-              Acessar 10xdev.com.br
-            </Button>
+            {isAuthenticated ? (
+              <Button
+                size="lg"
+                className="h-12 px-8 text-base rounded-full shadow-lg hover:shadow-xl transition-all"
+                onClick={goToRegister}
+              >
+                Acessar 10xdev.com.br
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                className="h-12 px-8 text-base rounded-full shadow-lg bg-gray-400 border-gray-500 text-white hover:bg-gray-500 cursor-not-allowed transition-all"
+                disabled
+                title="Logue para ter acesso completo"
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                Logue para ter acesso completo
+              </Button>
+            )}
           </div>
         </div>
       </section>

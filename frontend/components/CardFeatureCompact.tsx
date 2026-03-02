@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Lock, ChevronDown } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -44,18 +44,17 @@ interface CardFeatureCompactProps {
   isSelectionMode?: boolean
   isSelected?: boolean
   onToggleSelect?: (id: string) => void
-  expandOnClick?: boolean
   onExpand?: (snippet: CardFeatureType) => void
   canEdit?: boolean
   defaultExpanded?: boolean
   hideVisibility?: boolean
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   // Estado para controlar se o código está expandido
   const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false)
   // Estado para controlar a aba ativa - persiste na URL
@@ -107,11 +106,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       localStorage.setItem(SUMMARY_INSTRUCTIONS_LS_KEY, summaryInstructions)
     } catch { /* ignore */ }
   }, [summaryInstructions])
-
-  // Função para alternar o estado de expansão
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded)
-  }
 
   const youtubeBlockUrl =
     localScreens
@@ -168,23 +162,6 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     }
   }
 
-  // Função para lidar com cliques no card
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Previne a navegação se clicou em um botão
-    if ((e.target as HTMLElement).closest('button')) {
-      return
-    }
-
-    if (expandOnClick) {
-      toggleExpanded()
-      return
-    }
-
-    // Navegar para view de detalhe baseado no tipo de card
-    const route = snippet.card_type === CardType.POST ? `/contents/${snippet.id}` : `/codes/${snippet.id}`
-    router.push(route)
-  }
-
   const normalizeScreenName = (name?: string) =>
     (name || '')
       .trim()
@@ -225,7 +202,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       await onUpdate(snippet.id, { visibility: newVisibility })
       toast.success(`Visibilidade alterada para ${
         newVisibility === Visibility.PUBLIC ? 'Validando' :
-        newVisibility === Visibility.UNLISTED ? 'Seu Espaço' : 'Público'
+        newVisibility === Visibility.UNLISTED ? 'Meus Códigos' : 'Público'
       }`)
     } catch {
       toast.error("Erro ao alterar visibilidade")
@@ -297,7 +274,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.UNLISTED)} className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-blue-600" />
-            <span>Seu Espaço</span>
+            <span>Meus Códigos</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       )}
@@ -350,10 +327,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       <Card className={`shadow-sm hover:shadow-md transition-shadow w-full min-w-0 overflow-hidden ${isSelected ? 'ring-2 ring-blue-500' : ''} ${className || ''}`}>
         <CardContent className="p-3 md:p-4 min-w-0">
           {/* Layout Unificado - Vertical para mobile e desktop */}
-          <div
-            className="cursor-pointer active:bg-gray-50 rounded-lg transition-colors"
-            onClick={handleCardClick}
-          >
+          <div className="rounded-lg transition-colors">
             <div className="space-y-2">
               {/* Título com Checkbox e Menu */}
               <div className="flex items-start justify-between gap-2">
@@ -546,28 +520,40 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </Tooltip>
                     )}
 
-                    {/* Ícone Acessar — oculto quando onExpand existe (contexto de projeto) */}
-                    {!onExpand && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              router.push(`/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`)
-                            }}
-                            className="h-5 w-5 inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
-                          >
-                            <ArrowRight className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Acessar</p></TooltipContent>
-                      </Tooltip>
-                    )}
+                    {/* Botão Principal - Acessar Código */}
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (onExpand) {
+                          onExpand(snippet)
+                        } else {
+                          router.push(`/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`)
+                        }
+                      }}
+                    >
+                      Acessar Código
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
             </div>
+            </div>
+          
+          {/* Botão Ver resumo no rodapé */}
+          <div className="border-t border-gray-200 pt-3 mt-3 mx-3 md:mx-4 mb-3">
+            <button
+              onClick={() => {
+                setActiveTab(0)
+                setIsExpanded(!isExpanded)
+              }}
+              className="flex items-center justify-center w-full text-sm text-gray-500 hover:text-blue-600 transition-colors"
+            >
+              <ChevronDown className="h-4 w-4 mr-1" />
+              Ver resumo
+            </button>
           </div>
           
           {/* Área de Código Condicional */}
@@ -591,21 +577,31 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                {visibleScreens.map((screen, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setActiveTab(index)}
-                    className={`
-                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative flex-shrink-0 whitespace-nowrap
-                      ${activeTab === index
-                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
-                      }
-                    `}
-                  >
-                    {screen.name || `Aba ${index + 1}`}
-                  </button>
-                ))}
+                {visibleScreens.map((screen, index) => {
+                  const isLocked = index > 0 && !isAuthenticated
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        if (isLocked) return
+                        setActiveTab(index)
+                      }}
+                      disabled={isLocked}
+                      className={`
+                        px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative flex-shrink-0 whitespace-nowrap
+                        ${activeTab === index
+                          ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
+                          : isLocked
+                            ? 'text-gray-400 cursor-not-allowed opacity-60'
+                            : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
+                        }
+                      `}
+                    >
+                      {screen.name || `Aba ${index + 1}`}
+                      {isLocked && <Lock className="h-3 w-3 ml-1 inline" />}
+                    </button>
+                  )
+                })}
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
@@ -677,11 +673,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
                 <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
                   {activeScreen ? (
-                    <ContentRenderer
-                      blocks={activeScreen.blocks || []}
-                      className="h-full compact-content w-full"
-                      key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
-                    />
+                    activeTab > 0 && !isAuthenticated ? (
+                      <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                        <Lock className="h-10 w-10 text-gray-300 mb-3" />
+                        <p className="text-gray-500 font-medium mb-1">Faça login para acessar</p>
+                        <p className="text-gray-400 text-sm">Entre na sua conta para ver todo o conteúdo</p>
+                      </div>
+                    ) : (
+                      <ContentRenderer
+                        blocks={activeScreen.blocks || []}
+                        className="h-full compact-content w-full"
+                        key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
+                      />
+                    )
                   ) : (
                     <p className="text-sm text-gray-500 px-1 py-2">Nenhum conteúdo disponível</p>
                   )}
