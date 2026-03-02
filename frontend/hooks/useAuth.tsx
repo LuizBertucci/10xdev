@@ -328,14 +328,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      // Limpa cache e estado
+      // Ignorar AuthSessionMissingError - sessão já expirou ou foi encerrada
+      if (error && error.name !== 'AuthSessionMissingError') {
+        throw error
+      }
       profileCache.clear()
       setUser(null)
       setIsProfileLoaded(true)
     } catch (error: unknown) {
-      console.error('Erro no logout:', error)
-      throw error
+      if (error instanceof Error && error.name === 'AuthSessionMissingError') {
+        profileCache.clear()
+        setUser(null)
+        setIsProfileLoaded(true)
+      } else {
+        console.error('Erro no logout:', error)
+        throw error
+      }
     } finally {
       setIsLoading(false)
     }

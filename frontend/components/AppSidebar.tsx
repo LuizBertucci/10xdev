@@ -121,17 +121,14 @@ function AppSidebar() {
   const handleLogout = React.useCallback(async () => {
     try {
       await logout()
-      // Aguardar um pouco para garantir que o estado foi atualizado
-      // e então forçar redirecionamento
-      setTimeout(() => {
-        // Usar window.location para garantir redirecionamento mesmo se o router falhar
-        window.location.href = '/login'
-      }, 200)
+      // Navegação client-side evita reload: mantém user=null em memória,
+      // sem re-leitura de cookies (getSession no reload encontrava sessão e redirecionava para home)
+      router.push('/login')
     } catch (error: unknown) {
       console.error('Erro no logout:', error)
       toast.error('Erro ao fazer logout')
     }
-  }, [logout])
+  }, [logout, router])
 
   // Memoiza as iniciais do usuário
   const userInitials = useMemo(() => {
