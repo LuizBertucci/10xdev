@@ -137,6 +137,11 @@ export interface ConnectRepoData {
   defaultBranch?: string
 }
 
+export interface ImportBranchResponse {
+  cardsCreated: number
+  branch: string
+}
+
 // ================================================
 // SERVICE
 // ================================================
@@ -235,14 +240,17 @@ class ProjectService {
   // CARDS
   // ================================================
 
-  async getCards(projectId: string, limit?: number, offset?: number): Promise<ApiResponse<ProjectCard[]> | undefined> {
+  async getCards(projectId: string, limit?: number, offset?: number, branch?: string): Promise<ApiResponse<ProjectCard[]> | undefined> {
     // Sem paginação: busca todos via /cards/all
     if (limit === undefined && offset === undefined) {
-      return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`)
+      const params: Record<string, string | number> = {}
+      if (branch) params.branch = branch
+      return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards/all`, params)
     }
     const params: Record<string, string | number> = {}
     if (limit !== undefined) params.limit = limit
     if (offset !== undefined) params.offset = offset
+    if (branch) params.branch = branch
     return apiClient.get<ProjectCard[]>(`${this.endpoint}/${projectId}/cards`, params)
   }
 
@@ -265,6 +273,20 @@ class ProjectService {
   /** Lista repos acessiveis pela GitHub App installation */
   async listGithubRepos(installationId: number): Promise<ApiResponse<GithubAppRepo[]> | undefined> {
     return apiClient.get<GithubAppRepo[]>(`${this.endpoint}/github/repos`, { installation_id: installationId })
+  }
+
+  /** Lista branches disponíveis no repositório GitHub conectado */
+  async listBranches(projectId: string): Promise<ApiResponse<string[]> | undefined> {
+    return apiClient.get<string[]>(`${this.endpoint}/${projectId}/github/branches`)
+  }
+
+  /** Importa cards de uma branch específica */
+  async importBranch(projectId: string, branch: string): Promise<ApiResponse<ImportBranchResponse> | undefined> {
+    return apiClient.post<ImportBranchResponse>(
+      `${this.endpoint}/${projectId}/github/import-branch`,
+      { branch },
+      false,  // silent = false (mostrar erros)
+    )
   }
 
   /** Conecta um projeto a um repo GitHub */

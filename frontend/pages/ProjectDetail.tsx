@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, MoreVertical, Activity } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, Activity } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
@@ -107,10 +107,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isGeneratingModalSummary, setIsGeneratingModalSummary] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [nameDraft, setNameDraft] = useState("")
-  const [savingName, setSavingName] = useState(false)
-  const nameInputRef = useRef<HTMLInputElement | null>(null)
   const [showCategories, setShowCategories] = useState(true)
   const [activeTab, setActiveTab] = useState('codes')
   const [cardToEdit, setCardToEdit] = useState<CardFeature | null>(null)
@@ -148,6 +144,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [connecting, setConnecting] = useState(false)
   const handledOAuthFlowRef = useRef<string | null>(null)
   const [showGitSyncProgressModal, setShowGitSyncProgressModal] = useState(false)
+
+  // Branch selector state
+  const [branches, setBranches] = useState<string[]>([])
+  const [activeBranch, setActiveBranch] = useState<string | null>(null)
+  const [isBranchLoading, setIsBranchLoading] = useState(false)
+  const [isImportingBranch, setIsImportingBranch] = useState(false)
+  const [branchSearch, setBranchSearch] = useState("")
   const [gitSyncProgressEvents, setGitSyncProgressEvents] = useState<GitSyncProgressEvent[]>([])
   const lastProgressSignatureRef = useRef<string | null>(null)
   const progressEventSeqRef = useRef(0)
@@ -286,6 +289,27 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       loadSyncStatus()
     }
   }, [projectId])
+
+  // Carregar branches quando o projeto tiver GitSync ativo
+  useEffect(() => {
+    if (!project?.githubSyncActive || !project?.id) return
+    projectService.listBranches(project.id).then(res => {
+      if (res?.success && res.data) {
+        setBranches(res.data)
+        // Pré-selecionar default_branch
+        if (!activeBranch && project.defaultBranch) {
+          setActiveBranch(project.defaultBranch)
+        }
+      }
+    })
+  }, [project?.githubSyncActive, project?.id, project?.defaultBranch])
+
+  // Recarregar cards ao mudar a branch ativa
+  useEffect(() => {
+    if (activeBranch === null) return
+    setIsBranchLoading(true)
+    loadCards(false, false, activeBranch).finally(() => setIsBranchLoading(false))
+  }, [activeBranch])
 
   // Detectar retorno do OAuth do GitHub (URL ou sessionStorage quando redirect perde params)
   useEffect(() => {
@@ -448,7 +472,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         toast.success(res.message || 'Sincronização concluída')
         await loadSyncStatus()
         // Reload cards to show updated content
-        loadCards(true)
+        loadCards(true, false, activeBranch)
       } else {
         toast.error(res?.error || 'Erro ao sincronizar')
       }
@@ -456,6 +480,24 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       toast.error(error instanceof Error ? error.message : 'Erro ao sincronizar com o GitHub')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  const handleImportBranch = async () => {
+    if (!activeBranch || !project?.id) return
+    setIsImportingBranch(true)
+    try {
+      const res = await projectService.importBranch(project.id, activeBranch)
+      if (res?.success) {
+        await loadCards(false, false, activeBranch)
+        toast.success(`Branch "${activeBranch}" importada com sucesso`, {
+          description: `${res.data?.cardsCreated ?? 0} card(s) criado(s)`
+        })
+      } else {
+        toast.error('Erro ao importar branch')
+      }
+    } finally {
+      setIsImportingBranch(false)
     }
   }
 
@@ -478,11 +520,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     syncStatus?.active && (syncStatus.hasUpdates || !syncStatus.lastSyncSha)
   )
 
-  useEffect(() => {
-    if (project?.name && !isEditingName) {
-      setNameDraft(project.name)
-    }
-  }, [project?.name, isEditingName])
 
   // Listen for import job updates
   const lastCardsCreatedRef = useRef<number>(0)
@@ -626,16 +663,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
-  const loadCards = async (incremental: boolean = false, loadMore: boolean = false) => {
+  const loadCards = async (incremental: boolean = false, loadMore: boolean = false, branch?: string | null) => {
     if (!projectId) return
-    
+
     try {
       if (loadMore) {
         setLoadingMoreCards(true)
       } else if (!incremental) {
         setLoadingCards(true)
       }
-      const response = await projectService.getCards(projectId)
+      const response = await projectService.getCards(projectId, undefined, undefined, branch ?? undefined)
       if (response?.success && response?.data) {
         const newCards = response.data
         const totalCount = response.count ?? newCards.length
@@ -665,7 +702,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
   
   const loadMoreCards = async () => {
-    await loadCards(false, true)
+    await loadCards(false, true, activeBranch)
   }
 
   const handleGenerateSummaryFromModal = async (cardId: string, prompt?: string) => {
@@ -794,7 +831,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         toast.success('Card adicionado ao projeto!')
         setIsAddCardDialogOpen(false)
         setSelectedCardId("")
-        loadCards()
+        loadCards(false, false, activeBranch)
         loadAvailableCards()
         showStatus("success", "Card adicionado ao projeto")
       } else {
@@ -864,7 +901,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       if (response?.success) {
         toast.success('Card excluído com sucesso')
         setCardToDelete(null)
-        await loadCards()
+        await loadCards(false, false, activeBranch)
       } else {
         toast.error(response?.error || 'Erro ao excluir card')
       }
@@ -885,7 +922,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       const response = await projectService.removeCard(projectId!, cardFeatureId)
       if (response?.success) {
         toast.success('Card removido do projeto!')
-        loadCards()
+        loadCards(false, false, activeBranch)
         loadAvailableCards()
         showStatus("success", "Card removido do projeto")
       } else {
@@ -906,7 +943,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       const response = await projectService.reorderCard(projectId, cardFeatureId, direction)
       if (response?.success) {
         toast.success('Card reordenado com sucesso!')
-        loadCards()
+        loadCards(false, false, activeBranch)
         showStatus("success", "Ordem dos cards atualizada")
       } else {
         showStatus("error", response?.error || "Erro ao reordenar card")
@@ -952,58 +989,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     router.push(route)
   }
 
-  const startEditName = () => {
-    if (!canEditProject) return
-    setNameDraft(project?.name || "")
-    setIsEditingName(true)
-    requestAnimationFrame(() => {
-      nameInputRef.current?.focus()
-      nameInputRef.current?.select()
-    })
-  }
-
-  const cancelEditName = () => {
-    setNameDraft(project?.name || "")
-    setIsEditingName(false)
-  }
-
-  const saveProjectName = async () => {
-    if (!projectId) return
-    const trimmed = nameDraft.trim()
-    if (!trimmed) {
-      toast.error("Nome do projeto é obrigatório")
-      return
-    }
-    if (trimmed === project?.name) {
-      setIsEditingName(false)
-      return
-    }
-    try {
-      setSavingName(true)
-      const response = await projectService.update(projectId, { name: trimmed })
-      if (response?.success) {
-        setProject((prev) => {
-          if (!prev) return response.data || prev
-          if (!response.data) return { ...prev, name: trimmed }
-          return {
-            ...prev,
-            ...response.data,
-            userRole: prev.userRole,
-            memberCount: prev.memberCount,
-            cardCount: prev.cardCount,
-            cardsCreatedCount: prev.cardsCreatedCount
-          }
-        })
-        setIsEditingName(false)
-      } else {
-        showStatus("error", response?.error || "Erro ao atualizar nome")
-      }
-    } catch (error: unknown) {
-      showStatus("error", error instanceof Error ? error.message : "Erro ao atualizar nome")
-    } finally {
-      setSavingName(false)
-    }
-  }
 
   useEffect(() => {
     if (isAddCardDialogOpen) {
@@ -1078,7 +1063,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
-  const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin' || user?.role === 'admin'
+  const activeBranchHasNoCards = activeBranch !== null && cards.length === 0 && !loadingCards
+
   const canManageMembers = !!project?.userRole // qualquer membro pode adicionar pessoas
   if (loading || !project) {
     return (
@@ -1108,7 +1094,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           Projetos
         </button>
         <ChevronRight className="h-4 w-4 text-gray-400" />
-        <span className="text-gray-900 font-medium truncate max-w-[160px] sm:max-w-none">
+        <span className="text-gray-900 font-medium">
           {project.name}
         </span>
       </div>
@@ -1146,83 +1132,108 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
       {/* Header */}
       <div className="relative flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0 group">
-            {isEditingName ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <Input
-                  ref={nameInputRef}
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      saveProjectName()
-                    } else if (e.key === "Escape") {
-                      e.preventDefault()
-                      cancelEditName()
-                    }
-                  }}
-                  disabled={savingName}
-                  className="h-9 w-full max-w-[320px] sm:max-w-[360px] text-sm sm:text-base font-semibold"
-                />
+        <div className="min-w-0 flex flex-col gap-1">
+          {syncStatus?.active && (
+            <div className="flex items-center gap-1.5 border border-blue-200 bg-blue-50 rounded-md px-2 h-8 w-fit">
+              <GitBranch className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+              <span className="text-xs font-medium text-blue-900 hidden sm:inline truncate max-w-[120px]">
+                {syncStatus.githubRepo}
+              </span>
+              {branches.length > 0 ? (
+                <DropdownMenu onOpenChange={open => { if (!open) setBranchSearch("") }}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      disabled={isBranchLoading}
+                      className="inline-flex items-center gap-0.5 text-xs border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full px-2 h-5 max-w-[120px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-400 flex-shrink-0 disabled:opacity-50"
+                    >
+                      <span className="truncate">{activeBranch || syncStatus.defaultBranch}</span>
+                      <ChevronRight className="h-3 w-3 flex-shrink-0 rotate-90" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-72">
+                    <div className="px-2 py-1.5">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar branch..."
+                          value={branchSearch}
+                          onChange={e => setBranchSearch(e.target.value)}
+                          className="h-7 pl-7 text-xs"
+                          autoFocus
+                          onKeyDown={e => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto">
+                      {branches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())).length === 0 ? (
+                        <p className="px-2 py-3 text-xs text-muted-foreground text-center">Nenhuma branch encontrada</p>
+                      ) : (
+                        branches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())).map(b => (
+                          <DropdownMenuItem
+                            key={b}
+                            onClick={() => { setActiveBranch(b); setBranchSearch("") }}
+                            className={b === activeBranch ? 'font-medium bg-accent' : ''}
+                          >
+                            <GitBranch className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                            {b}
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 bg-blue-50 flex-shrink-0">
+                  {syncStatus.defaultBranch}
+                </Badge>
+              )}
+              {syncStatus.conflicts > 0 && (
+                <Badge variant="destructive" className="text-xs flex-shrink-0">
+                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
+                </Badge>
+              )}
+              {activeBranchHasNoCards && (
                 <Button
                   size="sm"
-                  onClick={saveProjectName}
-                  disabled={savingName}
-                  className="h-8 px-3"
+                  onClick={handleImportBranch}
+                  disabled={isImportingBranch}
+                  className="h-5 px-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Salvar
+                  {isImportingBranch ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Importar branch'}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={cancelEditName}
-                  disabled={savingName}
-                  className="h-8 px-3"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate leading-tight">
-                  <span className="text-gray-900 font-bold">Projeto:</span>{" "}
-                  {project.name}
-                </h1>
-                {canEditProject && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={startEditName}
-                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Renomear projeto"
-                  >
-                    <Pencil className="h-4 w-4 text-gray-500" />
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+              )}
+              {syncStatus.lastSyncAt && (
+                <span className="text-xs text-blue-700 hidden md:inline flex-shrink-0">
+                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-5 w-5 inline-flex items-center justify-center rounded text-blue-600 hover:text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+                title="Sincronizar com GitHub"
+              >
+                <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={handleOpenImportProgress}
+                className="h-5 w-5 inline-flex items-center justify-center rounded text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                title="Importações"
+              >
+                <Activity className="h-3 w-3" />
+              </button>
+            </div>
+          )}
 
           {project.description && (
-            <p className="text-sm sm:text-base text-gray-600 mt-1 line-clamp-2">
+            <p className="text-sm sm:text-base text-gray-600 line-clamp-2">
               {project.description}
             </p>
           )}
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 flex-row-reverse">
-          <Button
-            size="sm"
-            onClick={() => setIsAddCardDialogOpen(true)}
-            className="h-8 px-3 whitespace-nowrap"
-          >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Adicionar Card</span>
-          </Button>
-
+        <div className="flex items-center gap-2 flex-shrink-0">
           {project.userRole && (
             <Button
               variant="ghost"
@@ -1234,69 +1245,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               <UserPlus className="h-5 w-5" />
             </Button>
           )}
+
+          <Button
+            size="sm"
+            onClick={() => setIsAddCardDialogOpen(true)}
+            className="h-8 px-3 whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Adicionar Card</span>
+          </Button>
         </div>
       </div>
-
-      {/* GitSync Status Banner */}
-      {syncStatus?.active && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 mb-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <GitBranch className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-              <span className="text-sm font-medium text-emerald-900 truncate">
-                {syncStatus.githubOwner}/{syncStatus.githubRepo}
-              </span>
-              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 flex-shrink-0">
-                {syncStatus.defaultBranch}
-              </Badge>
-              {syncStatus.conflicts > 0 && (
-                <Badge variant="destructive" className="text-xs flex-shrink-0">
-                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {syncStatus.lastSyncAt && (
-                <span className="text-xs text-emerald-600 hidden sm:inline">
-                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
-                className="h-7 px-2 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
-                title="Sincronizar com GitHub"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              </Button>
-              <a
-                href={`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
-                title="Abrir no GitHub"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100">
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
-                    <Unplug className="h-4 w-4 mr-2" />
-                    Desconectar do GitHub
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Import Progress Banner - Sticky between Header and Tabs */}
       {importJob && (
@@ -1404,23 +1363,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           {activeTab === 'codes' && (
             <Button
               variant="outline"
-              size="sm"
-              className="hidden md:inline-flex"
+              size="icon"
+              className="hidden md:inline-flex h-8 w-8"
               onClick={() => setShowCategories(prev => !prev)}
+              title={showCategories ? 'Ocultar Sumário' : 'Ver Sumário'}
             >
-              <List className="h-4 w-4 mr-2" />
-              {showCategories ? 'Ocultar' : 'Ver'} Sumário
+              <List className="h-4 w-4" />
             </Button>
           )}
 
-          <div className="flex items-center gap-2 md:ml-auto">
-            <button
-              onClick={handleOpenImportProgress}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              Importações
-            </button>
+          <div className="flex items-center gap-2 ml-auto">
             <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
               <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
                 <Settings className="h-3.5 w-3.5" />
@@ -1457,7 +1409,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               />
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-3 min-w-0">
               {/* Barra de busca + botão de edição */}
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">

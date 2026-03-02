@@ -574,7 +574,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           {isExpanded && (
             <div className="mt-2 md:mt-3 space-y-1.5 animate-in slide-in-from-top-2 duration-300 overflow-x-hidden min-w-0">
               {/* Sistema de Tabs */}
-              <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden">
+              <div className="compact-tabs-scroll flex gap-1.5 p-1.5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-md overflow-x-auto overflow-y-hidden w-full">
                 <style>{`
                   .compact-tabs-scroll::-webkit-scrollbar {
                     height: 6px;
@@ -609,7 +609,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
-              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white">
+              <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white w-full min-w-0 overflow-hidden">
                 {/* Botão Gerar Resumo - apenas na aba Resumo */}
                 {isSummaryTab && accessInfo?.canGenerate && (
                   <div className="absolute top-2 right-2 z-20">
