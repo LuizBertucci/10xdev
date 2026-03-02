@@ -122,7 +122,7 @@ export default function Codes() {
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
 
-  // Filtro de ownership para "Seu Espaço": all | created_by_me | shared_with_me
+  // Filtro de ownership para "Meus Códigos": all | created_by_me | shared_with_me
   const [selectedOwnership, setSelectedOwnership] = useState<string>('all')
 
   // Filtro de status para "Global": all | approved | pending
@@ -139,7 +139,7 @@ export default function Codes() {
       : 'all'
 
   const selectedOwnershipParam =
-    selectedDirectoryTab === 'seuEspaco' ? selectedOwnership : undefined
+    selectedDirectoryTab === 'meusCodigos' ? selectedOwnership : undefined
   
   // Estados locais para busca e filtro
   const [searchTerm, setSearchTerm] = useState<string>(searchParams?.get('search') || '')
@@ -384,8 +384,8 @@ export default function Codes() {
             />
           </div>
 
-          {/* Pencil Button (selection mode) - Only in Seu Espaço */}
-          {selectedDirectoryTab === 'seuEspaco' && isProfileLoaded && isAuthed && (
+          {/* Pencil Button (selection mode) - Only in Meus Códigos */}
+          {selectedDirectoryTab === 'meusCodigos' && isProfileLoaded && isAuthed && (
             <Button
               onClick={handleToggleSelectionMode}
               disabled={cardFeatures.loading}
@@ -410,10 +410,10 @@ export default function Codes() {
           />
         </div>
 
-        {/* Visibility Tabs Row - Simplified: Global + Seu Espaço */}
+        {/* Visibility Tabs Row - Simplified: Global + Meus Códigos */}
         <Tabs value={selectedDirectoryTab} onValueChange={setSelectedDirectoryTab} className="w-full max-w-[900px] mx-auto mt-2 mb-4">
           <div className="flex flex-col gap-3">
-            {/* Main tabs: Global / Seu Espaço */}
+            {/* Main tabs: Global / Meus Códigos */}
             <TabsList className="h-10 w-full bg-white shadow-md rounded-lg p-1">
               <TabsTrigger 
                 value="global" 
@@ -424,12 +424,12 @@ export default function Codes() {
                 Global
               </TabsTrigger>
               <TabsTrigger 
-                value="seuEspaco" 
+                value="meusCodigos" 
                 className="flex-1 gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm" 
                 disabled={cardFeatures.loading}
               >
                 <User className="h-4 w-4" />
-                Seu Espaço
+                Meus Códigos
               </TabsTrigger>
             </TabsList>
 
@@ -460,8 +460,8 @@ export default function Codes() {
               </TabsList>
             </Tabs>
 
-            {/* Sub-filters: Compartilhados / Criados / Todos - only in Seu Espaço */}
-            <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={`${selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'} ml-auto`}>
+            {/* Sub-filters: Compartilhados / Criados / Todos - only in Meus Códigos */}
+            <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={`${selectedDirectoryTab === 'meusCodigos' ? 'block' : 'hidden'} ml-auto`}>
               <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
                 <TabsTrigger 
                   value="shared_with_me"
@@ -563,7 +563,6 @@ export default function Codes() {
                     isSelectionMode={isSelectionMode}
                     isSelected={selectedCardIds.includes(snippet.id)}
                     onToggleSelect={handleToggleCardSelection}
-                    expandOnClick
                   />
 
                   {selectedDirectoryTab === 'global' && selectedGlobalStatus === 'pending' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (
