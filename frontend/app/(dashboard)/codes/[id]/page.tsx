@@ -60,7 +60,6 @@ export default function CodeDetailPage() {
         onEdit={() => {}}
         onDelete={() => {}}
         defaultExpanded={true}
-        expandOnClick={true}
       />
     </div>
   )

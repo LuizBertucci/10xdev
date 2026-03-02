@@ -1514,7 +1514,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           snippet={cardFeature}
                           onEdit={handleEditCard}
                           onDelete={handleDeleteCard}
-                          expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
                           canEdit={canEditCard(cardFeature)}
                           hideVisibility

@@ -358,7 +358,6 @@ export default function Contents() {
                     onEdit={(snippet) => cardFeatures.startEditing(snippet)}
                     onDelete={(snippetId) => handleDelete(snippetId)}
                     onUpdate={cardFeatures.updateCardFeature}
-                    expandOnClick
                   />
                 ))}
               </div>
