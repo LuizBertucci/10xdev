@@ -545,6 +545,35 @@ export class GithubService {
     return { removedCards: cardsToDelete.length, mergedGroups }
   }
 
+  /** Lista branches do repositório via GitHub API */
+  static async listBranches(
+    token: string,
+    owner: string,
+    repo: string
+  ): Promise<string[]> {
+    const branches: string[] = []
+    let page = 1
+    const perPage = 100
+    let hasMore = true
+
+    while (hasMore) {
+      const response = await axios.get(
+        `https://api.github.com/repos/${owner}/${repo}/branches`,
+        {
+          headers: this.getHeaders(token),
+          params: { per_page: perPage, page },
+          timeout: 15000
+        }
+      )
+      const items: Array<{ name?: string }> = response.data || []
+      items.forEach(b => { if (b.name) branches.push(b.name) })
+      hasMore = items.length === perPage
+      page++
+    }
+
+    return branches
+  }
+
   /** Conecta um projeto a um repo GitHub, faz import inicial,
    *  e popula github_file_mappings com mapeamento arquivo->card. */
   static async connectRepo(
@@ -676,6 +705,86 @@ export class GithubService {
       console.error('[GitSync] Erro ao conectar repo:', error)
       const err = error as { message?: string }
       return { success: false, mappingsCreated: 0, error: err.message || 'Erro desconhecido' }
+    }
+  }
+
+  /** Importa cards de uma branch alternativa.
+   *  Se já há cards para a branch, deleta e reimporta (sobrescrita limpa). */
+  static async importBranch(
+    projectId: string,
+    installationId: number,
+    owner: string,
+    repo: string,
+    branch: string,
+    userId: string
+  ): Promise<{ success: boolean; cardsCreated: number; error?: string }> {
+    try {
+      const token = await this.getInstallationToken(installationId)
+
+      let latestSha: string | null = null
+      try {
+        latestSha = await this.getLatestCommitSha(token, owner, repo, branch)
+      } catch {
+        console.warn('[GitSync importBranch] Não foi possível obter SHA da branch')
+      }
+
+      await ProjectModel.removeCardsByBranch(projectId, branch, userId)
+
+      const repoUrl = `https://github.com/${owner}/${repo}`
+      const files = await this.listRepoFiles(owner, repo, branch, token)
+
+      let cardsCreated = 0
+      const cardBySignature = new Map<string, string>()
+
+      await AiCardGroupingService.generateCardGroupsFromRepo(
+        files,
+        repoUrl,
+        {
+          onCardReady: async (card) => {
+            const filePaths = this.extractUniqueFilePaths(card)
+            if (filePaths.length === 0) return
+            const signature = [...filePaths].sort().join('|')
+
+            if (cardBySignature.has(signature)) return
+            cardBySignature.set(signature, '')
+
+            const normalizedCard = {
+              ...card,
+              visibility: Visibility.UNLISTED,
+              created_in_project_id: projectId
+            }
+            const createdRes = await CardFeatureModel.bulkCreate(
+              [normalizedCard] as CreateCardFeatureRequest[],
+              userId
+            )
+            if (!createdRes.success || !createdRes.data?.length) return
+            const cardId = createdRes.data[0]!.id
+            cardBySignature.set(signature, cardId)
+
+            await ProjectModel.addCardsBulk(projectId, [cardId], userId, branch)
+
+            const mappings: GithubSyncFileMappingInsert[] = filePaths.map(fp => ({
+              project_id: projectId,
+              card_feature_id: cardId,
+              file_path: fp,
+              branch_name: branch,
+              last_commit_sha: latestSha,
+              last_synced_at: new Date().toISOString()
+            }))
+            if (mappings.length > 0) {
+              await GithubModel.upsertMappingsBulk(mappings)
+            }
+
+            cardsCreated++
+          }
+        }
+      )
+
+      return { success: true, cardsCreated }
+    } catch (error: unknown) {
+      console.error('[GitSync importBranch] Erro:', error)
+      const err = error as { message?: string }
+      return { success: false, cardsCreated: 0, error: err.message || 'Erro desconhecido' }
     }
   }
 

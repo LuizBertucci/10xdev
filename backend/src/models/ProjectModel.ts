@@ -1,5 +1,7 @@
 import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
+import { GithubModel } from '@/models/GithubModel'
+import { CardFeatureModel } from '@/models/CardFeatureModel'
 import {
   ProjectMemberRole
 } from '@/types/project'
@@ -854,7 +856,7 @@ export class ProjectModel {
     }
   }
 
-  static async getCards(projectId: string, limit?: number, offset?: number): Promise<ModelListResult<ProjectCardResponse>> {
+  static async getCards(projectId: string, limit?: number, offset?: number, branch?: string): Promise<ModelListResult<ProjectCardResponse>> {
     try {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
@@ -874,7 +876,11 @@ export class ProjectModel {
         .eq('project_id', projectId)
         .order('order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
-      
+
+      if (branch) {
+        query = query.or(`branch_name.eq."${branch}",branch_name.is.null`)
+      }
+
       // Aplicar paginação se fornecida
       if (typeof limit === 'number' && limit > 0) {
         const offsetValue = typeof offset === 'number' && offset >= 0 ? offset : 0
@@ -923,12 +929,12 @@ export class ProjectModel {
     }
   }
 
-  static async getCardsAll(projectId: string): Promise<ModelListResult<ProjectCardResponse>> {
+  static async getCardsAll(projectId: string, branch?: string): Promise<ModelListResult<ProjectCardResponse>> {
     try {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
       // recursão quando usamos o cliente público. O backend já valida permissões antes.
-      const query = supabaseAdmin
+      let query = supabaseAdmin
         .from('project_cards')
         .select(`
           *,
@@ -937,6 +943,10 @@ export class ProjectModel {
         .eq('project_id', projectId)
         .order('order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
+
+      if (branch) {
+        query = query.or(`branch_name.eq."${branch}",branch_name.is.null`)
+      }
 
       const { data, count } = await executeQuery<ProjectCardRowWithFeature[] | { count: number | null }>(query)
 
@@ -1047,7 +1057,8 @@ export class ProjectModel {
   static async addCardsBulk(
     projectId: string,
     cardFeatureIds: string[],
-    userId: string
+    userId: string,
+    branchName?: string
   ): Promise<ModelResult<{ insertedCount: number }>> {
     try {
       if (!Array.isArray(cardFeatureIds) || cardFeatureIds.length === 0) {
@@ -1086,7 +1097,8 @@ export class ProjectModel {
         card_feature_id: cardFeatureId,
         added_by: userId,
         created_at: now,
-        order: maxOrder + 1 + idx
+        order: maxOrder + 1 + idx,
+        branch_name: branchName ?? null
       }))
 
       await executeQuery(
@@ -1171,6 +1183,38 @@ export class ProjectModel {
         statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
+  }
+
+  static async removeCardsByBranch(
+    projectId: string,
+    branch: string,
+    _userId: string
+  ): Promise<void> {
+    const { data: rows } = await executeQuery<{ id: string; card_feature_id: string }[] | null>(
+      supabaseAdmin
+        .from('project_cards')
+        .select('id, card_feature_id')
+        .eq('project_id', projectId)
+        .eq('branch_name', branch)
+    )
+
+    if (!rows || rows.length === 0) return
+
+    const cardIds = rows.map(r => r.card_feature_id)
+
+    for (const cardId of cardIds) {
+      await GithubModel.deleteByCard(cardId)
+    }
+
+    await executeQuery(
+      supabaseAdmin
+        .from('project_cards')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('branch_name', branch)
+    )
+
+    await CardFeatureModel.bulkDelete(cardIds)
   }
 
   static async reorderCard(projectId: string, cardFeatureId: string, direction: 'up' | 'down', userId: string): Promise<ModelResult<null>> {

@@ -75,6 +75,7 @@ export interface ProjectCardRow {
   added_by: string
   created_at: string
   order?: number
+  branch_name?: string | null
 }
 
 export interface ProjectCardInsert {
@@ -84,6 +85,7 @@ export interface ProjectCardInsert {
   added_by: string
   created_at?: string
   order?: number
+  branch_name?: string | null
 }
 
 // ================================================

@@ -42,12 +42,14 @@ router.patch('/:id/cards/:cardFeatureId/reorder', ProjectController.reorderCard)
 router.delete('/:id/cards/:cardFeatureId', ProjectController.removeCard)
 
 // GITHUB SYNC PER PROJECT
+router.get('/:id/github/branches', ProjectController.listBranches)
 router.post('/:id/github/connect', ProjectController.connectRepo)
 router.delete('/:id/github/connect', ProjectController.disconnectRepo)
 router.get('/:id/github/status', ProjectController.getSyncStatus)
 router.post('/:id/github/sync', ProjectController.syncProject)
 router.post('/:id/github/push', ProjectController.pushToGithub)
 router.post('/:id/github/resolve', ProjectController.resolveConflict)
+router.post('/:id/github/import-branch', ProjectController.importBranch)
 
 export { router as projectRoutes }
 

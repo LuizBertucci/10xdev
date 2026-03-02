@@ -474,14 +474,16 @@ export class ProjectController {
     const id = requireId(req)
     assertResult(await ProjectModel.findById(id, req.user!.id))
     const { limit, offset } = parseCardPagination(req.query)
-    respondList(res, await ProjectModel.getCards(id, limit, offset))
+    const branch = typeof req.query.branch === 'string' ? req.query.branch : undefined
+    respondList(res, await ProjectModel.getCards(id, limit, offset, branch))
   })
 
   /** GET /api/projects/:id/cards/all */
   static getCardsAll = safeHandler(async (req, res) => {
     const id = requireId(req)
     assertResult(await ProjectModel.findById(id, req.user!.id))
-    respondList(res, await ProjectModel.getCardsAll(id))
+    const branch = typeof req.query.branch === 'string' ? req.query.branch : undefined
+    respondList(res, await ProjectModel.getCardsAll(id, branch))
   })
 
   /** POST /api/projects/:id/cards */
@@ -538,6 +540,25 @@ export class ProjectController {
       }
       throw err
     }
+  })
+
+  /** GET /api/projects/:id/github/branches */
+  static listBranches = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const token = await GithubService.getInstallationToken(github_installation_id)
+    const branches = await GithubService.listBranches(token, github_owner, github_repo)
+
+    res.json({ success: true, data: branches })
   })
 
   /** POST /api/projects/:id/github/connect
@@ -629,6 +650,42 @@ export class ProjectController {
       })
       throw error
     }
+  })
+
+  /** POST /api/projects/:id/github/import-branch */
+  static importBranch = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { branch } = req.body as { branch: string }
+    if (!branch) throw badRequest('branch é obrigatório')
+
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const result = await GithubService.importBranch(
+      id,
+      github_installation_id,
+      github_owner,
+      github_repo,
+      branch,
+      req.user!.id
+    )
+
+    if (!result.success) {
+      res.status(500).json({ success: false, error: result.error })
+      return
+    }
+
+    res.json({
+      success: true,
+      data: { cardsCreated: result.cardsCreated, branch }
+    })
   })
 
   /** DELETE /api/projects/:id/github/connect
