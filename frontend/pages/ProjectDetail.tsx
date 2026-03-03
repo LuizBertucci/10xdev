@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, GitBranch, RefreshCw, ExternalLink, Unplug, Activity, Code2 } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, GitBranch, RefreshCw, ExternalLink, Unplug, Activity, Code2, GitCommitHorizontal, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse } from "@/services"
+import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse, type CommitSummary, type CommitDetail } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
@@ -150,6 +150,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isBranchLoading, setIsBranchLoading] = useState(false)
   const [isImportingBranch, setIsImportingBranch] = useState(false)
   const [branchSearch, setBranchSearch] = useState("")
+  // Commit selector state
+  const [commits, setCommits] = useState<CommitSummary[]>([])
+  const [activeCommit, setActiveCommit] = useState<CommitSummary | null>(null)
+  const [activeCommitDetail, setActiveCommitDetail] = useState<CommitDetail | null>(null)
+  const [isCommitDetailLoading, setIsCommitDetailLoading] = useState(false)
+  const [commitSearch, setCommitSearch] = useState("")
+  const [isLoadingCommits, setIsLoadingCommits] = useState(false)
+  const [hasMoreCommits, setHasMoreCommits] = useState(true)
+  const [commitsPage, setCommitsPage] = useState(1)
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+
   const [gitSyncProgressEvents, setGitSyncProgressEvents] = useState<GitSyncProgressEvent[]>([])
   const lastProgressSignatureRef = useRef<string | null>(null)
   const progressEventSeqRef = useRef(0)
@@ -295,9 +306,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     projectService.listBranches(project.id).then(res => {
       if (res?.success && res.data) {
         setBranches(res.data)
-        // Pré-selecionar default_branch
+        // Pré-selecionar: branch da URL > localStorage > default_branch
         if (!activeBranch && project.defaultBranch) {
-          setActiveBranch(project.defaultBranch)
+          const urlBranch = searchParams?.get('branch')
+          const storedBranch = localStorage.getItem(`activeBranch:${project.id}`)
+          const branchToActivate =
+            (urlBranch && res.data.includes(urlBranch)) ? urlBranch :
+            (storedBranch && res.data.includes(storedBranch)) ? storedBranch :
+            project.defaultBranch
+          setActiveBranch(branchToActivate)
         }
       }
     })
@@ -308,6 +325,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     if (activeBranch === null) return
     setIsBranchLoading(true)
     loadCards(false, false, activeBranch).finally(() => setIsBranchLoading(false))
+  }, [activeBranch])
+
+  // Resetar filtro de commit ao trocar branch
+  useEffect(() => {
+    setCommits([])
+    setActiveCommit(null)
+    setActiveCommitDetail(null)
+    setCommitsPage(1)
+    setHasMoreCommits(true)
   }, [activeBranch])
 
   // Detectar retorno do OAuth do GitHub (URL ou sessionStorage quando redirect perde params)
@@ -498,6 +524,42 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     } finally {
       setIsImportingBranch(false)
     }
+  }
+
+  const loadCommits = async (branch: string, page = 1, append = false) => {
+    if (!projectId) return
+    if (page === 1) setIsLoadingCommits(true)
+    try {
+      const res = await projectService.listCommits(projectId, branch, page)
+      if (res?.success && res.data) {
+        setCommits(prev => append ? [...prev, ...res.data!] : res.data!)
+        setHasMoreCommits(res.data.length === 30)
+        setCommitsPage(page)
+      }
+    } finally {
+      setIsLoadingCommits(false)
+    }
+  }
+
+  const handleCommitSelect = async (commit: CommitSummary) => {
+    if (!projectId) return
+    setActiveCommit(commit)
+    setCommitSearch("")
+    setIsDescriptionExpanded(false)
+    setIsCommitDetailLoading(true)
+    try {
+      const res = await projectService.getCommit(projectId, commit.sha)
+      if (res?.success && res.data) {
+        setActiveCommitDetail(res.data)
+      }
+    } finally {
+      setIsCommitDetailLoading(false)
+    }
+  }
+
+  const clearCommitFilter = () => {
+    setActiveCommit(null)
+    setActiveCommitDetail(null)
   }
 
   const handleDisconnect = async () => {
@@ -1048,14 +1110,49 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
+  const routeToBranchCardId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const card of uniqueCardFeatures) {
+      for (const screen of card.screens || []) {
+        for (const block of screen.blocks || []) {
+          if (block.route && !map.has(block.route)) {
+            map.set(block.route, card.id)
+          }
+        }
+      }
+    }
+    return map
+  }, [uniqueCardFeatures])
+
+  const commitCardIds = useMemo(() => {
+    if (!activeCommitDetail) return null
+    const branchCardIds = new Set(uniqueCardFeatures.map((c) => c.id))
+    const result = new Set<string>()
+
+    for (const file of activeCommitDetail.files) {
+      const mappedId = file.card?.id
+      if (mappedId && branchCardIds.has(mappedId)) {
+        result.add(mappedId)
+        continue
+      }
+      const fallbackId = routeToBranchCardId.get(file.filename)
+      if (fallbackId && branchCardIds.has(fallbackId)) {
+        result.add(fallbackId)
+      }
+    }
+
+    return result
+  }, [activeCommitDetail, uniqueCardFeatures, routeToBranchCardId])
+
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .filter(({ cardFeature }) => 
-      (!searchTerm || 
+    .filter(({ cardFeature }) =>
+      (!commitCardIds || commitCardIds.has(cardFeature.id)) &&
+      (!searchTerm ||
         (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
       ) &&
@@ -1130,10 +1227,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
 
       {/* Header */}
-      <div className="relative flex items-center justify-between gap-4">
+      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
         <div className="min-w-0 flex flex-col gap-1">
           {syncStatus?.active && (
-            <div className="flex items-center gap-1.5 border border-blue-200 bg-blue-50 rounded-md px-2 h-8 w-fit">
+            <div className="flex items-center flex-wrap gap-1.5 border border-blue-200 bg-blue-50 rounded-md px-2 py-1 w-full sm:w-fit sm:h-8">
               <GitBranch className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
               <span className="text-xs font-medium text-blue-900 hidden sm:inline truncate max-w-[120px]">
                 {syncStatus.githubRepo}
@@ -1170,7 +1267,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         branches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())).map(b => (
                           <DropdownMenuItem
                             key={b}
-                            onClick={() => { setActiveBranch(b); setBranchSearch("") }}
+                            onClick={() => {
+                            setActiveBranch(b)
+                            setBranchSearch("")
+                            localStorage.setItem(`activeBranch:${projectId}`, b)
+                            const params = new URLSearchParams(searchParams?.toString() || '')
+                            params.set('branch', b)
+                            router.replace(`/projects/${projectId}?${params.toString()}`)
+                          }}
                             className={b === activeBranch ? 'font-medium bg-accent' : ''}
                           >
                             <GitBranch className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
@@ -1185,6 +1289,105 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 bg-blue-50 flex-shrink-0">
                   {syncStatus.defaultBranch}
                 </Badge>
+              )}
+              {/* Seletor de commit */}
+              {branches.length > 0 && activeBranch && (
+                <div className="flex items-center flex-shrink-0">
+                  <DropdownMenu onOpenChange={open => {
+                    if (open && commits.length === 0 && activeBranch) {
+                      loadCommits(activeBranch, 1, false)
+                    }
+                    if (!open) setCommitSearch("")
+                  }}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={`inline-flex items-center gap-0.5 text-xs border px-2 h-5 max-w-[160px] cursor-pointer focus:outline-none focus:ring-1 flex-shrink-0 ${
+                          activeCommit
+                            ? 'border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 focus:ring-purple-400 rounded-l-full'
+                            : 'border-gray-300 text-gray-600 bg-white hover:bg-gray-50 focus:ring-gray-400 rounded-full max-w-[120px]'
+                        }`}
+                        title="Ver commits"
+                      >
+                        <GitCommitHorizontal className="h-3 w-3 flex-shrink-0" />
+                        {activeCommit
+                          ? <span className="truncate font-mono">{activeCommit.shortSha}</span>
+                          : <span className="truncate">commits</span>
+                        }
+                        {isCommitDetailLoading
+                          ? <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                          : <ChevronRight className="h-3 w-3 flex-shrink-0 rotate-90" />
+                        }
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-80">
+                      <div className="px-2 py-1.5">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar por mensagem ou SHA..."
+                            value={commitSearch}
+                            onChange={e => setCommitSearch(e.target.value)}
+                            className="h-7 pl-7 text-xs"
+                            autoFocus
+                            onKeyDown={e => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {isLoadingCommits ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : commits.filter(c =>
+                          !commitSearch ||
+                          c.message.toLowerCase().includes(commitSearch.toLowerCase()) ||
+                          c.shortSha.includes(commitSearch)
+                        ).length === 0 ? (
+                          <p className="px-2 py-3 text-xs text-muted-foreground text-center">Nenhum commit encontrado</p>
+                        ) : (
+                          commits.filter(c =>
+                            !commitSearch ||
+                            c.message.toLowerCase().includes(commitSearch.toLowerCase()) ||
+                            c.shortSha.includes(commitSearch)
+                          ).map(c => (
+                            <DropdownMenuItem
+                              key={c.sha}
+                              onClick={() => handleCommitSelect(c)}
+                              className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-1.5 w-full min-w-0">
+                                <code className="text-xs text-muted-foreground font-mono flex-shrink-0">{c.shortSha}</code>
+                                <span className="text-xs truncate flex-1">{c.message}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">{c.authorName} · {new Date(c.date).toLocaleDateString('pt-BR')}</span>
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                        {!isLoadingCommits && hasMoreCommits && commits.length > 0 && !commitSearch && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              loadCommits(activeBranch, commitsPage + 1, true)
+                            }}
+                            className="w-full py-2 text-xs text-muted-foreground hover:text-foreground text-center hover:bg-accent"
+                          >
+                            Carregar mais
+                          </button>
+                        )}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {activeCommit && (
+                    <button
+                      onClick={clearCommitFilter}
+                      className="h-5 px-1 inline-flex items-center justify-center text-purple-600 hover:text-purple-900 border border-l-0 border-purple-300 bg-purple-50 hover:bg-purple-100 rounded-r-full"
+                      title="Limpar filtro de commit"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               )}
               {syncStatus.conflicts > 0 && (
                 <Badge variant="destructive" className="text-xs flex-shrink-0">
@@ -1232,7 +1435,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
           <Button
             variant="ghost"
             size="icon"
@@ -1441,15 +1644,79 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 onCategorySelect={setSelectedCategory}
               />
 
+              {/* Banner de filtro de commit */}
+              {activeCommit && (() => {
+                const matchedFiles = activeCommitDetail?.files.filter(f => f.card !== null) ?? []
+                return (
+                  <div className="bg-purple-50 border border-purple-200 rounded-md text-xs overflow-hidden">
+                    {/* Bloco superior: info do commit */}
+                    <div className="px-3 py-2 text-purple-800">
+                      <div className="flex items-start gap-2">
+                        <GitCommitHorizontal className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-purple-400" />
+                        <p className="font-medium sm:truncate">
+                          <code className="font-mono text-purple-500">{activeCommit.shortSha}</code>
+                          {' · '}{activeCommit.message}
+                        </p>
+                      </div>
+                      {activeCommit.description && (
+                        <p className={`text-purple-700 whitespace-pre-wrap mt-1 pl-5 ${isDescriptionExpanded ? '' : 'line-clamp-2'}`}>
+                          {activeCommit.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between mt-1 pl-5">
+                        <p className="text-purple-500">
+                          {activeCommit.authorName} · {new Date(activeCommit.date).toLocaleDateString('pt-BR')}
+                          {activeCommitDetail && (
+                            <> · {filteredCards.length} card{filteredCards.length !== 1 ? 's' : ''} afetado{filteredCards.length !== 1 ? 's' : ''}</>
+                          )}
+                        </p>
+                        {activeCommit.description && (
+                          <button
+                            onClick={() => setIsDescriptionExpanded(prev => !prev)}
+                            className="text-purple-400 hover:text-purple-600 flex-shrink-0"
+                            title={isDescriptionExpanded ? 'Colapsar' : 'Expandir'}
+                          >
+                            {isDescriptionExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Bloco inferior: rotas afetadas */}
+                    {activeCommitDetail && matchedFiles.length > 0 && (
+                      <div className="border-t border-purple-200 bg-white/50 pl-8 pr-3 py-2 space-y-1">
+                        {matchedFiles.map((f, i) => {
+                          const cardTitle = filteredCards.find(fc => fc.cardFeature.id === f.card?.id)?.cardFeature.title ?? f.card?.title
+                          return (
+                            <div key={i}>
+                              <p className="text-purple-800 truncate">{cardTitle}</p>
+                              <p className="text-purple-400 font-mono truncate">
+                                {f.filename.split('/').pop() ?? f.filename}
+                                <span className="mx-1">·</span>
+                                <span className="text-green-600">+{f.additions}</span>
+                                {' '}
+                                <span className="text-red-500">-{f.deletions}</span>
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {loadingCards ? (
                 <p className="text-gray-500 text-center py-8">Carregando...</p>
               ) : filteredCards.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
+                <p className="text-gray-500 text-center py-8">{activeCommit ? 'Nenhum card afetado por este commit' : 'Seus cards aparecerão aqui'}</p>
               ) : (
                 <div className="space-y-4">
                   {filteredCards.map(({ cardFeature, projectCard }, index) => {
                     const isFirst = index === 0
                     const isLast = index === filteredCards.length - 1
+                    const commitFilesForCard = activeCommitDetail
+                      ? activeCommitDetail.files.filter(f => f.card?.id === cardFeature.id)
+                      : undefined
 
                     return (
                       <div key={cardFeature.id} className="relative group min-w-0 overflow-hidden">
@@ -1461,6 +1728,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           onExpand={(card) => setExpandModalCard(card)}
                           canEdit={canEditCard(cardFeature)}
                           hideVisibility
+                          commitFiles={commitFilesForCard?.length ? commitFilesForCard : undefined}
                         />
 
                         {/* Painel flutuante de ações (apenas no modo de edição) */}
