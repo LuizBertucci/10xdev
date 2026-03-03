@@ -13,9 +13,7 @@ interface SplitLine {
   right: { content: string; type: SideType }
 }
 
-type DiffRow =
-  | { kind: 'hunk'; content: string }
-  | { kind: 'line' } & SplitLine
+type DiffRow = { kind: 'line' } & SplitLine
 
 // ────────────────────────────────────────────────────────────
 // Parser
@@ -43,7 +41,6 @@ function parseSplitDiff(patch: string): DiffRow[] {
   for (const line of lines) {
     if (line.startsWith('@@')) {
       flush()
-      rows.push({ kind: 'hunk', content: line })
     } else if (line.startsWith('-')) {
       removed.push(line.slice(1))
     } else if (line.startsWith('+')) {
@@ -122,15 +119,8 @@ export default function DiffViewer({ files }: DiffViewerProps) {
 
             {/* Split diff body */}
             {rows ? (
-              <div className="overflow-auto max-h-96 font-mono text-xs">
+              <div className="overflow-auto h-96 min-h-48 max-h-[75vh] resize-y font-mono text-xs">
                 {rows.map((row, i) => {
-                  if (row.kind === 'hunk') {
-                    return (
-                      <div key={i} className="bg-blue-50 text-blue-600 px-3 py-0.5 select-none col-span-2">
-                        {row.content}
-                      </div>
-                    )
-                  }
                   return (
                     <div key={i} className="grid grid-cols-2 divide-x border-b border-b-muted/30 last:border-b-0">
                       <div className={`px-2 py-0.5 whitespace-pre-wrap break-all ${SIDE_CLS[row.left.type]}`}>

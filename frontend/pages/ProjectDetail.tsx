@@ -545,10 +545,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     if (!projectId) return
     setActiveCommit(commit)
     setCommitSearch("")
-    setIsDescriptionExpanded(false)
+    setIsDescriptionExpanded(true)
     setIsCommitDetailLoading(true)
     try {
-      const res = await projectService.getCommit(projectId, commit.sha)
+      const res = await projectService.getCommit(projectId, commit.sha, activeBranch ?? undefined)
       if (res?.success && res.data) {
         setActiveCommitDetail(res.data)
       }
@@ -1110,39 +1110,25 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
-  const routeToBranchCardId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const card of uniqueCardFeatures) {
-      for (const screen of card.screens || []) {
-        for (const block of screen.blocks || []) {
-          if (block.route && !map.has(block.route)) {
-            map.set(block.route, card.id)
-          }
-        }
-      }
+  const resolveCommitFileCardId = useMemo(() => {
+    const branchCardIds = new Set(uniqueCardFeatures.map((c) => c.id))
+
+    return (file: CommitDetail['files'][number]): string | null => {
+      const mappedId = file.card?.id
+      if (mappedId && branchCardIds.has(mappedId)) return mappedId
+      return null
     }
-    return map
   }, [uniqueCardFeatures])
 
   const commitCardIds = useMemo(() => {
     if (!activeCommitDetail) return null
-    const branchCardIds = new Set(uniqueCardFeatures.map((c) => c.id))
     const result = new Set<string>()
-
     for (const file of activeCommitDetail.files) {
-      const mappedId = file.card?.id
-      if (mappedId && branchCardIds.has(mappedId)) {
-        result.add(mappedId)
-        continue
-      }
-      const fallbackId = routeToBranchCardId.get(file.filename)
-      if (fallbackId && branchCardIds.has(fallbackId)) {
-        result.add(fallbackId)
-      }
+      const resolved = resolveCommitFileCardId(file)
+      if (resolved) result.add(resolved)
     }
-
     return result
-  }, [activeCommitDetail, uniqueCardFeatures, routeToBranchCardId])
+  }, [activeCommitDetail, resolveCommitFileCardId])
 
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
@@ -1644,9 +1630,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 onCategorySelect={setSelectedCategory}
               />
 
+              {activeCommit && isCommitDetailLoading && (
+                <div className="py-2">
+                  <Progress value={66} className="h-2 w-full bg-blue-100 [&>div]:bg-blue-500 animate-pulse" />
+                </div>
+              )}
+
               {/* Banner de filtro de commit */}
               {activeCommit && (() => {
-                const matchedFiles = activeCommitDetail?.files.filter(f => f.card !== null) ?? []
+                const inBranchCommitCardIds = new Set(filteredCards.map((fc) => fc.cardFeature.id))
+                const matchedFiles = activeCommitDetail?.files.filter((f) => {
+                  const resolved = resolveCommitFileCardId(f)
+                  return Boolean(resolved && inBranchCommitCardIds.has(resolved))
+                }) ?? []
                 return (
                   <div className="bg-purple-50 border border-purple-200 rounded-md text-xs overflow-hidden">
                     {/* Bloco superior: info do commit */}
@@ -1685,7 +1681,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     {activeCommitDetail && matchedFiles.length > 0 && (
                       <div className="border-t border-purple-200 bg-white/50 pl-8 pr-3 py-2 space-y-1">
                         {matchedFiles.map((f, i) => {
-                          const cardTitle = filteredCards.find(fc => fc.cardFeature.id === f.card?.id)?.cardFeature.title ?? f.card?.title
+                          const resolvedId = resolveCommitFileCardId(f)
+                          const cardTitle = filteredCards.find(fc => fc.cardFeature.id === resolvedId)?.cardFeature.title ?? f.card?.title
                           return (
                             <div key={i}>
                               <p className="text-purple-800 truncate">{cardTitle}</p>
@@ -1707,6 +1704,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
               {loadingCards ? (
                 <p className="text-gray-500 text-center py-8">Carregando...</p>
+              ) : activeCommit && isCommitDetailLoading ? (
+                null
               ) : filteredCards.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">{activeCommit ? 'Nenhum card afetado por este commit' : 'Seus cards aparecerão aqui'}</p>
               ) : (
@@ -1715,7 +1714,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     const isFirst = index === 0
                     const isLast = index === filteredCards.length - 1
                     const commitFilesForCard = activeCommitDetail
-                      ? activeCommitDetail.files.filter(f => f.card?.id === cardFeature.id)
+                      ? activeCommitDetail.files.filter((f) => resolveCommitFileCardId(f) === cardFeature.id)
                       : undefined
 
                     return (
