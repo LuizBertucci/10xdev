@@ -368,6 +368,33 @@ export interface GithubWebhookPushPayload {
   }
 }
 
+// ================================================
+// COMMIT HISTORY TYPES
+// ================================================
+
+export interface CommitSummary {
+  sha: string
+  shortSha: string
+  message: string
+  description: string | null
+  authorName: string
+  authorAvatar: string | null
+  date: string
+}
+
+export interface CommitFile {
+  filename: string
+  status: 'added' | 'modified' | 'removed' | 'renamed'
+  additions: number
+  deletions: number
+  patch: string | null
+  card: { id: string; title: string } | null
+}
+
+export interface CommitDetail extends CommitSummary {
+  files: CommitFile[]
+}
+
 export interface GithubWebhookInstallationPayload {
   action: 'created' | 'deleted' | 'suspend' | 'unsuspend'
   installation: {

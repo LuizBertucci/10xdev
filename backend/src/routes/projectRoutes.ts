@@ -43,6 +43,8 @@ router.delete('/:id/cards/:cardFeatureId', ProjectController.removeCard)
 
 // GITHUB SYNC PER PROJECT
 router.get('/:id/github/branches', ProjectController.listBranches)
+router.get('/:id/github/commits', ProjectController.listCommits)
+router.get('/:id/github/commits/:sha', ProjectController.getCommit)
 router.post('/:id/github/connect', ProjectController.connectRepo)
 router.delete('/:id/github/connect', ProjectController.disconnectRepo)
 router.get('/:id/github/status', ProjectController.getSyncStatus)

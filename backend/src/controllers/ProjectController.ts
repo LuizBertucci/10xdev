@@ -561,6 +561,64 @@ export class ProjectController {
     res.json({ success: true, data: branches })
   })
 
+  /** GET /api/projects/:id/github/commits?branch=<branch>&page=<n> */
+  static listCommits = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const branch = (req.query.branch as string | undefined) ?? syncInfo.data!.default_branch ?? 'main'
+    const page = parseInt(req.query.page as string) || 1
+
+    const token = await GithubService.getInstallationToken(github_installation_id)
+    const commits = await GithubService.listCommits(token, github_owner, github_repo, branch, 30, page)
+
+    res.json({ success: true, data: commits })
+  })
+
+  /** GET /api/projects/:id/github/commits/:sha */
+  static getCommit = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const sha = req.params['sha']
+    if (!sha) throw badRequest('sha é obrigatório')
+
+    const token = await GithubService.getInstallationToken(github_installation_id)
+    const detail = await GithubService.getCommitDetail(token, github_owner, github_repo, sha)
+
+    // Enriquecer cada arquivo com o card mapeado
+    const enrichedFiles = await Promise.all(
+      detail.files.map(async file => {
+        const mapping = await GithubModel.getMappingByFilePath(id, file.filename)
+        if (mapping.success && mapping.data) {
+          const card = await CardFeatureModel.findById(mapping.data.card_feature_id)
+          if (card.success && card.data) {
+            return { ...file, card: { id: card.data.id, title: card.data.title } }
+          }
+        }
+        return file
+      })
+    )
+
+    res.json({ success: true, data: { ...detail, files: enrichedFiles } })
+  })
+
   /** POST /api/projects/:id/github/connect
    *  Conecta um projeto a um repo GitHub e importa cards do código */
   static connectRepo = safeHandler(async (req, res) => {

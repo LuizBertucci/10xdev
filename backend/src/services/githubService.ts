@@ -574,6 +574,94 @@ export class GithubService {
     return branches
   }
 
+  /** Lista commits de uma branch com paginação */
+  static async listCommits(
+    token: string,
+    owner: string,
+    repo: string,
+    branch: string,
+    perPage = 30,
+    page = 1
+  ): Promise<import('@/types/project').CommitSummary[]> {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/commits`,
+      {
+        headers: this.getHeaders(token),
+        params: { sha: branch, per_page: perPage, page },
+        timeout: 15000
+      }
+    )
+
+    return (response.data as unknown[]).map((c: unknown) => {
+      const commit = c as {
+        sha: string
+        commit: {
+          message: string
+          author: { name: string; date: string }
+        }
+        author: { login: string; avatar_url: string } | null
+      }
+      const lines = commit.commit.message.split('\n')
+      return {
+        sha: commit.sha,
+        shortSha: commit.sha.slice(0, 7),
+        message: lines[0] ?? '',
+        description: lines.slice(1).join('\n').trim() || null,
+        authorName: commit.author?.login ?? commit.commit.author.name,
+        authorAvatar: commit.author?.avatar_url ?? null,
+        date: commit.commit.author.date
+      }
+    })
+  }
+
+  /** Retorna detalhes de um commit com o patch de cada arquivo */
+  static async getCommitDetail(
+    token: string,
+    owner: string,
+    repo: string,
+    sha: string
+  ): Promise<import('@/types/project').CommitDetail> {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/commits/${sha}`,
+      { headers: this.getHeaders(token), timeout: 15000 }
+    )
+
+    const data = response.data as {
+      sha: string
+      commit: {
+        message: string
+        author: { name: string; date: string }
+      }
+      author: { login: string; avatar_url: string } | null
+      files: Array<{
+        filename: string
+        status: string
+        additions: number
+        deletions: number
+        patch?: string
+      }>
+    }
+
+    const detailLines = data.commit.message.split('\n')
+    return {
+      sha: data.sha,
+      shortSha: data.sha.slice(0, 7),
+      message: detailLines[0] ?? '',
+      description: detailLines.slice(1).join('\n').trim() || null,
+      authorName: data.author?.login ?? data.commit.author.name,
+      authorAvatar: data.author?.avatar_url ?? null,
+      date: data.commit.author.date,
+      files: (data.files ?? []).map(f => ({
+        filename: f.filename,
+        status: (f.status as 'added' | 'modified' | 'removed' | 'renamed') ?? 'modified',
+        additions: f.additions,
+        deletions: f.deletions,
+        patch: f.patch ?? null,
+        card: null
+      }))
+    }
+  }
+
   /** Conecta um projeto a um repo GitHub, faz import inicial,
    *  e popula github_file_mappings com mapeamento arquivo->card. */
   static async connectRepo(
