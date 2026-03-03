@@ -723,7 +723,7 @@ export class GithubService {
             if (!cardId) {
               const existingMappings: GithubSyncFileMappingRow[] = []
               for (const filePath of filePaths) {
-                const mapping = await GithubModel.getMappingByFilePath(projectId, filePath)
+                const mapping = await GithubModel.getMappingByFilePath(projectId, filePath, branch)
                 if (mapping.success && mapping.data) {
                   existingMappings.push(mapping.data)
                 }
@@ -917,7 +917,7 @@ export class GithubService {
           )
 
           for (const file of diff) {
-            const mappingResult = await GithubModel.getMappingByFilePath(projectId, file.filename)
+            const mappingResult = await GithubModel.getMappingByFilePath(projectId, file.filename, branch)
 
             if (file.status === 'modified' && mappingResult.success && mappingResult.data) {
               try {

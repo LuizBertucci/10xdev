@@ -599,13 +599,30 @@ export class ProjectController {
     const sha = req.params['sha']
     if (!sha) throw badRequest('sha é obrigatório')
 
+    const branch = (req.query.branch as string | undefined) ?? syncInfo.data!.default_branch ?? 'main'
+
     const token = await GithubService.getInstallationToken(github_installation_id)
     const detail = await GithubService.getCommitDetail(token, github_owner, github_repo, sha)
 
     // Enriquecer cada arquivo com o card mapeado
     const enrichedFiles = await Promise.all(
       detail.files.map(async file => {
-        const mapping = await GithubModel.getMappingByFilePath(id, file.filename)
+        let mapping = await GithubModel.getMappingByFilePath(id, file.filename, branch)
+
+        if (!mapping.success || !mapping.data) {
+          const routeMatch = await ProjectModel.findCardByFilePath(id, file.filename, branch)
+          if (routeMatch.success && routeMatch.data) {
+            await GithubModel.upsertMappingsBulk([{
+              project_id: id,
+              card_feature_id: routeMatch.data.cardFeatureId,
+              file_path: file.filename,
+              branch_name: branch,
+              last_synced_at: new Date().toISOString()
+            }])
+            mapping = await GithubModel.getMappingByFilePath(id, file.filename, branch)
+          }
+        }
+
         if (mapping.success && mapping.data) {
           const card = await CardFeatureModel.findById(mapping.data.card_feature_id)
           if (card.success && card.data) {
@@ -615,6 +632,17 @@ export class ProjectController {
         return file
       })
     )
+
+    const mappedCount = enrichedFiles.filter((file) => file.card !== null).length
+    const unmappedCount = enrichedFiles.length - mappedCount
+    console.info('[getCommit] mapping coverage', {
+      projectId: id,
+      branch,
+      sha,
+      filesCount: enrichedFiles.length,
+      mappedCount,
+      unmappedCount
+    })
 
     res.json({ success: true, data: { ...detail, files: enrichedFiles } })
   })

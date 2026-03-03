@@ -353,8 +353,9 @@ class ProjectService {
   }
 
   /** Retorna detalhes de um commit com diff e cards mapeados */
-  async getCommit(projectId: string, sha: string): Promise<ApiResponse<CommitDetail> | undefined> {
-    return apiClient.get<CommitDetail>(`${this.endpoint}/${projectId}/github/commits/${sha}`)
+  async getCommit(projectId: string, sha: string, branch?: string): Promise<ApiResponse<CommitDetail> | undefined> {
+    const params = branch ? { branch } : undefined
+    return apiClient.get<CommitDetail>(`${this.endpoint}/${projectId}/github/commits/${sha}`, params)
   }
 }
 

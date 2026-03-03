@@ -2,6 +2,7 @@ import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 import { GithubModel } from '@/models/GithubModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
+import { normalizeGithubFilePath } from '@/utils/githubPath'
 import {
   ProjectMemberRole
 } from '@/types/project'
@@ -981,6 +982,73 @@ export class ProjectModel {
         error: error instanceof Error ? error.message : 'Erro interno do servidor',
         statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
+    }
+  }
+
+  static async findCardByFilePath(
+    projectId: string,
+    filePath: string,
+    branch?: string
+  ): Promise<ModelResult<{ cardFeatureId: string; title: string | null }>> {
+    try {
+      const normalizedPath = normalizeGithubFilePath(filePath)
+
+      let query = supabaseAdmin
+        .from('project_cards')
+        .select(`
+          card_feature_id,
+          branch_name,
+          card_feature:card_features!project_cards_card_feature_id_fkey (
+            id,
+            title,
+            screens
+          )
+        `)
+        .eq('project_id', projectId)
+
+      if (branch) {
+        query = query.or(`branch_name.eq."${branch}",branch_name.is.null`)
+      }
+
+      const { data } = await executeQuery<Array<{
+        card_feature_id: string
+        branch_name?: string | null
+        card_feature?: {
+          id?: string
+          title?: string | null
+          screens?: unknown
+        } | null
+      }> | null>(query)
+
+      const rows = data || []
+      for (const row of rows) {
+        const card = row.card_feature
+        if (!card?.id) continue
+        const screens = Array.isArray(card.screens)
+          ? (card.screens as Array<{ blocks?: Array<{ route?: string }> }>)
+          : []
+
+        for (const screen of screens) {
+          for (const block of screen.blocks || []) {
+            if (!block.route) continue
+            if (normalizeGithubFilePath(block.route) === normalizedPath) {
+              return {
+                success: true,
+                data: {
+                  cardFeatureId: card.id,
+                  title: card.title || null
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return { success: false, error: 'Card não encontrado para file_path', statusCode: 404 }
+    } catch (error: unknown) {
+      console.error('Erro ao buscar card por file_path no projeto:', error)
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 

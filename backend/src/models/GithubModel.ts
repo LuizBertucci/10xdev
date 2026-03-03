@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/database/supabase'
+import { normalizeGithubFilePath } from '@/utils/githubPath'
 import type {
   GithubSyncFileMappingRow,
   GithubSyncFileMappingInsert,
@@ -28,7 +29,7 @@ export class GithubModel {
         .insert({
           project_id: data.project_id,
           card_feature_id: data.card_feature_id,
-          file_path: data.file_path,
+          file_path: normalizeGithubFilePath(data.file_path),
           branch_name: data.branch_name || 'main',
           last_commit_sha: data.last_commit_sha || null,
           last_synced_at: data.last_synced_at || new Date().toISOString(),
@@ -58,7 +59,7 @@ export class GithubModel {
       const rows = mappings.map(m => ({
         project_id: m.project_id,
         card_feature_id: m.card_feature_id,
-        file_path: m.file_path,
+        file_path: normalizeGithubFilePath(m.file_path),
         branch_name: m.branch_name || 'main',
         last_commit_sha: m.last_commit_sha || null,
         last_synced_at: m.last_synced_at || new Date().toISOString(),
@@ -79,7 +80,7 @@ export class GithubModel {
     }
   }
 
-  /** Upsert em bulk por (project_id, file_path), reutilizando ou realocando mappings existentes */
+  /** Upsert em bulk por (project_id, branch_name, file_path), reutilizando ou realocando mappings existentes */
   static async upsertMappingsBulk(
     mappings: GithubSyncFileMappingInsert[]
   ): Promise<ModelListResult<GithubSyncFileMappingRow>> {
@@ -91,7 +92,7 @@ export class GithubModel {
       const rows = mappings.map(m => ({
         project_id: m.project_id,
         card_feature_id: m.card_feature_id,
-        file_path: m.file_path,
+        file_path: normalizeGithubFilePath(m.file_path),
         branch_name: m.branch_name || 'main',
         last_commit_sha: m.last_commit_sha || null,
         last_synced_at: m.last_synced_at || new Date().toISOString(),
@@ -100,7 +101,7 @@ export class GithubModel {
 
       const { data, error } = await supabaseAdmin
         .from('github_file_mappings')
-        .upsert(rows, { onConflict: 'project_id,file_path' })
+        .upsert(rows, { onConflict: 'project_id,branch_name,file_path' })
         .select()
 
       if (error) throw error
@@ -159,15 +160,22 @@ export class GithubModel {
   /** Busca mapeamento por file_path dentro de um projeto (para webhook push) */
   static async getMappingByFilePath(
     projectId: string,
-    filePath: string
+    filePath: string,
+    branchName?: string
   ): Promise<ModelResult<GithubSyncFileMappingRow>> {
     try {
-      const { data, error } = await supabaseAdmin
+      const normalizedPath = normalizeGithubFilePath(filePath)
+      let query = supabaseAdmin
         .from('github_file_mappings')
         .select('*')
         .eq('project_id', projectId)
-        .eq('file_path', filePath)
-        .maybeSingle()
+        .eq('file_path', normalizedPath)
+
+      if (branchName) {
+        query = query.eq('branch_name', branchName)
+      }
+
+      const { data, error } = await query.maybeSingle()
 
       if (error) throw error
       if (!data) {
