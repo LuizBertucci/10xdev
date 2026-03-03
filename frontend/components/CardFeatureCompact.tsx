@@ -12,10 +12,12 @@ import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
+import DiffViewer from "./DiffViewer"
 import { useAuth } from "@/hooks/useAuth"
 import { useCardTabState } from "@/hooks/useCardTabState"
 import { cardFeatureService } from "@/services/cardFeatureService"
 import type { CardFeature as CardFeatureType } from "@/types"
+import type { CommitFile } from "@/services"
 import { ContentType, Visibility, CardType } from "@/types"
 import { AIInstructions } from "@/components/AIInstructions"
 
@@ -49,9 +51,10 @@ interface CardFeatureCompactProps {
   canEdit?: boolean
   defaultExpanded?: boolean
   hideVisibility?: boolean
+  commitFiles?: CommitFile[]
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility, commitFiles }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
@@ -107,6 +110,22 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       localStorage.setItem(SUMMARY_INSTRUCTIONS_LS_KEY, summaryInstructions)
     } catch { /* ignore */ }
   }, [summaryInstructions])
+
+  // Retorna o CommitFile correspondente a uma screen (via screen.route ou block.route)
+  const getCommitFileForScreen = (screen: CardFeatureType['screens'][0]) => {
+    if (!commitFiles?.length) return undefined
+    if (screen.route) {
+      const match = commitFiles.find(f => f.filename === screen.route)
+      if (match) return match
+    }
+    for (const block of screen.blocks || []) {
+      if (block.route) {
+        const match = commitFiles.find(f => f.filename === block.route)
+        if (match) return match
+      }
+    }
+    return undefined
+  }
 
   // Função para alternar o estado de expansão
   const toggleExpanded = () => {
@@ -599,21 +618,27 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     background: rgba(0, 0, 0, 0.5);
                   }
                 `}</style>
-                {visibleScreens.map((screen, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setActiveTab(index)}
-                    className={`
-                      px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative flex-shrink-0 whitespace-nowrap
-                      ${activeTab === index
-                        ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
-                        : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
-                      }
-                    `}
-                  >
-                    {screen.name || `Aba ${index + 1}`}
-                  </button>
-                ))}
+                {visibleScreens.map((screen, index) => {
+                  const hasDiff = !!getCommitFileForScreen(screen)
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => setActiveTab(index)}
+                      className={`
+                        px-4 py-2 text-xs font-medium transition-all duration-300 rounded-lg relative flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1
+                        ${activeTab === index
+                          ? 'text-gray-700 bg-white shadow-md transform scale-105 font-semibold'
+                          : 'text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:shadow-sm hover:-translate-y-0.5'
+                        }
+                      `}
+                    >
+                      {screen.name || `Aba ${index + 1}`}
+                      {hasDiff && (
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 flex-shrink-0" />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
 
               {/* Área do Conteúdo com Containers Específicos */}
@@ -685,11 +710,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
                 <div className="codeblock-scroll relative z-10 overflow-x-auto overflow-y-visible mx-0 px-0 pt-0 w-full max-w-full min-w-0">
                   {activeScreen ? (
-                    <ContentRenderer
-                      blocks={activeScreen.blocks || []}
-                      className="h-full compact-content w-full"
-                      key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
-                    />
+                    (() => {
+                      const screenDiffFile = getCommitFileForScreen(activeScreen)
+                      if (screenDiffFile) {
+                        return <DiffViewer files={[screenDiffFile]} />
+                      }
+                      return (
+                        <ContentRenderer
+                          blocks={activeScreen.blocks || []}
+                          className="h-full compact-content w-full"
+                          key={`${activeScreen.name}-${activeScreen.blocks?.length || 0}`}
+                        />
+                      )
+                    })()
                   ) : (
                     <p className="text-sm text-gray-500 px-1 py-2">Nenhum conteúdo disponível</p>
                   )}
@@ -711,6 +744,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
               </div>
             </div>
           )}
+
         </CardContent>
       </Card>
     </TooltipProvider>

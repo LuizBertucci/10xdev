@@ -142,6 +142,29 @@ export interface ImportBranchResponse {
   branch: string
 }
 
+export interface CommitSummary {
+  sha: string
+  shortSha: string
+  message: string
+  description: string | null
+  authorName: string
+  authorAvatar: string | null
+  date: string
+}
+
+export interface CommitFile {
+  filename: string
+  status: 'added' | 'modified' | 'removed' | 'renamed'
+  additions: number
+  deletions: number
+  patch: string | null
+  card: { id: string; title: string } | null
+}
+
+export interface CommitDetail extends CommitSummary {
+  files: CommitFile[]
+}
+
 // ================================================
 // SERVICE
 // ================================================
@@ -322,6 +345,16 @@ class ProjectService {
   /** Resolve conflito de sync */
   async resolveConflict(projectId: string, fileMappingId: string, resolution: 'keep_card' | 'keep_github'): Promise<ApiResponse<Record<string, unknown>> | undefined> {
     return apiClient.post<Record<string, unknown>>(`${this.endpoint}/${projectId}/github/resolve`, { fileMappingId, resolution })
+  }
+
+  /** Lista commits de uma branch */
+  async listCommits(projectId: string, branch: string, page = 1): Promise<ApiResponse<CommitSummary[]> | undefined> {
+    return apiClient.get<CommitSummary[]>(`${this.endpoint}/${projectId}/github/commits`, { branch, page })
+  }
+
+  /** Retorna detalhes de um commit com diff e cards mapeados */
+  async getCommit(projectId: string, sha: string): Promise<ApiResponse<CommitDetail> | undefined> {
+    return apiClient.get<CommitDetail>(`${this.endpoint}/${projectId}/github/commits/${sha}`)
   }
 }
 
