@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Bot } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Bot, ChevronDown } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
@@ -154,7 +154,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     try {
       await navigator.clipboard.writeText(cardApiUrl)
       setApiLinkCopied(true)
-      toast.success("Link da API copiado!")
+      toast.success("Link para IA acessar esse card copiado")
       setTimeout(() => setApiLinkCopied(false), 2000)
     } catch {
       toast.error("Erro ao copiar link")
@@ -244,7 +244,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       await onUpdate(snippet.id, { visibility: newVisibility })
       toast.success(`Visibilidade alterada para ${
         newVisibility === Visibility.PUBLIC ? 'Validando' :
-        newVisibility === Visibility.UNLISTED ? 'Seu Espaço' : 'Público'
+        newVisibility === Visibility.UNLISTED ? 'Meus Códigos' : 'Público'
       }`)
     } catch {
       toast.error("Erro ao alterar visibilidade")
@@ -316,7 +316,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleVisibilityChange(Visibility.UNLISTED)} className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-blue-600" />
-            <span>Seu Espaço</span>
+            <span>Meus Códigos</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       )}
@@ -432,6 +432,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
               {/* Badges */}
               <div className="flex flex-wrap items-center gap-1.5 min-h-[1.25rem]">
+                {!hideVisibility && (
+                  <>
+                    <VisibilityDropdown size="small" />
+                    <span className="text-gray-400 text-[8px]">●</span>
+                  </>
+                )}
                 <Badge
                   variant="secondary"
                   className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
@@ -468,25 +474,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     Vídeo
                   </Badge>
                 )}
-                {visibleScreens.some((s) => isSummaryScreen(s.name)) && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-blue-200 bg-blue-50 text-blue-700">
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Visão Geral
-                  </Badge>
-                )}
               </div>
               
               {/* Linha separatória */}
               <div className="border-t border-gray-200 pt-2">
                 {/* Ícones em linha horizontal - alinhados à direita */}
                 <div className="flex items-center justify-between gap-2">
-                  {/* Badge de Visibilidade (Lado Esquerdo) */}
-                  {!hideVisibility && (
-                    <div className="flex-shrink-0">
-                      <VisibilityDropdown size="small" />
-                    </div>
-                  )}
-
                   <div className="flex items-center gap-6 ml-auto">
                     {hasFile && (
                       <Button
@@ -527,15 +520,19 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                     )}
 
                     {/* Botão Link para IA */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-7 px-2 text-xs ${apiLinkCopied ? 'text-green-600 border-green-300 bg-green-50' : 'text-gray-600 hover:text-blue-600 hover:border-blue-300'}`}
-                      onClick={handleCopyApiUrl}
-                    >
-                      {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Bot className="h-3 w-3 mr-1" />}
-                      {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Link para IA"
+                          onClick={handleCopyApiUrl}
+                          className={`h-6 w-6 inline-flex items-center justify-center transition-colors ${apiLinkCopied ? 'text-green-600' : 'text-gray-400 hover:text-blue-600'}`}
+                        >
+                          {apiLinkCopied ? <Check className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent><p>Link para IA</p></TooltipContent>
+                    </Tooltip>
 
                     {/* Botão Compartilhar */}
                     <Tooltip>
@@ -547,9 +544,9 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                             e.stopPropagation()
                             handleCopyShareUrl(e)
                           }}
-                          className="h-5 w-5 inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                          className="h-6 w-6 inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
                         >
-                          {shareLinkCopied ? <Check className="h-4 w-4 text-green-600" /> : <Link2 className="h-4 w-4" />}
+                          {shareLinkCopied ? <Check className="h-5 w-5 text-green-600" /> : <Link2 className="h-5 w-5" />}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent><p>{shareLinkCopied ? 'Copiado!' : 'Compartilhar'}</p></TooltipContent>
@@ -565,14 +562,23 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                               e.stopPropagation()
                               onExpand(snippet)
                             }}
-                            className="hidden md:inline-flex h-5 w-5 items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                            className="hidden md:inline-flex h-6 w-6 items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
                           >
-                            <Expand className="h-4 w-4" />
+                            <Expand className="h-5 w-5" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent><p>Tela cheia</p></TooltipContent>
                       </Tooltip>
                     )}
+
+                    {/* Botão Ver mais */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggleExpanded() }}
+                      className="h-6 w-6 inline-flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
 
                     {/* Ícone Acessar — oculto quando onExpand existe (contexto de projeto) */}
                     {!onExpand && (
@@ -584,9 +590,9 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                               e.stopPropagation()
                               router.push(`/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`)
                             }}
-                            className="h-5 w-5 inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                            className="h-6 w-6 inline-flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors"
                           >
-                            <ArrowRight className="h-4 w-4" />
+                            <ArrowRight className="h-5 w-5" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent><p>Acessar</p></TooltipContent>

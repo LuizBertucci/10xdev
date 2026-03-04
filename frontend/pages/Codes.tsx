@@ -38,7 +38,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
   isVisible
 }: CreateCardButtonProps) {
   const buttonDisabled = disabled || loading || creating || isSelectionMode
-  const buttonText = creating ? 'Criando...' : 'Novo card'
+  const buttonText = creating ? 'Subindo...' : 'Subir Código'
 
   return (
     <div className={`flex flex-shrink-0 ${isVisible ? '' : 'hidden'}`}>
@@ -49,7 +49,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
         className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
       >
         <Plus className="h-4 w-4 mr-1" />
-        <span className="sm:hidden">{creating ? 'Criando...' : 'Criar'}</span>
+        <span className="sm:hidden">{creating ? 'Subindo...' : 'Código'}</span>
         <span className="hidden sm:inline">{buttonText}</span>
       </Button>
       <DropdownMenu>
@@ -122,7 +122,7 @@ export default function Codes() {
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
 
-  // Filtro de ownership para "Seu Espaço": all | created_by_me | shared_with_me
+  // Filtro de ownership para "Meus Códigos": all | created_by_me | shared_with_me
   const [selectedOwnership, setSelectedOwnership] = useState<string>('all')
 
   // Filtro de status para "Global": all | approved | pending
@@ -384,7 +384,7 @@ export default function Codes() {
             />
           </div>
 
-          {/* Pencil Button (selection mode) - Only in Seu Espaço */}
+          {/* Pencil Button (selection mode) - Only in Meus Códigos */}
           {selectedDirectoryTab === 'seuEspaco' && isProfileLoaded && isAuthed && (
             <Button
               onClick={handleToggleSelectionMode}
@@ -410,10 +410,10 @@ export default function Codes() {
           />
         </div>
 
-        {/* Visibility Tabs Row - Simplified: Global + Seu Espaço */}
+        {/* Visibility Tabs Row - Simplified: Global + Meus Códigos */}
         <Tabs value={selectedDirectoryTab} onValueChange={setSelectedDirectoryTab} className="w-full max-w-[900px] mx-auto mt-2 mb-4">
           <div className="flex flex-col gap-3">
-            {/* Main tabs: Global / Seu Espaço */}
+            {/* Main tabs: Global / Meus Códigos */}
             <TabsList className="h-10 w-full bg-white shadow-md rounded-lg p-1">
               <TabsTrigger 
                 value="global" 
@@ -429,7 +429,7 @@ export default function Codes() {
                 disabled={cardFeatures.loading}
               >
                 <User className="h-4 w-4" />
-                Seu Espaço
+                Meus Códigos
               </TabsTrigger>
             </TabsList>
 
@@ -460,7 +460,7 @@ export default function Codes() {
               </TabsList>
             </Tabs>
 
-            {/* Sub-filters: Compartilhados / Criados / Todos - only in Seu Espaço */}
+            {/* Sub-filters: Compartilhados / Criados / Todos - only in Meus Códigos */}
             <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={`${selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'} ml-auto`}>
               <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
                 <TabsTrigger 
