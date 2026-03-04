@@ -542,6 +542,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       <TooltipTrigger asChild>
                         <button
                           type="button"
+                          aria-label={shareLinkCopied ? 'Copiado!' : 'Compartilhar'}
                           onClick={(e) => {
                             e.stopPropagation()
                             handleCopyShareUrl(e)

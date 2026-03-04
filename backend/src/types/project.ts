@@ -216,6 +216,7 @@ export interface GithubRepoInfo {
   description: string | null
   url: string
   isPrivate: boolean
+  defaultBranch: string
 }
 
 export interface GetGithubInfoRequest {

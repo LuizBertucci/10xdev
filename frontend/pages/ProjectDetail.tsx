@@ -535,6 +535,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         setCommits(prev => append ? [...prev, ...res.data!] : res.data!)
         setHasMoreCommits(res.data.length === 30)
         setCommitsPage(page)
+      } else if (res && !res.success) {
+        toast.error(res.error || 'Erro ao carregar commits')
       }
     } finally {
       setIsLoadingCommits(false)
@@ -551,6 +553,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       const res = await projectService.getCommit(projectId, commit.sha, activeBranch ?? undefined)
       if (res?.success && res.data) {
         setActiveCommitDetail(res.data)
+      } else if (res && !res.success) {
+        toast.error(res.error || 'Erro ao carregar detalhes do commit')
       }
     } finally {
       setIsCommitDetailLoading(false)

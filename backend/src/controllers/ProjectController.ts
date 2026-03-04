@@ -139,6 +139,10 @@ export class ProjectController {
           finalToken = await GithubService.getInstallationToken(installationId)
         }
 
+        // Obter branch padrão real do repositório
+        const repoDetails = await GithubService.getRepoDetails(url, finalToken || undefined)
+        const defaultBranch = repoDetails.defaultBranch
+
         // Fluxo unificado: se veio via GitHub App (installationId),
         // a importação já conecta e ativa o sync no mesmo passo.
         if (installationId) {
@@ -154,7 +158,7 @@ export class ProjectController {
           const filesForReport = await GithubService.listRepoFiles(
             repoInfo.owner,
             repoInfo.repo,
-            'main',
+            defaultBranch,
             finalToken || undefined,
             { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
           )
@@ -174,7 +178,7 @@ export class ProjectController {
             repoInfo.repo,
             userId,
             {
-              defaultBranch: 'main',
+              defaultBranch,
               onProgress: async (step, progress, message) => {
                 if (message) progressLog.push(message)
                 await updateJob({
@@ -633,7 +637,7 @@ export class ProjectController {
       })
     )
 
-    const mappedCount = enrichedFiles.filter((file) => file.card !== null).length
+    const mappedCount = enrichedFiles.filter((file) => Boolean(file.card?.id)).length
     const unmappedCount = enrichedFiles.length - mappedCount
     console.info('[getCommit] mapping coverage', {
       projectId: id,
@@ -793,7 +797,7 @@ export class ProjectController {
     assertResult(updateResult)
 
     // Remover file mappings
-    await GithubModel.deleteByProject(id)
+    assertResult(await GithubModel.deleteByProject(id))
 
     res.json({
       success: true,
