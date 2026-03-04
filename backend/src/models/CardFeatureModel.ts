@@ -418,6 +418,20 @@ export class CardFeatureModel {
         }
       }
 
+      const isUnlistedVisibility =
+        params.visibility === Visibility.UNLISTED || params.visibility === 'unlisted'
+      const isSharedWithMeOnly = params.ownership === 'shared_with_me'
+
+      // Evita query inválida em UUID quando não há compartilhamentos.
+      if (userId && isUnlistedVisibility && isSharedWithMeOnly && sharedCardIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+          count: 0,
+          statusCode: 200
+        }
+      }
+
       // 3. Query principal para os dados (com range/ordenação)
       const query = this.buildQuery(params, userId, userRole, false, matchedUserIds, sharedCardIds)
       const { data: _data, error: _dataError } = await executeQuery<CardFeatureRow[] | null>(query)
