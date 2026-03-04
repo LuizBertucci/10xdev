@@ -98,7 +98,8 @@ export class GithubService {
         name: data.name,
         description: data.description,
         url: `https://github.com/${repoInfo.owner}/${repoInfo.repo}`,
-        isPrivate: Boolean(data.private)
+        isPrivate: Boolean(data.private),
+        defaultBranch: data.default_branch || 'main'
       }
     } catch (error: unknown) {
       const axiosError = error as { response?: { status?: number; headers?: Record<string, string>; data?: { message?: string } }, message?: string }
@@ -653,7 +654,9 @@ export class GithubService {
       date: data.commit.author.date,
       files: (data.files ?? []).map(f => ({
         filename: f.filename,
-        status: (f.status as 'added' | 'modified' | 'removed' | 'renamed') ?? 'modified',
+        status: (['added', 'modified', 'removed', 'renamed'] as const).includes(f.status as 'added' | 'modified' | 'removed' | 'renamed')
+          ? (f.status as 'added' | 'modified' | 'removed' | 'renamed')
+          : 'modified',
         additions: f.additions,
         deletions: f.deletions,
         patch: f.patch ?? null,
@@ -1159,7 +1162,7 @@ export class GithubService {
 
         const token = await this.getInstallationToken(github_installation_id)
         const { content } = await this.getFileContent(
-          token, github_owner, github_repo, mapping.file_path
+          token, github_owner, github_repo, mapping.file_path, mapping.branch_name
         )
 
         await this.updateCardBlock(mapping.card_feature_id, mapping.file_path, content)

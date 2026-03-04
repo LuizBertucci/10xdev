@@ -77,9 +77,11 @@ export default function ImportGithubTokenPage() {
 
     hasRedirectedRef.current = true
     const { projectId, installationId } = pendingRedirect
+    const params = new URLSearchParams({ github_sync: 'true' })
+    if (installationId) params.set('installation_id', installationId)
     const dest = projectId
-      ? `/projects/${projectId}?github_sync=true${installationId ? `&installation_id=${installationId}` : ''}`
-      : `/projects?github_sync=true${installationId ? `&installation_id=${installationId}` : ''}`
+      ? `/projects/${projectId}?${params}`
+      : `/projects?${params}`
 
     try {
       sessionStorage.setItem('github_sync_redirect_after_login', dest)

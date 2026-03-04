@@ -879,7 +879,8 @@ export class ProjectModel {
         .order('created_at', { ascending: true })
 
       if (branch) {
-        query = query.or(`branch_name.eq."${branch}",branch_name.is.null`)
+        const safeBranch = branch.replace(/[^\w\-./]/g, '')
+        query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
       }
 
       // Aplicar paginação se fornecida
@@ -946,7 +947,8 @@ export class ProjectModel {
         .order('created_at', { ascending: true })
 
       if (branch) {
-        query = query.or(`branch_name.eq."${branch}",branch_name.is.null`)
+        const safeBranch = branch.replace(/[^\w\-./]/g, '')
+        query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
       }
 
       const { data, count } = await executeQuery<ProjectCardRowWithFeature[] | { count: number | null }>(query)
@@ -1007,7 +1009,8 @@ export class ProjectModel {
         .eq('project_id', projectId)
 
       if (branch) {
-        query = query.or(`branch_name.eq."${branch}",branch_name.is.null`)
+        const safeBranch = branch.replace(/[^\w\-./]/g, '')
+        query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
       }
 
       const { data } = await executeQuery<Array<{
@@ -1025,10 +1028,19 @@ export class ProjectModel {
         const card = row.card_feature
         if (!card?.id) continue
         const screens = Array.isArray(card.screens)
-          ? (card.screens as Array<{ blocks?: Array<{ route?: string }> }>)
+          ? (card.screens as Array<{ route?: string; blocks?: Array<{ route?: string }> }>)
           : []
 
         for (const screen of screens) {
+          if (screen.route && normalizeGithubFilePath(screen.route) === normalizedPath) {
+            return {
+              success: true,
+              data: {
+                cardFeatureId: card.id,
+                title: card.title || null
+              }
+            }
+          }
           for (const block of screen.blocks || []) {
             if (!block.route) continue
             if (normalizeGithubFilePath(block.route) === normalizedPath) {
@@ -1271,7 +1283,8 @@ export class ProjectModel {
     const cardIds = rows.map(r => r.card_feature_id)
 
     for (const cardId of cardIds) {
-      await GithubModel.deleteByCard(cardId)
+      const result = await GithubModel.deleteByCard(cardId)
+      if (!result.success) throw new Error(`Falha ao remover file mappings do card ${cardId}: ${result.error}`)
     }
 
     await executeQuery(
@@ -1282,7 +1295,8 @@ export class ProjectModel {
         .eq('branch_name', branch)
     )
 
-    await CardFeatureModel.bulkDelete(cardIds)
+    const deleteResult = await CardFeatureModel.bulkDelete(cardIds)
+    if (!deleteResult.success) throw new Error(`Falha ao remover card features da branch: ${deleteResult.error}`)
   }
 
   static async reorderCard(projectId: string, cardFeatureId: string, direction: 'up' | 'down', userId: string): Promise<ModelResult<null>> {
