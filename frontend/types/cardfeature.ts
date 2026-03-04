@@ -144,9 +144,13 @@ export interface CreateCardFeatureData {
 
 /**
  * Dados para atualizar um CardFeature existente
- * Todos os campos são opcionais para updates parciais
+ * Todos os campos são opcionais para updates parciais.
+ * tech/language podem ser null para limpar (gravar NULL no banco).
  */
-export type UpdateCardFeatureData = Partial<CreateCardFeatureData>
+export type UpdateCardFeatureData = Partial<CreateCardFeatureData> & {
+  tech?: string | null
+  language?: string | null
+}
 
 export interface GenerateSummaryResponse {
   success: boolean
