@@ -1,11 +1,11 @@
 ---
-description: Extrai comentários de discussões do PR via gh CLI e gera relatório em Markdown
+description: Extrai comentários de reviews do PR via gh CLI e gera relatório em Markdown
 alwaysApply: false
 ---
 
 # PR Comments Extractor
 
-Quando o usuário pedir para **"puxar do coderabbit"** (ou variantes como "extrai as sugestões", "pega os comentários do PR", etc.), execute o fluxo abaixo.
+Quando o usuário pedir para **"puxar do coderabbit"** (ou variantes como "extrai as sugestões", "pega os comentários do PR", "relatório do PR", etc.), execute o fluxo abaixo.
 
 ## 1. Detectar branch e número do PR
 
@@ -16,74 +16,55 @@ prNum=$(gh pr list --head "$branch" --json number --jq '.[0].number')
 
 Se não encontrar PR, avisar usuário e não prosseguir.
 
-## 2. Gerar relatório em Markdown
+O usuário também pode informar o número do PR explicitamente (ex: "PR #97") ou via URL — nesse caso, extrair o número da URL.
+
+## 2. Baixar conteúdo via gh CLI
 
 ```bash
-branch=$(git branch --show-current)
-prNum=$(gh pr list --head "$branch" --json number --jq '.[0].number')
-prInfo=$(gh pr view $prNum --json title,author --jq '{title, author: .author.login}')
-comments=$(gh api repos/{owner}/{repo}/pulls/$prNum/comments)
+prInfo=$(gh pr view $prNum --json title,state,url,headRefName --jq '{title, state, url, branch: .headRefName}')
 
-mkdir -p .cursor/pr-comments
-output=".cursor/pr-comments/pr-$prNum.md"
+# Comentários inline (reviews do CodeRabbit)
+inlineComments=$(gh api repos/{owner}/{repo}/pulls/$prNum/comments \
+  --jq '[.[] | {path: .path, line: .original_line, body: .body, user: .user.login}]')
 
-cat > "$output" <<EOF
-# Relatório de Comentários do PR #$prNum
-
-**Título**: $(echo "$prInfo" | jq -r '.title')
-**Autor**: $(echo "$prInfo" | jq -r '.author')
-**Branch**: $branch
-**Gerado em**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-
-## 📊 Estatísticas
-
-EOF
-
-total=$(echo "$comments" | jq 'length')
-files=$(echo "$comments" | jq -r 'map(.path) | unique | length')
-authors=$(echo "$comments" | jq -r 'map(.user.login) | unique | join(", ")')
-
-echo "- Total de comentários: $total" >> "$output"
-echo "- Arquivos afetados: $files" >> "$output"
-echo "- Autores: $authors" >> "$output"
-
-echo "" >> "$output"
-echo "## 📝 Comentários por Arquivo" >> "$output"
-echo "" >> "$output"
-
-echo "$comments" | jq -r 'map(.path) | unique | .[]' | while read -r file; do
-  cat >> "$output" <<EOF
-
-### $file
-
-EOF
-  echo "$comments" | jq --arg f "$file" '[.[] | select(.path == $f)]' | jq -c '.[]' | while IFS= read -r comment; do
-    user=$(echo "$comment" | jq -r '.user.login')
-    date=$(echo "$comment" | jq -r '.created_at')
-    line=$(echo "$comment" | jq -r 'if .line then .line else .start_line end')
-    link=$(echo "$comment" | jq -r '.html_url')
-    body=$(echo "$comment" | jq -r '.body')
-
-    cat >> "$output" <<EOF
-
-**[$user]** • $date • [Linha $line]($link)
-
----
-
-**Body:**
-
-$body
-
----
-EOF
-  done
-done
-
-echo "Relatório gerado: $output"
+# Body do review principal (contém outside diff + actionable summary)
+reviewBody=$(gh api repos/{owner}/{repo}/pulls/$prNum/reviews \
+  --jq '.[] | select(.user.login | contains("coderabbit")) | .body')
 ```
 
-## 3. Confirmar ao usuário
+## 3. Analisar e salvar em `.cursor/pr-comments/pr-{N}.md`
 
-Após executar, informar:
-- Caminho do arquivo gerado
-- Resumo estatístico (total comentários, arquivos afetados, autores)
+Com os dados de `inlineComments` e `reviewBody` em mãos, o agente (não um script bash) deve:
+
+**a) Parsear cada comentário inline** buscando no campo `body`:
+- Severidade: `_🔴 Critical_`, `_🟠 Major_`, `_🟡 Minor_`
+- Título em negrito (primeira linha `**...**`)
+- Arquivo + linha já estão nos campos `path` e `line`
+
+**b) Parsear o `reviewBody`** para extrair:
+- Outside diff comments (bloco `⚠️ Outside diff range comments`)
+- Comentários que não aparecem inline
+
+**c) Escrever o arquivo** em `.cursor/pr-comments/pr-$prNum.md` com:
+- Cabeçalho: título, URL, branch, data gerada
+- Estatísticas: total inline, outside diff
+- Seções por severidade: 🔴 Critical → 🟠 Major → 🟡 Minor
+- Seção de outside diff
+- Tabela resumo ao final com colunas `# | Sev | Arquivo | Problema`
+
+## 4. Analisar e apresentar tabela no chat
+
+Após gerar o arquivo, exibir no chat:
+
+1. Caminho do arquivo gerado
+2. Resumo estatístico (totais por severidade)
+3. Tabela com todos os action items:
+
+```
+| # | Sev | Arquivo | Problema |
+|---|-----|---------|----------|
+| 1 | 🔴  | foo.ts:42 | descrição curta |
+...
+```
+
+4. Perguntar se deseja aplicar alguma correção

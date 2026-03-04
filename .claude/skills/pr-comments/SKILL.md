@@ -7,113 +7,64 @@ description: "Extrai comentarios de reviews do PR via gh CLI e gera relatorio em
 
 Quando o usuario pedir para **"puxar do coderabbit"** (ou variantes como "extrai as sugestoes", "pega os comentarios do PR", "relatorio do PR", etc.), execute o fluxo abaixo.
 
-## 1. Atualizar base e detectar numero do PR
+## 1. Detectar branch e numero do PR
 
-- Rode `git fetch origin main` para garantir base atualizada
-- Determine o numero do PR:
-  - Se o usuario informar explicitamente (ex: "PR #91"), use esse numero
-  - Se nao informar, detecta a partir da branch atual:
-    ```bash
-    branch=$(git branch --show-current)
-    prNum=$(gh pr list --head "$branch" --json number --jq '.[0].number')
-    ```
+```bash
+branch=$(git branch --show-current)
+prNum=$(gh pr list --head "$branch" --json number --jq '.[0].number')
+```
 
 Se nao encontrar PR, avisar usuario e nao prosseguir.
 
-## 2. Obter detalhes do PR e reviews
+O usuario tambem pode informar o numero do PR explicitamente (ex: "PR #97") ou via URL — nesse caso, extrair o numero da URL.
+
+## 2. Baixar conteudo via gh CLI
 
 ```bash
-# Obter informacoes basicas do PR
-prNum=$1  # ou detected do passo anterior
-prInfo=$(gh pr view $prNum --json title,state,url --jq '{title: .title, state: .state, url: .url}')
+prInfo=$(gh pr view $prNum --json title,state,url,headRefName --jq '{title, state, url, branch: .headRefName}')
+
+# Comentarios inline (reviews do CodeRabbit)
+inlineComments=$(gh api repos/{owner}/{repo}/pulls/$prNum/comments \
+  --jq '[.[] | {path: .path, line: .original_line, body: .body, user: .user.login}]')
+
+# Body do review principal (contem outside diff + actionable summary)
+reviewBody=$(gh api repos/{owner}/{repo}/pulls/$prNum/reviews \
+  --jq '.[] | select(.user.login | contains("coderabbit")) | .body')
 ```
 
-Obter reviews e comments:
-```bash
-# Reviews do PR
-reviews=$(gh api repos/{owner}/{repo}/pulls/$prNum/reviews --jq '.[] | {state, body, user: .user.login}')
+## 3. Analisar e salvar em `.cursor/pr-comments/pr-{N}.md`
 
-# Comments do CodeRabbit (reviews com body contendo "coderabbit")
-coderabbitReviews=$(gh api repos/{owner}/{repo}/pulls/$prNum/reviews --jq '.[] | select(.body | contains("coderabbit"))')
-```
+Com os dados de `inlineComments` e `reviewBody` em maos, o agente (nao um script bash) deve:
 
-## 3. Parsear comments actionables
+**a) Parsear cada comentario inline** buscando no campo `body`:
+- Severidade: `_🔴 Critical_`, `_🟠 Major_`, `_🟡 Minor_`
+- Titulo em negrito (primeira linha `**...**`)
+- Arquivo + linha ja estao nos campos `path` e `line`
 
-O CodeRabbit retorna comments no body do review em formato estruturado. Extraia:
-- Actionable comments (com link inline)
-- Outside diff comments
-- Nitpicks
+**b) Parsear o `reviewBody`** para extrair:
+- Outside diff comments (bloco `⚠️ Outside diff range comments`)
+- Comentarios que nao aparecem inline
 
-Exemplo de parsing:
-```bash
-# Verificar se ha actionable comments
-echo "$coderabbitReviews" | jq -r '.body' | grep -q "Actionable comments" && echo "Ha actionables"
-```
+**c) Escrever o arquivo** em `.cursor/pr-comments/pr-$prNum.md` com:
+- Cabecalho: titulo, URL, branch, data gerada
+- Estatisticas: total inline, outside diff
+- Secoes por severidade: 🔴 Critical → 🟠 Major → 🟡 Minor
+- Secao de outside diff
+- Tabela resumo ao final com colunas `# | Sev | Arquivo | Problema`
 
-## 4. Gerar relatorio em Markdown
+## 4. Apresentar tabela no chat
 
-Crie o arquivo em `.cursor/pr-comments/pr-$prNum.md`:
+Apos gerar o arquivo, exibir no chat:
 
-```bash
-output=".cursor/pr-comments/pr-$prNum.md"
-
-cat > "$output" <<EOF
-# Relatorio de Comentarios do PR #$prNum
-
-**Titulo**: $(echo "$prInfo" | jq -r '.title')
-**URL**: $(echo "$prInfo" | jq -r '.url')
-**Branch**: $(git branch --show-current)
-**Gerado em**: $(date -u '+%Y-%m-%d UTC')
-
-## Estatisticas
-
-- Total de comentarios no PR: $totalComments
-- Total de reviews: $totalReviews
-- Total de comentarios inline: $inlineComments
-- Arquivos com comentarios: $filesCount
-- Autores: $authors
-
-## Reviews
-
-EOF
-```
-
-## 5. Estruturar comentarios por severidade
-
-Organize os comentarios em tabela por severidade:
-- 🔴 Critical
-- 🟠 Major  
-- 🟡 Minor
-- Nitpicks
-
-Para cada comentario, inclua:
-- Arquivo e linha
-- Tipo (potential issue, refactor suggestion, etc)
-- Descricao do problema
-- Correcao sugerida (se houver code snippet no comentario)
-
-## 6. Fornecer ao usuario
-
-Apresente ao usuario:
 1. Caminho do arquivo gerado
-2. Resumo estatistico
-3. Tabela com principais action items
-4. Pergunte se deseja aplicar alguma correcao
-
-## Exemplo de uso
+2. Resumo estatistico (totais por severidade)
+3. Tabela com todos os action items:
 
 ```
-user: Puxa os comentarios do coderabbit do PR
-assistant: Vou extrair os comentarios do PR atual...
-[executa passos 1-5]
-Pronto! Relatorio gerado em .cursor/pr-comments/pr-91.md
-
-## Tabela de Recomendacoes
-
-| # | Severidade | Arquivo | Problema |
-|---|------------|---------|----------|
-| 1 | 🔴 Critical | Projects.tsx:206 | URL legado... |
+| # | Sev | Arquivo | Problema |
+|---|-----|---------|----------|
+| 1 | 🔴  | foo.ts:42 | descricao curta |
 ...
-
-Quer que eu aplique alguma dessas correcoes?
 ```
+
+4. Perguntar se deseja aplicar alguma correcao
