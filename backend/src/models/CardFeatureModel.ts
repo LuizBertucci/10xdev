@@ -60,13 +60,13 @@ export class CardFeatureModel {
       approvedBy: row.approved_by ?? null,
       createdInProjectId: row.created_in_project_id ?? null,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      tags: Array.isArray(row.tags) ? row.tags : []
     }
 
     // Campos opcionais só adicionados se tiverem valor (para exactOptionalPropertyTypes)
     if (row.tech !== undefined) response.tech = row.tech
     if (row.language !== undefined) response.language = row.language
-    if (row.tags) response.tags = row.tags
     if (row.newsletter_url) response.newsletterUrl = row.newsletter_url
 
     return response
@@ -155,6 +155,17 @@ export class CardFeatureModel {
 
     if (params.language && params.language !== 'all') {
       query = query.ilike('language', params.language)
+    }
+
+    if (params.created_by) {
+      query = query.eq('created_by', params.created_by)
+    }
+
+    if (params.tags) {
+      const tagList = params.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      if (tagList.length > 0) {
+        query = query.contains('tags', tagList)
+      }
     }
 
     // Adicionar filtro por content_type
@@ -1005,6 +1016,37 @@ export class CardFeatureModel {
       return {
         success: true,
         data: { deletedCount: count || 0 },
+        statusCode: 200
+      }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
+      }
+    }
+  }
+
+  static async bulkUpdate(
+    updates: Array<{ id: string } & Partial<CreateCardFeatureRequest>>
+  ): Promise<ModelResult<{ updatedCount: number }>> {
+    try {
+      const now = new Date().toISOString()
+
+      await Promise.all(
+        updates.map(({ id, ...fields }) =>
+          executeQuery(
+            supabaseAdmin
+              .from('card_features')
+              .update({ ...fields, updated_at: now })
+              .eq('id', id)
+          )
+        )
+      )
+
+      return {
+        success: true,
+        data: { updatedCount: updates.length },
         statusCode: 200
       }
     } catch (error: unknown) {

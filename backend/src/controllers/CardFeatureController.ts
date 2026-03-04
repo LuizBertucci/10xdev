@@ -85,6 +85,8 @@ export class CardFeatureController {
         ...(req.query.visibility && { visibility: req.query.visibility as string }),
         ...(req.query.approval_status && { approval_status: req.query.approval_status as string }),
         ...(ownership && { ownership }),
+        ...(req.query.created_by && { created_by: req.query.created_by as string }),
+        ...(req.query.tags && { tags: req.query.tags as string }),
         sortBy: req.query.sortBy as 'tech' | 'language' | 'created_at' | 'updated_at' | 'title',
         sortOrder: req.query.sortOrder as 'asc' | 'desc'
       }
@@ -542,6 +544,43 @@ export class CardFeatureController {
         success: false,
         error: 'Erro interno do servidor'
       })
+    }
+  }
+
+  static async bulkUpdate(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, error: 'Usuário não autenticado' })
+        return
+      }
+
+      const updates = req.body
+
+      if (!Array.isArray(updates) || updates.length === 0) {
+        res.status(400).json({ success: false, error: 'Body deve ser um array com pelo menos um item' })
+        return
+      }
+
+      if (updates.some((item) => !item.id || typeof item.id !== 'string')) {
+        res.status(400).json({ success: false, error: 'Cada item deve ter um campo "id" válido' })
+        return
+      }
+
+      const result = await CardFeatureModel.bulkUpdate(updates)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({ success: false, error: result.error })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        message: `${result.data?.updatedCount} CardFeatures atualizados com sucesso`
+      })
+    } catch (error) {
+      console.error('Erro no controller bulkUpdate:', error)
+      res.status(500).json({ success: false, error: 'Erro interno do servidor' })
     }
   }
 

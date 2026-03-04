@@ -123,8 +123,8 @@ export interface CardFeatureInsert {
 export interface CardFeatureUpdate {
   id?: string
   title?: string
-  tech?: string              // Opcional: usado quando card_type === 'codigos'
-  language?: string          // Opcional: usado quando card_type === 'codigos'
+  tech?: string | null       // Opcional: null para limpar (grava NULL no banco)
+  language?: string | null    // Opcional: null para limpar (grava NULL no banco)
   description?: string
   tags?: string[]             // Categorias/tags do card
   content_type?: ContentType
@@ -236,6 +236,8 @@ export interface CardFeatureQueryParams {
   ownership?: OwnershipFilter | string  // Aceita enum ou string para compatibilidade
   sortBy?: 'title' | 'tech' | 'language' | 'created_at' | 'updated_at'
   sortOrder?: 'asc' | 'desc'
+  created_by?: string
+  tags?: string  // comma-separated: "auth,api,banco"
 }
 
 export interface CardFeatureFilters {

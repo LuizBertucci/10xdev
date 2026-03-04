@@ -10,10 +10,7 @@ import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { Visibility } from '@/types/cardfeature'
 import type { GithubRepoInfo } from '@/types/project'
-import type {
-  CardFeatureUpdate,
-  CreateCardFeatureRequest
-} from '@/types/cardfeature'
+import type { CreateCardFeatureRequest } from '@/types/cardfeature'
 import type {
   GithubWebhookPushPayload,
   GithubWebhookInstallationPayload,
@@ -1215,7 +1212,7 @@ export class GithubService {
     }))
 
     if (updated) {
-      await CardFeatureModel.update(cardFeatureId, { screens: updatedScreens } as unknown as Partial<CardFeatureUpdate>, 'system', 'admin')
+      await CardFeatureModel.update(cardFeatureId, { screens: updatedScreens }, 'system', 'admin')
     }
   }
 
