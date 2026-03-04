@@ -49,7 +49,7 @@ inlineComments=$(gh api repos/$repo/pulls/$prNum/comments \
 
 # Body do review principal (contem outside diff + actionable summary)
 reviewBody=$(gh api repos/$repo/pulls/$prNum/reviews \
-  --jq '.[] | select(.user.login | contains("coderabbit")) | .body')
+  --jq '[.[] | select(.user.login | contains("coderabbit")) | .body] | join("\n\n")')
 ```
 
 ## 3. Analisar e salvar em `.cursor/pr-comments/pr-$prNum.md`
