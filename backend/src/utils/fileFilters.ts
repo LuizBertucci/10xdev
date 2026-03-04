@@ -18,22 +18,15 @@ export const CODE_EXTENSIONS = [
 export const IGNORED_DIRS = [
   'node_modules', '.git', 'dist', 'build', '.next', '__pycache__',
   '.venv', 'venv', '.idea', '.vscode', 'coverage', '.cache', '.turbo',
-  'vendor', '.yarn', '.pnpm', 'out', '.output', 'target', 'bin', 'obj',
-  '__tests__', '__mocks__', 'test', 'tests', 'spec', 'specs', 'e2e',
-  'cypress', 'playwright', '.github', '.husky'
+  'vendor', '.yarn', '.pnpm', 'out', '.output', 'target', 'bin', 'obj'
 ]
 
 export const IGNORED_FILES = [
   'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.DS_Store',
   'thumbs.db', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc',
-  '.prettierrc', '.prettierignore', '.eslintrc', '.eslintrc.js',
-  '.eslintrc.json', 'eslint.config.js', 'eslint.config.mjs',
-  'jest.config.js', 'jest.config.ts', 'vitest.config.ts',
-  'vite.config.ts', 'vite.config.js', 'next.config.js', 'next.config.mjs',
-  'tailwind.config.js', 'tailwind.config.ts', 'postcss.config.js',
-  'postcss.config.mjs', '.env.example', '.env.local', '.env.development',
-  '.env.production', 'LICENSE', 'LICENSE.md', 'CHANGELOG.md',
-  'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md', '.editorconfig'
+  '.prettierrc', '.prettierignore', '.editorconfig',
+  'LICENSE', 'LICENSE.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
+  '.env.example', '.env.local', '.env.development', '.env.production'
 ]
 
 export const EXTENSION_TO_LANGUAGE: Record<string, string> = {
