@@ -11,6 +11,9 @@
 .claude/settings.local.json
 .claude/settings.json
 
+opencode.json
+opencode.jsonc
+
 # next.js
 /.next/
 /out/
