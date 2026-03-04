@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
+import { normalizeGithubFilePath } from '@/utils/githubPath'
 import { GithubModel } from '@/models/GithubModel'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
@@ -447,11 +448,12 @@ export class GithubService {
   // GITSYNC ORCHESTRATION
   // ================================================
 
-  private static extractUniqueFilePaths(card: { screens?: Array<{ blocks?: Array<{ route?: string }> }> }): string[] {
+  private static extractUniqueFilePaths(card: { screens?: Array<{ route?: string; blocks?: Array<{ route?: string }> }> }): string[] {
     const unique = new Set<string>()
     for (const screen of card.screens || []) {
+      if (screen.route) unique.add(normalizeGithubFilePath(screen.route))
       for (const block of screen.blocks || []) {
-        if (block.route) unique.add(block.route)
+        if (block.route) unique.add(normalizeGithubFilePath(block.route))
       }
     }
     return [...unique]
@@ -691,14 +693,13 @@ export class GithubService {
         console.warn('[GitSync] Nao foi possivel obter SHA do ultimo commit')
       }
 
+      // Persiste apenas metadados da conexão; sync_active só após import concluir
       await ProjectModel.updateSyncInfo(projectId, {
         github_installation_id: installationId,
         github_owner: owner,
         github_repo: repo,
         default_branch: branch,
-        github_sync_active: true,
-        last_sync_at: new Date().toISOString(),
-        last_sync_sha: latestSha
+        github_sync_active: false
       })
 
       const repoUrl = `https://github.com/${owner}/${repo}`
@@ -788,12 +789,21 @@ export class GithubService {
 
       const allMappings = await GithubModel.getMappingsByProject(projectId)
 
+      // Import concluído com sucesso — agora ativa o sync
+      await ProjectModel.updateSyncInfo(projectId, {
+        github_sync_active: true,
+        last_sync_at: new Date().toISOString(),
+        last_sync_sha: latestSha
+      })
+
       return {
         success: true,
         mappingsCreated: allMappings.count || 0
       }
     } catch (error: unknown) {
       console.error('[GitSync] Erro ao conectar repo:', error)
+      // Garante que sync_active não fica true se o import falhou
+      await ProjectModel.updateSyncInfo(projectId, { github_sync_active: false }).catch(() => {})
       const err = error as { message?: string }
       return { success: false, mappingsCreated: 0, error: err.message || 'Erro desconhecido' }
     }

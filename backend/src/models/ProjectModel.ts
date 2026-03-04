@@ -880,7 +880,9 @@ export class ProjectModel {
 
       if (branch) {
         const safeBranch = branch.replace(/[^\w\-./]/g, '')
-        query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        if (safeBranch) {
+          query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        }
       }
 
       // Aplicar paginação se fornecida
@@ -948,7 +950,9 @@ export class ProjectModel {
 
       if (branch) {
         const safeBranch = branch.replace(/[^\w\-./]/g, '')
-        query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        if (safeBranch) {
+          query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        }
       }
 
       const { data, count } = await executeQuery<ProjectCardRowWithFeature[] | { count: number | null }>(query)
@@ -1010,7 +1014,9 @@ export class ProjectModel {
 
       if (branch) {
         const safeBranch = branch.replace(/[^\w\-./]/g, '')
-        query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        if (safeBranch) {
+          query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        }
       }
 
       const { data } = await executeQuery<Array<{
