@@ -9,6 +9,9 @@ import type { CardFeature, CardFeatureState, CreateCardFeatureData, UpdateCardFe
 export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFilters?: {
   searchTerm?: string
   selectedTech?: string
+  selectedLanguage?: string
+  selectedAuthor?: string
+  selectedTags?: string[]
   selectedVisibility?: string
   selectedApprovalStatus?: string
   selectedOwnership?: string
@@ -67,6 +70,9 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       const queryParams: QueryParams = {
         ...params,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
+        language: externalFilters?.selectedLanguage && externalFilters.selectedLanguage !== 'all' ? externalFilters.selectedLanguage : undefined,
+        created_by: externalFilters?.selectedAuthor || undefined,
+        tags: externalFilters?.selectedTags?.length ? externalFilters.selectedTags.join(',') : undefined,
         visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
         approval_status: externalFilters?.selectedApprovalStatus !== 'all' ? externalFilters?.selectedApprovalStatus : undefined,
         ownership: externalFilters?.selectedOwnership !== 'all' ? externalFilters?.selectedOwnership : undefined,
@@ -108,7 +114,8 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
       }))
       throw error
     }
-  }, [state.selectedTech, externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedOwnership, externalFilters?.selectedCardType])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedTech, externalFilters?.selectedLanguage, externalFilters?.selectedAuthor, externalFilters?.selectedTags?.join(','), externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedOwnership, externalFilters?.selectedCardType])
 
   // Wrapper para usePagination (precisa retornar void)
   const paginationFetchFn = useCallback(async (params: FetchParams) => {

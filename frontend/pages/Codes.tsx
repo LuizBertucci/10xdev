@@ -6,6 +6,7 @@ import { Search, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, P
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import ActiveFilters from "@/components/ActiveFilters"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
@@ -144,11 +145,18 @@ export default function Codes() {
   // Estados locais para busca e filtro
   const [searchTerm, setSearchTerm] = useState<string>(searchParams?.get('search') || '')
   const [selectedTech, setSelectedTech] = useState<string>(searchParams?.get('tech') || 'all')
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('')
+  const [selectedAuthor, setSelectedAuthor] = useState<string>('')
+  const [selectedAuthorName, setSelectedAuthorName] = useState<string>('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
 
   // Hook principal para operações CRUD e dados da API com filtros locais
   const cardFeatures = useCardFeatures({ initialPage }, {
     searchTerm,
     selectedTech,
+    selectedLanguage,
+    selectedAuthor,
+    selectedTags,
     selectedVisibility,
     selectedApprovalStatus,
     selectedOwnership: selectedOwnershipParam,
@@ -288,6 +296,34 @@ export default function Codes() {
       setIsCreatingJSONLoading(false)
     }
   }
+
+  // Handlers para filtros clicáveis nos badges dos cards
+  const handleFilterByTech = useCallback((tech: string) => {
+    setSelectedTech(tech)
+    cardFeatures.setSelectedTech(tech)
+  }, [cardFeatures.setSelectedTech])
+
+  const handleFilterByLanguage = useCallback((language: string) => {
+    setSelectedLanguage(language)
+  }, [])
+
+  const handleFilterByAuthor = useCallback((authorId: string, authorName: string) => {
+    setSelectedAuthor(authorId)
+    setSelectedAuthorName(authorName)
+  }, [])
+
+  const handleFilterByTag = useCallback((tag: string) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])
+  }, [])
+
+  const handleClearAllFilters = useCallback(() => {
+    setSelectedTech('all')
+    cardFeatures.setSelectedTech('all')
+    setSelectedLanguage('')
+    setSelectedAuthor('')
+    setSelectedAuthorName('')
+    setSelectedTags([])
+  }, [cardFeatures.setSelectedTech])
 
   // Memoized callback for create button - prevents re-renders
   const handleStartCreating = useCallback(() => {
@@ -538,6 +574,21 @@ export default function Codes() {
         </div>
       )}
 
+      {/* Filtros ativos */}
+      {(selectedTech !== 'all' || selectedLanguage || selectedAuthor || selectedTags.length > 0) && (
+        <div className="w-full max-w-[900px] mx-auto">
+          <ActiveFilters
+            filters={[
+              ...(selectedTech !== 'all' ? [{ key: 'tech', label: selectedTech, onRemove: () => { setSelectedTech('all'); cardFeatures.setSelectedTech('all') } }] : []),
+              ...(selectedLanguage ? [{ key: 'language', label: selectedLanguage, onRemove: () => setSelectedLanguage('') }] : []),
+              ...(selectedAuthor ? [{ key: 'author', label: `Autor: ${selectedAuthorName}`, onRemove: () => { setSelectedAuthor(''); setSelectedAuthorName('') } }] : []),
+              ...selectedTags.map(tag => ({ key: `tag-${tag}`, label: `#${tag}`, onRemove: () => setSelectedTags(prev => prev.filter(t => t !== tag)) })),
+            ]}
+            onClearAll={handleClearAllFilters}
+          />
+        </div>
+      )}
+
       {/* ===== CONTEÚDO PRINCIPAL - Visualização em Lista ===== */}
       {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length > 0 && (
         <>
@@ -564,6 +615,11 @@ export default function Codes() {
                     isSelected={selectedCardIds.includes(snippet.id)}
                     onToggleSelect={handleToggleCardSelection}
                     expandOnClick
+                    onFilterByTech={handleFilterByTech}
+                    onFilterByLanguage={handleFilterByLanguage}
+                    onFilterByAuthor={handleFilterByAuthor}
+                    onFilterByTag={handleFilterByTag}
+                    activeTags={selectedTags}
                   />
 
                   {selectedDirectoryTab === 'global' && selectedGlobalStatus === 'pending' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (

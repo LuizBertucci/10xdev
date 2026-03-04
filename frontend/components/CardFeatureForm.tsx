@@ -16,14 +16,30 @@ import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
 
+/** Valor usado no Select para "não selecionado"; Radix não permite value="" em SelectItem. */
+const SELECT_NONE = '__none__'
+
+/** Opções permitidas para Tech (Códigos) — valores fora desta lista não são aceitos. */
+const ALLOWED_TECH = ['React', 'Node.js', 'Python', 'JavaScript', 'Vue.js', 'Angular'] as const
+/** Opções permitidas para Language (Códigos) — valores fora desta lista não são aceitos. */
+const ALLOWED_LANGUAGE = ['typescript', 'javascript', 'python', 'html', 'css'] as const
+
+function isAllowedTech(value: string | undefined): value is (typeof ALLOWED_TECH)[number] {
+  return !!value && ALLOWED_TECH.includes(value as (typeof ALLOWED_TECH)[number])
+}
+function isAllowedLanguage(value: string | undefined): value is (typeof ALLOWED_LANGUAGE)[number] {
+  return !!value && ALLOWED_LANGUAGE.includes(value?.toLowerCase() as (typeof ALLOWED_LANGUAGE)[number])
+}
+
 const DEFAULT_FORM_DATA: CardFeatureFormData = {
   title: '',
-  tech: 'React',
-  language: 'typescript',
+  tech: undefined,
+  language: undefined,
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
   visibility: Visibility.UNLISTED, // Padrão: Meus Códigos (owner + compartilhados)
+  tags: [],
   screens: [
     {
       name: 'Main',
@@ -42,13 +58,14 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
 
 interface CardFeatureFormData {
   title: string
-  tech?: string
-  language?: string
+  tech?: string | null
+  language?: string | null
   description: string
   content_type: ContentType
   card_type: CardType
   visibility: Visibility
   screens: CreateScreenData[]
+  tags?: string[]
   // Campos opcionais para posts
   category?: string
   file_url?: string
@@ -257,13 +274,14 @@ export default function CardFeatureForm({
   const [formData, setFormData] = useState<CardFeatureFormData>(() => {
     const baseData = mode === 'edit' && initialData ? {
       title: initialData.title,
-      tech: initialData.tech,
-      language: initialData.language,
+      tech: isAllowedTech(initialData.tech) ? initialData.tech : undefined,
+      language: isAllowedLanguage(initialData.language) ? initialData.language : undefined,
       description: initialData.description,
       content_type: initialData.content_type,
       card_type: initialData.card_type,
       visibility: initialData.visibility ?? Visibility.UNLISTED,
       screens: initialData.screens,
+      tags: [...new Set((initialData.tags ?? []).map(t => t.toLowerCase()))],
       // Campos opcionais para posts
       category: initialData.category,
       file_url: initialData.fileUrl,
@@ -285,6 +303,9 @@ export default function CardFeatureForm({
 
   // Estado para visualização desktop (config ou codigo)
   const [desktopViewTab, setDesktopViewTab] = useState<'config' | 'code'>('config')
+
+  // Input de tags
+  const [tagInput, setTagInput] = useState('')
 
   // User Search State para Compartilhamento
   const [selectedUsers, setSelectedUsers] = useState<User[]>([])
@@ -345,13 +366,14 @@ export default function CardFeatureForm({
 
       setFormData({
         title: initialData.title,
-        tech: initialData.tech,
-        language: initialData.language,
+        tech: isAllowedTech(initialData.tech) ? initialData.tech : undefined,
+        language: isAllowedLanguage(initialData.language) ? initialData.language : undefined,
         description: initialData.description,
         content_type: initialData.content_type,
         card_type: initialData.card_type,
         visibility: initialData.visibility ?? Visibility.UNLISTED,
         screens: nextScreens,
+        tags: [...new Set((initialData.tags ?? []).map(t => t.toLowerCase()))],
         file_url: initialData.fileUrl,
         youtube_url: initialData.youtubeUrl,
         video_id: initialData.videoId,
@@ -387,7 +409,7 @@ export default function CardFeatureForm({
   }, [isOpen])
 
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | boolean | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -613,7 +635,13 @@ export default function CardFeatureForm({
 
   const handleSubmit = async () => {
     try {
-      const payload = forcedCardType ? { ...formData, card_type: forcedCardType } : formData
+      const tagsDeduped = [...new Set((formData.tags ?? []).map(t => t.toLowerCase()))]
+      // Enviar null quando "Selecione" para o backend gravar NULL (undefined é omitido no JSON e não atualiza)
+      const techOnlyIfAllowed = formData.tech && formData.tech !== SELECT_NONE && isAllowedTech(formData.tech) ? formData.tech : null
+      const languageOnlyIfAllowed = formData.language && formData.language !== SELECT_NONE && isAllowedLanguage(formData.language) ? formData.language : null
+      const payload = forcedCardType
+        ? { ...formData, card_type: forcedCardType, tags: tagsDeduped, tech: techOnlyIfAllowed, language: languageOnlyIfAllowed }
+        : { ...formData, tags: tagsDeduped, tech: techOnlyIfAllowed, language: languageOnlyIfAllowed }
       // 1. Submeter o formulário principal e obter o card criado/atualizado
       const createdCard = await onSubmit(payload)
       
@@ -793,13 +821,14 @@ export default function CardFeatureForm({
                       <>
                         <div>
                           <Select
-                            value={formData.tech || 'React'}
+                            value={formData.tech ?? SELECT_NONE}
                             onValueChange={(value) => handleInputChange('tech', value)}
                           >
                             <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
-                              <SelectValue />
+                              <SelectValue placeholder="Selecione" />
                             </SelectTrigger>
                             <SelectContent className="text-xs">
+                              <SelectItem value={SELECT_NONE}>Selecione</SelectItem>
                               <SelectItem value="React">React</SelectItem>
                               <SelectItem value="Node.js">Node.js</SelectItem>
                               <SelectItem value="Python">Python</SelectItem>
@@ -812,13 +841,14 @@ export default function CardFeatureForm({
 
                         <div>
                           <Select
-                            value={formData.language || 'typescript'}
+                            value={formData.language ?? SELECT_NONE}
                             onValueChange={(value) => handleInputChange('language', value)}
                           >
                             <SelectTrigger className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0">
-                              <SelectValue />
+                              <SelectValue placeholder="Selecione" />
                             </SelectTrigger>
                             <SelectContent className="text-xs">
+                              <SelectItem value={SELECT_NONE}>Selecione</SelectItem>
                               <SelectItem value="typescript">TypeScript</SelectItem>
                               <SelectItem value="javascript">JavaScript</SelectItem>
                               <SelectItem value="python">Python</SelectItem>
@@ -856,6 +886,48 @@ export default function CardFeatureForm({
                       spellCheck={false}
                       className="flex-1 min-h-[100px] bg-gray-50 border-gray-200 text-xs resize-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
+                  </div>
+
+                  {/* Tags */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                      Tags
+                    </label>
+                    <Input
+                      placeholder="Digite uma tag e pressione Enter"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const tag = tagInput.trim().toLowerCase()
+                          if (tag && !(formData.tags ?? []).includes(tag)) {
+                            handleInputChange('tags', [...(formData.tags ?? []), tag])
+                          }
+                          setTagInput('')
+                        }
+                      }}
+                      className="h-9 bg-gray-50 border-gray-200 text-xs focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                    {(formData.tags ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {(formData.tags ?? []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              onClick={() => handleInputChange('tags', (formData.tags ?? []).filter(t => t !== tag))}
+                              className="hover:text-indigo-900 transition-colors"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

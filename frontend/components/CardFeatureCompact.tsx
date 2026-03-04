@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Bot, ChevronDown } from "lucide-react"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
-import { getTechConfig, getLanguageConfig } from "./utils/techConfigs"
+import { getTechConfig, getLanguageConfig, isAllowedLanguage, getAllowedTechsFromString } from "./utils/techConfigs"
 import ContentRenderer from "./ContentRenderer"
 import DiffViewer from "./DiffViewer"
 import { useAuth } from "@/hooks/useAuth"
@@ -52,9 +52,14 @@ interface CardFeatureCompactProps {
   defaultExpanded?: boolean
   hideVisibility?: boolean
   commitFiles?: CommitFile[]
+  onFilterByTech?: (tech: string) => void
+  onFilterByLanguage?: (language: string) => void
+  onFilterByAuthor?: (authorId: string, authorName: string) => void
+  onFilterByTag?: (tag: string) => void
+  activeTags?: string[]
 }
 
-export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility, commitFiles }: CardFeatureCompactProps) {
+export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate, className, isSelectionMode = false, isSelected = false, onToggleSelect, expandOnClick = false, onExpand, canEdit: canEditOverride, defaultExpanded, hideVisibility, commitFiles, onFilterByTech, onFilterByLanguage, onFilterByAuthor, onFilterByTag, activeTags = [] }: CardFeatureCompactProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const currentCardIdFromUrl = searchParams?.get('id')
@@ -430,7 +435,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 )}
               </div>
 
-              {/* Badges */}
+              {/* Badges — autor + mídia */}
               <div className="flex flex-wrap items-center gap-1.5 min-h-[1.25rem]">
                 {!hideVisibility && (
                   <>
@@ -440,28 +445,12 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                 )}
                 <Badge
                   variant="secondary"
-                  className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700"
+                  className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-gray-300 bg-gray-50 text-gray-700 ${onFilterByAuthor && snippet.createdBy ? 'cursor-pointer hover:bg-gray-200 transition-colors' : ''}`}
+                  onClick={onFilterByAuthor && snippet.createdBy ? (e) => { e.stopPropagation(); onFilterByAuthor(snippet.createdBy!, snippet.author || 'Usuário') } : undefined}
                 >
                   <span className="mr-1">👤</span>
                   {snippet.author || (snippet.createdBy ? 'Usuário' : 'Anônimo')}
                 </Badge>
-                <span className="text-gray-400 text-[8px]">●</span>
-                {snippet.tech && (
-                  <Badge
-                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getTechConfig(snippet.tech).color}`}
-                  >
-                    <span className="mr-1">{getTechConfig(snippet.tech).icon}</span>
-                    {snippet.tech}
-                  </Badge>
-                )}
-                {snippet.language && (!snippet.tech || snippet.language.toLowerCase() !== snippet.tech.toLowerCase()) && (
-                  <Badge
-                    className={`text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border ${getLanguageConfig(snippet.language).color}`}
-                  >
-                    <span className="mr-1 text-[10px] font-bold">{getLanguageConfig(snippet.language).icon}</span>
-                    {snippet.language}
-                  </Badge>
-                )}
                 {hasFile && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 rounded-md shadow-sm border border-red-200 bg-red-50 text-red-700">
                     <FileText className="h-3 w-3 mr-1" />
@@ -475,7 +464,43 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                   </Badge>
                 )}
               </div>
-              
+
+              {/* Tags — tech e language (sanitizados) primeiro, depois tags temáticas */}
+              {(snippet.tech || snippet.language || (snippet.tags && snippet.tags.length > 0)) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {getAllowedTechsFromString(snippet.tech).map((tech) => (
+                    <span
+                      key={tech}
+                      onClick={onFilterByTech ? (e) => { e.stopPropagation(); onFilterByTech(tech) } : undefined}
+                      className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${getTechConfig(tech).color} ${onFilterByTech ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    >
+                      #{tech.toLowerCase()}
+                    </span>
+                  ))}
+                  {snippet.language && isAllowedLanguage(snippet.language) && !getAllowedTechsFromString(snippet.tech).some((t) => t.toLowerCase() === snippet.language!.toLowerCase()) && (
+                    <span
+                      onClick={onFilterByLanguage ? (e) => { e.stopPropagation(); onFilterByLanguage(snippet.language!) } : undefined}
+                      className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${getLanguageConfig(snippet.language).color} ${onFilterByLanguage ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    >
+                      #{snippet.language.toLowerCase()}
+                    </span>
+                  )}
+                  {snippet.tags && [...new Set(snippet.tags)].map((tag) => (
+                    <span
+                      key={tag}
+                      onClick={onFilterByTag ? (e) => { e.stopPropagation(); onFilterByTag(tag) } : undefined}
+                      className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${
+                        activeTags.includes(tag)
+                          ? 'bg-gray-300 text-gray-800 border-gray-500'
+                          : 'bg-gray-100 text-gray-600 border-gray-300'
+                      } ${onFilterByTag ? 'cursor-pointer hover:bg-gray-200' : ''}`}
+                    >
+                      #{tag.toLowerCase()}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {/* Linha separatória */}
               <div className="border-t border-gray-200 pt-2">
                 {/* Ícones em linha horizontal - alinhados à direita */}
