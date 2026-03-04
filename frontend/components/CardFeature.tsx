@@ -197,7 +197,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
                     className="text-xs rounded-md shadow-sm border border-blue-300 bg-blue-50 text-blue-700"
                   >
                     <Link2 className="h-3 w-3 mr-1" />
-                    Seu Espaço
+                    Meus Códigos
                   </Badge>
                 )}
               </div>

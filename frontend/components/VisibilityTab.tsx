@@ -57,7 +57,7 @@ const VisibilityTab = forwardRef<HTMLDivElement, VisibilityTabProps>(
       return renderBadge(
         <>
           <Link2 className={iconClass} />
-          Seu Espaço
+          Meus Códigos
         </>,
         "border-blue-300 bg-blue-50 text-blue-700"
       )

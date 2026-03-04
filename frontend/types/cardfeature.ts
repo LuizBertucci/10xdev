@@ -31,7 +31,7 @@ export enum CardType {
  */
 export enum Visibility {
   PUBLIC = 'public',      // Aparece em listagens públicas
-  UNLISTED = 'unlisted'  // Seu Espaço (owner + compartilhados)
+  UNLISTED = 'unlisted'  // Meus Códigos (owner + compartilhados)
 }
 
 /**

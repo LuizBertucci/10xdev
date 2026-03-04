@@ -23,7 +23,7 @@ const DEFAULT_FORM_DATA: CardFeatureFormData = {
   description: '',
   content_type: ContentType.CODE,
   card_type: CardType.CODIGOS,
-  visibility: Visibility.UNLISTED, // Padrão: Seu Espaço (owner + compartilhados)
+  visibility: Visibility.UNLISTED, // Padrão: Meus Códigos (owner + compartilhados)
   screens: [
     {
       name: 'Main',
@@ -880,7 +880,7 @@ export default function CardFeatureForm({
                           )}
                           <span className="truncate">
                           {formData.visibility === Visibility.PUBLIC && "Público - enviar para validação"}
-                            {formData.visibility === Visibility.UNLISTED && "Seu Espaço"}
+                            {formData.visibility === Visibility.UNLISTED && "Meus Códigos"}
                           </span>
                         </div>
                       </SelectTrigger>
@@ -900,7 +900,7 @@ export default function CardFeatureForm({
                           <div className="flex items-center gap-2">
                             <Link2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
                             <div className="min-w-0">
-                              <div className="font-semibold text-xs">Seu Espaço</div>
+                              <div className="font-semibold text-xs">Meus Códigos</div>
                               <div className="text-[10px] text-muted-foreground">Você + compartilhados</div>
                             </div>
                           </div>
