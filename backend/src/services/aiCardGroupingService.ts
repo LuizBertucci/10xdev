@@ -151,7 +151,7 @@ export class AiCardGroupingService {
       throw new Error('Nenhum arquivo elegível para processamento por IA.')
     }
 
-    const PREVIEW_LINES = 10
+    const PREVIEW_LINES = 25
     const fileList = filteredFiles.map(f => ({
       path: f.path,
       size: f.size,
@@ -163,7 +163,7 @@ export class AiCardGroupingService {
       '',
       '## Tarefa',
       'Analise o repositório e organize os arquivos em cards. Cada card representa uma feature completa de ponta a ponta.',
-      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, preview com as primeiras 10 linhas — imports e declarações iniciais).',
+      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, preview com as primeiras 25 linhas — imports e declarações iniciais).',
       '',
       '## O que é um card',
       'Um card = um fluxo completo do usuário. Inclua todos os arquivos que fazem essa feature funcionar:',
@@ -357,7 +357,7 @@ export class AiCardGroupingService {
     console.log('[generateCardSummary] Model:', model)
     console.log('[generateCardSummary] Endpoint:', endpoint)
 
-    const screensContext = params.screens.slice(0, 10).map((screen) => {
+    const screensContext = params.screens.map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
         .map(b => b.route || b.title || '')
