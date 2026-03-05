@@ -7,8 +7,13 @@ import {
   UpdateCardFeatureRequest,
   CardFeatureQueryParams,
   ContentType,
-  CardFeatureScreen
+  CardFeatureScreen,
+  SupportedLanguage,
+  SupportedTech
 } from '@/types/cardfeature'
+
+const VALID_LANGUAGES = Object.values(SupportedLanguage)
+const VALID_TECHS = Object.values(SupportedTech)
 
 export class CardFeatureController {
 
@@ -28,6 +33,22 @@ export class CardFeatureController {
 
       const data: CreateCardFeatureRequest = req.body
       const userId = req.user.id
+
+      if (data.language && !VALID_LANGUAGES.includes(data.language as SupportedLanguage)) {
+        res.status(400).json({
+          success: false,
+          error: `Linguagem inválida: "${data.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
+        })
+        return
+      }
+
+      if (data.tech && !VALID_TECHS.includes(data.tech as SupportedTech)) {
+        res.status(400).json({
+          success: false,
+          error: `Tech inválida: "${data.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
+        })
+        return
+      }
 
       const result = await CardFeatureModel.create(data, userId, req.user.role || 'user')
 
@@ -316,6 +337,22 @@ export class CardFeatureController {
         return
       }
 
+      if (data.language && !VALID_LANGUAGES.includes(data.language as SupportedLanguage)) {
+        res.status(400).json({
+          success: false,
+          error: `Linguagem inválida: "${data.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
+        })
+        return
+      }
+
+      if (data.tech && !VALID_TECHS.includes(data.tech as SupportedTech)) {
+        res.status(400).json({
+          success: false,
+          error: `Tech inválida: "${data.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
+        })
+        return
+      }
+
       const result = await CardFeatureModel.update(id, data, userId, req.user.role || 'user')
 
       if (!result.success) {
@@ -471,6 +508,24 @@ export class CardFeatureController {
         return
       }
 
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        if (item && item.language && !VALID_LANGUAGES.includes(item.language as SupportedLanguage)) {
+          res.status(400).json({
+            success: false,
+            error: `Item ${i + 1}: linguagem inválida "${item.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
+          })
+          return
+        }
+        if (item && item.tech && !VALID_TECHS.includes(item.tech as SupportedTech)) {
+          res.status(400).json({
+            success: false,
+            error: `Item ${i + 1}: tech inválida "${item.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
+          })
+          return
+        }
+      }
+
       const result = await CardFeatureModel.bulkCreate(items, userId, req.user.role || 'user')
 
       if (!result.success) {
@@ -593,6 +648,24 @@ export class CardFeatureController {
       if (updates.some((item) => item === null || typeof item !== 'object' || !item.id || typeof item.id !== 'string')) {
         res.status(400).json({ success: false, error: 'Cada item deve ter um campo "id" válido' })
         return
+      }
+
+      for (let i = 0; i < updates.length; i++) {
+        const item = updates[i]
+        if (item && item.language && !VALID_LANGUAGES.includes(item.language as SupportedLanguage)) {
+          res.status(400).json({
+            success: false,
+            error: `Item ${i + 1}: linguagem inválida "${item.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
+          })
+          return
+        }
+        if (item && item.tech && !VALID_TECHS.includes(item.tech as SupportedTech)) {
+          res.status(400).json({
+            success: false,
+            error: `Item ${i + 1}: tech inválida "${item.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
+          })
+          return
+        }
       }
 
       const result = await CardFeatureModel.bulkUpdate(updates)
