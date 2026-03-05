@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import ActiveFilters from "@/components/ActiveFilters"
+import FiltersModal from "@/components/FiltersModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
@@ -469,60 +470,74 @@ export default function Codes() {
               </TabsTrigger>
             </TabsList>
 
-            {/* Sub-filters: Pendentes / Aprovados / Todos - only in Global */}
-            <Tabs value={selectedGlobalStatus} onValueChange={setSelectedGlobalStatus} className={`${selectedDirectoryTab === 'global' ? 'block' : 'hidden'} ml-auto`}>
-              <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
-                <TabsTrigger 
-                  value="pending"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Pendentes
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="approved"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700"
-                >
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  Aprovados
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="all"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  Todos
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* Sub-filters row: tabs em cima/direita, Filtros embaixo/esquerda */}
+            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between gap-2">
+              <FiltersModal
+                selectedTech={selectedTech}
+                selectedLanguage={selectedLanguage}
+                selectedTags={selectedTags}
+                onSelectTech={(tech) => { setSelectedTech(tech); cardFeatures.setSelectedTech(tech) }}
+                onSelectLanguage={setSelectedLanguage}
+                onSelectTags={setSelectedTags}
+              />
 
-            {/* Sub-filters: Compartilhados / Criados / Todos - only in Meus Códigos */}
-            <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={`${selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'} ml-auto`}>
-              <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
-                <TabsTrigger 
-                  value="shared_with_me"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-700"
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                  Compartilhados
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="created_by_me"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700"
-                >
-                  <User className="h-3.5 w-3.5" />
-                  Criados por mim
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="all"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  Todos
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+              <div>
+              {/* Pendentes / Aprovados / Todos - only in Global */}
+              <Tabs value={selectedGlobalStatus} onValueChange={setSelectedGlobalStatus} className={selectedDirectoryTab === 'global' ? 'block' : 'hidden'}>
+                <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
+                  <TabsTrigger
+                    value="pending"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Pendentes
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="approved"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700"
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    Aprovados
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="all"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Todos
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Compartilhados / Criados / Todos - only in Meus Códigos */}
+              <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'}>
+                <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
+                  <TabsTrigger
+                    value="shared_with_me"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-700"
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                    Compartilhados
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="created_by_me"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700"
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    Criados por mim
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="all"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Todos
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
+        </div>
         </Tabs>
       </div>
 
