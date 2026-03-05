@@ -17,6 +17,9 @@ router.get('/stats', CardFeatureController.getStats)
 // SEARCH - Rota específica para busca (com autenticação opcional para filtrar visibilidade)
 router.get('/search', optionalAuth, CardFeatureController.search)
 
+// FILTERS METADATA - Retorna techs, languages e tags disponíveis
+router.get('/filters', CardFeatureController.getFilters)
+
 // TECH FILTER - Rota específica para filtrar por tecnologia
 router.get('/tech/:tech', optionalAuth, CardFeatureController.getByTech)
 

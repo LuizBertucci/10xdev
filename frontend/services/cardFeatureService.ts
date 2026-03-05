@@ -37,6 +37,10 @@ class CardFeatureService {
     return apiClient.get<CardFeatureStats>(`${this.endpoint}/stats`)
   }
 
+  async getFilters(): Promise<ApiResponse<{ techs: string[]; languages: string[]; tags: string[] }> | undefined> {
+    return apiClient.get<{ techs: string[]; languages: string[]; tags: string[] }>(`${this.endpoint}/filters`)
+  }
+
   // ================================================
   // UPDATE
   // ================================================
@@ -103,10 +107,10 @@ class CardFeatureService {
    * Busca CardFeatures recentes
    */
   async getRecent(limit: number = 5): Promise<ApiResponse<CardFeature[]>> {
-    return (await this.getAll({ 
-      limit, 
-      sortBy: 'created_at', 
-      sortOrder: 'desc' 
+    return (await this.getAll({
+      limit,
+      sortBy: 'created_at',
+      sortOrder: 'desc'
     })) ?? { success: false, error: 'Nenhuma resposta do servidor' }
   }
 
@@ -141,9 +145,9 @@ class CardFeatureService {
   async getByMultipleTechs(techs: string[]): Promise<CardFeature[]> {
     const promises = techs.map(tech => this.getByTech(tech))
     const results = await Promise.allSettled(promises)
-    
+
     const allCardFeatures: CardFeature[] = []
-    
+
     results.forEach(result => {
       if (result.status === 'fulfilled') {
         const response = result.value
@@ -152,12 +156,12 @@ class CardFeatureService {
         }
       }
     })
-    
+
     // Remover duplicatas baseado no ID
-    const uniqueCardFeatures = allCardFeatures.filter((item, index, self) => 
+    const uniqueCardFeatures = allCardFeatures.filter((item, index, self) =>
       index === self.findIndex(t => t.id === item.id)
     )
-    
+
     return uniqueCardFeatures
   }
 
