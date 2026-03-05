@@ -180,10 +180,11 @@ export function buildCardsFromAiOutput(aiCards: AiCard[], files: FileEntry[]): C
         })
       } else {
         // Múltiplos arquivos: uma aba por arquivo, nomeada pelo filename
+        // Não herda description do grupo — seria a mesma para todos os filhos e não aparece na UI
         for (const file of matchedFiles) {
           screens.push({
             name: file.path.split('/').pop() || file.path,
-            description: screenObj.description || '',
+            description: '',
             route: '',
             blocks: [createContentBlock(file, 0)]
           })
