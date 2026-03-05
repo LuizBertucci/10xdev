@@ -1,11 +1,14 @@
+import { randomUUID } from 'crypto'
+import type { Request, Response } from 'express'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
 import { GithubModel } from '@/models/GithubModel'
 import { GithubService } from '@/services/githubService'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
+import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from '@/services/llmClient'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
-import { Visibility } from '@/types/cardfeature'
+import { Visibility, ContentType, CardType } from '@/types/cardfeature'
 import type { CreateCardFeatureRequest } from '@/types/cardfeature'
 import {
   ProjectMemberRole,
@@ -942,5 +945,246 @@ export class ProjectController {
       message: `Conflito resolvido: ${resolution === 'keep_card' ? 'versão do card mantida' : 'versão do GitHub aplicada'}`
     })
   })
+
+  /** POST /api/projects/:id/cards/generate-flow — streaming NDJSON */
+  static generateFlowCard = async (req: Request, res: Response): Promise<void> => {
+    res.setHeader('Content-Type', 'application/x-ndjson')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.flushHeaders()
+
+    const emit = (data: object) => res.write(JSON.stringify(data) + '\n')
+
+    try {
+      if (!req.user) {
+        emit({ type: 'error', message: 'Não autenticado' })
+        res.end(); return
+      }
+
+      const id = req.params['id']
+      if (!id) {
+        emit({ type: 'error', message: 'ID do projeto é obrigatório' })
+        res.end(); return
+      }
+
+      const { searchTerm, branch } = req.body as { searchTerm?: string; branch?: string }
+      if (!searchTerm?.trim()) {
+        emit({ type: 'error', message: 'searchTerm é obrigatório' })
+        res.end(); return
+      }
+
+      // Passo 1
+      emit({ type: 'step', label: 'Verificando acesso ao projeto...' })
+      const projectResult = await ProjectModel.findById(id, req.user.id)
+      if (!projectResult.success) {
+        emit({ type: 'error', message: 'Projeto não encontrado ou sem acesso' })
+        res.end(); return
+      }
+
+      // Passo 2
+      emit({ type: 'step', label: 'Buscando código importado...' })
+      const cardsResult = await ProjectModel.getCardsAll(id, branch)
+      if (!cardsResult.success || !cardsResult.data?.length) {
+        emit({ type: 'error', message: 'Projeto não tem cards importados para gerar um flow' })
+        res.end(); return
+      }
+
+      const allBlocks: Array<{ route: string; content: string; language?: string }> = []
+      for (const projectCard of cardsResult.data) {
+        const cf = projectCard.cardFeature
+        if (!cf) continue
+        for (const screen of cf.screens ?? []) {
+          for (const block of screen.blocks ?? []) {
+            if (block.route && block.content) {
+              allBlocks.push({ route: block.route, content: block.content, ...(block.language ? { language: block.language } : {}) })
+            }
+          }
+        }
+      }
+
+      if (!allBlocks.length) {
+        emit({ type: 'error', message: 'Nenhum bloco com código encontrado no projeto' })
+        res.end(); return
+      }
+
+      // Passo 3 — word boundary para evitar match em substrings (ex: "async" ao buscar "sync")
+      const termRaw = searchTerm.trim()
+      const termRegex = new RegExp(`\\b${termRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+      const matchedBlocks = allBlocks.filter(b =>
+        termRegex.test(b.route) || termRegex.test(b.content)
+      )
+
+      if (!matchedBlocks.length) {
+        emit({ type: 'error', message: `Nenhuma referência a "${searchTerm}" encontrada no código importado` })
+        res.end(); return
+      }
+
+      emit({ type: 'step', label: `${allBlocks.length} blocos encontrados — ${matchedBlocks.length} com referência a "${searchTerm}"` })
+
+      const allRoutes = [...new Set(allBlocks.map(b => b.route))]
+      const matchedSection = matchedBlocks
+        .map(b => `### ${b.route}\n\`\`\`${b.language || ''}\n${b.content}\n\`\`\``)
+        .join('\n\n')
+
+      const prompt = `Você é um especialista em arquitetura de software.
+
+O usuário quer entender o flow de: "${searchTerm}"
+
+## Arquivos com match direto (conteúdo completo)
+
+Esses arquivos contêm referências diretas ao termo "${searchTerm}".
+Use-os como ponto de entrada para traçar o flow.
+
+${matchedSection}
+
+## Todos os arquivos disponíveis no projeto (só paths)
+
+Se o flow referenciar arquivos que não estão acima, consulte esta lista
+para saber quais existem. Use os paths para nomear as screens mesmo sem o conteúdo.
+
+${allRoutes.join('\n')}
+
+## Instrução
+
+Trace o caminho crítico de execução do flow "${searchTerm}":
+1. Identifique o entry point (geralmente no frontend)
+2. Siga as chamadas: componente → API call → rota → controller → service → model → query
+3. Pare nas queries do banco — não inclua schema ou migrations
+4. Para cada arquivo no caminho, extraia apenas os trechos diretamente envolvidos
+
+Gere um card com uma screen por arquivo, ordenadas pela execução: frontend → api → backend → database.
+
+Regras para o JSON:
+- "name" da screen: nome curto descritivo do papel do arquivo (ex: "Frontend Trigger", "API Route", "Controller"). NÃO inclua o nome do arquivo no name.
+- "route" da screen e dos blocks: caminho relativo COMPLETO do arquivo (ex: "frontend/pages/ProjectDetail.tsx", "backend/src/controllers/ProjectController.ts"). Use exatamente o path que aparece nos arquivos listados acima.
+- Cada block deve ter o mesmo "route" da screen que pertence.
+
+Retorne apenas JSON válido:
+{
+  "title": "string",
+  "description": "string",
+  "tags": ["string"],
+  "screens": [
+    {
+      "name": "string",
+      "description": "string",
+      "route": "frontend/pages/ExamplePage.tsx",
+      "blocks": [
+        { "type": "code", "title": "string", "content": "string", "language": "string", "route": "frontend/pages/ExamplePage.tsx", "order": 0 }
+      ]
+    }
+  ]
+}`
+
+      // Passo 4
+      emit({ type: 'step', label: 'IA traçando o caminho crítico...' })
+
+      const apiKey = resolveApiKey()
+      if (!apiKey) {
+        emit({ type: 'error', message: 'API key não configurada' })
+        res.end(); return
+      }
+
+      const aiResponse = await callChatCompletions({
+        endpoint: resolveChatCompletionsUrl(),
+        apiKey,
+        body: { model: 'grok-4-1-fast-reasoning', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }
+      })
+
+      // Passo 5
+      emit({ type: 'step', label: 'Interpretando resposta e montando o card...' })
+
+      const raw = aiResponse.content.trim()
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (codeBlock) {
+          parsed = JSON.parse(codeBlock[1]!.trim())
+        } else {
+          const first = raw.indexOf('{')
+          const last = raw.lastIndexOf('}')
+          if (first >= 0 && last > first) {
+            parsed = JSON.parse(raw.slice(first, last + 1))
+          } else {
+            emit({ type: 'error', message: 'Resposta da IA não é JSON válido' })
+            res.end(); return
+          }
+        }
+      }
+
+      const data = parsed as {
+        title?: string
+        description?: string
+        tags?: string[]
+        screens?: Array<{
+          name?: string
+          description?: string
+          route?: string
+          blocks?: Array<{ type?: string; title?: string; content?: string; language?: string; route?: string; order?: number }>
+        }>
+      }
+
+      if (!data.title || !data.screens?.length) {
+        emit({ type: 'error', message: 'Resposta da IA inválida: campos obrigatórios ausentes' })
+        res.end(); return
+      }
+
+      // Passo 6
+      emit({ type: 'step', label: 'Salvando card no projeto...' })
+
+      const cardData: CreateCardFeatureRequest = {
+        title: data.title,
+        description: data.description || `Flow de ${searchTerm}`,
+        tags: data.tags || [searchTerm],
+        content_type: ContentType.CODE,
+        card_type: CardType.CODIGOS,
+        visibility: Visibility.UNLISTED,
+        created_in_project_id: id,
+        screens: data.screens.map(screen => {
+          // A IA às vezes coloca o arquivo entre parênteses no nome: "Frontend Trigger (ProjectDetail.tsx)"
+          // Extraímos a rota do parêntese e limpamos o nome
+          const parenMatch = (screen.name || '').match(/\(([^)]+)\)/)
+          const routeFromName = parenMatch ? parenMatch[1] : null
+          const screenRoute = screen.route || routeFromName || null
+          const cleanName = (screen.name || 'Arquivo').replace(/\s*\([^)]*\)\s*/g, '').trim() || 'Arquivo'
+
+          return {
+            name: cleanName,
+            description: screen.description || '',
+            ...(screenRoute ? { route: screenRoute } : {}),
+            blocks: (screen.blocks || []).map((block, idx) => {
+              const blockRoute = block.route || screenRoute
+              return {
+                id: randomUUID(),
+                type: (block.type || ContentType.CODE) as ContentType,
+                content: block.content || '',
+                order: block.order ?? idx,
+                title: blockRoute
+                  ? blockRoute.split('/').pop()?.replace(/\.[^.]+$/, '') ?? blockRoute
+                  : (block.title || 'Código'),
+                ...(block.language ? { language: block.language } : {}),
+                ...(blockRoute ? { route: blockRoute } : {}),
+              }
+            })
+          }
+        })
+      }
+
+      const createResult = await CardFeatureModel.create(cardData, req.user.id, req.user.role)
+      if (!createResult.success || !createResult.data) {
+        emit({ type: 'error', message: createResult.error || 'Erro ao criar card' })
+        res.end(); return
+      }
+
+      await ProjectModel.addCard(id, createResult.data.id, req.user.id)
+
+      emit({ type: 'done', card: createResult.data })
+    } catch (error) {
+      emit({ type: 'error', message: error instanceof Error ? error.message : 'Erro interno do servidor' })
+    } finally {
+      res.end()
+    }
+  }
 
 }

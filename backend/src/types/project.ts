@@ -155,6 +155,7 @@ export interface ProjectCardResponse {
     tech?: string
     language?: string
     description: string
+    screens?: import('@/types/cardfeature').CardFeatureScreen[]
     // Campos opcionais para posts
     category?: string
     fileUrl?: string
