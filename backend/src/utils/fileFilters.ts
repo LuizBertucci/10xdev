@@ -22,11 +22,11 @@ export const IGNORED_DIRS = [
 ]
 
 export const IGNORED_FILES = [
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.DS_Store',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '.ds_store',
   'thumbs.db', '.gitignore', '.gitattributes', '.npmrc', '.nvmrc',
   '.prettierrc', '.prettierignore', '.editorconfig',
-  'LICENSE', 'LICENSE.md', 'CHANGELOG.md', 'CONTRIBUTING.md', 'CODE_OF_CONDUCT.md',
-  '.env.example', '.env.local', '.env.development', '.env.production'
+  'license', 'license.md', 'changelog.md', 'contributing.md', 'code_of_conduct.md',
+  '.env', '.env.example', '.env.local', '.env.development', '.env.production'
 ]
 
 export const EXTENSION_TO_LANGUAGE: Record<string, string> = {

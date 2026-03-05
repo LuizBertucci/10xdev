@@ -1029,7 +1029,12 @@ export class ProjectModel {
         } | null
       }> | null>(query)
 
-      const rows = data || []
+      const safeBranchForSort = branch?.replace(/[^\w\-./]/g, '') || null
+      const rows = (data || []).sort((a, b) => {
+        const aMatch = a.branch_name && a.branch_name === safeBranchForSort ? 0 : 1
+        const bMatch = b.branch_name && b.branch_name === safeBranchForSort ? 0 : 1
+        return aMatch - bMatch
+      })
       for (const row of rows) {
         const card = row.card_feature
         if (!card?.id) continue

@@ -82,6 +82,7 @@ export class AiCardGroupingService {
         normalizedScreens.push({
           ...screen,
           name: derivedName,
+          route: routeOrTitle,
           blocks: baseBlocks
         })
       })

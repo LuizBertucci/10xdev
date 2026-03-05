@@ -537,11 +537,14 @@ export class GithubService {
     }
 
     for (const duplicateCardId of cardsToDelete) {
-      await GithubModel.deleteByCard(duplicateCardId)
-      await ProjectModel.removeCard(projectId, duplicateCardId, userId)
+      const githubResult = await GithubModel.deleteByCard(duplicateCardId)
+      if (!githubResult.success) throw new Error(`Falha ao deletar github mapping do card ${duplicateCardId}: ${githubResult.error}`)
+      const projectResult = await ProjectModel.removeCard(projectId, duplicateCardId, userId)
+      if (!projectResult.success) throw new Error(`Falha ao remover card ${duplicateCardId} do projeto: ${projectResult.error}`)
     }
 
-    await CardFeatureModel.bulkDelete(cardsToDelete)
+    const deleteResult = await CardFeatureModel.bulkDelete(cardsToDelete)
+    if (!deleteResult.success) throw new Error(`Falha ao deletar card_features duplicados: ${deleteResult.error}`)
     return { removedCards: cardsToDelete.length, mergedGroups }
   }
 
@@ -1200,10 +1203,11 @@ export class GithubService {
     const card = cardResult.data
     let updated = false
 
+    const normalizedTarget = normalizeGithubFilePath(filePath)
     const updatedScreens = (card.screens || []).map(screen => ({
       ...screen,
       blocks: (screen.blocks || []).map(block => {
-        if (block.route === filePath) {
+        if (block.route && normalizeGithubFilePath(block.route) === normalizedTarget) {
           updated = true
           return { ...block, content: newContent }
         }
@@ -1218,9 +1222,10 @@ export class GithubService {
 
   /** Extrai conteudo de um bloco do card pelo file_path */
   private static getCardBlockContent(card: { screens?: Array<{ blocks?: Array<{ route?: string; content?: string }> }> }, filePath: string): string | null {
+    const normalizedTarget = normalizeGithubFilePath(filePath)
     for (const screen of card.screens || []) {
       for (const block of screen.blocks || []) {
-        if (block.route === filePath && block.content) {
+        if (block.route && normalizeGithubFilePath(block.route) === normalizedTarget && block.content) {
           return block.content
         }
       }

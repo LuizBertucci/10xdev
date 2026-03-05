@@ -4,7 +4,7 @@ export const ALLOWED_TECH_VALUES = ['React', 'Node.js', 'Python', 'JavaScript', 
 export const ALLOWED_LANGUAGE_VALUES = ['typescript', 'javascript', 'python', 'html', 'css'] as const
 
 export function isAllowedTech(value: string | undefined): boolean {
-  return !!value && ALLOWED_TECH_VALUES.includes(value as (typeof ALLOWED_TECH_VALUES)[number])
+  return !!value && ALLOWED_TECH_VALUES.some((t) => t.toLowerCase() === value.toLowerCase())
 }
 
 /** Retorna as techs permitidas que aparecem no texto (ex: "Node.js + React" → ["Node.js", "React"]). */

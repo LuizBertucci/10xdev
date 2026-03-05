@@ -71,7 +71,7 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
         ...params,
         tech: state.selectedTech !== 'all' ? state.selectedTech : undefined,
         language: externalFilters?.selectedLanguage && externalFilters.selectedLanguage !== 'all' ? externalFilters.selectedLanguage : undefined,
-        created_by: externalFilters?.selectedAuthor || undefined,
+        created_by: externalFilters?.selectedAuthor && externalFilters.selectedAuthor !== 'all' ? externalFilters.selectedAuthor : undefined,
         tags: externalFilters?.selectedTags?.length ? externalFilters.selectedTags.join(',') : undefined,
         visibility: externalFilters?.selectedVisibility !== 'all' ? externalFilters?.selectedVisibility : undefined,
         approval_status: externalFilters?.selectedApprovalStatus !== 'all' ? externalFilters?.selectedApprovalStatus : undefined,

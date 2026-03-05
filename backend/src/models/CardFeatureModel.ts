@@ -451,7 +451,7 @@ export class CardFeatureModel {
       const countParams = { ...params }
       delete countParams.page
       delete countParams.limit
-      
+
       const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds, sharedCardIds)
       const { count, error: _countError } = await executeQuery<{ count: number | null } | null>(countQuery)
 
@@ -867,6 +867,78 @@ export class CardFeatureModel {
   }
 
   // ================================================
+  // FILTERS METADATA
+  // ================================================
+
+  static async getFilters(): Promise<ModelResult<{
+    techs: string[]
+    languages: string[]
+    tags: string[]
+  }>> {
+    try {
+      // Buscar techs únicas (apenas cards públicos e aprovados)
+      const { data: techData } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('tech')
+          .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
+          .not('tech', 'is', null)
+      )
+
+      // Buscar languages únicas
+      const { data: languageData } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('language')
+          .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
+          .not('language', 'is', null)
+      )
+
+      // Buscar tags (array column – precisamos achatar)
+      const { data: tagsData } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('tags')
+          .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
+      )
+
+      // Extrair valores únicos e ordenar
+      const techs = [...new Set(
+        (techData as { tech: string | null }[] | null)
+          ?.map(r => r.tech)
+          .filter((t): t is string => !!t) || []
+      )].sort((a, b) => a.localeCompare(b))
+
+      const languages = [...new Set(
+        (languageData as { language: string | null }[] | null)
+          ?.map(r => r.language)
+          .filter((l): l is string => !!l) || []
+      )].sort((a, b) => a.localeCompare(b))
+
+      const tags = [...new Set(
+        (tagsData as { tags: string[] | null }[] | null)
+          ?.flatMap(r => Array.isArray(r.tags) ? r.tags : [])
+          .filter((t): t is string => !!t) || []
+      )].sort((a, b) => a.localeCompare(b))
+
+      return {
+        success: true,
+        data: { techs, languages, tags },
+        statusCode: 200
+      }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
+      }
+    }
+  }
+
+  // ================================================
   // BULK OPERATIONS
   // ================================================
 
@@ -1033,20 +1105,23 @@ export class CardFeatureModel {
     try {
       const now = new Date().toISOString()
 
-      await Promise.all(
+      const results = await Promise.all(
         updates.map(({ id, ...fields }) =>
           executeQuery(
             supabaseAdmin
               .from('card_features')
               .update({ ...fields, updated_at: now })
               .eq('id', id)
+              .select('id')
           )
         )
       )
 
+      const updatedCount = results.filter((r) => r.data && Array.isArray(r.data) && r.data.length > 0).length
+
       return {
         success: true,
-        data: { updatedCount: updates.length },
+        data: { updatedCount },
         statusCode: 200
       }
     } catch (error: unknown) {
@@ -1067,8 +1142,8 @@ export class CardFeatureModel {
    * Inspirado em ProjectModel.addMember
    */
   static async shareWithUsers(
-    cardId: string, 
-    userIds: string[], 
+    cardId: string,
+    userIds: string[],
     ownerId: string
   ): Promise<ModelResult<Record<string, unknown>>> {
     try {
@@ -1322,7 +1397,7 @@ export class CardFeatureModel {
 
       // 3. Transformar resposta (filtra shares sem usuário válido)
       const users: Array<{ id: string; email: string | null; name: string | null; avatarUrl: string | null }> = []
-      
+
       if (shares) {
         for (const share of shares) {
           if (share.users && share.users.id) {

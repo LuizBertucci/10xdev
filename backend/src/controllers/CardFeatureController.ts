@@ -11,11 +11,11 @@ import {
 } from '@/types/cardfeature'
 
 export class CardFeatureController {
-  
+
   // ================================================
   // CREATE - POST /api/card-features
   // ================================================
-  
+
   static async create(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -56,7 +56,7 @@ export class CardFeatureController {
   // ================================================
   // READ - GET /api/card-features
   // ================================================
-  
+
   static async getAll(req: Request, res: Response): Promise<void> {
     try {
       const page = req.query.page ? parseInt(req.query.page as string) : 1
@@ -126,7 +126,7 @@ export class CardFeatureController {
   // ================================================
   // READ - GET /api/card-features/:id
   // ================================================
-  
+
   static async getById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params
@@ -167,7 +167,7 @@ export class CardFeatureController {
   // ================================================
   // READ - GET /api/card-features/search
   // ================================================
-  
+
   static async search(req: Request, res: Response): Promise<void> {
     try {
       const searchTerm = req.query.q as string
@@ -230,7 +230,7 @@ export class CardFeatureController {
   // ================================================
   // READ - GET /api/card-features/tech/:tech
   // ================================================
-  
+
   static async getByTech(req: Request, res: Response): Promise<void> {
     try {
       const { tech } = req.params
@@ -293,7 +293,7 @@ export class CardFeatureController {
   // ================================================
   // UPDATE - PUT /api/card-features/:id
   // ================================================
-  
+
   static async update(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -343,7 +343,7 @@ export class CardFeatureController {
   // ================================================
   // DELETE - DELETE /api/card-features/:id
   // ================================================
-  
+
   static async delete(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -391,7 +391,7 @@ export class CardFeatureController {
   // ================================================
   // STATISTICS - GET /api/card-features/stats
   // ================================================
-  
+
   static async getStats(req: Request, res: Response): Promise<void> {
     try {
       const result = await CardFeatureModel.getStats()
@@ -418,9 +418,38 @@ export class CardFeatureController {
   }
 
   // ================================================
+  // FILTERS METADATA - GET /api/card-features/filters
+  // ================================================
+
+  static async getFilters(_req: Request, res: Response): Promise<void> {
+    try {
+      const result = await CardFeatureModel.getFilters()
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result.data
+      })
+    } catch (error) {
+      console.error('Erro no controller getFilters:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
   // BULK OPERATIONS
   // ================================================
-  
+
   static async bulkCreate(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -561,7 +590,7 @@ export class CardFeatureController {
         return
       }
 
-      if (updates.some((item) => !item.id || typeof item.id !== 'string')) {
+      if (updates.some((item) => item === null || typeof item !== 'object' || !item.id || typeof item.id !== 'string')) {
         res.status(400).json({ success: false, error: 'Cada item deve ter um campo "id" válido' })
         return
       }
@@ -683,8 +712,8 @@ export class CardFeatureController {
         return
       }
 
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         data: result.data,
         message: `Card compartilhado com ${result.data?.sharedWith ?? userIds.length} usuário(s)`
       })
@@ -719,7 +748,7 @@ export class CardFeatureController {
         return
       }
 
-      res.status(200).json({ 
+      res.status(200).json({
         success: true,
         message: 'Compartilhamento removido com sucesso'
       })
@@ -754,7 +783,7 @@ export class CardFeatureController {
         return
       }
 
-      res.status(200).json({ 
+      res.status(200).json({
         success: true,
         data: result.data
       })
@@ -785,7 +814,7 @@ export class CardFeatureController {
       }
       console.log('[generateSummary] Buscando card:', id)
       const cardResult = await CardFeatureModel.findById(id, req.user.id, req.user.role)
-      
+
       if (!cardResult.success) {
         console.log('[generateSummary] ERRO findById:', cardResult.error)
         res.status(cardResult.statusCode || 400).json({ success: false, error: cardResult.error })
@@ -804,24 +833,24 @@ export class CardFeatureController {
       const isOwner = card.createdBy === req.user.id
       const isAdmin = req.user.role === 'admin'
       console.log('[generateSummary] Permissão:', isOwner || isAdmin ? 'OK' : 'BLOQUEADO')
-      
+
       if (!isOwner && !isAdmin) {
         const sharedResult = await CardFeatureModel.getSharedUsers(id, req.user!.id)
         const isShared = sharedResult.data?.some((u) => u.id === req.user!.id) || false
         console.log('[generateSummary] Is Shared:', isShared)
-        
+
         if (!isShared) {
           console.log('[generateSummary] ERRO: Sem permissão (não é dono, admin nem compartilhado)')
           res.status(403).json({ success: false, error: 'Sem permissão para editar este card' })
           return
         }
       }
-      
+
       console.log('[generateSummary] Verificando resumo existente...')
       const existingSummaryScreen = card.screens.find(
         s => s.name.toLowerCase() === 'resumo' || s.name.toLowerCase() === 'overview'
       )
-      
+
       if (existingSummaryScreen && !force) {
         console.log('[generateSummary] Resumo já existe, retornando existente')
         res.status(200).json({
@@ -831,7 +860,7 @@ export class CardFeatureController {
         })
         return
       }
-      
+
       console.log('[generateSummary] Preparando parâmetros para IA...')
       const params: { cardTitle: string; screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>; tech?: string; language?: string } = {
         cardTitle: card.title,
@@ -852,11 +881,11 @@ export class CardFeatureController {
       }
       if (card.tech) params.tech = card.tech
       if (card.language) params.language = card.language
-      
+
       console.log('[generateSummary] Chamando IA para gerar resumo...')
       const { summary } = await AiCardGroupingService.generateCardSummary(params, prompt)
       console.log('[generateSummary] Resumo gerado com sucesso:', summary?.substring(0, 100) + '...')
-      
+
       const summaryScreen: CardFeatureScreen = {
         name: 'Resumo',
         description: 'Resumo gerado por IA sobre esta feature',
@@ -870,7 +899,7 @@ export class CardFeatureController {
       const updatedScreens = existingSummaryScreen
         ? card.screens.map(s => s.name.toLowerCase() === existingSummaryScreen.name.toLowerCase() ? summaryScreen : s)
         : [summaryScreen, ...card.screens]
-      
+
       console.log('[generateSummary] Salvando resumo no banco...')
       const updateResult = await CardFeatureModel.update(id, { screens: updatedScreens }, req.user.id, req.user.role)
       if (!updateResult.success) {
@@ -878,7 +907,7 @@ export class CardFeatureController {
         res.status(updateResult.statusCode || 400).json({ success: false, error: updateResult.error })
         return
       }
-      
+
       console.log('[generateSummary] SUCESSO!')
       res.status(200).json({ success: true, summary, message: 'Resumo gerado com sucesso' })
       console.log('=== [generateSummary] FIM ===')
