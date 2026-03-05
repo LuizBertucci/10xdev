@@ -20,7 +20,6 @@ import { apiRoutes } from '@/routes'
 
 // Import GitSync (used for webhook/callback before express.json)
 import { GithubService } from '@/services/githubService'
-import { GitSyncService } from '@/services/gitSyncService'
 
 type OAuthStateData = {
   origin?: string
@@ -60,14 +59,14 @@ app.use(helmet({
 app.use(corsMiddleware)
 
 // ================================================
-// GITSYNC WEBHOOK & OAUTH CALLBACK
+// GITHUB WEBHOOK & OAUTH CALLBACK
 // Registrados ANTES do express.json() para:
 // - Webhook: receber raw body para verificacao HMAC
 // - OAuth callback: nao requer auth do usuario
 // ================================================
 
 // Webhook - recebe raw body para HMAC verification
-app.post('/api/gitsync/webhook',
+app.post('/api/github/webhook',
   express.raw({ type: 'application/json' }),
   async (req, res) => {
     try {
@@ -95,9 +94,9 @@ app.post('/api/gitsync/webhook',
       setImmediate(async () => {
         try {
           if (event === 'push') {
-            await GitSyncService.handleWebhookPush(payload)
+            await GithubService.handleWebhookPush(payload)
           } else if (event === 'installation') {
-            await GitSyncService.handleWebhookInstallation(payload)
+            await GithubService.handleWebhookInstallation(payload)
           }
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err)
@@ -222,8 +221,8 @@ const handleGitSyncCallback = async (req: express.Request, res: express.Response
   }
 }
 
-app.get('/api/gitsync/callback', handleGitSyncCallback)
-app.get('/api/gitsync/oauth/callback', handleGitSyncCallback)
+app.get('/api/github/callback', handleGitSyncCallback)
+app.get('/api/github/oauth/callback', handleGitSyncCallback)
 
 // ================================================
 // PARSING MIDDLEWARE
@@ -269,9 +268,9 @@ app.use((req, res, next) => {
 
 // Timeout de resposta para evitar requests pendurados indefinidamente
 app.use((req, res, next) => {
-  const isGitSyncConnect = req.method === 'POST' && /\/api\/projects\/[^/]+\/gitsync\/connect$/.test(req.originalUrl)
+  const isGitSyncConnect = req.method === 'POST' && /\/api\/projects\/[^/]+\/github\/connect$/.test(req.originalUrl)
   const defaultTimeoutMs = Number(process.env.RESPONSE_TIMEOUT_MS) || 20000
-  const connectTimeoutMs = Number(process.env.GITSYNC_CONNECT_TIMEOUT_MS) || 180000
+  const connectTimeoutMs = Number(process.env.GITHUB_CONNECT_TIMEOUT_MS) || Number(process.env.GITSYNC_CONNECT_TIMEOUT_MS) || 180000
   const timeoutMs = isGitSyncConnect ? connectTimeoutMs : defaultTimeoutMs
   res.setTimeout(timeoutMs, () => {
     const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']

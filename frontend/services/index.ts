@@ -32,7 +32,10 @@ export type {
   GithubRepoInfo,
   GithubAppRepo,
   SyncStatusResponse,
-  ConnectRepoData
+  ConnectRepoData,
+  CommitSummary,
+  CommitFile,
+  CommitDetail
 } from './projectService'
 
 // Template Service

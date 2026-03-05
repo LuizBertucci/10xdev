@@ -17,12 +17,12 @@ export interface ProjectRow {
   created_at: string
   updated_at: string
   created_by: string
-  // GitSync fields
+  // GitHub Sync fields
   github_installation_id?: number | null
   github_owner?: string | null
   github_repo?: string | null
   default_branch?: string | null
-  gitsync_active?: boolean
+  github_sync_active?: boolean
   last_sync_at?: string | null
   last_sync_sha?: string | null
 }
@@ -75,6 +75,7 @@ export interface ProjectCardRow {
   added_by: string
   created_at: string
   order?: number
+  branch_name?: string | null
 }
 
 export interface ProjectCardInsert {
@@ -84,6 +85,7 @@ export interface ProjectCardInsert {
   added_by: string
   created_at?: string
   order?: number
+  branch_name?: string | null
 }
 
 // ================================================
@@ -115,12 +117,12 @@ export interface ProjectResponse {
   cardCount?: number
   cardsCreatedCount?: number // Número de cards criados neste projeto (para deleção)
   userRole?: ProjectMemberRole
-  // GitSync fields
+  // GitHub Sync fields
   githubInstallationId?: number | null
   githubOwner?: string | null
   githubRepo?: string | null
   defaultBranch?: string | null
-  gitsyncActive?: boolean
+  githubSyncActive?: boolean
   lastSyncAt?: string | null
   lastSyncSha?: string | null
 }
@@ -214,6 +216,7 @@ export interface GithubRepoInfo {
   description: string | null
   url: string
   isPrivate: boolean
+  defaultBranch: string
 }
 
 export interface GetGithubInfoRequest {
@@ -253,20 +256,20 @@ export interface ValidateGithubTokenResponse {
 }
 
 // ================================================
-// GITSYNC TYPES
+// GITHUB SYNC TYPES
 // ================================================
 
-export interface GitSyncProjectFields {
+export interface GithubSyncProjectFields {
   github_installation_id?: number | null
   github_owner?: string | null
   github_repo?: string | null
   default_branch?: string | null
-  gitsync_active?: boolean
+  github_sync_active?: boolean
   last_sync_at?: string | null
   last_sync_sha?: string | null
 }
 
-export interface GitSyncFileMappingRow {
+export interface GithubSyncFileMappingRow {
   id: string
   project_id: string
   card_feature_id: string
@@ -281,7 +284,7 @@ export interface GitSyncFileMappingRow {
   created_at: string
 }
 
-export interface GitSyncFileMappingInsert {
+export interface GithubSyncFileMappingInsert {
   id?: string
   project_id: string
   card_feature_id: string
@@ -292,7 +295,7 @@ export interface GitSyncFileMappingInsert {
   card_modified_at?: string | null
 }
 
-export interface GitSyncFileMappingUpdate {
+export interface GithubSyncFileMappingUpdate {
   last_commit_sha?: string | null
   last_synced_at?: string | null
   card_modified_at?: string | null
@@ -312,6 +315,9 @@ export interface SyncStatusResponse {
   active: boolean
   lastSyncAt: string | null
   lastSyncSha: string | null
+  remoteSha: string | null
+  hasUpdates: boolean
+  remoteCheckError?: string | null
   githubOwner: string | null
   githubRepo: string | null
   defaultBranch: string | null
@@ -361,6 +367,33 @@ export interface GithubWebhookPushPayload {
   installation?: {
     id: number
   }
+}
+
+// ================================================
+// COMMIT HISTORY TYPES
+// ================================================
+
+export interface CommitSummary {
+  sha: string
+  shortSha: string
+  message: string
+  description: string | null
+  authorName: string
+  authorAvatar: string | null
+  date: string
+}
+
+export interface CommitFile {
+  filename: string
+  status: 'added' | 'modified' | 'removed' | 'renamed'
+  additions: number
+  deletions: number
+  patch: string | null
+  card: { id: string; title: string } | null
+}
+
+export interface CommitDetail extends CommitSummary {
+  files: CommitFile[]
 }
 
 export interface GithubWebhookInstallationPayload {

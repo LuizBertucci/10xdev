@@ -1,10 +1,9 @@
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
-import { GitSyncModel } from '@/models/GitSyncModel'
+import { GithubModel } from '@/models/GithubModel'
 import { GithubService } from '@/services/githubService'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
-import { GitSyncService } from '@/services/gitSyncService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility } from '@/types/cardfeature'
 import type { CreateCardFeatureRequest } from '@/types/cardfeature'
@@ -138,6 +137,78 @@ export class ProjectController {
         let finalToken = accessToken
         if (!finalToken && installationId) {
           finalToken = await GithubService.getInstallationToken(installationId)
+        }
+
+        // Obter branch padrão real do repositório
+        const repoDetails = await GithubService.getRepoDetails(url, finalToken || undefined)
+        const defaultBranch = repoDetails.defaultBranch
+
+        // Fluxo unificado: se veio via GitHub App (installationId),
+        // a importação já conecta e ativa o sync no mesmo passo.
+        if (installationId) {
+          progressLog.push('Conectando repositório para sincronização contínua...')
+          await updateJob({
+            step: 'downloading_zip',
+            progress: 8,
+            message: 'Conectando repositório para sincronização contínua...',
+            progress_log: [...progressLog]
+          })
+
+          const skippedFiles: Array<{ path: string; reason: string }> = []
+          const filesForReport = await GithubService.listRepoFiles(
+            repoInfo.owner,
+            repoInfo.repo,
+            defaultBranch,
+            finalToken || undefined,
+            { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
+          )
+          progressLog.push(`Arquivos listados: ${filesForReport.length} incluídos, ${skippedFiles.length} ignorados`)
+          await updateJob({
+            file_report_json: {
+              included: filesForReport.map((f) => f.path),
+              ignored: skippedFiles
+            },
+            progress_log: [...progressLog]
+          })
+
+          const connectResult = await GithubService.connectRepo(
+            projectId,
+            installationId,
+            repoInfo.owner,
+            repoInfo.repo,
+            userId,
+            {
+              defaultBranch,
+              onProgress: async (step, progress, message) => {
+                if (message) progressLog.push(message)
+                await updateJob({
+                  step: step as ImportJobStep,
+                  progress,
+                  message: message || null,
+                  progress_log: [...progressLog]
+                })
+              }
+            }
+          )
+
+          if (!connectResult.success) {
+            throw new Error(connectResult.error || 'Erro ao conectar repositório após importação')
+          }
+
+          const cardsResult = await ProjectModel.getCardsAll(projectId)
+          const cardsCreated = cardsResult.count || 0
+
+          await updateJob({
+            status: 'done',
+            step: 'done',
+            progress: 100,
+            message: 'Importação concluída e sincronização com GitHub ativada.',
+            cards_created: cardsCreated,
+            files_processed: connectResult.mappingsCreated,
+            ai_used: true,
+            ai_cards_created: cardsCreated
+          })
+          return
         }
 
         const branch = 'main'
@@ -407,14 +478,16 @@ export class ProjectController {
     const id = requireId(req)
     assertResult(await ProjectModel.findById(id, req.user!.id))
     const { limit, offset } = parseCardPagination(req.query)
-    respondList(res, await ProjectModel.getCards(id, limit, offset))
+    const branch = typeof req.query.branch === 'string' ? req.query.branch : undefined
+    respondList(res, await ProjectModel.getCards(id, limit, offset, branch))
   })
 
   /** GET /api/projects/:id/cards/all */
   static getCardsAll = safeHandler(async (req, res) => {
     const id = requireId(req)
     assertResult(await ProjectModel.findById(id, req.user!.id))
-    respondList(res, await ProjectModel.getCardsAll(id))
+    const branch = typeof req.query.branch === 'string' ? req.query.branch : undefined
+    respondList(res, await ProjectModel.getCardsAll(id, branch))
   })
 
   /** POST /api/projects/:id/cards */
@@ -442,10 +515,10 @@ export class ProjectController {
   })
 
   // ================================================
-  // GITSYNC ENDPOINTS
+  // GITHUB SYNC ENDPOINTS
   // ================================================
 
-  /** GET /api/projects/gitsync/repos
+  /** GET /api/projects/github/repos
    *  Lista repos acessiveis via GitHub App installation */
   static listGithubRepos = safeHandler(async (req, res) => {
     const installationId = Number(req.query.installation_id)
@@ -473,7 +546,112 @@ export class ProjectController {
     }
   })
 
-  /** POST /api/projects/:id/gitsync/connect
+  /** GET /api/projects/:id/github/branches */
+  static listBranches = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const token = await GithubService.getInstallationToken(github_installation_id)
+    const branches = await GithubService.listBranches(token, github_owner, github_repo)
+
+    res.json({ success: true, data: branches })
+  })
+
+  /** GET /api/projects/:id/github/commits?branch=<branch>&page=<n> */
+  static listCommits = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const branch = (req.query.branch as string | undefined) ?? syncInfo.data!.default_branch ?? 'main'
+    const page = parseInt(req.query.page as string) || 1
+
+    const token = await GithubService.getInstallationToken(github_installation_id)
+    const commits = await GithubService.listCommits(token, github_owner, github_repo, branch, 30, page)
+
+    res.json({ success: true, data: commits })
+  })
+
+  /** GET /api/projects/:id/github/commits/:sha */
+  static getCommit = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const sha = req.params['sha']
+    if (!sha) throw badRequest('sha é obrigatório')
+
+    const branch = (req.query.branch as string | undefined) ?? syncInfo.data!.default_branch ?? 'main'
+
+    const token = await GithubService.getInstallationToken(github_installation_id)
+    const detail = await GithubService.getCommitDetail(token, github_owner, github_repo, sha)
+
+    // Enriquecer cada arquivo com o card mapeado
+    const enrichedFiles = await Promise.all(
+      detail.files.map(async file => {
+        let mapping = await GithubModel.getMappingByFilePath(id, file.filename, branch)
+
+        if (!mapping.success || !mapping.data) {
+          const routeMatch = await ProjectModel.findCardByFilePath(id, file.filename, branch)
+          if (routeMatch.success && routeMatch.data) {
+            await GithubModel.upsertMappingsBulk([{
+              project_id: id,
+              card_feature_id: routeMatch.data.cardFeatureId,
+              file_path: file.filename,
+              branch_name: branch,
+              last_synced_at: new Date().toISOString()
+            }])
+            mapping = await GithubModel.getMappingByFilePath(id, file.filename, branch)
+          }
+        }
+
+        if (mapping.success && mapping.data) {
+          const card = await CardFeatureModel.findById(mapping.data.card_feature_id)
+          if (card.success && card.data) {
+            return { ...file, card: { id: card.data.id, title: card.data.title } }
+          }
+        }
+        return file
+      })
+    )
+
+    const mappedCount = enrichedFiles.filter((file) => Boolean(file.card?.id)).length
+    const unmappedCount = enrichedFiles.length - mappedCount
+    console.info('[getCommit] mapping coverage', {
+      projectId: id,
+      branch,
+      sha,
+      filesCount: enrichedFiles.length,
+      mappedCount,
+      unmappedCount
+    })
+
+    res.json({ success: true, data: { ...detail, files: enrichedFiles } })
+  })
+
+  /** POST /api/projects/:id/github/connect
    *  Conecta um projeto a um repo GitHub e importa cards do código */
   static connectRepo = safeHandler(async (req, res) => {
     const id = requireId(req)
@@ -504,7 +682,7 @@ export class ProjectController {
     }
 
     try {
-      const result = await GitSyncService.connectRepo(
+      const result = await GithubService.connectRepo(
         id,
         installationId,
         owner,
@@ -564,7 +742,43 @@ export class ProjectController {
     }
   })
 
-  /** DELETE /api/projects/:id/gitsync/connect
+  /** POST /api/projects/:id/github/import-branch */
+  static importBranch = safeHandler(async (req, res) => {
+    const id = requireId(req)
+    const { branch } = req.body as { branch: string }
+    if (!branch) throw badRequest('branch é obrigatório')
+
+    assertResult(await ProjectModel.findById(id, req.user!.id))
+
+    const syncInfo = await ProjectModel.getSyncInfo(id)
+    assertResult(syncInfo)
+
+    const { github_installation_id, github_owner, github_repo } = syncInfo.data!
+    if (!github_installation_id || !github_owner || !github_repo) {
+      throw badRequest('Projeto não tem repositório GitHub conectado')
+    }
+
+    const result = await GithubService.importBranch(
+      id,
+      github_installation_id,
+      github_owner,
+      github_repo,
+      branch,
+      req.user!.id
+    )
+
+    if (!result.success) {
+      res.status(500).json({ success: false, error: result.error })
+      return
+    }
+
+    res.json({
+      success: true,
+      data: { cardsCreated: result.cardsCreated, branch }
+    })
+  })
+
+  /** DELETE /api/projects/:id/github/connect
    *  Desconecta o projeto do GitHub */
   static disconnectRepo = safeHandler(async (req, res) => {
     const id = requireId(req)
@@ -576,14 +790,14 @@ export class ProjectController {
       github_owner: null,
       github_repo: null,
       default_branch: null,
-      gitsync_active: false,
+      github_sync_active: false,
       last_sync_at: null,
       last_sync_sha: null
     })
     assertResult(updateResult)
 
     // Remover file mappings
-    await GitSyncModel.deleteByProject(id)
+    assertResult(await GithubModel.deleteByProject(id))
 
     res.json({
       success: true,
@@ -591,7 +805,7 @@ export class ProjectController {
     })
   })
 
-  /** GET /api/projects/:id/gitsync/status
+  /** GET /api/projects/:id/github/status
    *  Retorna status de sync do projeto */
   static getSyncStatus = safeHandler(async (req, res) => {
     const id = requireId(req)
@@ -600,25 +814,54 @@ export class ProjectController {
     const syncInfo = await ProjectModel.getSyncInfo(id)
     assertResult(syncInfo)
 
-    const conflicts = await GitSyncModel.countConflicts(id)
-    const mappings = await GitSyncModel.getMappingsByProject(id)
+    const conflicts = await GithubModel.countConflicts(id)
+    const mappings = await GithubModel.getMappingsByProject(id)
+    const sync = syncInfo.data
+
+    let remoteSha: string | null = null
+    let hasUpdates = false
+    let remoteCheckError: string | null = null
+
+    if (
+      sync?.github_sync_active &&
+      sync.github_installation_id &&
+      sync.github_owner &&
+      sync.github_repo
+    ) {
+      try {
+        const branch = sync.default_branch || 'main'
+        const token = await GithubService.getInstallationToken(sync.github_installation_id)
+        remoteSha = await GithubService.getLatestCommitSha(
+          token,
+          sync.github_owner,
+          sync.github_repo,
+          branch
+        )
+        hasUpdates = Boolean(remoteSha && remoteSha !== sync.last_sync_sha)
+      } catch (error) {
+        remoteCheckError = error instanceof Error ? error.message : 'Não foi possível verificar atualizações no GitHub'
+      }
+    }
 
     res.json({
       success: true,
       data: {
-        active: syncInfo.data?.gitsync_active || false,
-        lastSyncAt: syncInfo.data?.last_sync_at || null,
-        lastSyncSha: syncInfo.data?.last_sync_sha || null,
-        githubOwner: syncInfo.data?.github_owner || null,
-        githubRepo: syncInfo.data?.github_repo || null,
-        defaultBranch: syncInfo.data?.default_branch || null,
+        active: sync?.github_sync_active || false,
+        lastSyncAt: sync?.last_sync_at || null,
+        lastSyncSha: sync?.last_sync_sha || null,
+        remoteSha,
+        hasUpdates,
+        remoteCheckError,
+        githubOwner: sync?.github_owner || null,
+        githubRepo: sync?.github_repo || null,
+        defaultBranch: sync?.default_branch || null,
         conflicts,
         totalMappings: mappings.count || 0
       }
     })
   })
 
-  /** POST /api/projects/:id/gitsync/sync
+  /** POST /api/projects/:id/github/sync
    *  Trigger manual de sync GitHub -> Cards */
   static syncProject = safeHandler(async (req, res) => {
     const id = requireId(req)
@@ -627,11 +870,11 @@ export class ProjectController {
     const syncInfo = await ProjectModel.getSyncInfo(id)
     assertResult(syncInfo)
 
-    if (!syncInfo.data?.gitsync_active) {
+    if (!syncInfo.data?.github_sync_active) {
       throw badRequest('GitSync não está ativo neste projeto')
     }
 
-    const result = await GitSyncService.syncFromGithub(id)
+    const result = await GithubService.syncFromGithub(id)
 
     if (!result.success) {
       throw badRequest(result.error || 'Erro ao sincronizar')
@@ -650,7 +893,7 @@ export class ProjectController {
     })
   })
 
-  /** POST /api/projects/:id/gitsync/push
+  /** POST /api/projects/:id/github/push
    *  Envia mudancas de um card para o GitHub como PR */
   static pushToGithub = safeHandler(async (req, res) => {
     const id = requireId(req)
@@ -659,7 +902,7 @@ export class ProjectController {
 
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
-    const result = await GitSyncService.syncToGithub(id, cardFeatureId)
+    const result = await GithubService.syncToGithub(id, cardFeatureId)
 
     if (!result.success) {
       throw badRequest(result.error || 'Erro ao enviar para o GitHub')
@@ -675,7 +918,7 @@ export class ProjectController {
     })
   })
 
-  /** POST /api/projects/:id/gitsync/resolve
+  /** POST /api/projects/:id/github/resolve
    *  Resolve um conflito de sync */
   static resolveConflict = safeHandler(async (req, res) => {
     const id = requireId(req)
@@ -689,7 +932,7 @@ export class ProjectController {
 
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
-    const result = await GitSyncService.resolveConflict(id, fileMappingId, resolution)
+    const result = await GithubService.resolveConflict(id, fileMappingId, resolution)
     if (!result.success) {
       throw badRequest(result.error || 'Erro ao resolver conflito')
     }

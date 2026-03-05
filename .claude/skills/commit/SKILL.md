@@ -60,6 +60,7 @@ Rode **apenas** se: 3+ arquivos alterados, **ou** o usuario pediu explicitamente
 ---
 
 **#N** — `tipo: titulo`
+**Arquivos:** `arquivo1.ts`, `arquivo2.ts`
 > Corpo descritivo em 2-3 linhas explicando o que foi feito e o motivo.
 
 ---

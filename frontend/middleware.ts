@@ -153,7 +153,7 @@ export async function middleware(req: NextRequest) {
       url.searchParams.delete('tab')
       url.searchParams.delete('id')
       
-      // Mantém outros params (contentsTab, gitsync, etc)
+      // Mantém outros params (contentsTab, github_sync, etc)
       return NextResponse.redirect(url, 308)
     }
   }
@@ -164,7 +164,7 @@ export async function middleware(req: NextRequest) {
   // Verifica se é rota privada (começa com algum dos prefixos privados)
   const isPrivate = privatePathPrefixes.some(prefix => pathname.startsWith(prefix))
   const hasOAuthFlags =
-    searchParams.has('gitsync') ||
+    searchParams.has('github_sync') ||
     searchParams.has('installation_id') ||
     searchParams.has('oauth_return')
 

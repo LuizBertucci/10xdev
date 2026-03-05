@@ -242,7 +242,7 @@ export default function LandingPage() {
               <Button
                 variant="outline"
                 className="mt-6 rounded-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-6 py-5 h-auto text-base"
-                onClick={() => goToLoginWithRedirect('/contents')}
+                onClick={() => goToLoginWithRedirect('/contents?tab=tutorials')}
               >
                 Acessar 10xdev.com.br
               </Button>

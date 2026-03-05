@@ -85,6 +85,8 @@ export interface FilterParams {
   ownership?: string
   card_type?: string
   content_type?: string
+  created_by?: string
+  tags?: string  // comma-separated: "auth,api,banco"
 }
 
 export interface QueryParams extends PaginationParams, SortParams, FilterParams {}

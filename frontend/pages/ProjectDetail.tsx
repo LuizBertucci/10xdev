@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, Code2, GitBranch, RefreshCw, ExternalLink, Unplug, MoreVertical, Activity } from "lucide-react"
+import { Plus, Search, Users, Trash2, ChevronUp, ChevronDown, Check, User as UserIcon, Pencil, Loader2, ChevronRight, Info, CheckCircle2, AlertTriangle, Bot, Link2, List, Settings, UserPlus, GitBranch, RefreshCw, ExternalLink, Unplug, Activity, Code2, GitCommitHorizontal, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse } from "@/services"
+import { projectService, type Project, type ProjectMember, type ProjectCard, type SyncStatusResponse, type CommitSummary, type CommitDetail } from "@/services"
 import { cardFeatureService, type CardFeature } from "@/services"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase"
@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureModal from "@/components/CardFeatureModal"
@@ -60,7 +59,7 @@ type GitSyncProgressEvent = {
   message: string
 }
 
-const getGitSyncHistoryStorageKey = (projectId: string) => `gitsync_progress_events:${projectId}`
+const getGitSyncHistoryStorageKey = (projectId: string) => `github_sync_progress_events:${projectId}`
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error) return error.message
@@ -107,10 +106,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isGeneratingModalSummary, setIsGeneratingModalSummary] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
-  const [isEditingName, setIsEditingName] = useState(false)
-  const [nameDraft, setNameDraft] = useState("")
-  const [savingName, setSavingName] = useState(false)
-  const nameInputRef = useRef<HTMLInputElement | null>(null)
   const [showCategories, setShowCategories] = useState(true)
   const [activeTab, setActiveTab] = useState('codes')
   const [cardToEdit, setCardToEdit] = useState<CardFeature | null>(null)
@@ -148,6 +143,24 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [connecting, setConnecting] = useState(false)
   const handledOAuthFlowRef = useRef<string | null>(null)
   const [showGitSyncProgressModal, setShowGitSyncProgressModal] = useState(false)
+
+  // Branch selector state
+  const [branches, setBranches] = useState<string[]>([])
+  const [activeBranch, setActiveBranch] = useState<string | null>(null)
+  const [isBranchLoading, setIsBranchLoading] = useState(false)
+  const [isImportingBranch, setIsImportingBranch] = useState(false)
+  const [branchSearch, setBranchSearch] = useState("")
+  // Commit selector state
+  const [commits, setCommits] = useState<CommitSummary[]>([])
+  const [activeCommit, setActiveCommit] = useState<CommitSummary | null>(null)
+  const [activeCommitDetail, setActiveCommitDetail] = useState<CommitDetail | null>(null)
+  const [isCommitDetailLoading, setIsCommitDetailLoading] = useState(false)
+  const [commitSearch, setCommitSearch] = useState("")
+  const [isLoadingCommits, setIsLoadingCommits] = useState(false)
+  const [hasMoreCommits, setHasMoreCommits] = useState(true)
+  const [commitsPage, setCommitsPage] = useState(1)
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
+
   const [gitSyncProgressEvents, setGitSyncProgressEvents] = useState<GitSyncProgressEvent[]>([])
   const lastProgressSignatureRef = useRef<string | null>(null)
   const progressEventSeqRef = useRef(0)
@@ -287,20 +300,56 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }, [projectId])
 
+  // Carregar branches quando o projeto tiver GitSync ativo
+  useEffect(() => {
+    if (!project?.githubSyncActive || !project?.id) return
+    projectService.listBranches(project.id).then(res => {
+      if (res?.success && res.data) {
+        setBranches(res.data)
+        // Pré-selecionar: branch da URL > localStorage > default_branch
+        if (!activeBranch && project.defaultBranch) {
+          const urlBranch = searchParams?.get('branch')
+          const storedBranch = localStorage.getItem(`activeBranch:${project.id}`)
+          const branchToActivate =
+            (urlBranch && res.data.includes(urlBranch)) ? urlBranch :
+            (storedBranch && res.data.includes(storedBranch)) ? storedBranch :
+            project.defaultBranch
+          setActiveBranch(branchToActivate)
+        }
+      }
+    })
+  }, [project?.githubSyncActive, project?.id, project?.defaultBranch])
+
+  // Recarregar cards ao mudar a branch ativa
+  useEffect(() => {
+    if (activeBranch === null) return
+    setIsBranchLoading(true)
+    loadCards(false, false, activeBranch).finally(() => setIsBranchLoading(false))
+  }, [activeBranch])
+
+  // Resetar filtro de commit ao trocar branch
+  useEffect(() => {
+    setCommits([])
+    setActiveCommit(null)
+    setActiveCommitDetail(null)
+    setCommitsPage(1)
+    setHasMoreCommits(true)
+  }, [activeBranch])
+
   // Detectar retorno do OAuth do GitHub (URL ou sessionStorage quando redirect perde params)
   useEffect(() => {
     if (!searchParams || !projectId) return
 
-    const gitsyncFlag = searchParams.get('gitsync')
+    const githubSyncFlag = searchParams.get('github_sync')
     const hasOAuthReturnFlag = searchParams.has('oauth_return')
     const hasInstallationInUrl = searchParams.has('installation_id')
     const isOAuthCallbackFlow =
-      gitsyncFlag === 'true' || hasOAuthReturnFlag || hasInstallationInUrl
+      githubSyncFlag === 'true' || hasOAuthReturnFlag || hasInstallationInUrl
     if (!isOAuthCallbackFlow) return
 
     let installationId = searchParams.get('installation_id') || null
     if (!installationId && isOAuthCallbackFlow) {
-      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('gitsync_installation_id') : null
+      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('github_sync_installation_id') : null
     }
 
     const shouldShowRepoDialog = Boolean(installationId)
@@ -311,14 +360,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     if (handledOAuthFlowRef.current === flowKey) return
     handledOAuthFlowRef.current = flowKey
 
-    const storedProjectId = sessionStorage.getItem('gitsync_project_id')
+    const storedProjectId = sessionStorage.getItem('github_sync_project_id')
     const isForThisProject = (storedProjectId && storedProjectId === projectId) || !storedProjectId
 
     if (isForThisProject) {
-      if (storedProjectId) sessionStorage.removeItem('gitsync_project_id')
+      if (storedProjectId) sessionStorage.removeItem('github_sync_project_id')
       loadAvailableRepos(Number(installationId), () => {
         const params = new URLSearchParams(searchParams.toString())
-        params.delete('gitsync')
+        params.delete('github_sync')
         params.delete('installation_id')
         const newQuery = params.toString()
         if (newQuery !== searchParams.toString()) {
@@ -369,7 +418,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       return
     }
 
-    const installationId = sessionStorage.getItem('gitsync_installation_id')
+    const installationId = sessionStorage.getItem('github_sync_installation_id')
     if (!installationId) {
       toast.error('Installation ID não encontrado')
       return
@@ -412,7 +461,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         }, ...prev].slice(0, 120))
         setSelectedRepo("")
         await loadSyncStatus()
-        sessionStorage.removeItem('gitsync_installation_id')
       } else {
         toast.error(response?.error || 'Erro ao conectar repositório')
         setGitSyncProgressEvents((prev) => [{
@@ -449,7 +497,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         toast.success(res.message || 'Sincronização concluída')
         await loadSyncStatus()
         // Reload cards to show updated content
-        loadCards(true)
+        loadCards(true, false, activeBranch)
       } else {
         toast.error(res?.error || 'Erro ao sincronizar')
       }
@@ -458,6 +506,64 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     } finally {
       setSyncing(false)
     }
+  }
+
+  const handleImportBranch = async () => {
+    if (!activeBranch || !project?.id) return
+    setIsImportingBranch(true)
+    try {
+      const res = await projectService.importBranch(project.id, activeBranch)
+      if (res?.success) {
+        await loadCards(false, false, activeBranch)
+        toast.success(`Branch "${activeBranch}" importada com sucesso`, {
+          description: `${res.data?.cardsCreated ?? 0} card(s) criado(s)`
+        })
+      } else {
+        toast.error('Erro ao importar branch')
+      }
+    } finally {
+      setIsImportingBranch(false)
+    }
+  }
+
+  const loadCommits = async (branch: string, page = 1, append = false) => {
+    if (!projectId) return
+    if (page === 1) setIsLoadingCommits(true)
+    try {
+      const res = await projectService.listCommits(projectId, branch, page)
+      if (res?.success && res.data) {
+        setCommits(prev => append ? [...prev, ...res.data!] : res.data!)
+        setHasMoreCommits(res.data.length === 30)
+        setCommitsPage(page)
+      } else if (res && !res.success) {
+        toast.error(res.error || 'Erro ao carregar commits')
+      }
+    } finally {
+      setIsLoadingCommits(false)
+    }
+  }
+
+  const handleCommitSelect = async (commit: CommitSummary) => {
+    if (!projectId) return
+    setActiveCommit(commit)
+    setCommitSearch("")
+    setIsDescriptionExpanded(true)
+    setIsCommitDetailLoading(true)
+    try {
+      const res = await projectService.getCommit(projectId, commit.sha, activeBranch ?? undefined)
+      if (res?.success && res.data) {
+        setActiveCommitDetail(res.data)
+      } else if (res && !res.success) {
+        toast.error(res.error || 'Erro ao carregar detalhes do commit')
+      }
+    } finally {
+      setIsCommitDetailLoading(false)
+    }
+  }
+
+  const clearCommitFilter = () => {
+    setActiveCommit(null)
+    setActiveCommitDetail(null)
   }
 
   const handleDisconnect = async () => {
@@ -475,11 +581,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
-  useEffect(() => {
-    if (project?.name && !isEditingName) {
-      setNameDraft(project.name)
-    }
-  }, [project?.name, isEditingName])
+  const canSyncFromGithub = Boolean(
+    syncStatus?.active && (syncStatus.hasUpdates || !syncStatus.lastSyncSha)
+  )
+
 
   // Listen for import job updates
   const lastCardsCreatedRef = useRef<number>(0)
@@ -623,16 +728,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
-  const loadCards = async (incremental: boolean = false, loadMore: boolean = false) => {
+  const loadCards = async (incremental: boolean = false, loadMore: boolean = false, branch?: string | null) => {
     if (!projectId) return
-    
+
     try {
       if (loadMore) {
         setLoadingMoreCards(true)
       } else if (!incremental) {
         setLoadingCards(true)
       }
-      const response = await projectService.getCards(projectId)
+      const response = await projectService.getCards(projectId, undefined, undefined, branch ?? undefined)
       if (response?.success && response?.data) {
         const newCards = response.data
         const totalCount = response.count ?? newCards.length
@@ -662,7 +767,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
   
   const loadMoreCards = async () => {
-    await loadCards(false, true)
+    await loadCards(false, true, activeBranch)
   }
 
   const handleGenerateSummaryFromModal = async (cardId: string, prompt?: string) => {
@@ -791,7 +896,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         toast.success('Card adicionado ao projeto!')
         setIsAddCardDialogOpen(false)
         setSelectedCardId("")
-        loadCards()
+        loadCards(false, false, activeBranch)
         loadAvailableCards()
         showStatus("success", "Card adicionado ao projeto")
       } else {
@@ -861,7 +966,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       if (response?.success) {
         toast.success('Card excluído com sucesso')
         setCardToDelete(null)
-        await loadCards()
+        await loadCards(false, false, activeBranch)
       } else {
         toast.error(response?.error || 'Erro ao excluir card')
       }
@@ -882,7 +987,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       const response = await projectService.removeCard(projectId!, cardFeatureId)
       if (response?.success) {
         toast.success('Card removido do projeto!')
-        loadCards()
+        loadCards(false, false, activeBranch)
         loadAvailableCards()
         showStatus("success", "Card removido do projeto")
       } else {
@@ -903,7 +1008,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       const response = await projectService.reorderCard(projectId, cardFeatureId, direction)
       if (response?.success) {
         toast.success('Card reordenado com sucesso!')
-        loadCards()
+        loadCards(false, false, activeBranch)
         showStatus("success", "Ordem dos cards atualizada")
       } else {
         showStatus("error", response?.error || "Erro ao reordenar card")
@@ -949,58 +1054,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     router.push(route)
   }
 
-  const startEditName = () => {
-    if (!canEditProject) return
-    setNameDraft(project?.name || "")
-    setIsEditingName(true)
-    requestAnimationFrame(() => {
-      nameInputRef.current?.focus()
-      nameInputRef.current?.select()
-    })
-  }
-
-  const cancelEditName = () => {
-    setNameDraft(project?.name || "")
-    setIsEditingName(false)
-  }
-
-  const saveProjectName = async () => {
-    if (!projectId) return
-    const trimmed = nameDraft.trim()
-    if (!trimmed) {
-      toast.error("Nome do projeto é obrigatório")
-      return
-    }
-    if (trimmed === project?.name) {
-      setIsEditingName(false)
-      return
-    }
-    try {
-      setSavingName(true)
-      const response = await projectService.update(projectId, { name: trimmed })
-      if (response?.success) {
-        setProject((prev) => {
-          if (!prev) return response.data || prev
-          if (!response.data) return { ...prev, name: trimmed }
-          return {
-            ...prev,
-            ...response.data,
-            userRole: prev.userRole,
-            memberCount: prev.memberCount,
-            cardCount: prev.cardCount,
-            cardsCreatedCount: prev.cardsCreatedCount
-          }
-        })
-        setIsEditingName(false)
-      } else {
-        showStatus("error", response?.error || "Erro ao atualizar nome")
-      }
-    } catch (error: unknown) {
-      showStatus("error", error instanceof Error ? error.message : "Erro ao atualizar nome")
-    } finally {
-      setSavingName(false)
-    }
-  }
 
   useEffect(() => {
     if (isAddCardDialogOpen) {
@@ -1061,21 +1114,43 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
+  const resolveCommitFileCardId = useMemo(() => {
+    const branchCardIds = new Set(uniqueCardFeatures.map((c) => c.id))
+
+    return (file: CommitDetail['files'][number]): string | null => {
+      const mappedId = file.card?.id
+      if (mappedId && branchCardIds.has(mappedId)) return mappedId
+      return null
+    }
+  }, [uniqueCardFeatures])
+
+  const commitCardIds = useMemo(() => {
+    if (!activeCommitDetail) return null
+    const result = new Set<string>()
+    for (const file of activeCommitDetail.files) {
+      const resolved = resolveCommitFileCardId(file)
+      if (resolved) result.add(resolved)
+    }
+    return result
+  }, [activeCommitDetail, resolveCommitFileCardId])
+
   const filteredCards = uniqueCardFeatures
     .map((cardFeature: CardFeature) => {
       const projectCard = cards.find((c) => c.cardFeatureId === cardFeature.id)
       return { cardFeature, projectCard, order: projectCard?.order ?? 999 }
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .filter(({ cardFeature }) => 
-      (!searchTerm || 
+    .filter(({ cardFeature }) =>
+      (!commitCardIds || commitCardIds.has(cardFeature.id)) &&
+      (!searchTerm ||
         (cardFeature.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (cardFeature.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
       ) &&
       (!categoryFilterIds || categoryFilterIds.has(cardFeature.id))
     )
 
-  const canEditProject = project?.userRole === 'owner' || project?.userRole === 'admin' || user?.role === 'admin'
+  const activeBranchHasNoCards = activeBranch !== null && cards.length === 0 && !loadingCards
+
   const canManageMembers = !!project?.userRole // qualquer membro pode adicionar pessoas
   if (loading || !project) {
     return (
@@ -1105,7 +1180,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           Projetos
         </button>
         <ChevronRight className="h-4 w-4 text-gray-400" />
-        <span className="text-gray-900 font-medium truncate max-w-[160px] sm:max-w-none">
+        <span className="text-gray-900 font-medium">
           {project.name}
         </span>
       </div>
@@ -1142,82 +1217,229 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
 
       {/* Header */}
-      <div className="relative flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0 group">
-            {isEditingName ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <Input
-                  ref={nameInputRef}
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      saveProjectName()
-                    } else if (e.key === "Escape") {
-                      e.preventDefault()
-                      cancelEditName()
+      <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+        <div className="min-w-0 flex flex-col gap-1">
+          {syncStatus?.active && (
+            <div className="flex items-center flex-wrap gap-1.5 border border-blue-200 bg-blue-50 rounded-md px-2 py-1 w-full sm:w-fit sm:h-8">
+              <GitBranch className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+              <span className="text-xs font-medium text-blue-900 hidden sm:inline truncate max-w-[120px]">
+                {syncStatus.githubRepo}
+              </span>
+              {branches.length > 0 ? (
+                <DropdownMenu onOpenChange={open => { if (!open) setBranchSearch("") }}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      disabled={isBranchLoading}
+                      className="inline-flex items-center gap-0.5 text-xs border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-full px-2 h-5 max-w-[120px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-400 flex-shrink-0 disabled:opacity-50"
+                    >
+                      <span className="truncate">{activeBranch || syncStatus.defaultBranch}</span>
+                      <ChevronRight className="h-3 w-3 flex-shrink-0 rotate-90" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-72">
+                    <div className="px-2 py-1.5">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar branch..."
+                          value={branchSearch}
+                          onChange={e => setBranchSearch(e.target.value)}
+                          className="h-7 pl-7 text-xs"
+                          autoFocus
+                          onKeyDown={e => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-52 overflow-y-auto">
+                      {branches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())).length === 0 ? (
+                        <p className="px-2 py-3 text-xs text-muted-foreground text-center">Nenhuma branch encontrada</p>
+                      ) : (
+                        branches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase())).map(b => (
+                          <DropdownMenuItem
+                            key={b}
+                            onClick={() => {
+                            setActiveBranch(b)
+                            setBranchSearch("")
+                            localStorage.setItem(`activeBranch:${projectId}`, b)
+                            const params = new URLSearchParams(searchParams?.toString() || '')
+                            params.set('branch', b)
+                            router.replace(`/projects/${projectId}?${params.toString()}`)
+                          }}
+                            className={b === activeBranch ? 'font-medium bg-accent' : ''}
+                          >
+                            <GitBranch className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                            {b}
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Badge variant="outline" className="text-xs border-blue-300 text-blue-700 bg-blue-50 flex-shrink-0">
+                  {syncStatus.defaultBranch}
+                </Badge>
+              )}
+              {/* Seletor de commit */}
+              {branches.length > 0 && activeBranch && (
+                <div className="flex items-center flex-shrink-0">
+                  <DropdownMenu onOpenChange={open => {
+                    if (open && commits.length === 0 && activeBranch) {
+                      loadCommits(activeBranch, 1, false)
                     }
-                  }}
-                  disabled={savingName}
-                  className="h-9 w-full max-w-[320px] sm:max-w-[360px] text-sm sm:text-base font-semibold"
-                />
+                    if (!open) setCommitSearch("")
+                  }}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={`inline-flex items-center gap-0.5 text-xs border px-2 h-5 max-w-[160px] cursor-pointer focus:outline-none focus:ring-1 flex-shrink-0 ${
+                          activeCommit
+                            ? 'border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 focus:ring-purple-400 rounded-l-full'
+                            : 'border-gray-300 text-gray-600 bg-white hover:bg-gray-50 focus:ring-gray-400 rounded-full max-w-[120px]'
+                        }`}
+                        title="Ver commits"
+                      >
+                        <GitCommitHorizontal className="h-3 w-3 flex-shrink-0" />
+                        {activeCommit
+                          ? <span className="truncate font-mono">{activeCommit.shortSha}</span>
+                          : <span className="truncate">commits</span>
+                        }
+                        {isCommitDetailLoading
+                          ? <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+                          : <ChevronRight className="h-3 w-3 flex-shrink-0 rotate-90" />
+                        }
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-80">
+                      <div className="px-2 py-1.5">
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar por mensagem ou SHA..."
+                            value={commitSearch}
+                            onChange={e => setCommitSearch(e.target.value)}
+                            className="h-7 pl-7 text-xs"
+                            autoFocus
+                            onKeyDown={e => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {isLoadingCommits ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : commits.filter(c =>
+                          !commitSearch ||
+                          c.message.toLowerCase().includes(commitSearch.toLowerCase()) ||
+                          c.shortSha.includes(commitSearch)
+                        ).length === 0 ? (
+                          <p className="px-2 py-3 text-xs text-muted-foreground text-center">Nenhum commit encontrado</p>
+                        ) : (
+                          commits.filter(c =>
+                            !commitSearch ||
+                            c.message.toLowerCase().includes(commitSearch.toLowerCase()) ||
+                            c.shortSha.includes(commitSearch)
+                          ).map(c => (
+                            <DropdownMenuItem
+                              key={c.sha}
+                              onClick={() => handleCommitSelect(c)}
+                              className="flex flex-col items-start gap-0.5 py-2 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-1.5 w-full min-w-0">
+                                <code className="text-xs text-muted-foreground font-mono flex-shrink-0">{c.shortSha}</code>
+                                <span className="text-xs truncate flex-1">{c.message}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">{c.authorName} · {new Date(c.date).toLocaleDateString('pt-BR')}</span>
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                        {!isLoadingCommits && hasMoreCommits && commits.length > 0 && !commitSearch && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              loadCommits(activeBranch, commitsPage + 1, true)
+                            }}
+                            className="w-full py-2 text-xs text-muted-foreground hover:text-foreground text-center hover:bg-accent"
+                          >
+                            Carregar mais
+                          </button>
+                        )}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {activeCommit && (
+                    <button
+                      onClick={clearCommitFilter}
+                      className="h-5 px-1 inline-flex items-center justify-center text-purple-600 hover:text-purple-900 border border-l-0 border-purple-300 bg-purple-50 hover:bg-purple-100 rounded-r-full"
+                      title="Limpar filtro de commit"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {syncStatus.conflicts > 0 && (
+                <Badge variant="destructive" className="text-xs flex-shrink-0">
+                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
+                </Badge>
+              )}
+              {activeBranchHasNoCards && (
                 <Button
                   size="sm"
-                  onClick={saveProjectName}
-                  disabled={savingName}
-                  className="h-8 px-3"
+                  onClick={handleImportBranch}
+                  disabled={isImportingBranch}
+                  className="h-5 px-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Salvar
+                  {isImportingBranch ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Importar branch'}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={cancelEditName}
-                  disabled={savingName}
-                  className="h-8 px-3"
-                >
-                  Cancelar
-                </Button>
-              </div>
-            ) : (
-              <>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate leading-tight">
-                  <span className="text-gray-900 font-bold">Projeto:</span>{" "}
-                  {project.name}
-                </h1>
-                {canEditProject && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={startEditName}
-                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Renomear projeto"
-                  >
-                    <Pencil className="h-4 w-4 text-gray-500" />
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+              )}
+              {syncStatus.lastSyncAt && (
+                <span className="text-xs text-blue-700 hidden md:inline flex-shrink-0">
+                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-5 w-5 inline-flex items-center justify-center rounded text-blue-600 hover:text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+                title="Sincronizar com GitHub"
+              >
+                <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={handleOpenImportProgress}
+                className="h-5 w-5 inline-flex items-center justify-center rounded text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                title="Importações"
+              >
+                <Activity className="h-3 w-3" />
+              </button>
+            </div>
+          )}
 
           {project.description && (
-            <p className="text-sm sm:text-base text-gray-600 mt-1 line-clamp-2">
+            <p className="text-sm sm:text-base text-gray-600 line-clamp-2">
               {project.description}
             </p>
           )}
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 flex-row-reverse">
+        <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
           <Button
-            size="sm"
-            onClick={() => setIsAddCardDialogOpen(true)}
-            className="h-8 px-3 whitespace-nowrap"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => {
+              if (window.innerWidth < 768) {
+                setIsSummaryOpen(prev => !prev)
+              } else {
+                setShowCategories(prev => !prev)
+              }
+            }}
+            title={showCategories ? 'Ocultar Sumário' : 'Ver Sumário'}
           >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Adicionar Card</span>
+            <List className="h-4 w-4" />
           </Button>
 
           {project.userRole && (
@@ -1231,69 +1453,29 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               <UserPlus className="h-5 w-5" />
             </Button>
           )}
-        </div>
-      </div>
 
-      {/* GitSync Status Banner */}
-      {syncStatus?.active && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 mb-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <GitBranch className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-              <span className="text-sm font-medium text-emerald-900 truncate">
-                {syncStatus.githubOwner}/{syncStatus.githubRepo}
-              </span>
-              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50 flex-shrink-0">
-                {syncStatus.defaultBranch}
-              </Badge>
-              {syncStatus.conflicts > 0 && (
-                <Badge variant="destructive" className="text-xs flex-shrink-0">
-                  {syncStatus.conflicts} conflito{syncStatus.conflicts > 1 ? 's' : ''}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {syncStatus.lastSyncAt && (
-                <span className="text-xs text-emerald-600 hidden sm:inline">
-                  Sync: {new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
-                className="h-7 px-2 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
-                title="Sincronizar com GitHub"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
-              </Button>
-              <a
-                href={`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100"
-                title="Abrir no GitHub"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100">
-                    <MoreVertical className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
-                    <Unplug className="h-4 w-4 mr-2" />
-                    Desconectar do GitHub
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+          <div className="flex items-center justify-center bg-background rounded-md border p-1 gap-1 w-20">
+            <Button
+              variant={activeTab === 'settings' ? 'default' : 'ghost'}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setActiveTab('settings')}
+              title="Configurações"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={activeTab === 'codes' ? 'default' : 'ghost'}
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setActiveTab('codes')}
+              title="Código"
+            >
+              <Code2 className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Import Progress Banner - Sticky between Header and Tabs */}
       {importJob && (
@@ -1373,11 +1555,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </div>
       )}
 
-      {/* Tabs de navegação */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+      {/* Conteúdo principal */}
+      <div className="w-full">
+        {activeTab === 'codes' && (
+        <div className="space-y-3">
           {/* Mobile: Painel de categorias condicional */}
-          {activeTab === 'codes' && isSummaryOpen && (
+          {isSummaryOpen && (
             <div className="md:hidden">
               <ProjectCategories
                 categories={orderedCategories}
@@ -1396,42 +1579,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               />
             </div>
           )}
-
-          {/* Desktop: toggle simples do showCategories */}
-          {activeTab === 'codes' && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden md:inline-flex"
-              onClick={() => setShowCategories(prev => !prev)}
-            >
-              <List className="h-4 w-4 mr-2" />
-              {showCategories ? 'Ocultar' : 'Ver'} Sumário
-            </Button>
-          )}
-
-          <div className="flex items-center gap-2 md:ml-auto">
-            <button
-              onClick={handleOpenImportProgress}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              Importações
-            </button>
-            <TabsList className="bg-white shadow-md rounded-lg p-1 h-auto">
-              <TabsTrigger value="settings" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
-                <Settings className="h-3.5 w-3.5" />
-                Configurações
-              </TabsTrigger>
-              <TabsTrigger value="codes" className="gap-1.5 px-3.5 py-2 rounded-md text-sm data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:shadow-sm">
-                <Code2 className="h-3.5 w-3.5" />
-                Códigos
-              </TabsTrigger>
-            </TabsList>
-          </div>
-        </div>
-
-        <TabsContent value="codes" className="space-y-3">
 
           {/* Grid dinâmico: 1 coluna quando escondido, 2 colunas quando visível */}
           <div className={`gap-4 ${showCategories ? 'grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]' : 'grid grid-cols-1'}`}>
@@ -1454,7 +1601,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               />
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-3 min-w-0">
               {/* Barra de busca + botão de edição */}
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
@@ -1475,17 +1622,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                {activeTab === 'codes' && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="md:hidden h-9 w-9 shrink-0"
-                    onClick={() => setIsSummaryOpen(prev => !prev)}
-                    title={isSummaryOpen ? 'Ocultar Sumário' : 'Ver Sumário'}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
 
               <ProjectSummary
@@ -1498,15 +1634,92 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 onCategorySelect={setSelectedCategory}
               />
 
+              {activeCommit && isCommitDetailLoading && (
+                <div className="py-2">
+                  <Progress value={66} className="h-2 w-full bg-blue-100 [&>div]:bg-blue-500 animate-pulse" />
+                </div>
+              )}
+
+              {/* Banner de filtro de commit */}
+              {activeCommit && (() => {
+                const inBranchCommitCardIds = new Set(filteredCards.map((fc) => fc.cardFeature.id))
+                const matchedFiles = activeCommitDetail?.files.filter((f) => {
+                  const resolved = resolveCommitFileCardId(f)
+                  return Boolean(resolved && inBranchCommitCardIds.has(resolved))
+                }) ?? []
+                return (
+                  <div className="bg-purple-50 border border-purple-200 rounded-md text-xs overflow-hidden">
+                    {/* Bloco superior: info do commit */}
+                    <div className="px-3 py-2 text-purple-800">
+                      <div className="flex items-start gap-2">
+                        <GitCommitHorizontal className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-purple-400" />
+                        <p className="font-medium sm:truncate">
+                          <code className="font-mono text-purple-500">{activeCommit.shortSha}</code>
+                          {' · '}{activeCommit.message}
+                        </p>
+                      </div>
+                      {activeCommit.description && (
+                        <p className={`text-purple-700 whitespace-pre-wrap mt-1 pl-5 ${isDescriptionExpanded ? '' : 'line-clamp-2'}`}>
+                          {activeCommit.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between mt-1 pl-5">
+                        <p className="text-purple-500">
+                          {activeCommit.authorName} · {new Date(activeCommit.date).toLocaleDateString('pt-BR')}
+                          {activeCommitDetail && (
+                            <> · {filteredCards.length} card{filteredCards.length !== 1 ? 's' : ''} afetado{filteredCards.length !== 1 ? 's' : ''}</>
+                          )}
+                        </p>
+                        {activeCommit.description && (
+                          <button
+                            onClick={() => setIsDescriptionExpanded(prev => !prev)}
+                            className="text-purple-400 hover:text-purple-600 flex-shrink-0"
+                            title={isDescriptionExpanded ? 'Colapsar' : 'Expandir'}
+                          >
+                            {isDescriptionExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Bloco inferior: rotas afetadas */}
+                    {activeCommitDetail && matchedFiles.length > 0 && (
+                      <div className="border-t border-purple-200 bg-white/50 pl-8 pr-3 py-2 space-y-1">
+                        {matchedFiles.map((f, i) => {
+                          const resolvedId = resolveCommitFileCardId(f)
+                          const cardTitle = filteredCards.find(fc => fc.cardFeature.id === resolvedId)?.cardFeature.title ?? f.card?.title
+                          return (
+                            <div key={i}>
+                              <p className="text-purple-800 truncate">{cardTitle}</p>
+                              <p className="text-purple-400 font-mono truncate">
+                                {f.filename.split('/').pop() ?? f.filename}
+                                <span className="mx-1">·</span>
+                                <span className="text-green-600">+{f.additions}</span>
+                                {' '}
+                                <span className="text-red-500">-{f.deletions}</span>
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
               {loadingCards ? (
                 <p className="text-gray-500 text-center py-8">Carregando...</p>
+              ) : activeCommit && isCommitDetailLoading ? (
+                null
               ) : filteredCards.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">Seus cards aparecerão aqui</p>
+                <p className="text-gray-500 text-center py-8">{activeCommit ? 'Nenhum card afetado por este commit' : 'Seus cards aparecerão aqui'}</p>
               ) : (
                 <div className="space-y-4">
                   {filteredCards.map(({ cardFeature, projectCard }, index) => {
                     const isFirst = index === 0
                     const isLast = index === filteredCards.length - 1
+                    const commitFilesForCard = activeCommitDetail
+                      ? activeCommitDetail.files.filter((f) => resolveCommitFileCardId(f) === cardFeature.id)
+                      : undefined
 
                     return (
                       <div key={cardFeature.id} className="relative group min-w-0 overflow-hidden">
@@ -1518,6 +1731,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           onExpand={(card) => setExpandModalCard(card)}
                           canEdit={canEditCard(cardFeature)}
                           hideVisibility
+                          commitFiles={commitFilesForCard?.length ? commitFilesForCard : undefined}
                         />
 
                         {/* Painel flutuante de ações (apenas no modo de edição) */}
@@ -1600,9 +1814,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               )}
             </div>
           </div>
-        </TabsContent>
+        </div>
+        )}
 
-        <TabsContent value="settings">
+        {activeTab === 'settings' && (
           <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
             {/* Sidebar - Menu de Configurações (apenas desktop) */}
             <div className="hidden md:block">
@@ -1696,6 +1911,27 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       </Badge>
                     </div>
 
+                    {syncStatus.remoteCheckError ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <p className="text-xs text-amber-800">
+                          Não foi possível verificar atualizações agora. Você pode tentar novamente em alguns segundos.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className={`p-3 border rounded-lg ${syncStatus.hasUpdates ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <p className={`text-sm font-medium ${syncStatus.hasUpdates ? 'text-blue-900' : 'text-gray-700'}`}>
+                          {syncStatus.hasUpdates
+                            ? 'Atualizações encontradas no GitHub'
+                            : 'Projeto já está sincronizado com o GitHub'}
+                        </p>
+                        {syncStatus.remoteSha && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            SHA remoto: {syncStatus.remoteSha.substring(0, 7)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {syncStatus.conflicts > 0 && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex items-start gap-2">
@@ -1712,11 +1948,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       </div>
                     )}
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2">
                       <Button
                         onClick={handleSync}
-                        disabled={syncing}
-                        className="flex-1"
+                        disabled={syncing || !canSyncFromGithub}
+                        className="w-full"
                         size="sm"
                       >
                         {syncing ? (
@@ -1727,7 +1963,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         ) : (
                           <>
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            Sincronizar agora
+                            {syncStatus.hasUpdates || !syncStatus.lastSyncSha
+                              ? 'Sincronizar agora'
+                              : 'Sem atualizações'}
                           </>
                         )}
                       </Button>
@@ -1735,6 +1973,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => window.open(`https://github.com/${syncStatus.githubOwner}/${syncStatus.githubRepo}`, '_blank')}
+                        className="w-full"
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Abrir no GitHub
@@ -1769,7 +2008,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       onClick={() => {
                         // Store project ID for post-OAuth redirect
                         try {
-                          sessionStorage.setItem('gitsync_project_id', projectId || '')
+                          sessionStorage.setItem('github_sync_project_id', projectId || '')
                         } catch { /* ignore */ }
 
                         // Redirect to GitHub OAuth
@@ -1780,20 +2019,31 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           return
                         }
 
+                        // CSRF protection: gerar nonce e persistir para validação no callback
+                        const nonceBytes = new Uint8Array(16)
+                        crypto.getRandomValues(nonceBytes)
+                        const nonce = Array.from(nonceBytes, b => b.toString(16).padStart(2, '0')).join('')
+                        try {
+                          sessionStorage.setItem('oauth_state_nonce', nonce)
+                        } catch {
+                          toast.error('Não foi possível iniciar o fluxo OAuth. Tente novamente.')
+                          return
+                        }
+
                         // Detect if running on localhost to use correct backend URL
                         const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
                         const backendUrl = isLocalhost
                           ? 'http://localhost:3001'
                           : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
 
-                        // Encode frontend origin and projectId in state parameter
+                        // Encode frontend origin, projectId e nonce no state parameter
                         const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-                        const stateData = JSON.stringify({ origin: frontendOrigin, projectId: projectId || '' })
+                        const stateData = JSON.stringify({ origin: frontendOrigin, projectId: projectId || '', nonce })
                         const state = btoa(stateData)
 
                         // Remove /api suffix if present to avoid duplication
                         const baseUrl = backendUrl.replace(/\/api$/, '')
-                        const redirectUri = `${baseUrl}/api/gitsync/callback`
+                        const redirectUri = `${baseUrl}/api/github/callback`
                         const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
 
                         window.location.href = githubAuthUrl
@@ -1923,8 +2173,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             )}
           </div>
         </div>
-      </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       {/* Dialog Adicionar Card */}
       <Dialog open={isAddCardDialogOpen} onOpenChange={setIsAddCardDialogOpen}>

@@ -16,9 +16,9 @@ router.post('/github-info', ProjectController.getGithubInfo)
 router.post('/import-from-github', ProjectController.importFromGithub)
 
 // ================================================
-// GITSYNC (must be before /:id routes)
+// GITHUB SYNC (must be before /:id routes)
 // ================================================
-router.get('/gitsync/repos', ProjectController.listGithubRepos)
+router.get('/github/repos', ProjectController.listGithubRepos)
 
 // CRUD OPERATIONS
 router.post('/', ProjectController.create)
@@ -41,13 +41,17 @@ router.post('/:id/cards', ProjectController.addCard)
 router.patch('/:id/cards/:cardFeatureId/reorder', ProjectController.reorderCard)
 router.delete('/:id/cards/:cardFeatureId', ProjectController.removeCard)
 
-// GITSYNC PER PROJECT
-router.post('/:id/gitsync/connect', ProjectController.connectRepo)
-router.delete('/:id/gitsync/connect', ProjectController.disconnectRepo)
-router.get('/:id/gitsync/status', ProjectController.getSyncStatus)
-router.post('/:id/gitsync/sync', ProjectController.syncProject)
-router.post('/:id/gitsync/push', ProjectController.pushToGithub)
-router.post('/:id/gitsync/resolve', ProjectController.resolveConflict)
+// GITHUB SYNC PER PROJECT
+router.get('/:id/github/branches', ProjectController.listBranches)
+router.get('/:id/github/commits', ProjectController.listCommits)
+router.get('/:id/github/commits/:sha', ProjectController.getCommit)
+router.post('/:id/github/connect', ProjectController.connectRepo)
+router.delete('/:id/github/connect', ProjectController.disconnectRepo)
+router.get('/:id/github/status', ProjectController.getSyncStatus)
+router.post('/:id/github/sync', ProjectController.syncProject)
+router.post('/:id/github/push', ProjectController.pushToGithub)
+router.post('/:id/github/resolve', ProjectController.resolveConflict)
+router.post('/:id/github/import-branch', ProjectController.importBranch)
 
 export { router as projectRoutes }
 

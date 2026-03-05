@@ -17,6 +17,9 @@ router.get('/stats', CardFeatureController.getStats)
 // SEARCH - Rota específica para busca (com autenticação opcional para filtrar visibilidade)
 router.get('/search', optionalAuth, CardFeatureController.search)
 
+// FILTERS METADATA - Retorna techs, languages e tags disponíveis
+router.get('/filters', CardFeatureController.getFilters)
+
 // TECH FILTER - Rota específica para filtrar por tecnologia
 router.get('/tech/:tech', optionalAuth, CardFeatureController.getByTech)
 
@@ -33,8 +36,9 @@ router.post('/:id/share', supabaseMiddleware, authenticate, CardFeatureControlle
 router.delete('/:id/share/:userId', supabaseMiddleware, authenticate, CardFeatureController.unshareCard)
 router.get('/:id/shares', supabaseMiddleware, authenticate, CardFeatureController.getCardShares)
 
-// BULK OPERATIONS - Criação é admin-only; delete permite usuário autenticado
+// BULK OPERATIONS - Criação e update são admin-only; delete permite usuário autenticado
 router.post('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkCreate)
+router.patch('/bulk', supabaseMiddleware, authenticate, requireAdmin, CardFeatureController.bulkUpdate)
 router.delete('/bulk', supabaseMiddleware, authenticate, CardFeatureController.bulkDelete)
 
 // Rotas de escrita: usuário autenticado pode criar/editar/deletar seus próprios cards.

@@ -6,6 +6,8 @@ import { Search, ChevronRight, ChevronDown, Code2, X, ShieldCheck, BadgeCheck, P
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useCardFeatures } from "@/hooks/useCardFeatures"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
+import ActiveFilters from "@/components/ActiveFilters"
+import FiltersModal from "@/components/FiltersModal"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureFormJSON from "@/components/CardFeatureFormJSON"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
@@ -38,7 +40,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
   isVisible
 }: CreateCardButtonProps) {
   const buttonDisabled = disabled || loading || creating || isSelectionMode
-  const buttonText = creating ? 'Criando...' : 'Novo card'
+  const buttonText = creating ? 'Subindo...' : 'Subir Código'
 
   return (
     <div className={`flex flex-shrink-0 ${isVisible ? '' : 'hidden'}`}>
@@ -49,7 +51,7 @@ const CreateCardButton = React.memo(function CreateCardButton({
         className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap rounded-r-none px-2 sm:px-4"
       >
         <Plus className="h-4 w-4 mr-1" />
-        <span className="sm:hidden">{creating ? 'Criando...' : 'Criar'}</span>
+        <span className="sm:hidden">{creating ? 'Subindo...' : 'Código'}</span>
         <span className="hidden sm:inline">{buttonText}</span>
       </Button>
       <DropdownMenu>
@@ -122,7 +124,7 @@ export default function Codes() {
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([])
   const [isDeletingBulk, setIsDeletingBulk] = useState(false)
 
-  // Filtro de ownership para "Seu Espaço": all | created_by_me | shared_with_me
+  // Filtro de ownership para "Meus Códigos": all | created_by_me | shared_with_me
   const [selectedOwnership, setSelectedOwnership] = useState<string>('all')
 
   // Filtro de status para "Global": all | approved | pending
@@ -144,11 +146,18 @@ export default function Codes() {
   // Estados locais para busca e filtro
   const [searchTerm, setSearchTerm] = useState<string>(searchParams?.get('search') || '')
   const [selectedTech, setSelectedTech] = useState<string>(searchParams?.get('tech') || 'all')
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('')
+  const [selectedAuthor, setSelectedAuthor] = useState<string>('')
+  const [selectedAuthorName, setSelectedAuthorName] = useState<string>('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
 
   // Hook principal para operações CRUD e dados da API com filtros locais
   const cardFeatures = useCardFeatures({ initialPage }, {
     searchTerm,
     selectedTech,
+    selectedLanguage,
+    selectedAuthor,
+    selectedTags,
     selectedVisibility,
     selectedApprovalStatus,
     selectedOwnership: selectedOwnershipParam,
@@ -289,6 +298,34 @@ export default function Codes() {
     }
   }
 
+  // Handlers para filtros clicáveis nos badges dos cards
+  const handleFilterByTech = useCallback((tech: string) => {
+    setSelectedTech(tech)
+    cardFeatures.setSelectedTech(tech)
+  }, [cardFeatures.setSelectedTech])
+
+  const handleFilterByLanguage = useCallback((language: string) => {
+    setSelectedLanguage(language)
+  }, [])
+
+  const handleFilterByAuthor = useCallback((authorId: string, authorName: string) => {
+    setSelectedAuthor(authorId)
+    setSelectedAuthorName(authorName)
+  }, [])
+
+  const handleFilterByTag = useCallback((tag: string) => {
+    setSelectedTags(prev => prev.includes(tag) ? prev : [...prev, tag])
+  }, [])
+
+  const handleClearAllFilters = useCallback(() => {
+    setSelectedTech('all')
+    cardFeatures.setSelectedTech('all')
+    setSelectedLanguage('')
+    setSelectedAuthor('')
+    setSelectedAuthorName('')
+    setSelectedTags([])
+  }, [cardFeatures.setSelectedTech])
+
   // Memoized callback for create button - prevents re-renders
   const handleStartCreating = useCallback(() => {
     cardFeatures.startCreating()
@@ -384,7 +421,7 @@ export default function Codes() {
             />
           </div>
 
-          {/* Pencil Button (selection mode) - Only in Seu Espaço */}
+          {/* Pencil Button (selection mode) - Only in Meus Códigos */}
           {selectedDirectoryTab === 'seuEspaco' && isProfileLoaded && isAuthed && (
             <Button
               onClick={handleToggleSelectionMode}
@@ -410,10 +447,10 @@ export default function Codes() {
           />
         </div>
 
-        {/* Visibility Tabs Row - Simplified: Global + Seu Espaço */}
+        {/* Visibility Tabs Row - Simplified: Global + Meus Códigos */}
         <Tabs value={selectedDirectoryTab} onValueChange={setSelectedDirectoryTab} className="w-full max-w-[900px] mx-auto mt-2 mb-4">
           <div className="flex flex-col gap-3">
-            {/* Main tabs: Global / Seu Espaço */}
+            {/* Main tabs: Global / Meus Códigos */}
             <TabsList className="h-10 w-full bg-white shadow-md rounded-lg p-1">
               <TabsTrigger 
                 value="global" 
@@ -429,64 +466,78 @@ export default function Codes() {
                 disabled={cardFeatures.loading}
               >
                 <User className="h-4 w-4" />
-                Seu Espaço
+                Meus Códigos
               </TabsTrigger>
             </TabsList>
 
-            {/* Sub-filters: Pendentes / Aprovados / Todos - only in Global */}
-            <Tabs value={selectedGlobalStatus} onValueChange={setSelectedGlobalStatus} className={`${selectedDirectoryTab === 'global' ? 'block' : 'hidden'} ml-auto`}>
-              <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
-                <TabsTrigger 
-                  value="pending"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Pendentes
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="approved"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700"
-                >
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  Aprovados
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="all"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  Todos
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* Sub-filters row: tabs em cima/direita, Filtros embaixo/esquerda */}
+            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between gap-2">
+              <FiltersModal
+                selectedTech={selectedTech}
+                selectedLanguage={selectedLanguage}
+                selectedTags={selectedTags}
+                onSelectTech={(tech) => { setSelectedTech(tech); cardFeatures.setSelectedTech(tech) }}
+                onSelectLanguage={setSelectedLanguage}
+                onSelectTags={setSelectedTags}
+              />
 
-            {/* Sub-filters: Compartilhados / Criados / Todos - only in Seu Espaço */}
-            <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={`${selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'} ml-auto`}>
-              <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
-                <TabsTrigger 
-                  value="shared_with_me"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-700"
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                  Compartilhados
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="created_by_me"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700"
-                >
-                  <User className="h-3.5 w-3.5" />
-                  Criados por mim
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="all"
-                  className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  Todos
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+              <div>
+              {/* Pendentes / Aprovados / Todos - only in Global */}
+              <Tabs value={selectedGlobalStatus} onValueChange={setSelectedGlobalStatus} className={selectedDirectoryTab === 'global' ? 'block' : 'hidden'}>
+                <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
+                  <TabsTrigger
+                    value="pending"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-amber-700"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Pendentes
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="approved"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700"
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    Aprovados
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="all"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Todos
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Compartilhados / Criados / Todos - only in Meus Códigos */}
+              <Tabs value={selectedOwnership} onValueChange={setSelectedOwnership} className={selectedDirectoryTab === 'seuEspaco' ? 'block' : 'hidden'}>
+                <TabsList className="h-9 bg-gray-100 p-1 rounded-md w-auto">
+                  <TabsTrigger
+                    value="shared_with_me"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-700"
+                  >
+                    <Link2 className="h-3.5 w-3.5" />
+                    Compartilhados
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="created_by_me"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700"
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    Criados por mim
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="all"
+                    className="flex-1 text-xs gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-700"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Todos
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
+        </div>
         </Tabs>
       </div>
 
@@ -538,6 +589,21 @@ export default function Codes() {
         </div>
       )}
 
+      {/* Filtros ativos */}
+      {(selectedTech !== 'all' || selectedLanguage || selectedAuthor || selectedTags.length > 0) && (
+        <div className="w-full max-w-[900px] mx-auto">
+          <ActiveFilters
+            filters={[
+              ...(selectedTech !== 'all' ? [{ key: 'tech', label: selectedTech, onRemove: () => { setSelectedTech('all'); cardFeatures.setSelectedTech('all') } }] : []),
+              ...(selectedLanguage ? [{ key: 'language', label: selectedLanguage, onRemove: () => setSelectedLanguage('') }] : []),
+              ...(selectedAuthor ? [{ key: 'author', label: `Autor: ${selectedAuthorName}`, onRemove: () => { setSelectedAuthor(''); setSelectedAuthorName('') } }] : []),
+              ...selectedTags.map(tag => ({ key: `tag-${tag}`, label: `#${tag}`, onRemove: () => setSelectedTags(prev => prev.filter(t => t !== tag)) })),
+            ]}
+            onClearAll={handleClearAllFilters}
+          />
+        </div>
+      )}
+
       {/* ===== CONTEÚDO PRINCIPAL - Visualização em Lista ===== */}
       {!cardFeatures.loading && !cardFeatures.error && codeSnippets.length > 0 && (
         <>
@@ -564,6 +630,11 @@ export default function Codes() {
                     isSelected={selectedCardIds.includes(snippet.id)}
                     onToggleSelect={handleToggleCardSelection}
                     expandOnClick
+                    onFilterByTech={handleFilterByTech}
+                    onFilterByLanguage={handleFilterByLanguage}
+                    onFilterByAuthor={handleFilterByAuthor}
+                    onFilterByTag={handleFilterByTag}
+                    activeTags={selectedTags}
                   />
 
                   {selectedDirectoryTab === 'global' && selectedGlobalStatus === 'pending' && isAdmin && snippet.approvalStatus === ApprovalStatus.PENDING && (

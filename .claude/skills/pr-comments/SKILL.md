@@ -7,113 +7,84 @@ description: "Extrai comentarios de reviews do PR via gh CLI e gera relatorio em
 
 Quando o usuario pedir para **"puxar do coderabbit"** (ou variantes como "extrai as sugestoes", "pega os comentarios do PR", "relatorio do PR", etc.), execute o fluxo abaixo.
 
-## 1. Atualizar base e detectar numero do PR
+## 1. Detectar PR e review ID
 
-- Rode `git fetch origin main` para garantir base atualizada
-- Determine o numero do PR:
-  - Se o usuario informar explicitamente (ex: "PR #91"), use esse numero
-  - Se nao informar, detecta a partir da branch atual:
-    ```bash
-    branch=$(git branch --show-current)
-    prNum=$(gh pr list --head "$branch" --json number --jq '.[0].number')
-    ```
+O usuario pode fornecer:
+
+- **Branch atual** → detectar PR automaticamente:
+  ```bash
+  branch=$(git branch --show-current)
+  prNum=$(gh pr list --head "$branch" --json number --jq '.[0].number')
+  ```
+- **Numero explicito** (ex: "PR #97") → usar diretamente
+- **URL do PR** (ex: `https://github.com/owner/repo/pull/97`) → extrair numero da URL
+- **URL de review especifico** (ex: `.../pull/97#pullrequestreview-3889856314`) → extrair `prNum` e `reviewId` da URL
 
 Se nao encontrar PR, avisar usuario e nao prosseguir.
 
-## 2. Obter detalhes do PR e reviews
+## 2. Baixar conteudo via gh CLI
 
 ```bash
-# Obter informacoes basicas do PR
-prNum=$1  # ou detected do passo anterior
-prInfo=$(gh pr view $prNum --json title,state,url --jq '{title: .title, state: .state, url: .url}')
+repo=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+prInfo=$(gh pr view $prNum --json title,state,url,headRefName,author --jq '{title, state, url, branch: .headRefName, author: .author.login}')
 ```
 
-Obter reviews e comments:
-```bash
-# Reviews do PR
-reviews=$(gh api repos/{owner}/{repo}/pulls/$prNum/reviews --jq '.[] | {state, body, user: .user.login}')
-
-# Comments do CodeRabbit (reviews com body contendo "coderabbit")
-coderabbitReviews=$(gh api repos/{owner}/{repo}/pulls/$prNum/reviews --jq '.[] | select(.body | contains("coderabbit"))')
-```
-
-## 3. Parsear comments actionables
-
-O CodeRabbit retorna comments no body do review em formato estruturado. Extraia:
-- Actionable comments (com link inline)
-- Outside diff comments
-- Nitpicks
-
-Exemplo de parsing:
-```bash
-# Verificar se ha actionable comments
-echo "$coderabbitReviews" | jq -r '.body' | grep -q "Actionable comments" && echo "Ha actionables"
-```
-
-## 4. Gerar relatorio em Markdown
-
-Crie o arquivo em `.cursor/pr-comments/pr-$prNum.md`:
+**Se o usuario forneceu URL de review especifico** (tem `#pullrequestreview-{id}`), filtrar apenas os comentarios daquele review:
 
 ```bash
-output=".cursor/pr-comments/pr-$prNum.md"
+# Body do review especifico
+reviewBody=$(gh api repos/$repo/pulls/$prNum/reviews/$reviewId --jq '.body')
 
-cat > "$output" <<EOF
-# Relatorio de Comentarios do PR #$prNum
-
-**Titulo**: $(echo "$prInfo" | jq -r '.title')
-**URL**: $(echo "$prInfo" | jq -r '.url')
-**Branch**: $(git branch --show-current)
-**Gerado em**: $(date -u '+%Y-%m-%d UTC')
-
-## Estatisticas
-
-- Total de comentarios no PR: $totalComments
-- Total de reviews: $totalReviews
-- Total de comentarios inline: $inlineComments
-- Arquivos com comentarios: $filesCount
-- Autores: $authors
-
-## Reviews
-
-EOF
+# Apenas os inline comments daquele review
+inlineComments=$(gh api repos/$repo/pulls/$prNum/comments \
+  --jq "[.[] | select(.pull_request_review_id == $reviewId) | {path: .path, line: (.original_line // .line // .start_line), body: .body, user: .user.login}]")
 ```
 
-## 5. Estruturar comentarios por severidade
+**Se nao, buscar todos os comentarios do CodeRabbit:**
 
-Organize os comentarios em tabela por severidade:
-- 🔴 Critical
-- 🟠 Major  
-- 🟡 Minor
-- Nitpicks
+```bash
+# Comentarios inline de todos os reviews
+inlineComments=$(gh api repos/$repo/pulls/$prNum/comments \
+  --jq '[.[] | {path: .path, line: (.original_line // .line // .start_line), body: .body, user: .user.login}]')
 
-Para cada comentario, inclua:
-- Arquivo e linha
-- Tipo (potential issue, refactor suggestion, etc)
-- Descricao do problema
-- Correcao sugerida (se houver code snippet no comentario)
+# Body do review principal (contem outside diff + actionable summary)
+reviewBody=$(gh api repos/$repo/pulls/$prNum/reviews \
+  --jq '[.[] | select(.user.login | contains("coderabbit")) | .body] | join("\n\n")')
+```
 
-## 6. Fornecer ao usuario
+## 3. Analisar e salvar em `.cursor/pr-comments/pr-$prNum.md`
 
-Apresente ao usuario:
+Com os dados de `inlineComments` e `reviewBody` em maos, o agente (nao um script bash) deve:
+
+**a) Parsear cada comentario inline** buscando no campo `body`:
+- Severidade: `_🔴 Critical_`, `_🟠 Major_`, `_🟡 Minor_`
+- Titulo em negrito (primeira linha `**...**`)
+- Arquivo + linha ja estao nos campos `path` e `line`
+
+**b) Parsear o `reviewBody`** para extrair:
+- Outside diff comments (bloco `⚠️ Outside diff range comments`)
+- Comentarios que nao aparecem inline
+
+**c) Escrever o arquivo** em `.cursor/pr-comments/pr-$prNum.md` com:
+- Cabecalho: titulo, URL, autor do PR, branch, data gerada
+- Estatisticas: total de comentarios, arquivos afetados, autores dos comentarios, outside diff
+- Secoes por severidade: 🔴 Critical → 🟠 Major → 🟡 Minor
+- Secao de outside diff
+- Tabela resumo ao final com colunas `# | Sev | Arquivo | Problema`
+
+## 4. Apresentar tabela no chat
+
+Apos gerar o arquivo, exibir no chat:
+
 1. Caminho do arquivo gerado
-2. Resumo estatistico
-3. Tabela com principais action items
-4. Pergunte se deseja aplicar alguma correcao
+2. Resumo estatistico: totais por severidade, numero de arquivos afetados, autores envolvidos
+3. Tabela com todos os action items:
 
-## Exemplo de uso
-
-```
-user: Puxa os comentarios do coderabbit do PR
-assistant: Vou extrair os comentarios do PR atual...
-[executa passos 1-5]
-Pronto! Relatorio gerado em .cursor/pr-comments/pr-91.md
-
-## Tabela de Recomendacoes
-
-| # | Severidade | Arquivo | Problema |
-|---|------------|---------|----------|
-| 1 | 🔴 Critical | Projects.tsx:206 | URL legado... |
+```md
+| # | Sev | Arquivo | Problema |
+|---|-----|---------|----------|
+| 1 | 🔴  | foo.ts:42 | descricao curta |
 ...
-
-Quer que eu aplique alguma dessas correcoes?
 ```
+
+4. Perguntar se deseja aplicar alguma correcao

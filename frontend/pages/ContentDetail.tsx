@@ -13,7 +13,7 @@ export default function ContentDetail({ id: propId }: ContentDetailProps) {
   const id = propId || searchParams?.get('id') || null
 
   const handleBack = () => {
-    router.push('/contents')
+    router.push('/contents?tab=tutorials')
   }
 
   const handleGoHome = () => {

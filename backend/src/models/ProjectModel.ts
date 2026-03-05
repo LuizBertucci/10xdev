@@ -1,5 +1,8 @@
 import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
+import { GithubModel } from '@/models/GithubModel'
+import { CardFeatureModel } from '@/models/CardFeatureModel'
+import { normalizeGithubFilePath } from '@/utils/githubPath'
 import {
   ProjectMemberRole
 } from '@/types/project'
@@ -52,12 +55,12 @@ export class ProjectModel {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       createdBy: row.created_by,
-      // GitSync fields
+      // GitHub Sync fields
       ...(row.github_installation_id !== undefined ? { githubInstallationId: row.github_installation_id } : {}),
       ...(row.github_owner !== undefined ? { githubOwner: row.github_owner } : {}),
       ...(row.github_repo !== undefined ? { githubRepo: row.github_repo } : {}),
       ...(row.default_branch !== undefined ? { defaultBranch: row.default_branch } : {}),
-      ...(row.gitsync_active !== undefined ? { gitsyncActive: row.gitsync_active } : {}),
+      ...(row.github_sync_active !== undefined ? { githubSyncActive: row.github_sync_active } : {}),
       ...(row.last_sync_at !== undefined ? { lastSyncAt: row.last_sync_at } : {}),
       ...(row.last_sync_sha !== undefined ? { lastSyncSha: row.last_sync_sha } : {})
     }
@@ -854,7 +857,7 @@ export class ProjectModel {
     }
   }
 
-  static async getCards(projectId: string, limit?: number, offset?: number): Promise<ModelListResult<ProjectCardResponse>> {
+  static async getCards(projectId: string, limit?: number, offset?: number, branch?: string): Promise<ModelListResult<ProjectCardResponse>> {
     try {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
@@ -874,7 +877,14 @@ export class ProjectModel {
         .eq('project_id', projectId)
         .order('order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
-      
+
+      if (branch) {
+        const safeBranch = branch.replace(/[^\w\-./]/g, '')
+        if (safeBranch) {
+          query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        }
+      }
+
       // Aplicar paginação se fornecida
       if (typeof limit === 'number' && limit > 0) {
         const offsetValue = typeof offset === 'number' && offset >= 0 ? offset : 0
@@ -923,12 +933,12 @@ export class ProjectModel {
     }
   }
 
-  static async getCardsAll(projectId: string): Promise<ModelListResult<ProjectCardResponse>> {
+  static async getCardsAll(projectId: string, branch?: string): Promise<ModelListResult<ProjectCardResponse>> {
     try {
       // IMPORTANTE: Usar supabaseAdmin para evitar recursão infinita nas policies de RLS.
       // A policy "Members can view project cards" verifica project_members, causando
       // recursão quando usamos o cliente público. O backend já valida permissões antes.
-      const query = supabaseAdmin
+      let query = supabaseAdmin
         .from('project_cards')
         .select(`
           *,
@@ -937,6 +947,13 @@ export class ProjectModel {
         .eq('project_id', projectId)
         .order('order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
+
+      if (branch) {
+        const safeBranch = branch.replace(/[^\w\-./]/g, '')
+        if (safeBranch) {
+          query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        }
+      }
 
       const { data, count } = await executeQuery<ProjectCardRowWithFeature[] | { count: number | null }>(query)
 
@@ -971,6 +988,90 @@ export class ProjectModel {
         error: error instanceof Error ? error.message : 'Erro interno do servidor',
         statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
+    }
+  }
+
+  static async findCardByFilePath(
+    projectId: string,
+    filePath: string,
+    branch?: string
+  ): Promise<ModelResult<{ cardFeatureId: string; title: string | null }>> {
+    try {
+      const normalizedPath = normalizeGithubFilePath(filePath)
+
+      let query = supabaseAdmin
+        .from('project_cards')
+        .select(`
+          card_feature_id,
+          branch_name,
+          card_feature:card_features!project_cards_card_feature_id_fkey (
+            id,
+            title,
+            screens
+          )
+        `)
+        .eq('project_id', projectId)
+
+      if (branch) {
+        const safeBranch = branch.replace(/[^\w\-./]/g, '')
+        if (safeBranch) {
+          query = query.or(`branch_name.eq.${safeBranch},branch_name.is.null`)
+        }
+      }
+
+      const { data } = await executeQuery<Array<{
+        card_feature_id: string
+        branch_name?: string | null
+        card_feature?: {
+          id?: string
+          title?: string | null
+          screens?: unknown
+        } | null
+      }> | null>(query)
+
+      const safeBranchForSort = branch?.replace(/[^\w\-./]/g, '') || null
+      const rows = (data || []).sort((a, b) => {
+        const aMatch = a.branch_name && a.branch_name === safeBranchForSort ? 0 : 1
+        const bMatch = b.branch_name && b.branch_name === safeBranchForSort ? 0 : 1
+        return aMatch - bMatch
+      })
+      for (const row of rows) {
+        const card = row.card_feature
+        if (!card?.id) continue
+        const screens = Array.isArray(card.screens)
+          ? (card.screens as Array<{ route?: string; blocks?: Array<{ route?: string }> }>)
+          : []
+
+        for (const screen of screens) {
+          if (screen.route && normalizeGithubFilePath(screen.route) === normalizedPath) {
+            return {
+              success: true,
+              data: {
+                cardFeatureId: card.id,
+                title: card.title || null
+              }
+            }
+          }
+          for (const block of screen.blocks || []) {
+            if (!block.route) continue
+            if (normalizeGithubFilePath(block.route) === normalizedPath) {
+              return {
+                success: true,
+                data: {
+                  cardFeatureId: card.id,
+                  title: card.title || null
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return { success: false, error: 'Card não encontrado para file_path', statusCode: 404 }
+    } catch (error: unknown) {
+      console.error('Erro ao buscar card por file_path no projeto:', error)
+      const err = error as { message?: string; statusCode?: number }
+      return { success: false, error: err.message || 'Erro desconhecido', statusCode: err.statusCode || 500 }
     }
   }
 
@@ -1047,7 +1148,8 @@ export class ProjectModel {
   static async addCardsBulk(
     projectId: string,
     cardFeatureIds: string[],
-    userId: string
+    userId: string,
+    branchName?: string
   ): Promise<ModelResult<{ insertedCount: number }>> {
     try {
       if (!Array.isArray(cardFeatureIds) || cardFeatureIds.length === 0) {
@@ -1086,7 +1188,8 @@ export class ProjectModel {
         card_feature_id: cardFeatureId,
         added_by: userId,
         created_at: now,
-        order: maxOrder + 1 + idx
+        order: maxOrder + 1 + idx,
+        branch_name: branchName ?? null
       }))
 
       await executeQuery(
@@ -1171,6 +1274,40 @@ export class ProjectModel {
         statusCode: (error instanceof Error && 'statusCode' in error ? (error as Error & { statusCode?: number }).statusCode : 500) ?? 500
       }
     }
+  }
+
+  static async removeCardsByBranch(
+    projectId: string,
+    branch: string,
+    _userId: string
+  ): Promise<void> {
+    const { data: rows } = await executeQuery<{ id: string; card_feature_id: string }[] | null>(
+      supabaseAdmin
+        .from('project_cards')
+        .select('id, card_feature_id')
+        .eq('project_id', projectId)
+        .eq('branch_name', branch)
+    )
+
+    if (!rows || rows.length === 0) return
+
+    const cardIds = rows.map(r => r.card_feature_id)
+
+    for (const cardId of cardIds) {
+      const result = await GithubModel.deleteByCard(cardId)
+      if (!result.success) throw new Error(`Falha ao remover file mappings do card ${cardId}: ${result.error}`)
+    }
+
+    await executeQuery(
+      supabaseAdmin
+        .from('project_cards')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('branch_name', branch)
+    )
+
+    const deleteResult = await CardFeatureModel.bulkDelete(cardIds)
+    if (!deleteResult.success) throw new Error(`Falha ao remover card features da branch: ${deleteResult.error}`)
   }
 
   static async reorderCard(projectId: string, cardFeatureId: string, direction: 'up' | 'down', userId: string): Promise<ModelResult<null>> {
@@ -1323,10 +1460,10 @@ export class ProjectModel {
   }
 
   // ================================================
-  // GITSYNC - Metodos de sincronizacao
+  // GITHUB SYNC - Metodos de sincronizacao
   // ================================================
 
-  /** Atualiza campos gitsync de um projeto */
+  /** Atualiza campos github sync de um projeto */
   static async updateSyncInfo(
     projectId: string,
     data: {
@@ -1334,7 +1471,7 @@ export class ProjectModel {
       github_owner?: string | null
       github_repo?: string | null
       default_branch?: string | null
-      gitsync_active?: boolean
+      github_sync_active?: boolean
       last_sync_at?: string | null
       last_sync_sha?: string | null
     }
@@ -1369,7 +1506,7 @@ export class ProjectModel {
       const { data } = await executeQuery<ProjectRow | null>(
         supabaseAdmin
           .from('projects')
-          .select('id, github_installation_id, github_owner, github_repo, default_branch, gitsync_active, last_sync_at, last_sync_sha')
+          .select('id, github_installation_id, github_owner, github_repo, default_branch, github_sync_active, last_sync_at, last_sync_sha')
           .eq('id', projectId)
           .single()
       )
@@ -1396,7 +1533,7 @@ export class ProjectModel {
           .select('*')
           .eq('github_owner', owner)
           .eq('github_repo', repo)
-          .eq('gitsync_active', true)
+          .eq('github_sync_active', true)
           .maybeSingle()
       )
       const row = data as ProjectRow | null

@@ -49,6 +49,51 @@ import { cleanMarkdown } from '@/utils/markdownUtils'
 import { normalizeAiOutput, buildCardsFromAiOutput } from './aiCardBuilder'
 
 export class AiCardGroupingService {
+  private static normalizeSingleCodeFilePerScreen(card: CreateCardFeatureRequest): CreateCardFeatureRequest {
+    const normalizedScreens: CardFeatureScreen[] = []
+
+    for (const screen of card.screens || []) {
+      const codeBlocks = (screen.blocks || []).filter(b => b.type === ContentType.CODE)
+      const nonCodeBlocks = (screen.blocks || []).filter(b => b.type !== ContentType.CODE)
+
+      // Mantém screens sem código (ex.: telas textuais) sem alteração estrutural.
+      if (codeBlocks.length <= 1) {
+        normalizedScreens.push({
+          ...screen,
+          blocks: (screen.blocks || []).map((block, index) => ({ ...block, order: index }))
+        })
+        continue
+      }
+
+      // Quebra screens com múltiplos arquivos de código em uma screen por arquivo.
+      codeBlocks.forEach((codeBlock, index) => {
+        const routeOrTitle = codeBlock.route || codeBlock.title || `${screen.name}-${index + 1}`
+        const fileName = routeOrTitle.split('/').pop() || routeOrTitle
+        const derivedName = index === 0 ? screen.name : fileName
+        const baseBlocks: ContentBlock[] = [{ ...codeBlock, order: 0 }]
+
+        // Mantém blocos não-código apenas na primeira aba derivada.
+        if (index === 0 && nonCodeBlocks.length > 0) {
+          nonCodeBlocks.forEach((block, nonCodeIndex) => {
+            baseBlocks.push({ ...block, order: nonCodeIndex + 1 })
+          })
+        }
+
+        normalizedScreens.push({
+          ...screen,
+          name: derivedName,
+          route: routeOrTitle,
+          blocks: baseBlocks
+        })
+      })
+    }
+
+    return {
+      ...card,
+      screens: normalizedScreens
+    }
+  }
+
   static isEnabled(): boolean {
     return process.env.GITHUB_IMPORT_USE_AI === 'true'
   }
@@ -107,7 +152,7 @@ export class AiCardGroupingService {
       throw new Error('Nenhum arquivo elegível para processamento por IA.')
     }
 
-    const PREVIEW_LINES = 10
+    const PREVIEW_LINES = 25
     const fileList = filteredFiles.map(f => ({
       path: f.path,
       size: f.size,
@@ -119,7 +164,7 @@ export class AiCardGroupingService {
       '',
       '## Tarefa',
       'Analise o repositório e organize os arquivos em cards. Cada card representa uma feature completa de ponta a ponta.',
-      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, preview com as primeiras 10 linhas — imports e declarações iniciais).',
+      'Você receberá um JSON com repoUrl, totalFiles e files (path, size, preview com as primeiras 25 linhas — imports e declarações iniciais).',
       '',
       '## O que é um card',
       'Um card = um fluxo completo do usuário. Inclua todos os arquivos que fazem essa feature funcionar:',
@@ -220,7 +265,9 @@ export class AiCardGroupingService {
 
       notify('quality_corrections', 95, 'Aplicando correções de qualidade...')
       options?.onLog?.('Aplicando correções de qualidade...')
-      const finalCards = corrections.correctedCards.map(card => this.addVisaoGeralScreen(card))
+      const finalCards = corrections.correctedCards
+        .map(card => this.normalizeSingleCodeFilePerScreen(card))
+        .map(card => this.addVisaoGeralScreen(card))
       for (const card of finalCards) {
         await emitCard(card)
       }
@@ -254,7 +301,9 @@ export class AiCardGroupingService {
         if (typeof maxTokens === 'number' && maxTokens > 0) body2.max_tokens = maxTokens
         const { content, usage: usageRetry } = await callChatCompletions({ endpoint, apiKey, body: body2 })
         const { qualityReport, corrections } = await runPipeline(content)
-        const finalCards = corrections.correctedCards.map(card => this.addVisaoGeralScreen(card))
+        const finalCards = corrections.correctedCards
+          .map(card => this.normalizeSingleCodeFilePerScreen(card))
+          .map(card => this.addVisaoGeralScreen(card))
 
         for (const card of finalCards) {
           await emitCard(card)
@@ -309,7 +358,7 @@ export class AiCardGroupingService {
     console.log('[generateCardSummary] Model:', model)
     console.log('[generateCardSummary] Endpoint:', endpoint)
 
-    const screensContext = params.screens.slice(0, 10).map((screen) => {
+    const screensContext = params.screens.map((screen) => {
       const files = screen.blocks
         .filter(b => b.type === ContentType.CODE)
         .map(b => b.route || b.title || '')

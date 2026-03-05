@@ -88,7 +88,19 @@ coderabbit review --plain --type uncommitted
 
 Rode apenas no modo **completo** (ou se o usuário pedir explicitamente revisão).
 
-### Tabela enriquecida
+### Bloco de aprovação
+
+**IMPORTANTE:** Sempre apresente título + arquivos + corpo de cada commit para o usuário aprovar antes de executar. Use o formato abaixo — cada commit como bloco separado:
+
+---
+
+**#N** — `tipo: título`
+**Arquivos:** `arquivo1.ts`, `arquivo2.ts`
+> Corpo descritivo em 2-3 linhas explicando o que foi feito e o motivo.
+
+---
+
+### Tabela enriquecida (modo completo)
 
 Mapeie as sugestões do CodeRabbit aos commits e apresente a tabela com status:
 

@@ -60,13 +60,13 @@ export class CardFeatureModel {
       approvedBy: row.approved_by ?? null,
       createdInProjectId: row.created_in_project_id ?? null,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      tags: Array.isArray(row.tags) ? row.tags : []
     }
 
     // Campos opcionais só adicionados se tiverem valor (para exactOptionalPropertyTypes)
     if (row.tech !== undefined) response.tech = row.tech
     if (row.language !== undefined) response.language = row.language
-    if (row.tags) response.tags = row.tags
     if (row.newsletter_url) response.newsletterUrl = row.newsletter_url
 
     return response
@@ -155,6 +155,17 @@ export class CardFeatureModel {
 
     if (params.language && params.language !== 'all') {
       query = query.ilike('language', params.language)
+    }
+
+    if (params.created_by) {
+      query = query.eq('created_by', params.created_by)
+    }
+
+    if (params.tags) {
+      const tagList = params.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      if (tagList.length > 0) {
+        query = query.contains('tags', tagList)
+      }
     }
 
     // Adicionar filtro por content_type
@@ -418,6 +429,20 @@ export class CardFeatureModel {
         }
       }
 
+      const isUnlistedVisibility =
+        params.visibility === Visibility.UNLISTED || params.visibility === 'unlisted'
+      const isSharedWithMeOnly = params.ownership === 'shared_with_me'
+
+      // Evita query inválida em UUID quando não há compartilhamentos.
+      if (userId && isUnlistedVisibility && isSharedWithMeOnly && sharedCardIds.length === 0) {
+        return {
+          success: true,
+          data: [],
+          count: 0,
+          statusCode: 200
+        }
+      }
+
       // 3. Query principal para os dados (com range/ordenação)
       const query = this.buildQuery(params, userId, userRole, false, matchedUserIds, sharedCardIds)
       const { data: _data, error: _dataError } = await executeQuery<CardFeatureRow[] | null>(query)
@@ -426,7 +451,7 @@ export class CardFeatureModel {
       const countParams = { ...params }
       delete countParams.page
       delete countParams.limit
-      
+
       const countQuery = this.buildQuery(countParams, userId, userRole, true, matchedUserIds, sharedCardIds)
       const { count, error: _countError } = await executeQuery<{ count: number | null } | null>(countQuery)
 
@@ -842,6 +867,78 @@ export class CardFeatureModel {
   }
 
   // ================================================
+  // FILTERS METADATA
+  // ================================================
+
+  static async getFilters(): Promise<ModelResult<{
+    techs: string[]
+    languages: string[]
+    tags: string[]
+  }>> {
+    try {
+      // Buscar techs únicas (apenas cards públicos e aprovados)
+      const { data: techData } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('tech')
+          .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
+          .not('tech', 'is', null)
+      )
+
+      // Buscar languages únicas
+      const { data: languageData } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('language')
+          .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
+          .not('language', 'is', null)
+      )
+
+      // Buscar tags (array column – precisamos achatar)
+      const { data: tagsData } = await executeQuery(
+        supabaseAdmin
+          .from('card_features')
+          .select('tags')
+          .eq('visibility', Visibility.PUBLIC)
+          .eq('approval_status', ApprovalStatus.APPROVED)
+      )
+
+      // Extrair valores únicos e ordenar
+      const techs = [...new Set(
+        (techData as { tech: string | null }[] | null)
+          ?.map(r => r.tech)
+          .filter((t): t is string => !!t) || []
+      )].sort((a, b) => a.localeCompare(b))
+
+      const languages = [...new Set(
+        (languageData as { language: string | null }[] | null)
+          ?.map(r => r.language)
+          .filter((l): l is string => !!l) || []
+      )].sort((a, b) => a.localeCompare(b))
+
+      const tags = [...new Set(
+        (tagsData as { tags: string[] | null }[] | null)
+          ?.flatMap(r => Array.isArray(r.tags) ? r.tags : [])
+          .filter((t): t is string => !!t) || []
+      )].sort((a, b) => a.localeCompare(b))
+
+      return {
+        success: true,
+        data: { techs, languages, tags },
+        statusCode: 200
+      }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
+      }
+    }
+  }
+
+  // ================================================
   // BULK OPERATIONS
   // ================================================
 
@@ -1002,6 +1099,40 @@ export class CardFeatureModel {
     }
   }
 
+  static async bulkUpdate(
+    updates: Array<{ id: string } & Partial<CreateCardFeatureRequest>>
+  ): Promise<ModelResult<{ updatedCount: number }>> {
+    try {
+      const now = new Date().toISOString()
+
+      const results = await Promise.all(
+        updates.map(({ id, ...fields }) =>
+          executeQuery(
+            supabaseAdmin
+              .from('card_features')
+              .update({ ...fields, updated_at: now })
+              .eq('id', id)
+              .select('id')
+          )
+        )
+      )
+
+      const updatedCount = results.filter((r) => r.data && Array.isArray(r.data) && r.data.length > 0).length
+
+      return {
+        success: true,
+        data: { updatedCount },
+        statusCode: 200
+      }
+    } catch (error: unknown) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        statusCode: error && typeof error === 'object' && 'statusCode' in error && typeof error.statusCode === 'number' ? error.statusCode : 500
+      }
+    }
+  }
+
   // ================================================
   // SHARING (compartilhamento de cards privados)
   // ================================================
@@ -1011,8 +1142,8 @@ export class CardFeatureModel {
    * Inspirado em ProjectModel.addMember
    */
   static async shareWithUsers(
-    cardId: string, 
-    userIds: string[], 
+    cardId: string,
+    userIds: string[],
     ownerId: string
   ): Promise<ModelResult<Record<string, unknown>>> {
     try {
@@ -1266,7 +1397,7 @@ export class CardFeatureModel {
 
       // 3. Transformar resposta (filtra shares sem usuário válido)
       const users: Array<{ id: string; email: string | null; name: string | null; avatarUrl: string | null }> = []
-      
+
       if (shares) {
         for (const share of shares) {
           if (share.users && share.users.id) {

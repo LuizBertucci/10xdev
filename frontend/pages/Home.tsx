@@ -15,7 +15,7 @@ export default function Home() {
   }
 
   const handleGoToContents = () => {
-    router.push('/contents')
+    router.push('/contents?tab=tutorials')
   }
 
   const handleGoToProjects = () => {

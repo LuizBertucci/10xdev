@@ -16,7 +16,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const hasOAuthFlags = Boolean(
-    searchParams?.get('gitsync') ||
+    searchParams?.get('github_sync') ||
     searchParams?.get('installation_id') ||
     searchParams?.get('oauth_return')
   )
