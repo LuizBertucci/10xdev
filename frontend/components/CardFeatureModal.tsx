@@ -95,7 +95,7 @@ export default function CardFeatureModal({
 
   const isSummaryScreen = (name?: string) => {
     const normalized = normalizeScreenName(name)
-    return normalized === 'resumo' || normalized === 'sumario' || normalized === 'visao geral'
+    return normalized === 'visao geral'
   }
 
   const visibleScreens = useMemo(() => {

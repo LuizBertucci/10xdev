@@ -773,7 +773,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const handleGenerateSummaryFromModal = async (cardId: string, prompt?: string) => {
     try {
       setIsGeneratingModalSummary(true)
-      await cardFeatureService.generateSummary(cardId, true, prompt?.trim() || undefined)
+      await cardFeatureService.generateVisaoGeral(cardId, true, prompt?.trim() || undefined)
 
       const updated = await cardFeatureService.getById(cardId)
       if (!updated?.success || !updated.data) {
@@ -811,7 +811,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
     const isSummaryScreen = (name?: string) => {
       const normalized = normalizeScreenName(name)
-      return normalized === 'resumo' || normalized === 'sumario' || normalized === 'visao geral'
+      return normalized === 'visao geral'
     }
 
     try {
