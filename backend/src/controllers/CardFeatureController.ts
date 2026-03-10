@@ -8,9 +8,11 @@ import {
   CardFeatureQueryParams,
   ContentType,
   CardFeatureScreen,
+  FlowItem,
   SupportedLanguage,
   SupportedTech
 } from '@/types/cardfeature'
+import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from '@/services/llmClient'
 
 const VALID_LANGUAGES = Object.values(SupportedLanguage)
 const VALID_TECHS = Object.values(SupportedTech)
@@ -178,6 +180,73 @@ export class CardFeatureController {
       })
     } catch (error) {
       console.error('Erro no controller getById:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno do servidor'
+      })
+    }
+  }
+
+  // ================================================
+  // READ - GET /api/card-features/:id/flow (apenas blocos flow, optionalAuth)
+  // ================================================
+
+  static async getFlow(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params
+      const userId = req.user?.id
+      const userRole = req.user?.role
+
+      if (!id) {
+        res.status(400).json({
+          success: false,
+          error: 'ID é obrigatório'
+        })
+        return
+      }
+
+      const result = await CardFeatureModel.findById(id, userId, userRole)
+
+      if (!result.success) {
+        res.status(result.statusCode || 400).json({
+          success: false,
+          error: result.error
+        })
+        return
+      }
+
+      const card = result.data
+      if (!card) {
+        res.status(404).json({
+          success: false,
+          error: 'Card não encontrado'
+        })
+        return
+      }
+
+      const flowBlocks = (card.screens || []).flatMap((s) =>
+        (s.blocks || []).filter((b) => b.type === ContentType.FLOW)
+      )
+      const contents: FlowItem[] = flowBlocks.flatMap((b) => {
+        try {
+          const parsed = JSON.parse(b.content)
+          const items = Array.isArray(parsed) ? parsed : (parsed?.contents ?? [])
+          return Array.isArray(items) ? items : []
+        } catch {
+          return []
+        }
+      })
+
+      res.status(200).json({
+        success: true,
+        data: {
+          id: card.id,
+          title: card.title,
+          contents
+        }
+      })
+    } catch (error) {
+      console.error('Erro no controller getFlow:', error)
       res.status(500).json({
         success: false,
         error: 'Erro interno do servidor'
@@ -987,6 +1056,128 @@ export class CardFeatureController {
     } catch (error) {
       console.error('[generateVisaoGeral] ERRO INTERNO:', error)
       res.status(500).json({ success: false, error: 'Erro ao gerar visão geral' })
+    }
+  }
+
+  // ================================================
+  // GENERATE FLOW - POST /api/card-features/:id/flow/generate (streaming NDJSON)
+  // ================================================
+
+  static async generateFlow(req: Request, res: Response): Promise<void> {
+    res.setHeader('Content-Type', 'application/x-ndjson')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.flushHeaders()
+
+    const emit = (data: object) => res.write(JSON.stringify(data) + '\n')
+
+    try {
+      if (!req.user) {
+        emit({ type: 'error', message: 'Usuário não autenticado' })
+        res.end(); return
+      }
+      const { id } = req.params
+      if (!id) {
+        emit({ type: 'error', message: 'ID é obrigatório' })
+        res.end(); return
+      }
+
+      emit({ type: 'step', label: 'Verificando acesso ao card...' })
+      const cardResult = await CardFeatureModel.findById(id, req.user.id, req.user.role)
+      if (!cardResult.success) {
+        emit({ type: 'error', message: cardResult.error || 'Erro ao buscar card' })
+        res.end(); return
+      }
+      if (!cardResult.data) {
+        emit({ type: 'error', message: 'Card não encontrado' })
+        res.end(); return
+      }
+      const card = cardResult.data
+
+      const isOwner = card.createdBy === req.user.id
+      const isAdmin = req.user.role === 'admin'
+      if (!isOwner && !isAdmin) {
+        const sharedResult = await CardFeatureModel.getSharedUsers(id, req.user.id)
+        const isShared = sharedResult.data?.some((u) => u.id === req.user!.id) || false
+        if (!isShared) {
+          emit({ type: 'error', message: 'Sem permissão para editar este card' })
+          res.end(); return
+        }
+      }
+
+      emit({ type: 'step', label: 'Extraindo blocos de código...' })
+      const codeTextTerminalBlocks = (card.screens || []).flatMap((s) =>
+        (s.blocks || []).filter((b) =>
+          b.type === ContentType.CODE || b.type === ContentType.TEXT || b.type === ContentType.TERMINAL
+        )
+      )
+      if (codeTextTerminalBlocks.length === 0) {
+        emit({ type: 'error', message: 'Card precisa ter pelo menos um bloco de código, texto ou terminal para gerar o flow' })
+        res.end(); return
+      }
+
+      emit({ type: 'step', label: `${codeTextTerminalBlocks.length} blocos encontrados — preparando para IA...` })
+
+      const codeContext = codeTextTerminalBlocks.map((b) => {
+        const header = `[${b.type}] ${b.route || b.title || 'sem rota'}`
+        return `${header}\n${b.content}`
+      }).join('\n\n---\n\n')
+
+      const prompt = `Você é um especialista em arquitetura de software. Analise os trechos de código abaixo
+e gere um fluxo de informação estruturado mostrando como os dados fluem entre as camadas.
+
+Para cada item retorne:
+- label: nome da função/endpoint/componente
+- layer: frontend | api | backend | database | service
+- file: caminho do arquivo (se identificável)
+- line: linha(s) (se identificável)
+- description: uma linha explicando o que acontece (sempre em português brasileiro)
+
+Escreva todas as descrições em português brasileiro. Retorne apenas JSON válido no formato { "contents": [...] }.
+
+Código para análise:
+${codeContext}`
+
+      const apiKey = resolveApiKey()
+      if (!apiKey) {
+        emit({ type: 'error', message: 'API key não configurada para IA' })
+        res.end(); return
+      }
+
+      emit({ type: 'step', label: 'IA analisando código e gerando fluxo...' })
+      const aiResponse = await callChatCompletions({
+        endpoint: resolveChatCompletionsUrl(),
+        apiKey,
+        body: { model: 'grok-4-1-fast-reasoning', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }
+      })
+
+      emit({ type: 'step', label: 'Interpretando resposta da IA...' })
+      const raw = aiResponse.content.trim()
+      let parsed: { contents?: FlowItem[] }
+      try {
+        parsed = JSON.parse(raw) as { contents?: FlowItem[] }
+      } catch {
+        const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (codeBlock) {
+          parsed = JSON.parse(codeBlock[1]!.trim()) as { contents?: FlowItem[] }
+        } else {
+          const first = raw.indexOf('{')
+          const last = raw.lastIndexOf('}')
+          if (first >= 0 && last > first) {
+            parsed = JSON.parse(raw.slice(first, last + 1)) as { contents?: FlowItem[] }
+          } else {
+            emit({ type: 'error', message: 'Resposta da IA não é JSON válido' })
+            res.end(); return
+          }
+        }
+      }
+
+      const contents = Array.isArray(parsed.contents) ? parsed.contents : []
+      emit({ type: 'done', contents })
+      res.end()
+    } catch (error) {
+      console.error('[generateFlow] Erro:', error)
+      emit({ type: 'error', message: 'Erro ao gerar flow' })
+      res.end()
     }
   }
 

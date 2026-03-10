@@ -59,6 +59,10 @@ export default function CodeDetailPage() {
         snippet={card}
         onEdit={() => {}}
         onDelete={() => {}}
+        onUpdate={async (id, data) => {
+          const updated = await cardFeatureService.update(id, data)
+          if (updated?.success && updated.data) setCard(updated.data)
+        }}
         defaultExpanded={true}
         expandOnClick={true}
       />

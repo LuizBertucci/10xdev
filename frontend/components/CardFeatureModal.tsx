@@ -9,11 +9,12 @@ import {
   type PointerEvent as ReactPointerEvent
 } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Edit, GripVertical, Link2, Loader2, Sparkles, Trash2 } from "lucide-react"
+import { Check, Edit, GripVertical, Link2, Loader2, Sparkles, Trash2, GitBranch } from "lucide-react"
 import ContentRenderer from "./ContentRenderer"
+import GenerateFlowModal from "./GenerateFlowModal"
 import { Textarea } from "@/components/ui/textarea"
 import type { CardFeature } from "@/types"
-import { CardType } from "@/types/cardfeature"
+import { CardType } from "@/types"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ interface CardFeatureModalProps {
   isGeneratingSummary?: boolean
   onGenerateSummary?: (snippetId: string, prompt?: string) => void | Promise<void>
   onSaveSummary?: (snippetId: string, summaryContent: string) => void | Promise<void>
+  canGenerateFlow?: boolean
+  onCardUpdated?: (card: CardFeature) => void
 }
 
 const SUMMARY_INSTRUCTIONS = [
@@ -53,6 +56,7 @@ const SUMMARY_INSTRUCTIONS_ROWS = SUMMARY_INSTRUCTIONS.split('\n').length + 4
 const SUMMARY_INSTRUCTIONS_LS_KEY = 'card-summary-instructions'
 const SUMMARY_SCREEN_ID = '__summary__'
 const DEFAULT_COLUMN_WIDTH = 500
+const CODE_COLUMN_WIDTH = 720
 const SUMMARY_COLUMN_WIDTH = 560
 const MIN_COLUMN_WIDTH = 320
 const MAX_COLUMN_WIDTH = 1200
@@ -71,7 +75,9 @@ export default function CardFeatureModal({
   canGenerateSummary = false,
   isGeneratingSummary = false,
   onGenerateSummary,
-  onSaveSummary
+  onSaveSummary,
+  canGenerateFlow = false,
+  onCardUpdated
 }: CardFeatureModalProps) {
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false)
   const [summaryInstructions, setSummaryInstructions] = useState(SUMMARY_INSTRUCTIONS)
@@ -84,6 +90,7 @@ export default function CardFeatureModal({
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const [draggingScreenId, setDraggingScreenId] = useState<string | null>(null)
   const [dragOverScreenId, setDragOverScreenId] = useState<string | null>(null)
+  const [showFlowModal, setShowFlowModal] = useState(false)
   const resizeStateRef = useRef<{ screenId: string; startX: number; startWidth: number } | null>(null)
 
   const normalizeScreenName = (name?: string) =>
@@ -98,6 +105,15 @@ export default function CardFeatureModal({
     return normalized === 'visao geral'
   }
 
+  const isFlowScreen = (name?: string) => /^flow$/i.test((name || '').trim())
+
+  const hasCodeOrTerminal = useMemo(() =>
+    snippet ? (snippet.screens || []).some((s) =>
+      (s.blocks || []).some((b) => b.type === 'code' || b.type === 'terminal')
+    ) : false,
+    [snippet]
+  )
+
   const visibleScreens = useMemo(() => {
     if (!snippet) return []
     let summaryAlreadyAdded = false
@@ -109,14 +125,19 @@ export default function CardFeatureModal({
         acc.push({ ...screen, name: 'Visão Geral' })
         return acc
       }
-
+      if (isFlowScreen(screen.name)) {
+        acc.push({ ...screen, name: 'Flow' })
+        return acc
+      }
       acc.push(screen)
       return acc
     }, [])
   }, [snippet])
 
+  const FLOW_SCREEN_ID = '__flow__'
   const getScreenStableId = (screen: CardFeature['screens'][number], index: number) => {
     if (isSummaryScreen(screen.name)) return SUMMARY_SCREEN_ID
+    if (isFlowScreen(screen.name)) return FLOW_SCREEN_ID
     const firstRoute = (screen.blocks || [])
       .map((block) => block.route?.trim())
       .find((route): route is string => Boolean(route))
@@ -130,6 +151,7 @@ export default function CardFeatureModal({
       visibleScreens.map((screen, index) => ({
         id: getScreenStableId(screen, index),
         isSummary: isSummaryScreen(screen.name),
+        isFlow: isFlowScreen(screen.name),
         screen
       })),
     [visibleScreens]
@@ -141,7 +163,12 @@ export default function CardFeatureModal({
   )
 
   const draggableScreenItems = useMemo(
-    () => screenItems.filter((item) => !item.isSummary),
+    () => screenItems.filter((item) => !item.isSummary && !item.isFlow),
+    [screenItems]
+  )
+
+  const flowScreenItem = useMemo(
+    () => screenItems.find((item) => item.isFlow) ?? null,
     [screenItems]
   )
 
@@ -155,17 +182,23 @@ export default function CardFeatureModal({
     const orderedDraggable = normalizedOrder
       .map((id) => draggableById.get(id))
       .filter((item): item is (typeof draggableScreenItems)[number] => Boolean(item))
-    if (summaryScreenItem) return [summaryScreenItem, ...orderedDraggable]
-    return orderedDraggable
-  }, [columnOrder, draggableScreenItems, summaryScreenItem])
+    const result: typeof screenItems = []
+    if (flowScreenItem) result.push(flowScreenItem)
+    if (summaryScreenItem) result.push(summaryScreenItem)
+    result.push(...orderedDraggable)
+    return result.length > 0 ? result : orderedDraggable
+  }, [columnOrder, draggableScreenItems, summaryScreenItem, flowScreenItem])
 
   const orderedDraggableScreenItems = useMemo(
-    () => orderedScreenItems.filter((item) => !item.isSummary),
+    () => orderedScreenItems.filter((item) => !item.isSummary && !item.isFlow),
     [orderedScreenItems]
   )
 
   const getDefaultWidth = useCallback((screenId: string) => {
-    return screenId === SUMMARY_SCREEN_ID ? SUMMARY_COLUMN_WIDTH : DEFAULT_COLUMN_WIDTH
+    if (screenId === SUMMARY_SCREEN_ID) return SUMMARY_COLUMN_WIDTH
+    if (screenId === FLOW_SCREEN_ID) return DEFAULT_COLUMN_WIDTH
+    if (screenId.startsWith('route:')) return CODE_COLUMN_WIDTH
+    return DEFAULT_COLUMN_WIDTH
   }, [])
 
   const clampColumnWidth = useCallback((width: number) => {
@@ -505,6 +538,20 @@ export default function CardFeatureModal({
                     {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
                     {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
                   </Button>
+                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canGenerateFlow && onCardUpdated && (
+                    <>
+                      <span className="text-gray-400 text-sm">●</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowFlowModal(true)}
+                        className="h-7 px-2 text-xs text-green-600 hover:text-green-700 hover:border-green-300 hover:bg-green-50"
+                      >
+                        <GitBranch className="h-3 w-3 mr-1" />
+                        {flowScreenItem ? 'Regenerar Flow' : 'Gerar Flow'}
+                      </Button>
+                    </>
+                  )}
                   <span className="text-gray-400 text-sm">●</span>
                   <span className="text-sm font-medium text-gray-700">
                     {visibleFilesCount > 0
@@ -553,9 +600,9 @@ export default function CardFeatureModal({
                 </div>
               ) : (
                 <>
-                  {orderedScreenItems.map(({ id, isSummary, screen }) => (
+                  {orderedScreenItems.map(({ id, isSummary, isFlow, screen }) => (
                     <Fragment key={id}>
-                      {!isSummary && (
+                      {!isSummary && !isFlow && (
                         <div
                           className={`relative h-full w-6 flex-shrink-0 ${
                             dragOverScreenId === `gap:${orderedDraggableScreenItems.findIndex((item) => item.id === id)}`
@@ -580,16 +627,16 @@ export default function CardFeatureModal({
                         } ${dragOverScreenId === id ? 'ring-1 ring-blue-300 rounded-lg' : ''}`}
                         style={{ width: `${getColumnWidth(id)}px`, minWidth: `${MIN_COLUMN_WIDTH}px` }}
                         onDragOver={(event) => {
-                          if (isSummary) return
+                          if (isSummary || isFlow) return
                           onScreenDragOver(id, event)
                         }}
                         onDrop={(event) => {
-                          if (isSummary) return
+                          if (isSummary || isFlow) return
                           onScreenDrop(id, event)
                         }}
                       >
                         <div className="relative h-full min-h-0 overflow-y-auto rounded-lg border border-gray-200 bg-white p-4">
-                          {!isSummary && (
+                          {!isSummary && !isFlow && (
                             <div className="absolute left-3 top-3 z-10">
                               <button
                                 type="button"
@@ -602,6 +649,20 @@ export default function CardFeatureModal({
                               >
                                 <GripVertical className="h-4 w-4" />
                               </button>
+                            </div>
+                          )}
+                          {(isFlow && canGenerateFlow && onCardUpdated) && (
+                            <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowFlowModal(true)}
+                                className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
+                                title="Regenerar Flow"
+                              >
+                                <GitBranch className="h-4 w-4" />
+                              </Button>
                             </div>
                           )}
                           {isSummary && onGenerateSummary && canGenerateSummary && (
@@ -709,6 +770,38 @@ export default function CardFeatureModal({
           </div>
         </DialogContent>
       </Dialog>
+
+      {snippet && (
+        <GenerateFlowModal
+          open={showFlowModal}
+          onOpenChange={setShowFlowModal}
+          snippet={snippet}
+          onSuccess={async (contents) => {
+            const { cardFeatureService } = await import('@/services/cardFeatureService')
+            const { ContentType } = await import('@/types')
+            const flowBlock = {
+              id: cardFeatureService.generateUUID(),
+              type: ContentType.FLOW,
+              content: JSON.stringify(contents),
+              order: 0
+            }
+            const flowScreen = {
+              name: 'Flow',
+              description: 'Fluxo de informação entre camadas',
+              blocks: [flowBlock]
+            }
+            const flowScreenIndex = (snippet.screens || []).findIndex((s) => isFlowScreen(s.name))
+            const hasFlowScreen = flowScreenIndex >= 0
+            const updatedScreens = hasFlowScreen
+              ? (snippet.screens || []).map((s, i) => (i === flowScreenIndex ? flowScreen : s))
+              : [flowScreen, ...(snippet.screens || [])]
+            const updated = await cardFeatureService.update(snippet.id, { screens: updatedScreens })
+            if (updated?.success && updated.data) {
+              onCardUpdated?.(updated.data)
+            }
+          }}
+        />
+      )}
     </>
   )
 }

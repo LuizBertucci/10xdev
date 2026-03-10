@@ -644,8 +644,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               loadCards(true) // Incremental: não mostra "Carregando..." e adiciona apenas novos
             }
             
-            // If done, just clear the banner after delay (no reload needed - cards already loaded incrementally)
+            // If done, reload sync status (github_sync_active is set by connectRepo at completion)
             if (row.status === 'done') {
+              loadSyncStatus()
               setTimeout(() => { if (mounted) setImportJob(null) }, 8000)
             } else if (row.status === 'error') {
               setTimeout(() => { if (mounted) setImportJob(null) }, 10000)
@@ -871,6 +872,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     }
   }
 
+  const handleUpdateCard = async (cardId: string, data: Partial<CardFeature>) => {
+    const updated = await cardFeatureService.update(cardId, data)
+    if (updated?.success && updated.data) {
+      const updatedCard = updated.data
+      setExpandModalCard((prev) => (prev?.id === cardId ? updatedCard : prev))
+      setCardFeatures((prev) => prev.map((c) => (c.id === cardId ? updatedCard : c)))
+      setCards((prev) =>
+        prev.map((pc) =>
+          pc.cardFeatureId === cardId ? { ...pc, cardFeature: updatedCard } : pc
+        )
+      )
+    }
+  }
 
   const loadAvailableCards = async () => {
     try {
@@ -1739,6 +1753,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           snippet={cardFeature}
                           onEdit={handleEditCard}
                           onDelete={handleDeleteCard}
+                          onUpdate={handleUpdateCard}
                           expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
                           defaultExpanded={cardFeature.id === autoExpandCardId}
@@ -2423,6 +2438,16 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         isGeneratingSummary={isGeneratingModalSummary}
         onGenerateSummary={handleGenerateSummaryFromModal}
         onSaveSummary={handleSaveSummaryFromModal}
+        canGenerateFlow={!!expandModalCard && canEditCard(expandModalCard)}
+        onCardUpdated={expandModalCard ? (updatedCard) => {
+          setExpandModalCard(updatedCard)
+          setCardFeatures((prev) => prev.map((c) => (c.id === updatedCard.id ? updatedCard : c)))
+          setCards((prev) =>
+            prev.map((pc) =>
+              pc.cardFeatureId === updatedCard.id ? { ...pc, cardFeature: updatedCard } : pc
+            )
+          )
+        } : undefined}
         onEdit={expandModalCard && canEditCard(expandModalCard) ? (card) => {
           setExpandModalCard(null)
           handleEditCard(card)
