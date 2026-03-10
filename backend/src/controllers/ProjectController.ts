@@ -9,7 +9,7 @@ import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from '@/services/llmClient'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
 import { Visibility, ContentType, CardType } from '@/types/cardfeature'
-import type { CreateCardFeatureRequest } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest, FlowItem, FlowLayer } from '@/types/cardfeature'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
@@ -1130,8 +1130,65 @@ Retorne apenas JSON válido:
         res.end(); return
       }
 
-      // Passo 6
-      emit({ type: 'step', label: 'Salvando card no projeto...' })
+      // Inferir FlowLayer a partir do route (frontend → api → backend → database)
+      const inferLayer = (route: string | null | undefined): FlowLayer => {
+        if (!route) return 'service'
+        const r = route.toLowerCase()
+        if (r.includes('frontend') || r.includes('/pages/') || r.includes('/components/')) return 'frontend'
+        if (r.includes('/routes/') || r.includes('/api/')) return 'api'
+        if (r.includes('/controllers/') || r.includes('/services/')) return 'backend'
+        if (r.includes('/models/') || r.includes('supabase') || r.includes('.sql') || r.includes('database')) return 'database'
+        return 'service'
+      }
+
+      const flowItems: FlowItem[] = data.screens.map((screen) => ({
+        label: (screen.name || 'Arquivo').replace(/\s*\([^)]*\)\s*/g, '').trim() || 'Arquivo',
+        layer: inferLayer(screen.route),
+        description: screen.description || '',
+        ...(screen.route ? { file: screen.route } : {})
+      }))
+
+      const codeScreens = data.screens.map(screen => {
+        // A IA às vezes coloca o arquivo entre parênteses no nome: "Frontend Trigger (ProjectDetail.tsx)"
+        // Extraímos a rota do parêntese e limpamos o nome
+        const parenMatch = (screen.name || '').match(/\(([^)]+)\)/)
+        const routeFromName = parenMatch ? parenMatch[1] : null
+        const screenRoute = screen.route || routeFromName || null
+        const cleanName = (screen.name || 'Arquivo').replace(/\s*\([^)]*\)\s*/g, '').trim() || 'Arquivo'
+
+        return {
+          name: cleanName,
+          description: screen.description || '',
+          ...(screenRoute ? { route: screenRoute } : {}),
+          blocks: (screen.blocks || []).map((block, idx) => {
+            const blockRoute = block.route || screenRoute
+            return {
+              id: randomUUID(),
+              type: (block.type || ContentType.CODE) as ContentType,
+              content: block.content || '',
+              order: block.order ?? idx,
+              title: blockRoute
+                ? blockRoute.split('/').pop()?.replace(/\.[^.]+$/, '') ?? blockRoute
+                : (block.title || 'Código'),
+              ...(block.language ? { language: block.language } : {}),
+              ...(blockRoute ? { route: blockRoute } : {}),
+            }
+          })
+        }
+      })
+
+      const flowScreen = {
+        name: 'Flow',
+        description: 'Fluxo de informação entre camadas',
+        blocks: [{
+          id: randomUUID(),
+          type: ContentType.FLOW,
+          content: JSON.stringify(flowItems),
+          order: 0
+        }]
+      }
+
+      const screens = [flowScreen, ...codeScreens]
 
       const cardData: CreateCardFeatureRequest = {
         title: data.title,
@@ -1141,34 +1198,7 @@ Retorne apenas JSON válido:
         card_type: CardType.CODIGOS,
         visibility: Visibility.UNLISTED,
         created_in_project_id: id,
-        screens: data.screens.map(screen => {
-          // A IA às vezes coloca o arquivo entre parênteses no nome: "Frontend Trigger (ProjectDetail.tsx)"
-          // Extraímos a rota do parêntese e limpamos o nome
-          const parenMatch = (screen.name || '').match(/\(([^)]+)\)/)
-          const routeFromName = parenMatch ? parenMatch[1] : null
-          const screenRoute = screen.route || routeFromName || null
-          const cleanName = (screen.name || 'Arquivo').replace(/\s*\([^)]*\)\s*/g, '').trim() || 'Arquivo'
-
-          return {
-            name: cleanName,
-            description: screen.description || '',
-            ...(screenRoute ? { route: screenRoute } : {}),
-            blocks: (screen.blocks || []).map((block, idx) => {
-              const blockRoute = block.route || screenRoute
-              return {
-                id: randomUUID(),
-                type: (block.type || ContentType.CODE) as ContentType,
-                content: block.content || '',
-                order: block.order ?? idx,
-                title: blockRoute
-                  ? blockRoute.split('/').pop()?.replace(/\.[^.]+$/, '') ?? blockRoute
-                  : (block.title || 'Código'),
-                ...(block.language ? { language: block.language } : {}),
-                ...(blockRoute ? { route: blockRoute } : {}),
-              }
-            })
-          }
-        })
+        screens
       }
 
       const createResult = await CardFeatureModel.create(cardData, req.user.id, req.user.role)
@@ -1179,7 +1209,99 @@ Retorne apenas JSON válido:
 
       await ProjectModel.addCard(id, createResult.data.id, req.user.id)
 
-      emit({ type: 'done', card: createResult.data })
+      // Gerar flow detalhado automaticamente
+      emit({ type: 'step', label: 'Gerando flow detalhado com IA...' })
+
+      const allCodeBlocks = codeScreens.flatMap(s =>
+        s.blocks.filter(b =>
+          b.type === ContentType.CODE ||
+          b.type === ContentType.TEXT ||
+          b.type === ContentType.TERMINAL
+        )
+      )
+
+      let finalCard = createResult.data
+
+      if (allCodeBlocks.length > 0) {
+        const codeContext = allCodeBlocks.map(b => {
+          const header = `[${b.type}] ${b.route || b.title || 'sem rota'}`
+          return `${header}\n${b.content}`
+        }).join('\n\n---\n\n')
+
+        const flowPrompt = `Você é um especialista em arquitetura de software. Analise os trechos de código abaixo
+e gere um fluxo de informação estruturado mostrando como os dados fluem entre as camadas.
+
+Para cada item retorne:
+- label: nome da função/endpoint/componente
+- layer: frontend | api | backend | database | service
+- file: caminho do arquivo (se identificável)
+- line: linha(s) (se identificável)
+- description: uma linha explicando o que acontece (sempre em português brasileiro)
+
+Escreva todas as descrições em português brasileiro. Retorne apenas JSON válido no formato { "contents": [...] }.
+
+Código para análise:
+${codeContext}`
+
+        try {
+          const flowAiResponse = await callChatCompletions({
+            endpoint: resolveChatCompletionsUrl(),
+            apiKey,
+            body: { model: 'grok-4-1-fast-reasoning', messages: [{ role: 'user', content: flowPrompt }], temperature: 0.2 }
+          })
+
+          emit({ type: 'step', label: 'Interpretando flow detalhado...' })
+
+          const flowRaw = flowAiResponse.content.trim()
+          let flowParsed: { contents?: FlowItem[] }
+          try {
+            flowParsed = JSON.parse(flowRaw) as { contents?: FlowItem[] }
+          } catch {
+            const cb = flowRaw.match(/```(?:json)?\s*([\s\S]*?)```/)
+            if (cb) {
+              flowParsed = JSON.parse(cb[1]!.trim()) as { contents?: FlowItem[] }
+            } else {
+              const f = flowRaw.indexOf('{')
+              const l = flowRaw.lastIndexOf('}')
+              flowParsed = (f >= 0 && l > f) ? JSON.parse(flowRaw.slice(f, l + 1)) as { contents?: FlowItem[] } : { contents: [] }
+            }
+          }
+
+          const detailedFlowItems = Array.isArray(flowParsed.contents) ? flowParsed.contents : []
+
+          if (detailedFlowItems.length > 0) {
+            const updatedScreens = (createResult.data.screens || []).map(s =>
+              s.name === 'Flow'
+                ? {
+                    ...s,
+                    blocks: [{
+                      id: randomUUID(),
+                      type: ContentType.FLOW,
+                      content: JSON.stringify(detailedFlowItems),
+                      order: 0
+                    }]
+                  }
+                : s
+            )
+
+            const updateResult = await CardFeatureModel.update(
+              createResult.data.id,
+              { screens: updatedScreens },
+              req.user.id,
+              req.user.role
+            )
+
+            if (updateResult.success && updateResult.data) {
+              finalCard = updateResult.data
+            }
+          }
+        } catch (flowError) {
+          console.error('[generateFlowCard] Erro ao gerar flow detalhado:', flowError)
+          emit({ type: 'step', label: 'Flow detalhado não disponível, usando flow básico.' })
+        }
+      }
+
+      emit({ type: 'done', card: finalCard })
     } catch (error) {
       emit({ type: 'error', message: error instanceof Error ? error.message : 'Erro interno do servidor' })
     } finally {

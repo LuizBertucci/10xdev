@@ -1,28 +1,28 @@
 ---
 name: flow_screen_type
-overview: Adicionar um novo tipo de bloco "flow" nos cards CODIGOS, gerado automaticamente por IA a partir dos outros blocos do card, visualizando o fluxo de informação entre camadas do sistema.
+overview: Adicionar um novo tipo de bloco "flow" nos cards CODIGOS, gerado automaticamente por IA a partir dos outros blocos do card, visualizando o fluxo de informação entre camadas. Uma nova aba "Flow" será criada como primeira no card para exibir o diagrama.
 todos:
   - id: investigar_screens
     content: Investigar estrutura interna do JSONB screens para confirmar formato por screen
     status: completed
   - id: supabase_migration
     content: Migration no Supabase — adicionar 'flow' no CHECK constraint de content_type
-    status: pending
+    status: completed
   - id: types_enum
     content: Adicionar ContentType.FLOW = 'flow' nos enums de frontend e backend
-    status: pending
+    status: completed
   - id: backend_endpoint_generate
-    content: Endpoint POST /api/cards/:id/flow/generate que lê blocos e chama IA
-    status: pending
+    content: Endpoint POST /api/card-features/:id/flow/generate que lê blocos e chama IA
+    status: completed
   - id: frontend_renderer
     content: Componente FlowBlock que renderiza contents como diagrama vertical
-    status: pending
+    status: completed
   - id: frontend_botao
-    content: Botão "Gerar Flow" disponível em view e edit mode
-    status: pending
+    content: Botão "Gerar Flow" — cria aba Flow como primeira no card
+    status: completed
   - id: frontend_editor
     content: Editor de contents no modo de edição (adicionar, remover, reordenar, editar)
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -32,7 +32,7 @@ isProject: false
 
 Um card CODIGOS tem `screens[]` → cada screen tem `blocks[]` → cada block tem um `type` (ContentType). O `flow` é mais um tipo de block — seguindo exatamente a mesma estrutura existente. A IA lê os blocos de código do card, entende as conexões entre os arquivos/funções referenciados, e gera um bloco de fluxo estruturado.
 
-**Caso de uso:** time quer entender como uma funcionalidade funciona internamente. O dev monta o card com os blocos de código, clica em "Gerar Flow", e a IA produz o diagrama pronto para compartilhar na mesma screen.
+**Caso de uso:** time quer entender como uma funcionalidade funciona internamente. O dev monta o card com os blocos de código, clica em "Gerar Flow", e a IA produz o diagrama. Será criada uma **nova aba** (screen) como **primeira** no card, dedicada a exibir esse Flow.
 
 ---
 
@@ -135,7 +135,7 @@ Também adicionar a interface `FlowItem` e o tipo `FlowLayer` em ambos os arquiv
 ### 3. Backend — Endpoint de geração
 
 ```
-POST /api/cards/:id/flow/generate
+POST /api/card-features/:id/flow/generate
 Auth: obrigatória
 ```
 
@@ -144,8 +144,8 @@ Auth: obrigatória
 1. Busca o card pelo `id` e verifica acesso do usuário
 2. Extrai todos os blocos de tipo `code`, `text` e `terminal` de todas as screens
 3. Para cada bloco: usa `content` (código inline) + `route` (referência de arquivo) como contexto
-4. Monta prompt para Claude com os conteúdos
-5. Retorna `{ contents: FlowItem[] }` — o frontend salva como novo bloco
+4. Monta prompt para Grok com os conteúdos
+5. Retorna `{ contents: FlowItem[] }` — o frontend cria nova aba e salva o bloco
 
 **Prompt para a IA:**
 
@@ -166,7 +166,7 @@ Código para análise:
 [blocos do card]
 ```
 
-**Modelo:** `claude-sonnet-4-6` (via Anthropic SDK já instalado no backend)
+**Modelo:** `grok-4-1-fast-reasoning` (via `llmClient.ts` já configurado — GROK_API_KEY + endpoint x.ai)
 
 **Arquivo:** `backend/src/controllers/CardFeatureController.ts` + rota em `backend/src/routes/cardFeatureRoutes.ts`
 
@@ -208,8 +208,9 @@ Integrar no renderer de blocos do `CardFeature.tsx` (onde hoje faz switch/if por
 - Aparece no card em **view mode** e **edit mode**
 - Só aparece em cards `CODIGOS` com pelo menos um bloco `code` ou `terminal`
 - Estado: idle → loading ("Analisando código...") → sucesso/erro
-- Ao sucesso: adiciona o bloco `flow` à screen ativa e salva o card
-- Se já existe bloco `flow` na screen: botão muda para "Regenerar Flow"
+- Ao sucesso: **cria uma nova aba** (screen) como **primeira** no card, com o bloco `flow`, e salva
+- Nome da aba: "Flow" (ou "Fluxo")
+- Se já existe aba Flow na primeira posição: botão muda para "Regenerar Flow" e substitui o conteúdo
 
 ---
 
