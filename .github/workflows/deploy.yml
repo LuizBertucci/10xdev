@@ -51,6 +51,8 @@ jobs:
           docker build \
             --build-arg NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }} \
             --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} \
+            --build-arg NEXT_PUBLIC_GITHUB_CLIENT_ID=Iv23liA4JgWeR03TaLqt \
+            --build-arg NEXT_PUBLIC_API_URL=https://web-backend-10xdev.azurewebsites.net/api \
             -t crg10xdev.azurecr.io/10xdev-frontend:latest \
             ./frontend
 
