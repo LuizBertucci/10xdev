@@ -269,10 +269,9 @@ app.use((req, res, next) => {
 // Timeout de resposta para evitar requests pendurados indefinidamente
 app.use((req, res, next) => {
   const isGitSyncConnect = req.method === 'POST' && /\/api\/projects\/[^/]+\/github\/connect$/.test(req.originalUrl)
-  const isGenerateFlow = req.method === 'POST' && /\/api\/projects\/[^/]+\/cards\/generate-flow$/.test(req.originalUrl)
   const defaultTimeoutMs = Number(process.env.RESPONSE_TIMEOUT_MS) || 20000
   const connectTimeoutMs = Number(process.env.GITHUB_CONNECT_TIMEOUT_MS) || Number(process.env.GITSYNC_CONNECT_TIMEOUT_MS) || 180000
-  const timeoutMs = isGitSyncConnect || isGenerateFlow ? connectTimeoutMs : defaultTimeoutMs
+  const timeoutMs = isGitSyncConnect ? connectTimeoutMs : defaultTimeoutMs
   res.setTimeout(timeoutMs, () => {
     const rid = res.getHeader('X-Request-ID') || req.headers['x-request-id']
     console.error(`[timeout] ${req.method} ${req.originalUrl} após ${timeoutMs}ms rid=${String(rid ?? '')}`)

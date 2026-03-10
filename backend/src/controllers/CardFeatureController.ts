@@ -7,13 +7,8 @@ import {
   UpdateCardFeatureRequest,
   CardFeatureQueryParams,
   ContentType,
-  CardFeatureScreen,
-  SupportedLanguage,
-  SupportedTech
+  CardFeatureScreen
 } from '@/types/cardfeature'
-
-const VALID_LANGUAGES = Object.values(SupportedLanguage)
-const VALID_TECHS = Object.values(SupportedTech)
 
 export class CardFeatureController {
 
@@ -33,22 +28,6 @@ export class CardFeatureController {
 
       const data: CreateCardFeatureRequest = req.body
       const userId = req.user.id
-
-      if (data.language && !VALID_LANGUAGES.includes(data.language as SupportedLanguage)) {
-        res.status(400).json({
-          success: false,
-          error: `Linguagem inválida: "${data.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
-        })
-        return
-      }
-
-      if (data.tech && !VALID_TECHS.includes(data.tech as SupportedTech)) {
-        res.status(400).json({
-          success: false,
-          error: `Tech inválida: "${data.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
-        })
-        return
-      }
 
       const result = await CardFeatureModel.create(data, userId, req.user.role || 'user')
 
@@ -337,22 +316,6 @@ export class CardFeatureController {
         return
       }
 
-      if (data.language && !VALID_LANGUAGES.includes(data.language as SupportedLanguage)) {
-        res.status(400).json({
-          success: false,
-          error: `Linguagem inválida: "${data.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
-        })
-        return
-      }
-
-      if (data.tech && !VALID_TECHS.includes(data.tech as SupportedTech)) {
-        res.status(400).json({
-          success: false,
-          error: `Tech inválida: "${data.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
-        })
-        return
-      }
-
       const result = await CardFeatureModel.update(id, data, userId, req.user.role || 'user')
 
       if (!result.success) {
@@ -508,24 +471,6 @@ export class CardFeatureController {
         return
       }
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        if (item && item.language && !VALID_LANGUAGES.includes(item.language as SupportedLanguage)) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: linguagem inválida "${item.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
-          })
-          return
-        }
-        if (item && item.tech && !VALID_TECHS.includes(item.tech as SupportedTech)) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: tech inválida "${item.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
-          })
-          return
-        }
-      }
-
       const result = await CardFeatureModel.bulkCreate(items, userId, req.user.role || 'user')
 
       if (!result.success) {
@@ -648,24 +593,6 @@ export class CardFeatureController {
       if (updates.some((item) => item === null || typeof item !== 'object' || !item.id || typeof item.id !== 'string')) {
         res.status(400).json({ success: false, error: 'Cada item deve ter um campo "id" válido' })
         return
-      }
-
-      for (let i = 0; i < updates.length; i++) {
-        const item = updates[i]
-        if (item && item.language && !VALID_LANGUAGES.includes(item.language as SupportedLanguage)) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: linguagem inválida "${item.language}". Valores válidos: ${VALID_LANGUAGES.join(', ')}`
-          })
-          return
-        }
-        if (item && item.tech && !VALID_TECHS.includes(item.tech as SupportedTech)) {
-          res.status(400).json({
-            success: false,
-            error: `Item ${i + 1}: tech inválida "${item.tech}". Valores válidos: ${VALID_TECHS.join(', ')}`
-          })
-          return
-        }
       }
 
       const result = await CardFeatureModel.bulkUpdate(updates)
@@ -866,75 +793,75 @@ export class CardFeatureController {
     }
   }
 
-  static async generateVisaoGeral(req: Request, res: Response): Promise<void> {
-    console.log('=== [generateVisaoGeral] INÍCIO ===')
-    console.log('[generateVisaoGeral] Card ID:', req.params.id)
-    console.log('[generateVisaoGeral] User ID:', req.user?.id)
-    console.log('[generateVisaoGeral] User Role:', req.user?.role)
+  static async generateSummary(req: Request, res: Response): Promise<void> {
+    console.log('=== [generateSummary] INÍCIO ===')
+    console.log('[generateSummary] Card ID:', req.params.id)
+    console.log('[generateSummary] User ID:', req.user?.id)
+    console.log('[generateSummary] User Role:', req.user?.role)
 
     try {
       if (!req.user) {
-        console.log('[generateVisaoGeral] ERRO: Usuário não autenticado')
+        console.log('[generateSummary] ERRO: Usuário não autenticado')
         res.status(401).json({ success: false, error: 'Usuário não autenticado' })
         return
       }
       const { id } = req.params
       const { force, prompt } = req.body as { force?: boolean; prompt?: string }
       if (!id) {
-        console.log('[generateVisaoGeral] ERRO: ID obrigatório')
+        console.log('[generateSummary] ERRO: ID obrigatório')
         res.status(400).json({ success: false, error: 'ID é obrigatório' })
         return
       }
-      console.log('[generateVisaoGeral] Buscando card:', id)
+      console.log('[generateSummary] Buscando card:', id)
       const cardResult = await CardFeatureModel.findById(id, req.user.id, req.user.role)
 
       if (!cardResult.success) {
-        console.log('[generateVisaoGeral] ERRO findById:', cardResult.error)
+        console.log('[generateSummary] ERRO findById:', cardResult.error)
         res.status(cardResult.statusCode || 400).json({ success: false, error: cardResult.error })
         return
       }
       if (!cardResult.data) {
-        console.log('[generateVisaoGeral] ERRO: Card não encontrado')
+        console.log('[generateSummary] ERRO: Card não encontrado')
         res.status(404).json({ success: false, error: 'Card não encontrado' })
         return
       }
       const card = cardResult.data
-      console.log('[generateVisaoGeral] Card encontrado:', card.title)
-      console.log('[generateVisaoGeral] Card createdBy:', card.createdBy)
-      console.log('[generateVisaoGeral] Is Owner:', card.createdBy === req.user.id)
-      console.log('[generateVisaoGeral] Is Admin:', req.user.role === 'admin')
+      console.log('[generateSummary] Card encontrado:', card.title)
+      console.log('[generateSummary] Card createdBy:', card.createdBy)
+      console.log('[generateSummary] Is Owner:', card.createdBy === req.user.id)
+      console.log('[generateSummary] Is Admin:', req.user.role === 'admin')
       const isOwner = card.createdBy === req.user.id
       const isAdmin = req.user.role === 'admin'
-      console.log('[generateVisaoGeral] Permissão:', isOwner || isAdmin ? 'OK' : 'BLOQUEADO')
+      console.log('[generateSummary] Permissão:', isOwner || isAdmin ? 'OK' : 'BLOQUEADO')
 
       if (!isOwner && !isAdmin) {
         const sharedResult = await CardFeatureModel.getSharedUsers(id, req.user!.id)
         const isShared = sharedResult.data?.some((u) => u.id === req.user!.id) || false
-        console.log('[generateVisaoGeral] Is Shared:', isShared)
+        console.log('[generateSummary] Is Shared:', isShared)
 
         if (!isShared) {
-          console.log('[generateVisaoGeral] ERRO: Sem permissão (não é dono, admin nem compartilhado)')
+          console.log('[generateSummary] ERRO: Sem permissão (não é dono, admin nem compartilhado)')
           res.status(403).json({ success: false, error: 'Sem permissão para editar este card' })
           return
         }
       }
 
-      console.log('[generateVisaoGeral] Verificando visão geral existente...')
+      console.log('[generateSummary] Verificando resumo existente...')
       const existingSummaryScreen = card.screens.find(
-        s => /^(visão geral|visao geral|resumo|sumário|summary|overview)$/i.test(s.name.trim())
+        s => s.name.toLowerCase() === 'resumo' || s.name.toLowerCase() === 'overview'
       )
 
       if (existingSummaryScreen && !force) {
-        console.log('[generateVisaoGeral] Visão Geral já existe, retornando existente')
+        console.log('[generateSummary] Resumo já existe, retornando existente')
         res.status(200).json({
           success: true,
           summary: existingSummaryScreen.blocks[0]?.content || '',
-          message: 'Visão Geral já existente'
+          message: 'Resumo já existente'
         })
         return
       }
 
-      console.log('[generateVisaoGeral] Preparando parâmetros para IA...')
+      console.log('[generateSummary] Preparando parâmetros para IA...')
       const params: { cardTitle: string; screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>; tech?: string; language?: string } = {
         cardTitle: card.title,
         screens: card.screens.map(s => ({
@@ -955,13 +882,13 @@ export class CardFeatureController {
       if (card.tech) params.tech = card.tech
       if (card.language) params.language = card.language
 
-      console.log('[generateVisaoGeral] Chamando IA para gerar visão geral...')
-      const { summary } = await AiCardGroupingService.generateCardVisaoGeral(params, prompt)
-      console.log('[generateVisaoGeral] Visão Geral gerada com sucesso:', summary?.substring(0, 100) + '...')
+      console.log('[generateSummary] Chamando IA para gerar resumo...')
+      const { summary } = await AiCardGroupingService.generateCardSummary(params, prompt)
+      console.log('[generateSummary] Resumo gerado com sucesso:', summary?.substring(0, 100) + '...')
 
       const summaryScreen: CardFeatureScreen = {
-        name: 'Visão Geral',
-        description: 'Visão Geral gerada por IA sobre esta feature',
+        name: 'Resumo',
+        description: 'Resumo gerado por IA sobre esta feature',
         blocks: [{
           id: randomUUID(),
           type: ContentType.TEXT,
@@ -973,20 +900,20 @@ export class CardFeatureController {
         ? card.screens.map(s => s.name.toLowerCase() === existingSummaryScreen.name.toLowerCase() ? summaryScreen : s)
         : [summaryScreen, ...card.screens]
 
-      console.log('[generateVisaoGeral] Salvando visão geral no banco...')
+      console.log('[generateSummary] Salvando resumo no banco...')
       const updateResult = await CardFeatureModel.update(id, { screens: updatedScreens }, req.user.id, req.user.role)
       if (!updateResult.success) {
-        console.log('[generateVisaoGeral] ERRO ao salvar:', updateResult.error)
+        console.log('[generateSummary] ERRO ao salvar:', updateResult.error)
         res.status(updateResult.statusCode || 400).json({ success: false, error: updateResult.error })
         return
       }
 
-      console.log('[generateVisaoGeral] SUCESSO!')
-      res.status(200).json({ success: true, summary, message: 'Visão Geral gerada com sucesso' })
-      console.log('=== [generateVisaoGeral] FIM ===')
+      console.log('[generateSummary] SUCESSO!')
+      res.status(200).json({ success: true, summary, message: 'Resumo gerado com sucesso' })
+      console.log('=== [generateSummary] FIM ===')
     } catch (error) {
-      console.error('[generateVisaoGeral] ERRO INTERNO:', error)
-      res.status(500).json({ success: false, error: 'Erro ao gerar visão geral' })
+      console.error('[generateSummary] ERRO INTERNO:', error)
+      res.status(500).json({ success: false, error: 'Erro ao gerar resumo' })
     }
   }
 

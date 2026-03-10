@@ -62,9 +62,6 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     hasPrevPage?: boolean
   }) => void) | null>(null)
 
-  // Ref para goToPage — evita que o useEffect de filtros dispare com cada atualização de paginação
-  const goToPageRef = useRef<((page: number) => Promise<void>) | null>(null)
-
   // ✅ NOVO: Função de fetch com paginação para o usePagination hook
   const fetchCardFeaturesWithPagination = useCallback(async (params: FetchParams) => {
     setState(prev => ({ ...prev, loading: true, error: null }))
@@ -144,19 +141,14 @@ export function useCardFeatures(options: UseCardFeaturesOptions = {}, externalFi
     const hasCardTypeFilter = externalFilters?.selectedCardType !== undefined && externalFilters.selectedCardType !== 'all'
 
     if (hasVisibilityFilter || hasApprovalFilter || hasOwnershipFilter || hasCardTypeFilter) {
-      goToPageRef.current?.(1)
+      pagination.goToPage(1)
     }
-  }, [externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedOwnership, externalFilters?.selectedCardType])
+  }, [externalFilters?.selectedVisibility, externalFilters?.selectedApprovalStatus, externalFilters?.selectedOwnership, externalFilters?.selectedCardType, pagination.goToPage])
 
   // Atualizar a ref quando pagination for criado
   useEffect(() => {
     paginationUpdateRef.current = pagination.updatePaginationInfo
   }, [pagination.updatePaginationInfo])
-
-  // Manter ref de goToPage sempre atualizada
-  useEffect(() => {
-    goToPageRef.current = pagination.goToPage
-  }, [pagination.goToPage])
 
   // ✅ NOVO: Hook de busca com debounce - usa fetchCardFeaturesWithPagination
   const search = useDebounceSearch(
