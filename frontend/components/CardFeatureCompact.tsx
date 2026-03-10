@@ -218,7 +218,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
   const isSummaryScreen = (name?: string) => {
     const normalized = normalizeScreenName(name)
-    return normalized === 'resumo' || normalized === 'visao geral'
+    return normalized === 'visao geral'
   }
 
   const visibleScreens = useMemo(() => {
@@ -260,7 +260,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     if (!accessInfo?.canGenerate || isGeneratingSummary) return
     setIsGeneratingSummary(true)
     try {
-      const response = await cardFeatureService.generateSummary(
+      const response = await cardFeatureService.generateVisaoGeral(
         snippet.id,
         true,
         prompt?.trim() || undefined
@@ -675,7 +675,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
               {/* Área do Conteúdo com Containers Específicos */}
               <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white w-full min-w-0 overflow-hidden">
-                {/* Botão Gerar Resumo - apenas na aba Resumo */}
+                {/* Botão Gerar Visão Geral - apenas na aba Visão Geral */}
                 {isSummaryTab && accessInfo?.canGenerate && (
                   <div className="absolute top-2 right-2 z-20">
                     <Tooltip>
@@ -698,7 +698,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{isGeneratingSummary ? 'Gerando resumo...' : 'Gerar resumo com IA'}</p>
+                        <p>{isGeneratingSummary ? 'Gerando visão geral...' : 'Gerar Visão Geral'}</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>

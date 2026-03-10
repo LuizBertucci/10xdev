@@ -6,14 +6,22 @@ description: "Fluxo padrao para organizar commits e push com quality gate integr
 # Git Commit & Push Workflow
 
 **Nunca commite automaticamente.** So commite quando o usuario pedir explicitamente (ex: "commita", "pode subir", "sobe", "commit", "push").
-Quando o usuario pedir, siga este fluxo. Se pedir para pular o quality gate ("pula", "skip", "so commita"), va direto para a etapa 3.
+Se pedir para pular o quality gate ("pula", "skip", "so commita"), va direto para a etapa 3.
+
+## Modos de execucao
+
+### 1) Commit rapido (default)
+- Lint sempre; Build e CodeRabbit condicionais (3+ arquivos ou mudancas em types/config, ou usuario pediu)
+
+### 2) Commit completo (quando usuario pedir "completo")
+- Lint, Build e CodeRabbit sempre
 
 ## 1. Analisar alteracoes pendentes
 
 - Rode `git status` e `git diff --stat` para listar todos os arquivos modificados
 - Rode `git diff` por grupo de arquivos para entender cada mudanca
 
-## 2. Quality Gate (lint + build)
+## 2. Quality Gate por modo
 
 ### Lint (sempre)
 
@@ -24,15 +32,20 @@ npm run lint
 - **Sempre roda**, independente do tamanho da mudanca
 - Se falhar, corrija os erros e rode novamente. Nao prossiga ate passar.
 
-### Build (condicional)
+### Build (condicional no rapido, sempre no completo)
 
-**Frontend com limitação de memória (WSL):**
+```bash
+npm run build
+```
+
+- **Modo rapido:** rode apenas se 3+ arquivos alterados, **ou** mudancas em `types/`, `tsconfig`, `package.json`, arquivos de config
+- **Modo completo:** sempre rode
+
+**Frontend com limitacao de memoria (WSL):**
 ```bash
 cd frontend && NODE_OPTIONS="--max-old-space-size=4096" npm run build
 ```
-
-Rode **apenas** se: 3+ arquivos alterados, **ou** mudancas em `types/`, `tsconfig`, `package.json`, arquivos de config.
-Se falhar, corrija e rode novamente. Nao prossiga ate passar.
+Use quando o build crashar por falta de memoria no WSL.
 
 ## 3. Agrupar por responsabilidade
 
@@ -41,21 +54,11 @@ Separe as alteracoes em commits logicos, cada um com **uma unica responsabilidad
 - Nunca misture alteracoes de backend com frontend se forem de funcionalidades diferentes
 - Nunca misture performance com feature nova
 
-## 4. Apresentar tabela + CodeRabbit Review
+## 4. Apresentar blocos de aprovacao + tabela
 
-Apresente a tabela de commits. Em seguida, rode o CodeRabbit Review se aplicavel.
+### Bloco de aprovacao
 
-### CodeRabbit (condicional)
-
-```bash
-coderabbit review --plain --type uncommitted
-```
-
-Rode **apenas** se: 3+ arquivos alterados, **ou** o usuario pediu explicitamente ("revisa", "roda coderabbit", "quality gate").
-
-### Tabela enriquecida
-
-**IMPORTANTE:** Apos montar os commits, sempre apresente titulo + corpo de cada commit para o usuario aprovar antes de executar. Use o formato abaixo — cada commit como bloco separado:
+**IMPORTANTE:** Sempre apresente titulo + arquivos + corpo de cada commit para o usuario aprovar antes de executar. Use o formato abaixo — cada commit como bloco separado:
 
 ---
 
@@ -65,14 +68,30 @@ Rode **apenas** se: 3+ arquivos alterados, **ou** o usuario pediu explicitamente
 
 ---
 
-Em seguida, se houver sugestoes do CodeRabbit, apresente a tabela de status:
+### Tabela de commits
+
+Apresente a tabela na estrutura abaixo. Use a coluna **Status** apenas quando CodeRabbit tiver rodado.
 
 | # | Commit (titulo) | Arquivos | Status |
 |---|-----------------|----------|--------|
 | 1 | `tipo: titulo curto` | arquivo1, arquivo2 | limpo |
 | 2 | `tipo: titulo curto` | arquivo3 | 2 sugestoes |
 
-Para commits com sugestoes, liste-as abaixo:
+- **Com CodeRabbit:** inclua coluna Status (limpo, N sugestoes)
+- **Sem CodeRabbit:** apresente a tabela sem coluna Status
+
+### CodeRabbit (condicional no rapido, sempre no completo)
+
+```bash
+coderabbit review --plain --type uncommitted
+```
+
+- **Modo rapido:** rode apenas se 3+ arquivos alterados, **ou** usuario pediu ("revisa", "roda coderabbit", "quality gate")
+- **Modo completo:** sempre rode
+
+### Sugestoes do CodeRabbit
+
+Para commits com sugestoes, liste-as abaixo da tabela:
 
 | # | Arquivo | Sugestao | Severidade |
 |---|---------|----------|------------|
@@ -83,8 +102,6 @@ Para commits com sugestoes, liste-as abaixo:
 - Pergunte quais sugestoes aplicar
 - **Aplique antes de commitar** (o commit ja sai na versao final)
 - Se aplicou mudancas, rode `npm run lint` novamente
-
-Se CodeRabbit nao rodar (< 3 arquivos), apresente a tabela sem a coluna Status.
 
 **Tipos de commit:** `feat`, `fix`, `perf`, `style`, `refactor`, `docs`, `chore`, `test`
 

@@ -8,9 +8,9 @@ import { normalizeGithubFilePath } from '@/utils/githubPath'
 import { GithubModel } from '@/models/GithubModel'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
-import { Visibility } from '@/types/cardfeature'
+import { Visibility, ContentType } from '@/types/cardfeature'
 import type { GithubRepoInfo } from '@/types/project'
-import type { CreateCardFeatureRequest } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest, CardFeatureScreen } from '@/types/cardfeature'
 import type {
   GithubWebhookPushPayload,
   GithubWebhookInstallationPayload,
@@ -750,6 +750,28 @@ export class GithubService {
               cardId = createdRes.data[0]!.id
               createdNewCard = true
               await ProjectModel.addCardsBulk(projectId, [cardId], userId)
+
+              try {
+                const { summary } = await AiCardGroupingService.generateCardVisaoGeral({
+                  cardTitle: card.title,
+                  screens: card.screens,
+                  ...(card.tech && { tech: card.tech }),
+                  ...(card.language && { language: card.language })
+                })
+                const visaoGeralScreen: CardFeatureScreen = {
+                  name: 'Visão Geral',
+                  description: 'Visão Geral gerada por IA sobre esta feature',
+                  blocks: [{
+                    id: crypto.randomUUID(),
+                    type: ContentType.TEXT,
+                    content: summary,
+                    order: 0
+                  }]
+                }
+                await CardFeatureModel.update(cardId, { screens: [visaoGeralScreen, ...card.screens] }, userId, 'admin')
+              } catch (err) {
+                console.warn('[GitSync connectRepo] Falha ao gerar Visão Geral para card', card.title, err)
+              }
             }
 
             if (!cardId) return
@@ -863,6 +885,28 @@ export class GithubService {
             cardBySignature.set(signature, cardId)
 
             await ProjectModel.addCardsBulk(projectId, [cardId], userId, branch)
+
+            try {
+              const { summary } = await AiCardGroupingService.generateCardVisaoGeral({
+                cardTitle: card.title,
+                screens: card.screens,
+                ...(card.tech && { tech: card.tech }),
+                ...(card.language && { language: card.language })
+              })
+              const visaoGeralScreen: CardFeatureScreen = {
+                name: 'Visão Geral',
+                description: 'Visão Geral gerada por IA sobre esta feature',
+                blocks: [{
+                  id: crypto.randomUUID(),
+                  type: ContentType.TEXT,
+                  content: summary,
+                  order: 0
+                }]
+              }
+              await CardFeatureModel.update(cardId, { screens: [visaoGeralScreen, ...card.screens] }, userId, 'admin')
+            } catch (err) {
+              console.warn('[GitSync importBranch] Falha ao gerar Visão Geral para card', card.title, err)
+            }
 
             const mappings: GithubSyncFileMappingInsert[] = filePaths.map(fp => ({
               project_id: projectId,

@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto'
 import { ContentType } from '@/types/cardfeature'
 
 /**
@@ -45,7 +44,6 @@ import type { CardFeatureScreen, ContentBlock, CreateCardFeatureRequest } from '
 import type { FileEntry } from './githubService'
 import { CardQualitySupervisor } from './cardQualitySupervisor'
 import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions, type LlmUsage } from './llmClient'
-import { cleanMarkdown } from '@/utils/markdownUtils'
 import { normalizeAiOutput, buildCardsFromAiOutput } from './aiCardBuilder'
 
 export class AiCardGroupingService {
@@ -267,13 +265,12 @@ export class AiCardGroupingService {
       options?.onLog?.('Aplicando correções de qualidade...')
       const finalCards = corrections.correctedCards
         .map(card => this.normalizeSingleCodeFilePerScreen(card))
-        .map(card => this.addVisaoGeralScreen(card))
       for (const card of finalCards) {
         await emitCard(card)
       }
 
       const filesProcessed = finalCards.reduce(
-        (sum, c) => sum + c.screens.reduce((s, sc) => s + sc.blocks.filter(b => b.type === ContentType.CODE).length, 0),
+        (sum, c) => sum + c.screens.reduce((s: number, sc: CardFeatureScreen) => s + sc.blocks.filter((b: ContentBlock) => b.type === ContentType.CODE).length, 0),
         0
       )
       return {
@@ -303,14 +300,13 @@ export class AiCardGroupingService {
         const { qualityReport, corrections } = await runPipeline(content)
         const finalCards = corrections.correctedCards
           .map(card => this.normalizeSingleCodeFilePerScreen(card))
-          .map(card => this.addVisaoGeralScreen(card))
 
         for (const card of finalCards) {
           await emitCard(card)
         }
 
         const filesProcessedRetry = finalCards.reduce(
-          (sum, c) => sum + c.screens.reduce((s, sc) => s + sc.blocks.filter(b => b.type === ContentType.CODE).length, 0),
+          (sum, c) => sum + c.screens.reduce((s: number, sc: CardFeatureScreen) => s + sc.blocks.filter((b: ContentBlock) => b.type === ContentType.CODE).length, 0),
           0
         )
         if (usageRetry) {
@@ -335,28 +331,28 @@ export class AiCardGroupingService {
   }
 
   // ================================================
-  // AI - GERAR RESUMO DO CARD
+  // AI - GERAR VISÃO GERAL DO CARD
   // ================================================
 
-  static async generateCardSummary(params: {
+  static async generateCardVisaoGeral(params: {
     cardTitle: string
     screens: Array<{ name: string; description: string; blocks: Array<{ type: ContentType; content: string; language?: string; title?: string; route?: string }> }>
     tech?: string
     language?: string
   }, customPrompt?: string): Promise<{ summary: string }> {
-    console.log('[generateCardSummary] Iniciando...')
+    console.log('[generateCardVisaoGeral] Iniciando...')
     const apiKey = resolveApiKey()
-    console.log('[generateCardSummary] API Key presente:', Boolean(apiKey))
+    console.log('[generateCardVisaoGeral] API Key presente:', Boolean(apiKey))
 
     if (!apiKey) {
-      console.error('[generateCardSummary] ERRO: API key não configurada')
+      console.error('[generateCardVisaoGeral] ERRO: API key não configurada')
       throw new Error('API key não configurada')
     }
 
     const model = process.env.OPENAI_MODEL || 'grok-4-1-fast-reasoning'
     const endpoint = resolveChatCompletionsUrl()
-    console.log('[generateCardSummary] Model:', model)
-    console.log('[generateCardSummary] Endpoint:', endpoint)
+    console.log('[generateCardVisaoGeral] Model:', model)
+    console.log('[generateCardVisaoGeral] Endpoint:', endpoint)
 
     const screensContext = params.screens.map((screen) => {
       const files = screen.blocks
@@ -427,7 +423,7 @@ export class AiCardGroupingService {
       ...(trimmedPrompt ? ['', 'Instruções adicionais do usuário:', trimmedPrompt] : [])
     ].join('\n')
 
-    console.log('[generateCardSummary] Chamando API de IA...')
+    console.log('[generateCardVisaoGeral] Chamando API de IA...')
     const { content } = await callChatCompletions({
       endpoint,
       apiKey,
@@ -442,7 +438,7 @@ export class AiCardGroupingService {
       }
     })
 
-    console.log('[generateCardSummary] Resposta recebida da IA, processando...')
+    console.log('[generateCardVisaoGeral] Resposta recebida da IA, processando...')
     const summary = content
       .replace(/\n{3,}/g, '\n\n')
       .trim()
@@ -454,7 +450,7 @@ export class AiCardGroupingService {
     }
 
     const fileItems = params.screens
-      .filter(s => !/^(resumo|sumário|summary|overview)$/i.test(s.name.trim()))
+      .filter(s => !/^(resumo|sumário|summary|overview|visão geral|visao geral)$/i.test(s.name.trim()))
       .flatMap(s => s.blocks.filter(b => b.type === ContentType.CODE))
       .map(b => b.route || b.title || '')
       .filter(Boolean)
@@ -485,92 +481,7 @@ export class AiCardGroupingService {
       }
     }
 
-    console.log('[generateCardSummary] Resumo processado:', finalSummary?.substring(0, 100) + '...')
+    console.log('[generateCardVisaoGeral] Resumo processado:', finalSummary?.substring(0, 100) + '...')
     return { summary: finalSummary }
-  }
-
-  // ================================================
-  // VISÃO GERAL
-  // ================================================
-
-  static addVisaoGeralScreen(card: CreateCardFeatureRequest): CreateCardFeatureRequest {
-    const content = this.buildVisaoGeralContent(card)
-    const summaryBlock: ContentBlock = {
-      id: randomUUID(),
-      type: ContentType.TEXT,
-      content,
-      order: 0
-    }
-
-    const nonSummaryScreens = card.screens.filter(
-      s => !/^(visão geral|visao geral|resumo|sumário|summary|overview)$/i.test(s.name.trim())
-    )
-
-    const summaryScreen: CardFeatureScreen = {
-      name: 'Visão Geral',
-      description: card.description,
-      route: '',
-      blocks: [summaryBlock]
-    }
-    return {
-      ...card,
-      screens: [summaryScreen, ...nonSummaryScreens]
-    }
-  }
-
-  private static buildVisaoGeralContent(card: CreateCardFeatureRequest): string {
-    const nonSummaryScreens = card.screens.filter(
-      s => !/^(visão geral|visao geral|resumo|sumário|summary|overview)$/i.test(s.name.trim())
-    )
-
-    const codeFiles = nonSummaryScreens
-      .flatMap(s => s.blocks)
-      .filter(b => b.type === ContentType.CODE)
-      .map(b => b.route || b.title || '')
-      .filter(Boolean)
-
-    const uniqueFiles = Array.from(new Set(codeFiles))
-    const backendFiles = uniqueFiles.filter(file => file.startsWith('backend/'))
-    const frontendFiles = uniqueFiles.filter(file => file.startsWith('frontend/'))
-    const otherFiles = uniqueFiles.filter(
-      file => !file.startsWith('backend/') && !file.startsWith('frontend/')
-    )
-
-    const features = nonSummaryScreens
-      .map(s => cleanMarkdown(s.description || s.name))
-      .filter(Boolean)
-      .slice(0, 8)
-
-    const category = cleanMarkdown(card.category || 'Geral')
-    const tech = cleanMarkdown(card.tech || 'Não informado')
-    const description = cleanMarkdown(card.description || 'Feature mapeada a partir do repositório.')
-
-    return [
-      cleanMarkdown(card.title),
-      '',
-      description,
-      '',
-      `- *Categoria:* ${category}`,
-      `- *Tecnologias:* ${tech}`,
-      '',
-      'Features',
-      ...(features.length > 0
-        ? features.map(feature => `- ${feature.endsWith('.') ? feature : `${feature}.`}`)
-        : ['- Funcionalidade principal identificada a partir dos arquivos relacionados.']),
-      '',
-      `### Arquivos (${uniqueFiles.length})`,
-      ...(backendFiles.length > 0
-        ? ['#### Backend', ...backendFiles.map(file => `- \`${file}\``), '']
-        : []),
-      ...(frontendFiles.length > 0
-        ? ['#### Frontend', ...frontendFiles.map(file => `- \`${file}\``), '']
-        : []),
-      ...(otherFiles.length > 0
-        ? ['#### Outros', ...otherFiles.map(file => `- \`${file}\``)]
-        : []),
-      ...(!backendFiles.length && !frontendFiles.length && !otherFiles.length
-        ? ['- Nenhum arquivo mapeado para este card.']
-        : [])
-    ].join('\n').trim()
   }
 }

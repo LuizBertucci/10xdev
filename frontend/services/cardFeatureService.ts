@@ -165,8 +165,8 @@ class CardFeatureService {
     return uniqueCardFeatures
   }
 
-  async generateSummary(cardId: string, force?: boolean, prompt?: string): Promise<GenerateSummaryResponse> {
-    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-summary`, {
+  async generateVisaoGeral(cardId: string, force?: boolean, prompt?: string): Promise<GenerateSummaryResponse> {
+    const response = await apiClient.post<GenerateSummaryResponse>(`${this.endpoint}/${cardId}/generate-visao-geral`, {
       force,
       prompt: prompt || undefined
     }) as GenerateSummaryResponse
