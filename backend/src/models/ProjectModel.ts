@@ -294,7 +294,7 @@ export class ProjectModel {
 
       // Buscar informações adicionais
       const memberCount = await this.getMemberCount(id)
-      const cardCount = await this.getCardCount(id, data.default_branch)
+      const cardCount = await this.getCardCount(id)
       const cardsCreatedCount = await this.getCardsCreatedCount(id)
       const userRole = userId ? await this.getUserRole(id, userId) : undefined
 
@@ -364,7 +364,7 @@ export class ProjectModel {
           // Buscar contagens em paralelo para otimizar performance
           const [memberCount, cardCount, cardsCreatedCount, userRole] = await Promise.all([
             this.getMemberCount(row.id),
-            this.getCardCount(row.id, row.default_branch),
+            this.getCardCount(row.id),
             this.getCardsCreatedCount(row.id),
             userId ? this.getUserRole(row.id, userId) : Promise.resolve(undefined)
           ])
@@ -1429,18 +1429,14 @@ export class ProjectModel {
     }
   }
 
-  private static async getCardCount(projectId: string, defaultBranch?: string | null): Promise<number> {
+  private static async getCardCount(projectId: string): Promise<number> {
     try {
-      let query = supabaseAdmin
-        .from('project_cards')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId)
-
-      if (defaultBranch) {
-        query = query.or(`branch_name.eq.${defaultBranch},branch_name.is.null`)
-      }
-
-      const { count } = await executeQuery(query)
+      const { count } = await executeQuery(
+        supabaseAdmin
+          .from('project_cards')
+          .select('*', { count: 'exact', head: true })
+          .eq('project_id', projectId)
+      )
       return count || 0
     } catch {
       return 0

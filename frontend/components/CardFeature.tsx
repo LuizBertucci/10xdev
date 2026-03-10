@@ -105,7 +105,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
     if (!accessInfo?.canGenerate || isGeneratingSummary) return
     setIsGeneratingSummary(true)
     try {
-      const response = await cardFeatureService.generateVisaoGeral(
+      const response = await cardFeatureService.generateSummary(
         snippet.id,
         true,
         prompt?.trim() || undefined
@@ -123,18 +123,18 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
             ]
           : snippet.screens
         onEdit({ ...snippet, screens: updatedScreens })
-        toast.success('Visão Geral gerada com sucesso!')
-      } else if (response.message === 'Visão Geral já existente') {
-        toast.info('Visão Geral já existe para este card')
+        toast.success('Resumo gerado com sucesso!')
+      } else if (response.message === 'Resumo já existente') {
+        toast.info('Resumo já existe para este card')
       } else {
-        toast.error(response.message || 'Erro ao gerar visão geral')
+        toast.error(response.message || 'Erro ao gerar resumo')
       }
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'status' in error && (error as { status: number }).status === 403) {
-        toast.error('Você não tem permissão para gerar visão geral deste card')
+        toast.error('Você não tem permissão para gerar resumo deste card')
       } else {
-        console.error('Erro ao gerar visão geral:', error)
-        toast.error('Erro ao gerar visão geral')
+        console.error('Erro ao gerar resumo:', error)
+        toast.error('Erro ao gerar resumo')
       }
     } finally {
       setIsGeneratingSummary(false)
@@ -146,9 +146,9 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
       <Dialog open={showSummaryPrompt} onOpenChange={setShowSummaryPrompt}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Instruções da Visão Geral</DialogTitle>
+            <DialogTitle>Instruções do resumo</DialogTitle>
             <DialogDescription>
-              Ajuste o prompt para gerar uma visão geral mais clara e focada na feature.
+              Ajuste o prompt para gerar um resumo mais claro e focado na feature.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-3">
@@ -179,7 +179,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
               disabled={isGeneratingSummary}
               className="h-9 px-4"
             >
-              {isGeneratingSummary ? 'Gerando...' : 'Gerar Visão Geral'}
+              {isGeneratingSummary ? 'Gerando...' : 'Gerar resumo'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -258,7 +258,7 @@ export default function CardFeature({ snippet, onEdit, onExpand, onDelete }: Car
       </Button>
     </TooltipTrigger>
     <TooltipContent>
-      <p>{isGeneratingSummary ? 'Gerando visão geral...' : 'Gerar Visão Geral'}</p>
+      <p>{isGeneratingSummary ? 'Gerando resumo...' : 'Gerar Resumo com IA'}</p>
     </TooltipContent>
   </Tooltip>
 )}

@@ -47,8 +47,8 @@ router.post('/', supabaseMiddleware, authenticate, CardFeatureController.create)
 router.put('/:id', supabaseMiddleware, authenticate, CardFeatureController.update)
 router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.delete)
 
-// GERAR VISÃO GERAL - Gerar visão geral automática com IA
-router.post('/:id/generate-visao-geral', supabaseMiddleware, authenticate, CardFeatureController.generateVisaoGeral)
+// GERAR RESUMO - Gerar resumo automático com IA
+router.post('/:id/generate-summary', supabaseMiddleware, authenticate, CardFeatureController.generateSummary)
 
 // VERIFICAÇÃO DE ACESSO - Verifica se usuário pode acessar/gerar resumo
 router.get('/:id/access', supabaseMiddleware, authenticate, CardFeatureController.checkAccess)

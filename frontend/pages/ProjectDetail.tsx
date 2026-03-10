@@ -26,7 +26,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureModal from "@/components/CardFeatureModal"
-import CardSugeridoFlow from "@/components/CardSugeridoFlow"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import GitSyncProgressModal from "@/components/GitSyncProgressModal"
 import ImportProgressModal from "@/components/ImportProgressModal"
@@ -104,7 +103,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isAddCardDialogOpen, setIsAddCardDialogOpen] = useState(false)
   const [isMembersDialogOpen, setIsMembersDialogOpen] = useState(false)
   const [expandModalCard, setExpandModalCard] = useState<CardFeature | null>(null)
-  const [autoExpandCardId, setAutoExpandCardId] = useState<string | null>(null)
   const [isGeneratingModalSummary, setIsGeneratingModalSummary] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState("")
   const [isEditMode, setIsEditMode] = useState(false)
@@ -775,7 +773,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const handleGenerateSummaryFromModal = async (cardId: string, prompt?: string) => {
     try {
       setIsGeneratingModalSummary(true)
-      await cardFeatureService.generateVisaoGeral(cardId, true, prompt?.trim() || undefined)
+      await cardFeatureService.generateSummary(cardId, true, prompt?.trim() || undefined)
 
       const updated = await cardFeatureService.getById(cardId)
       if (!updated?.success || !updated.data) {
@@ -813,7 +811,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
     const isSummaryScreen = (name?: string) => {
       const normalized = normalizeScreenName(name)
-      return normalized === 'visao geral'
+      return normalized === 'resumo' || normalized === 'sumario' || normalized === 'visao geral'
     }
 
     try {
@@ -1624,16 +1622,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                {projectId && (
-                  <CardSugeridoFlow
-                    projectId={projectId}
-                    branch={activeBranch ?? undefined}
-                    onCardCreated={(card) => {
-                      setAutoExpandCardId(card.id)
-                      loadCards(false, false, activeBranch)
-                    }}
-                  />
-                )}
               </div>
 
               <ProjectSummary
@@ -1734,14 +1722,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       : undefined
 
                     return (
-                      <div key={cardFeature.id} id={`card-${cardFeature.id}`} className="relative group min-w-0 overflow-hidden">
+                      <div key={cardFeature.id} className="relative group min-w-0 overflow-hidden">
                         <CardFeatureCompact
                           snippet={cardFeature}
                           onEdit={handleEditCard}
                           onDelete={handleDeleteCard}
                           expandOnClick
                           onExpand={(card) => setExpandModalCard(card)}
-                          defaultExpanded={cardFeature.id === autoExpandCardId}
                           canEdit={canEditCard(cardFeature)}
                           hideVisibility
                           commitFiles={commitFilesForCard?.length ? commitFilesForCard : undefined}
