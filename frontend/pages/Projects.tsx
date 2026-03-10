@@ -206,6 +206,29 @@ export default function Projects() {
     router.push(`/projects/${projectId}`)
   }
 
+  const handleCancelImport = async (jobId: string) => {
+    try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const baseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:3001/api'
+        : (process.env.NEXT_PUBLIC_API_URL || 'https://api.10xdev.com.br/api')
+      const res = await fetch(`${baseUrl}/projects/jobs/${jobId}/cancel`, {
+        method: 'POST',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      })
+      if (res.ok) {
+        toast.success('Importação cancelada.')
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast.error((body as { error?: string }).error || 'Erro ao cancelar importação.')
+      }
+    } catch {
+      toast.error('Erro ao cancelar importação.')
+    }
+  }
+
   const openDeleteDialog = (project: Project) => {
     const importInfo = getImportInfo(project.id)
     if (importInfo) {
@@ -351,6 +374,8 @@ export default function Projects() {
                 isImporting={hasRunningImport(project.id)}
                 importProgress={importInfo?.progress}
                 importTooltip={defaultMessage(importInfo?.step ?? "")}
+                importJobId={importInfo?.jobId}
+                onCancelImport={handleCancelImport}
               />
             )
           })}

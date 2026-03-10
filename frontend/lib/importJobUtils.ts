@@ -12,7 +12,7 @@ export interface FileReport {
 export interface ImportJob {
   id: string
   project_id: string
-  status: 'running' | 'done' | 'error'
+  status: 'running' | 'done' | 'error' | 'cancelled'
   step: string
   progress: number
   message: string | null

@@ -171,6 +171,9 @@ export default function ImportProgressModal() {
         if (!row) return
         setJob(prev => {
           const merged = prev ? { ...prev, ...row } : row
+          if (prev?.file_report_json && !row.file_report_json) {
+            merged.file_report_json = prev.file_report_json
+          }
           if (prev && typeof row.progress === 'number' && typeof prev.progress === 'number') {
             merged.progress = Math.max(prev.progress, row.progress)
           }

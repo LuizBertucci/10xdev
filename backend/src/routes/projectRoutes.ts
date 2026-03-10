@@ -14,6 +14,7 @@ router.use(authenticate)
 router.post('/validate-token', ProjectController.validateGithubToken)
 router.post('/github-info', ProjectController.getGithubInfo)
 router.post('/import-from-github', ProjectController.importFromGithub)
+router.post('/jobs/:jobId/cancel', ProjectController.cancelJob)
 
 // ================================================
 // GITHUB SYNC (must be before /:id routes)

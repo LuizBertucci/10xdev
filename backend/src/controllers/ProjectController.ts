@@ -165,14 +165,17 @@ export class ProjectController {
             finalToken || undefined,
             { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
           )
+          const fileReportInstallation = {
+            included: filesForReport.map((f) => f.path),
+            ignored: skippedFiles
+          }
           progressLog.push(`Arquivos listados: ${filesForReport.length} incluídos, ${skippedFiles.length} ignorados`)
           await updateJob({
-            file_report_json: {
-              included: filesForReport.map((f) => f.path),
-              ignored: skippedFiles
-            },
+            file_report_json: fileReportInstallation,
             progress_log: [...progressLog]
           })
+
+          if (await ImportJobModel.isCancelled(job.id)) return
 
           const connectResult = await GithubService.connectRepo(
             projectId,
@@ -183,6 +186,7 @@ export class ProjectController {
             {
               defaultBranch,
               onProgress: async (step, progress, message) => {
+                if (await ImportJobModel.isCancelled(job.id)) throw new Error('CANCELLED')
                 if (message) progressLog.push(message)
                 await updateJob({
                   step: step as ImportJobStep,
@@ -209,7 +213,8 @@ export class ProjectController {
             cards_created: cardsCreated,
             files_processed: connectResult.mappingsCreated,
             ai_used: true,
-            ai_cards_created: cardsCreated
+            ai_cards_created: cardsCreated,
+            file_report_json: fileReportInstallation
           })
           return
         }
@@ -220,19 +225,22 @@ export class ProjectController {
           repoInfo.owner, repoInfo.repo, branch, finalToken || undefined,
           { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
         )
+        const fileReport = {
+          included: files.map(f => f.path),
+          ignored: skippedFiles
+        }
 
         progressLog.push(`Arquivos listados: ${files.length} incluídos, ${skippedFiles.length} ignorados`)
         await updateJob({
-          file_report_json: {
-            included: files.map(f => f.path),
-            ignored: skippedFiles
-          },
+          file_report_json: fileReport,
           progress_log: [...progressLog]
         })
 
         if (files.length === 0) {
           throw new Error('Nenhum arquivo de código encontrado no repositório.')
         }
+
+        if (await ImportJobModel.isCancelled(job.id)) return
 
         const { cards, filesProcessed, aiCardsCreated, tokenUsage } = await AiCardGroupingService.generateCardGroupsFromRepo(
           files,
@@ -243,6 +251,7 @@ export class ProjectController {
               await ImportJobModel.update(job.id, { progress_log: [...progressLog] })
             },
             onProgress: async (p) => {
+              if (await ImportJobModel.isCancelled(job.id)) throw new Error('CANCELLED')
               const msg = p.message ?? null
               const msgWithTokens = p.tokenUsage && msg
                 ? `${msg} (${p.tokenUsage.prompt_tokens} + ${p.tokenUsage.completion_tokens} tokens)`
@@ -256,6 +265,7 @@ export class ProjectController {
               })
             },
             onCardReady: async (card) => {
+              if (await ImportJobModel.isCancelled(job.id)) throw new Error('CANCELLED')
               const normalizedCard: CreateCardFeatureRequest = {
                 ...card,
                 visibility: Visibility.UNLISTED,
@@ -296,17 +306,46 @@ export class ProjectController {
           cards_created: totalCardsCreated || cards.length,
           files_processed: totalFilesProcessed || filesProcessed,
           ai_used: true,
-          ai_cards_created: aiCardsCreated
+          ai_cards_created: aiCardsCreated,
+          file_report_json: fileReport
         })
       } catch (e: unknown) {
         _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
+        if (e instanceof Error && e.message === 'CANCELLED') return
         await ImportJobModel.update(job.id, {
           status: 'error', step: 'error', progress: 100,
           message: 'Falha ao importar.', error: e instanceof Error ? e.message : 'Erro desconhecido'
         })
       }
     })
+  })
+
+  /** POST /api/projects/jobs/:jobId/cancel */
+  static cancelJob = safeHandler(async (req, res) => {
+    if (!req.user) throw badRequest('Não autenticado')
+    const { jobId } = req.params
+    if (!jobId) throw badRequest('jobId é obrigatório')
+
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('import_jobs')
+        .select('id, created_by, status')
+        .eq('id', jobId)
+        .single()
+    )
+
+    if (!data) throw badRequest('Job não encontrado')
+    const row = data as { id: string; created_by: string; status: string }
+    if (row.created_by !== req.user.id && req.user.role !== 'admin') throw badRequest('Sem permissão')
+    if (row.status !== 'running') throw badRequest('Job não está em execução')
+
+    await ImportJobModel.update(jobId, {
+      status: 'cancelled',
+      message: 'Importação cancelada pelo usuário.'
+    })
+
+    res.json({ success: true, message: 'Importação cancelada.' })
   })
 
   /** POST /api/projects */
