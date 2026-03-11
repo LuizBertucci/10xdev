@@ -25,7 +25,7 @@ interface FlowBlockProps {
 
 function parseFlowContent(content: string): FlowItem[] {
   try {
-    const parsed = JSON.parse(content)
+    const parsed = JSON.parse(content || '[]')
     return Array.isArray(parsed) ? parsed : (parsed?.contents && Array.isArray(parsed.contents) ? parsed.contents : [])
   } catch {
     return []

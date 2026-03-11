@@ -774,27 +774,31 @@ export default function CardFeatureModal({
           onOpenChange={setShowFlowModal}
           snippet={snippet}
           onSuccess={async (contents) => {
-            const { cardFeatureService } = await import('@/services/cardFeatureService')
-            const { ContentType } = await import('@/types')
-            const flowBlock = {
-              id: cardFeatureService.generateUUID(),
-              type: ContentType.FLOW,
-              content: JSON.stringify(contents),
-              order: 0
-            }
-            const flowScreen = {
-              name: 'Flow',
-              description: 'Fluxo de informação entre camadas',
-              blocks: [flowBlock]
-            }
-            const flowScreenIndex = (snippet.screens || []).findIndex((s) => isFlowScreen(s.name))
-            const hasFlowScreen = flowScreenIndex >= 0
-            const updatedScreens = hasFlowScreen
-              ? (snippet.screens || []).map((s, i) => (i === flowScreenIndex ? flowScreen : s))
-              : [flowScreen, ...(snippet.screens || [])]
-            const updated = await cardFeatureService.update(snippet.id, { screens: updatedScreens })
-            if (updated?.success && updated.data) {
-              onCardUpdated?.(updated.data)
+            try {
+              const { cardFeatureService } = await import('@/services/cardFeatureService')
+              const { ContentType } = await import('@/types')
+              const flowBlock = {
+                id: cardFeatureService.generateUUID(),
+                type: ContentType.FLOW,
+                content: JSON.stringify(contents),
+                order: 0
+              }
+              const flowScreen = {
+                name: 'Flow',
+                description: 'Fluxo de informação entre camadas',
+                blocks: [flowBlock]
+              }
+              const flowScreenIndex = (snippet.screens || []).findIndex((s) => isFlowScreen(s.name))
+              const hasFlowScreen = flowScreenIndex >= 0
+              const updatedScreens = hasFlowScreen
+                ? (snippet.screens || []).map((s, i) => (i === flowScreenIndex ? flowScreen : s))
+                : [flowScreen, ...(snippet.screens || [])]
+              const updated = await cardFeatureService.update(snippet.id, { screens: updatedScreens })
+              if (updated?.success && updated.data) {
+                onCardUpdated?.(updated.data)
+              }
+            } catch (error) {
+              console.error('Falha ao salvar o Flow:', error)
             }
           }}
         />
