@@ -1,3 +1,5 @@
+import { Request, Response } from 'express'
+import { randomUUID } from 'crypto'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
@@ -5,6 +7,7 @@ import { GithubModel } from '@/models/GithubModel'
 import { GithubService } from '@/services/githubService'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
+import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from '@/services/llmClient'
 import { Visibility, ContentType, CardType } from '@/types/cardfeature'
 import type { CreateCardFeatureRequest, FlowItem, FlowLayer } from '@/types/cardfeature'
 import {
