@@ -41,6 +41,7 @@ router.get('/:id/cards', ProjectController.getCards)
 router.post('/:id/cards', ProjectController.addCard)
 router.patch('/:id/cards/:cardFeatureId/reorder', ProjectController.reorderCard)
 router.delete('/:id/cards/:cardFeatureId', ProjectController.removeCard)
+router.post('/:id/cards/generate-flow', ProjectController.generateFlowCard)
 
 // GITHUB SYNC PER PROJECT
 router.get('/:id/github/branches', ProjectController.listBranches)

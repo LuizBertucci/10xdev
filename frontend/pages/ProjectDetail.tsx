@@ -26,6 +26,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import CardFeatureCompact from "@/components/CardFeatureCompact"
 import CardFeatureForm from "@/components/CardFeatureForm"
 import CardFeatureModal from "@/components/CardFeatureModal"
+import CardSugeridoFlow from "@/components/CardSugeridoFlow"
 import DeleteConfirmationDialog from "@/components/DeleteConfirmationDialog"
 import GitSyncProgressModal from "@/components/GitSyncProgressModal"
 import ImportProgressModal from "@/components/ImportProgressModal"
@@ -1636,6 +1637,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                {projectId && (
+                  <CardSugeridoFlow
+                    projectId={projectId}
+                    branch={activeBranch ?? undefined}
+                    onCardCreated={() => {
+                      loadCards(false, false, activeBranch)
+                    }}
+                  />
+                )}
               </div>
 
               <ProjectSummary
