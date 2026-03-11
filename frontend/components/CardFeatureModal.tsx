@@ -102,7 +102,7 @@ export default function CardFeatureModal({
 
   const isSummaryScreen = (name?: string) => {
     const normalized = normalizeScreenName(name)
-    return normalized === 'visao geral'
+    return normalized === 'resumo' || normalized === 'sumario' || normalized === 'visao geral'
   }
 
   const isFlowScreen = (name?: string) => /^flow$/i.test((name || '').trim())
@@ -516,8 +516,8 @@ export default function CardFeatureModal({
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
         <DialogContent className="max-w-[95vw] w-[95vw] max-h-[90vh] h-[90vh] p-0 flex flex-col">
           <DialogHeader className="px-6 pt-6 pb-1 flex-shrink-0">
-            <div className="flex items-start gap-4">
-              <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
                 <DialogTitle className="text-xl">{snippet.title}</DialogTitle>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Button
@@ -558,37 +558,34 @@ export default function CardFeatureModal({
                       ? `${visibleFilesCount} ${visibleFilesCount === 1 ? 'arquivo' : 'arquivos'}`
                       : `${visibleScreens.filter((screen) => !isSummaryScreen(screen.name)).length} ${visibleScreens.filter((screen) => !isSummaryScreen(screen.name)).length === 1 ? 'aba' : 'abas'}`}
                   </span>
-                  {(onEdit || onDelete) && (
-                    <>
-                      <span className="text-gray-400 text-sm">●</span>
-                      {onEdit && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => onEdit(snippet)}
-                          className="h-7 w-7 text-gray-600 hover:text-gray-900"
-                          title="Editar"
-                          aria-label="Editar"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                      {onDelete && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => onDelete(snippet.id)}
-                          className="h-7 w-7 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                          title="Excluir"
-                          aria-label="Excluir"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </>
-                  )}
                 </div>
               </div>
+              {(onEdit || onDelete) && (
+                <div className="flex gap-2 flex-shrink-0">
+                  {onEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(snippet)}
+                      className="text-gray-600 hover:text-gray-900"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Editar
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDelete(snippet.id)}
+                      className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Excluir
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </DialogHeader>
 

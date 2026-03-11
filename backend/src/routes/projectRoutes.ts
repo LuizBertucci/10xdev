@@ -38,7 +38,6 @@ router.post('/:id/share', ProjectController.shareProject)
 // CARDS MANAGEMENT
 router.get('/:id/cards/all', ProjectController.getCardsAll)
 router.get('/:id/cards', ProjectController.getCards)
-router.post('/:id/cards/generate-flow', ProjectController.generateFlowCard)
 router.post('/:id/cards', ProjectController.addCard)
 router.patch('/:id/cards/:cardFeatureId/reorder', ProjectController.reorderCard)
 router.delete('/:id/cards/:cardFeatureId', ProjectController.removeCard)

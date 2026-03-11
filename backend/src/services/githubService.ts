@@ -8,9 +8,9 @@ import { normalizeGithubFilePath } from '@/utils/githubPath'
 import { GithubModel } from '@/models/GithubModel'
 import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
-import { Visibility, ContentType } from '@/types/cardfeature'
+import { Visibility } from '@/types/cardfeature'
 import type { GithubRepoInfo } from '@/types/project'
-import type { CreateCardFeatureRequest, CardFeatureScreen } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest } from '@/types/cardfeature'
 import type {
   GithubWebhookPushPayload,
   GithubWebhookInstallationPayload,
@@ -278,17 +278,23 @@ export class GithubService {
   // ================================================
 
   /** Gera JWT assinado com a private key do GitHub App.
-    *  Válido por 10 minutos. Usado para obter installation tokens. */
+    *  Válido por 10 minutos. Usado para obter installation tokens.
+    *  Aceita GITHUB_PRIVATE_KEY (conteúdo inline, para cloud) ou GITHUB_PRIVATE_KEY_PATH (arquivo local). */
   static generateAppJWT(): string {
     const appId = process.env.GITHUB_APP_ID
+    const privateKeyInline = process.env.GITHUB_PRIVATE_KEY
     const privateKeyPath = process.env.GITHUB_PRIVATE_KEY_PATH
 
-    if (!appId || !privateKeyPath) {
-      throw new Error('GITHUB_APP_ID e GITHUB_PRIVATE_KEY_PATH devem estar configurados no .env')
+    if (!appId) {
+      throw new Error('GITHUB_APP_ID deve estar configurado no .env')
+    }
+    if (!privateKeyInline && !privateKeyPath) {
+      throw new Error('GITHUB_PRIVATE_KEY ou GITHUB_PRIVATE_KEY_PATH deve estar configurado no .env')
     }
 
-    const resolvedPath = path.resolve(process.cwd(), privateKeyPath)
-    const privateKey = fs.readFileSync(resolvedPath, 'utf8')
+    const privateKey = privateKeyInline
+      ? privateKeyInline.replace(/\\n/g, '\n')
+      : fs.readFileSync(path.resolve(process.cwd(), privateKeyPath!), 'utf8')
 
     const now = Math.floor(Date.now() / 1000)
     const payload = {
@@ -750,28 +756,6 @@ export class GithubService {
               cardId = createdRes.data[0]!.id
               createdNewCard = true
               await ProjectModel.addCardsBulk(projectId, [cardId], userId)
-
-              try {
-                const { summary } = await AiCardGroupingService.generateCardVisaoGeral({
-                  cardTitle: card.title,
-                  screens: card.screens,
-                  ...(card.tech && { tech: card.tech }),
-                  ...(card.language && { language: card.language })
-                })
-                const visaoGeralScreen: CardFeatureScreen = {
-                  name: 'Visão Geral',
-                  description: 'Visão Geral gerada por IA sobre esta feature',
-                  blocks: [{
-                    id: crypto.randomUUID(),
-                    type: ContentType.TEXT,
-                    content: summary,
-                    order: 0
-                  }]
-                }
-                await CardFeatureModel.update(cardId, { screens: [visaoGeralScreen, ...card.screens] }, userId, 'admin')
-              } catch (err) {
-                console.warn('[GitSync connectRepo] Falha ao gerar Visão Geral para card', card.title, err)
-              }
             }
 
             if (!cardId) return
@@ -885,28 +869,6 @@ export class GithubService {
             cardBySignature.set(signature, cardId)
 
             await ProjectModel.addCardsBulk(projectId, [cardId], userId, branch)
-
-            try {
-              const { summary } = await AiCardGroupingService.generateCardVisaoGeral({
-                cardTitle: card.title,
-                screens: card.screens,
-                ...(card.tech && { tech: card.tech }),
-                ...(card.language && { language: card.language })
-              })
-              const visaoGeralScreen: CardFeatureScreen = {
-                name: 'Visão Geral',
-                description: 'Visão Geral gerada por IA sobre esta feature',
-                blocks: [{
-                  id: crypto.randomUUID(),
-                  type: ContentType.TEXT,
-                  content: summary,
-                  order: 0
-                }]
-              }
-              await CardFeatureModel.update(cardId, { screens: [visaoGeralScreen, ...card.screens] }, userId, 'admin')
-            } catch (err) {
-              console.warn('[GitSync importBranch] Falha ao gerar Visão Geral para card', card.title, err)
-            }
 
             const mappings: GithubSyncFileMappingInsert[] = filePaths.map(fp => ({
               project_id: projectId,

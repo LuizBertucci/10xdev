@@ -207,3 +207,32 @@ From `.cursor/commands/fix-merge-conflicts.md`:
 ### Database migrations
 - Managed via Supabase Dashboard
 - Update models to reflect schema changes
+
+## Cursor Cloud specific instructions
+
+### Environment variables required
+
+The app needs Supabase credentials injected as secrets. Both backend and frontend read them at startup and throw if missing:
+
+| Secret name | Used by |
+|---|---|
+| `SUPABASE_URL` | backend `.env` |
+| `SUPABASE_ANON_KEY` | backend `.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | backend `.env` |
+| `NEXT_PUBLIC_SUPABASE_URL` | frontend `.env.local` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | frontend `.env.local` |
+
+The `.env` files are gitignored and must be created from these env vars before starting services. The update script handles this automatically.
+
+### Starting dev servers
+
+```bash
+npm run dev   # starts backend (port 3001) + frontend (port 3000) via concurrently
+```
+
+### Non-obvious caveats
+
+- **Frontend build requires Supabase creds**: `next build` fails during SSR page generation if `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` are missing (the Supabase client throws at module level).
+- **Backend tests**: `npm run test` exits with code 1 when no test files exist (no `--passWithNoTests` flag configured). This is expected; the repo currently has zero test files.
+- **No local database**: The project uses hosted Supabase — no Docker/Postgres containers needed for dev.
+- **Lint and build commands**: See `AGENTS.md` Build Commands section above; all standard `npm run lint`, `npm run build`, `npm run dev` work from root.

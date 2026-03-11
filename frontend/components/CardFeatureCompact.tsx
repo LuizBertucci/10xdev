@@ -220,7 +220,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
   const isSummaryScreen = (name?: string) => {
     const normalized = normalizeScreenName(name)
-    return normalized === 'visao geral'
+    return normalized === 'resumo' || normalized === 'visao geral'
   }
 
   const visibleScreens = useMemo(() => {
@@ -262,7 +262,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     if (!accessInfo?.canGenerate || isGeneratingSummary) return
     setIsGeneratingSummary(true)
     try {
-      const response = await cardFeatureService.generateVisaoGeral(
+      const response = await cardFeatureService.generateSummary(
         snippet.id,
         true,
         prompt?.trim() || undefined
@@ -747,7 +747,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{isGeneratingSummary ? 'Gerando visão geral...' : 'Gerar Visão Geral'}</p>
+                        <p>{isGeneratingSummary ? 'Gerando resumo...' : 'Gerar resumo com IA'}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}

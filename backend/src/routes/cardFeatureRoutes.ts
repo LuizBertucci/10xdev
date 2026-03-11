@@ -48,8 +48,8 @@ router.post('/', supabaseMiddleware, authenticate, CardFeatureController.create)
 router.put('/:id', supabaseMiddleware, authenticate, CardFeatureController.update)
 router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.delete)
 
-// GERAR VISÃO GERAL - Gerar visão geral automática com IA
-router.post('/:id/generate-visao-geral', supabaseMiddleware, authenticate, CardFeatureController.generateVisaoGeral)
+// GERAR RESUMO - Gerar resumo automático com IA
+router.post('/:id/generate-summary', supabaseMiddleware, authenticate, CardFeatureController.generateSummary)
 
 // GERAR FLOW - Gerar diagrama de fluxo via IA
 router.post('/:id/flow/generate', supabaseMiddleware, authenticate, CardFeatureController.generateFlow)
