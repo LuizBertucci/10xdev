@@ -283,7 +283,6 @@ export default function Projects() {
         }
         setIsDeleteDialogOpen(false)
         setProjectToDelete(null)
-        setDeleteCardsWithProject(false)
         loadProjects()
       } else {
         toast.error(response.error || 'Erro ao deletar projeto')

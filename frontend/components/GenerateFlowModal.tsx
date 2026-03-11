@@ -185,7 +185,7 @@ export default function GenerateFlowModal({ open, onOpenChange, snippet, onSucce
             )}
 
             {isError && (
-              <Button variant="outline" size="sm" onClick={resetState} className="w-full">
+              <Button variant="outline" size="sm" onClick={() => { resetState(); handleGenerate() }} className="w-full">
                 Tentar novamente
               </Button>
             )}

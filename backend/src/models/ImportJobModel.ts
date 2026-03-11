@@ -134,7 +134,7 @@ export class ImportJobModel {
         .from('import_jobs')
         .select('status')
         .eq('id', id)
-        .single()
+        .maybeSingle()
     )
     return (data as { status?: string } | null)?.status === 'cancelled'
   }

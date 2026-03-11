@@ -8,9 +8,7 @@ import {
   CardFeatureQueryParams,
   ContentType,
   CardFeatureScreen,
-  FlowItem,
-  SupportedLanguage,
-  SupportedTech
+  FlowItem
 } from '@/types/cardfeature'
 import { resolveApiKey, resolveChatCompletionsUrl, callChatCompletions } from '@/services/llmClient'
 
