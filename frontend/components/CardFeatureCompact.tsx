@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Bot, ChevronDown } from "lucide-react"
+import { Edit, Trash2, MoreVertical, Link2, Check, Globe, ExternalLink, FileText, Video, Sparkles, Loader2, Expand, ArrowRight, Bot, ChevronDown, GitBranch } from "lucide-react"
+import GenerateFlowModal from "./GenerateFlowModal"
 import { VisibilityTab } from "./VisibilityTab"
 import { toast } from "sonner"
 import { getTechConfig, getLanguageConfig, isAllowedLanguage, getAllowedTechsFromString } from "./utils/techConfigs"
@@ -75,6 +76,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false)
   const [summaryInstructions, setSummaryInstructions] = useState(SUMMARY_INSTRUCTIONS)
+  const [showFlowModal, setShowFlowModal] = useState(false)
   // Estado local para screens - permite atualização imediata após gerar resumo
   const [localScreens, setLocalScreens] = useState(snippet.screens)
   
@@ -301,6 +303,53 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setIsGeneratingSummary(false)
     }
   }, [accessInfo, isGeneratingSummary, snippet, currentCardIdFromUrl, onUpdate, router, localScreens])
+
+  const hasCodeOrTerminal = useMemo(() =>
+    (localScreens || []).some((s) =>
+      (s.blocks || []).some((b) => b.type === ContentType.CODE || b.type === ContentType.TERMINAL)
+    ),
+    [localScreens]
+  )
+  const isFlowScreen = (name?: string) => /^flow$/i.test((name || '').trim())
+  const flowScreenIndex = useMemo(() =>
+    (localScreens || []).findIndex((s) => isFlowScreen(s.name)),
+    [localScreens]
+  )
+  const hasFlowScreen = flowScreenIndex >= 0
+
+  const handleFlowSuccess = useCallback(async (contents: import('@/types').FlowItem[]) => {
+    if (!contents.length) return
+    const flowBlock = {
+      id: cardFeatureService.generateUUID(),
+      type: ContentType.FLOW as const,
+      content: JSON.stringify(contents),
+      order: 0
+    }
+    const flowScreen = {
+      name: 'Flow',
+      description: 'Fluxo de informação entre camadas',
+      blocks: [flowBlock]
+    }
+    const updatedScreens = hasFlowScreen
+      ? localScreens.map((s, i) => (i === flowScreenIndex ? flowScreen : s))
+      : [flowScreen, ...localScreens]
+
+    if (onUpdate) {
+      await onUpdate(snippet.id, { screens: updatedScreens })
+      setLocalScreens(updatedScreens)
+      setActiveTab(0)
+      toast.success(hasFlowScreen ? 'Flow regenerado!' : 'Flow gerado com sucesso!')
+    } else {
+      const updated = await cardFeatureService.update(snippet.id, { screens: updatedScreens })
+      if (updated?.success && updated.data) {
+        setLocalScreens(updated.data.screens)
+        setActiveTab(0)
+        toast.success(hasFlowScreen ? 'Flow regenerado!' : 'Flow gerado com sucesso!')
+      } else {
+        toast.error(updated?.error || 'Erro ao salvar flow')
+      }
+    }
+  }, [hasFlowScreen, flowScreenIndex, localScreens, onUpdate, snippet.id])
 
   const VisibilityDropdown = ({ size = 'default' }: { size?: 'default' | 'small' }) => (
     <DropdownMenu>
@@ -675,9 +724,9 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
               {/* Área do Conteúdo com Containers Específicos */}
               <div className="rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 px-2 md:px-3 pt-3 md:pt-4 pb-2 md:pb-3 relative group bg-white w-full min-w-0 overflow-hidden">
-                {/* Botão Gerar Resumo - apenas na aba Resumo */}
-                {isSummaryTab && accessInfo?.canGenerate && (
-                  <div className="absolute top-2 right-2 z-20">
+                {/* Botões Gerar Visão Geral e Gerar Flow */}
+                <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+                  {isSummaryTab && accessInfo?.canGenerate && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -701,10 +750,30 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                         <p>{isGeneratingSummary ? 'Gerando resumo...' : 'Gerar resumo com IA'}</p>
                       </TooltipContent>
                     </Tooltip>
-                  </div>
-                )}
+                  )}
+                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canEdit && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowFlowModal(true)
+                          }}
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        >
+                          <GitBranch className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{hasFlowScreen ? 'Regenerar Flow' : 'Gerar Flow'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
 
-                {isGeneratingSummary && isSummaryTab && (
+                {(isGeneratingSummary && isSummaryTab) && (
                   <div className="mb-2 w-full h-2 bg-blue-100 rounded-full overflow-hidden">
                     <div className="h-2 bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
                   </div>
@@ -779,6 +848,13 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
 
         </CardContent>
       </Card>
+
+      <GenerateFlowModal
+        open={showFlowModal}
+        onOpenChange={setShowFlowModal}
+        snippet={snippet}
+        onSuccess={handleFlowSuccess}
+      />
     </TooltipProvider>
   )
 }

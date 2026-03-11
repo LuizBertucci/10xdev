@@ -11,7 +11,8 @@ export enum ContentType {
   TERMINAL = 'terminal',
   YOUTUBE = 'youtube',
   PDF = 'pdf',
-  NEWSLETTER = 'newsletter'
+  NEWSLETTER = 'newsletter',
+  FLOW = 'flow'
 }
 
 // Enum para tipo de card
@@ -39,6 +40,17 @@ export enum ApprovalStatus {
   PENDING = 'pending',   // Aguardando aprovação (fila "Validando")
   APPROVED = 'approved', // Aprovado (aparece em "Aprovados")
   REJECTED = 'rejected'  // Rejeitado (não aparece no diretório global)
+}
+
+// Flow block types
+export type FlowLayer = 'frontend' | 'api' | 'backend' | 'database' | 'service'
+
+export interface FlowItem {
+  label: string
+  layer: FlowLayer
+  file?: string
+  line?: string
+  description: string
 }
 
 // NOVA estrutura - Bloco individual de conteúdo

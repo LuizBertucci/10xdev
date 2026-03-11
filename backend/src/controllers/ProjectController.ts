@@ -5,8 +5,8 @@ import { GithubModel } from '@/models/GithubModel'
 import { GithubService } from '@/services/githubService'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
-import { Visibility } from '@/types/cardfeature'
-import type { CreateCardFeatureRequest } from '@/types/cardfeature'
+import { Visibility, ContentType, CardType } from '@/types/cardfeature'
+import type { CreateCardFeatureRequest, FlowItem, FlowLayer } from '@/types/cardfeature'
 import {
   ProjectMemberRole,
   type CreateProjectRequest,
@@ -162,14 +162,17 @@ export class ProjectController {
             finalToken || undefined,
             { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
           )
+          const fileReportInstallation = {
+            included: filesForReport.map((f) => f.path),
+            ignored: skippedFiles
+          }
           progressLog.push(`Arquivos listados: ${filesForReport.length} incluídos, ${skippedFiles.length} ignorados`)
           await updateJob({
-            file_report_json: {
-              included: filesForReport.map((f) => f.path),
-              ignored: skippedFiles
-            },
+            file_report_json: fileReportInstallation,
             progress_log: [...progressLog]
           })
+
+          if (await ImportJobModel.isCancelled(job.id)) return
 
           const connectResult = await GithubService.connectRepo(
             projectId,
@@ -180,6 +183,7 @@ export class ProjectController {
             {
               defaultBranch,
               onProgress: async (step, progress, message) => {
+                if (await ImportJobModel.isCancelled(job.id)) throw new Error('CANCELLED')
                 if (message) progressLog.push(message)
                 await updateJob({
                   step: step as ImportJobStep,
@@ -206,7 +210,8 @@ export class ProjectController {
             cards_created: cardsCreated,
             files_processed: connectResult.mappingsCreated,
             ai_used: true,
-            ai_cards_created: cardsCreated
+            ai_cards_created: cardsCreated,
+            file_report_json: fileReportInstallation
           })
           return
         }
@@ -217,19 +222,22 @@ export class ProjectController {
           repoInfo.owner, repoInfo.repo, branch, finalToken || undefined,
           { onSkipped: (path, reason) => skippedFiles.push({ path, reason }) }
         )
+        const fileReport = {
+          included: files.map(f => f.path),
+          ignored: skippedFiles
+        }
 
         progressLog.push(`Arquivos listados: ${files.length} incluídos, ${skippedFiles.length} ignorados`)
         await updateJob({
-          file_report_json: {
-            included: files.map(f => f.path),
-            ignored: skippedFiles
-          },
+          file_report_json: fileReport,
           progress_log: [...progressLog]
         })
 
         if (files.length === 0) {
           throw new Error('Nenhum arquivo de código encontrado no repositório.')
         }
+
+        if (await ImportJobModel.isCancelled(job.id)) return
 
         const { cards, filesProcessed, aiCardsCreated, tokenUsage } = await AiCardGroupingService.generateCardGroupsFromRepo(
           files,
@@ -240,6 +248,7 @@ export class ProjectController {
               await ImportJobModel.update(job.id, { progress_log: [...progressLog] })
             },
             onProgress: async (p) => {
+              if (await ImportJobModel.isCancelled(job.id)) throw new Error('CANCELLED')
               const msg = p.message ?? null
               const msgWithTokens = p.tokenUsage && msg
                 ? `${msg} (${p.tokenUsage.prompt_tokens} + ${p.tokenUsage.completion_tokens} tokens)`
@@ -253,6 +262,7 @@ export class ProjectController {
               })
             },
             onCardReady: async (card) => {
+              if (await ImportJobModel.isCancelled(job.id)) throw new Error('CANCELLED')
               const normalizedCard: CreateCardFeatureRequest = {
                 ...card,
                 visibility: Visibility.UNLISTED,
@@ -293,17 +303,46 @@ export class ProjectController {
           cards_created: totalCardsCreated || cards.length,
           files_processed: totalFilesProcessed || filesProcessed,
           ai_used: true,
-          ai_cards_created: aiCardsCreated
+          ai_cards_created: aiCardsCreated,
+          file_report_json: fileReport
         })
       } catch (e: unknown) {
         _isProcessing = false
         if (progressInterval) clearInterval(progressInterval)
+        if (e instanceof Error && e.message === 'CANCELLED') return
         await ImportJobModel.update(job.id, {
           status: 'error', step: 'error', progress: 100,
           message: 'Falha ao importar.', error: e instanceof Error ? e.message : 'Erro desconhecido'
         })
       }
     })
+  })
+
+  /** POST /api/projects/jobs/:jobId/cancel */
+  static cancelJob = safeHandler(async (req, res) => {
+    if (!req.user) throw badRequest('Não autenticado')
+    const { jobId } = req.params
+    if (!jobId) throw badRequest('jobId é obrigatório')
+
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('import_jobs')
+        .select('id, created_by, status')
+        .eq('id', jobId)
+        .single()
+    )
+
+    if (!data) throw badRequest('Job não encontrado')
+    const row = data as { id: string; created_by: string; status: string }
+    if (row.created_by !== req.user.id && req.user.role !== 'admin') throw badRequest('Sem permissão')
+    if (row.status !== 'running') throw badRequest('Job não está em execução')
+
+    await ImportJobModel.update(jobId, {
+      status: 'cancelled',
+      message: 'Importação cancelada pelo usuário.'
+    })
+
+    res.json({ success: true, message: 'Importação cancelada.' })
   })
 
   /** POST /api/projects */
@@ -942,5 +981,368 @@ export class ProjectController {
       message: `Conflito resolvido: ${resolution === 'keep_card' ? 'versão do card mantida' : 'versão do GitHub aplicada'}`
     })
   })
+
+  /** POST /api/projects/:id/cards/generate-flow — streaming NDJSON */
+  static generateFlowCard = async (req: Request, res: Response): Promise<void> => {
+    res.setHeader('Content-Type', 'application/x-ndjson')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.flushHeaders()
+
+    const emit = (data: object) => res.write(JSON.stringify(data) + '\n')
+
+    try {
+      if (!req.user) {
+        emit({ type: 'error', message: 'Não autenticado' })
+        res.end(); return
+      }
+
+      const id = req.params['id']
+      if (!id) {
+        emit({ type: 'error', message: 'ID do projeto é obrigatório' })
+        res.end(); return
+      }
+
+      const { searchTerm, branch } = req.body as { searchTerm?: string; branch?: string }
+      if (!searchTerm?.trim()) {
+        emit({ type: 'error', message: 'searchTerm é obrigatório' })
+        res.end(); return
+      }
+
+      // Passo 1
+      emit({ type: 'step', label: 'Verificando acesso ao projeto...' })
+      const projectResult = await ProjectModel.findById(id, req.user.id)
+      if (!projectResult.success) {
+        emit({ type: 'error', message: 'Projeto não encontrado ou sem acesso' })
+        res.end(); return
+      }
+
+      // Passo 2
+      emit({ type: 'step', label: 'Buscando código importado...' })
+      const cardsResult = await ProjectModel.getCardsAll(id, branch)
+      if (!cardsResult.success || !cardsResult.data?.length) {
+        emit({ type: 'error', message: 'Projeto não tem cards importados para gerar um flow' })
+        res.end(); return
+      }
+
+      const allBlocks: Array<{ route: string; content: string; language?: string }> = []
+      for (const projectCard of cardsResult.data) {
+        const cf = projectCard.cardFeature
+        if (!cf) continue
+        for (const screen of cf.screens ?? []) {
+          for (const block of screen.blocks ?? []) {
+            if (block.route && block.content) {
+              allBlocks.push({ route: block.route, content: block.content, ...(block.language ? { language: block.language } : {}) })
+            }
+          }
+        }
+      }
+
+      if (!allBlocks.length) {
+        emit({ type: 'error', message: 'Nenhum bloco com código encontrado no projeto' })
+        res.end(); return
+      }
+
+      // Passo 3 — word boundary para evitar match em substrings (ex: "async" ao buscar "sync")
+      const termRaw = searchTerm.trim()
+      const termRegex = new RegExp(`\\b${termRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+      const matchedBlocks = allBlocks.filter(b =>
+        termRegex.test(b.route) || termRegex.test(b.content)
+      )
+
+      if (!matchedBlocks.length) {
+        emit({ type: 'error', message: `Nenhuma referência a "${searchTerm}" encontrada no código importado` })
+        res.end(); return
+      }
+
+      emit({ type: 'step', label: `${allBlocks.length} blocos encontrados — ${matchedBlocks.length} com referência a "${searchTerm}"` })
+
+      const allRoutes = [...new Set(allBlocks.map(b => b.route))]
+      const matchedSection = matchedBlocks
+        .map(b => `### ${b.route}\n\`\`\`${b.language || ''}\n${b.content}\n\`\`\``)
+        .join('\n\n')
+
+      const prompt = `Você é um especialista em arquitetura de software.
+
+O usuário quer entender o flow de: "${searchTerm}"
+
+## Arquivos com match direto (conteúdo completo)
+
+Esses arquivos contêm referências diretas ao termo "${searchTerm}".
+Use-os como ponto de entrada para traçar o flow.
+
+${matchedSection}
+
+## Todos os arquivos disponíveis no projeto (só paths)
+
+Se o flow referenciar arquivos que não estão acima, consulte esta lista
+para saber quais existem. Use os paths para nomear as screens mesmo sem o conteúdo.
+
+${allRoutes.join('\n')}
+
+## Instrução
+
+Trace o caminho crítico de execução do flow "${searchTerm}":
+1. Identifique o entry point (geralmente no frontend)
+2. Siga as chamadas: componente → API call → rota → controller → service → model → query
+3. Pare nas queries do banco — não inclua schema ou migrations
+4. Para cada arquivo no caminho, extraia apenas os trechos diretamente envolvidos
+
+Gere um card com uma screen por arquivo, ordenadas pela execução: frontend → api → backend → database.
+
+Regras para o JSON:
+- "name" da screen: nome curto descritivo do papel do arquivo (ex: "Frontend Trigger", "API Route", "Controller"). NÃO inclua o nome do arquivo no name.
+- "route" da screen e dos blocks: caminho relativo COMPLETO do arquivo (ex: "frontend/pages/ProjectDetail.tsx", "backend/src/controllers/ProjectController.ts"). Use exatamente o path que aparece nos arquivos listados acima.
+- Cada block deve ter o mesmo "route" da screen que pertence.
+
+Retorne apenas JSON válido:
+{
+  "title": "string",
+  "description": "string",
+  "tags": ["string"],
+  "screens": [
+    {
+      "name": "string",
+      "description": "string",
+      "route": "frontend/pages/ExamplePage.tsx",
+      "blocks": [
+        { "type": "code", "title": "string", "content": "string", "language": "string", "route": "frontend/pages/ExamplePage.tsx", "order": 0 }
+      ]
+    }
+  ]
+}`
+
+      // Passo 4
+      emit({ type: 'step', label: 'IA traçando o caminho crítico...' })
+
+      const apiKey = resolveApiKey()
+      if (!apiKey) {
+        emit({ type: 'error', message: 'API key não configurada' })
+        res.end(); return
+      }
+
+      const aiResponse = await callChatCompletions({
+        endpoint: resolveChatCompletionsUrl(),
+        apiKey,
+        body: { model: 'grok-4-1-fast-reasoning', messages: [{ role: 'user', content: prompt }], temperature: 0.2 }
+      })
+
+      // Passo 5
+      emit({ type: 'step', label: 'Interpretando resposta e montando o card...' })
+
+      const raw = aiResponse.content.trim()
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (codeBlock) {
+          parsed = JSON.parse(codeBlock[1]!.trim())
+        } else {
+          const first = raw.indexOf('{')
+          const last = raw.lastIndexOf('}')
+          if (first >= 0 && last > first) {
+            parsed = JSON.parse(raw.slice(first, last + 1))
+          } else {
+            emit({ type: 'error', message: 'Resposta da IA não é JSON válido' })
+            res.end(); return
+          }
+        }
+      }
+
+      const data = parsed as {
+        title?: string
+        description?: string
+        tags?: string[]
+        screens?: Array<{
+          name?: string
+          description?: string
+          route?: string
+          blocks?: Array<{ type?: string; title?: string; content?: string; language?: string; route?: string; order?: number }>
+        }>
+      }
+
+      if (!data.title || !data.screens?.length) {
+        emit({ type: 'error', message: 'Resposta da IA inválida: campos obrigatórios ausentes' })
+        res.end(); return
+      }
+
+      // Inferir FlowLayer a partir do route (frontend → api → backend → database)
+      const inferLayer = (route: string | null | undefined): FlowLayer => {
+        if (!route) return 'service'
+        const r = route.toLowerCase()
+        if (r.includes('frontend') || r.includes('/pages/') || r.includes('/components/')) return 'frontend'
+        if (r.includes('/routes/') || r.includes('/api/')) return 'api'
+        if (r.includes('/controllers/') || r.includes('/services/')) return 'backend'
+        if (r.includes('/models/') || r.includes('supabase') || r.includes('.sql') || r.includes('database')) return 'database'
+        return 'service'
+      }
+
+      const flowItems: FlowItem[] = data.screens.map((screen) => ({
+        label: (screen.name || 'Arquivo').replace(/\s*\([^)]*\)\s*/g, '').trim() || 'Arquivo',
+        layer: inferLayer(screen.route),
+        description: screen.description || '',
+        ...(screen.route ? { file: screen.route } : {})
+      }))
+
+      const codeScreens = data.screens.map(screen => {
+        // A IA às vezes coloca o arquivo entre parênteses no nome: "Frontend Trigger (ProjectDetail.tsx)"
+        // Extraímos a rota do parêntese e limpamos o nome
+        const parenMatch = (screen.name || '').match(/\(([^)]+)\)/)
+        const routeFromName = parenMatch ? parenMatch[1] : null
+        const screenRoute = screen.route || routeFromName || null
+        const cleanName = (screen.name || 'Arquivo').replace(/\s*\([^)]*\)\s*/g, '').trim() || 'Arquivo'
+
+        return {
+          name: cleanName,
+          description: screen.description || '',
+          ...(screenRoute ? { route: screenRoute } : {}),
+          blocks: (screen.blocks || []).map((block, idx) => {
+            const blockRoute = block.route || screenRoute
+            return {
+              id: randomUUID(),
+              type: (block.type || ContentType.CODE) as ContentType,
+              content: block.content || '',
+              order: block.order ?? idx,
+              title: blockRoute
+                ? blockRoute.split('/').pop()?.replace(/\.[^.]+$/, '') ?? blockRoute
+                : (block.title || 'Código'),
+              ...(block.language ? { language: block.language } : {}),
+              ...(blockRoute ? { route: blockRoute } : {}),
+            }
+          })
+        }
+      })
+
+      const flowScreen = {
+        name: 'Flow',
+        description: 'Fluxo de informação entre camadas',
+        blocks: [{
+          id: randomUUID(),
+          type: ContentType.FLOW,
+          content: JSON.stringify(flowItems),
+          order: 0
+        }]
+      }
+
+      const screens = [flowScreen, ...codeScreens]
+
+      const cardData: CreateCardFeatureRequest = {
+        title: data.title,
+        description: data.description || `Flow de ${searchTerm}`,
+        tags: data.tags || [searchTerm],
+        content_type: ContentType.CODE,
+        card_type: CardType.CODIGOS,
+        visibility: Visibility.UNLISTED,
+        created_in_project_id: id,
+        screens
+      }
+
+      const createResult = await CardFeatureModel.create(cardData, req.user.id, req.user.role)
+      if (!createResult.success || !createResult.data) {
+        emit({ type: 'error', message: createResult.error || 'Erro ao criar card' })
+        res.end(); return
+      }
+
+      await ProjectModel.addCard(id, createResult.data.id, req.user.id)
+
+      // Gerar flow detalhado automaticamente
+      emit({ type: 'step', label: 'Gerando flow detalhado com IA...' })
+
+      const allCodeBlocks = codeScreens.flatMap(s =>
+        s.blocks.filter(b =>
+          b.type === ContentType.CODE ||
+          b.type === ContentType.TEXT ||
+          b.type === ContentType.TERMINAL
+        )
+      )
+
+      let finalCard = createResult.data
+
+      if (allCodeBlocks.length > 0) {
+        const codeContext = allCodeBlocks.map(b => {
+          const header = `[${b.type}] ${b.route || b.title || 'sem rota'}`
+          return `${header}\n${b.content}`
+        }).join('\n\n---\n\n')
+
+        const flowPrompt = `Você é um especialista em arquitetura de software. Analise os trechos de código abaixo
+e gere um fluxo de informação estruturado mostrando como os dados fluem entre as camadas.
+
+Para cada item retorne:
+- label: nome da função/endpoint/componente
+- layer: frontend | api | backend | database | service
+- file: caminho do arquivo (se identificável)
+- line: linha(s) (se identificável)
+- description: uma linha explicando o que acontece (sempre em português brasileiro)
+
+Escreva todas as descrições em português brasileiro. Retorne apenas JSON válido no formato { "contents": [...] }.
+
+Código para análise:
+${codeContext}`
+
+        try {
+          const flowAiResponse = await callChatCompletions({
+            endpoint: resolveChatCompletionsUrl(),
+            apiKey,
+            body: { model: 'grok-4-1-fast-reasoning', messages: [{ role: 'user', content: flowPrompt }], temperature: 0.2 }
+          })
+
+          emit({ type: 'step', label: 'Interpretando flow detalhado...' })
+
+          const flowRaw = flowAiResponse.content.trim()
+          let flowParsed: { contents?: FlowItem[] }
+          try {
+            flowParsed = JSON.parse(flowRaw) as { contents?: FlowItem[] }
+          } catch {
+            const cb = flowRaw.match(/```(?:json)?\s*([\s\S]*?)```/)
+            if (cb) {
+              flowParsed = JSON.parse(cb[1]!.trim()) as { contents?: FlowItem[] }
+            } else {
+              const f = flowRaw.indexOf('{')
+              const l = flowRaw.lastIndexOf('}')
+              flowParsed = (f >= 0 && l > f) ? JSON.parse(flowRaw.slice(f, l + 1)) as { contents?: FlowItem[] } : { contents: [] }
+            }
+          }
+
+          const detailedFlowItems = Array.isArray(flowParsed.contents) ? flowParsed.contents : []
+
+          if (detailedFlowItems.length > 0) {
+            const updatedScreens = (createResult.data.screens || []).map(s =>
+              s.name === 'Flow'
+                ? {
+                    ...s,
+                    blocks: [{
+                      id: randomUUID(),
+                      type: ContentType.FLOW,
+                      content: JSON.stringify(detailedFlowItems),
+                      order: 0
+                    }]
+                  }
+                : s
+            )
+
+            const updateResult = await CardFeatureModel.update(
+              createResult.data.id,
+              { screens: updatedScreens },
+              req.user.id,
+              req.user.role
+            )
+
+            if (updateResult.success && updateResult.data) {
+              finalCard = updateResult.data
+            }
+          }
+        } catch (flowError) {
+          console.error('[generateFlowCard] Erro ao gerar flow detalhado:', flowError)
+          emit({ type: 'step', label: 'Flow detalhado não disponível, usando flow básico.' })
+        }
+      }
+
+      emit({ type: 'done', card: finalCard })
+    } catch (error) {
+      emit({ type: 'error', message: error instanceof Error ? error.message : 'Erro interno do servidor' })
+    } finally {
+      res.end()
+    }
+  }
 
 }

@@ -12,6 +12,8 @@ export type {
   CreateScreenData,
   CreateBlockData,
   ContentBlock,
+  FlowItem,
+  FlowLayer,
   CardFeatureState,
   CardFeatureProps,
   CardFeatureModalProps,
@@ -26,7 +28,8 @@ export type {
   CardFeatureMetadata,
   FilterConfig,
   PaginationConfig,
-  GenerateSummaryResponse
+  GenerateSummaryResponse,
+  GenerateFlowResponse
 } from './cardfeature'
 
 // API types

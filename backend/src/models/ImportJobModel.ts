@@ -1,7 +1,7 @@
 import { supabaseAdmin, executeQuery } from '@/database/supabase'
 import { randomUUID } from 'crypto'
 
-export type ImportJobStatus = 'running' | 'done' | 'error'
+export type ImportJobStatus = 'running' | 'done' | 'error' | 'cancelled'
 
 export type ImportJobStep =
   | 'starting'
@@ -126,6 +126,17 @@ export class ImportJobModel {
     )
 
     return Array.isArray(data) && data.length > 0
+  }
+
+  static async isCancelled(id: string): Promise<boolean> {
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('import_jobs')
+        .select('status')
+        .eq('id', id)
+        .single()
+    )
+    return (data as { status?: string } | null)?.status === 'cancelled'
   }
 
   static async getRunningForProject(

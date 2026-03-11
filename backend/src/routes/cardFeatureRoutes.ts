@@ -25,6 +25,7 @@ router.get('/tech/:tech', optionalAuth, CardFeatureController.getByTech)
 
 // CRUD OPERATIONS - Leitura (com autenticação opcional para filtrar visibilidade)
 router.get('/', optionalAuth, CardFeatureController.getAll)
+router.get('/:id/flow', optionalAuth, CardFeatureController.getFlow)
 router.get('/:id', optionalAuth, CardFeatureController.getById)
 
 // MODERATION - Admin-only
@@ -49,6 +50,9 @@ router.delete('/:id', supabaseMiddleware, authenticate, CardFeatureController.de
 
 // GERAR RESUMO - Gerar resumo automático com IA
 router.post('/:id/generate-summary', supabaseMiddleware, authenticate, CardFeatureController.generateSummary)
+
+// GERAR FLOW - Gerar diagrama de fluxo via IA
+router.post('/:id/flow/generate', supabaseMiddleware, authenticate, CardFeatureController.generateFlow)
 
 // VERIFICAÇÃO DE ACESSO - Verifica se usuário pode acessar/gerar resumo
 router.get('/:id/access', supabaseMiddleware, authenticate, CardFeatureController.checkAccess)

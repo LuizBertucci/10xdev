@@ -15,7 +15,8 @@ export enum ContentType {
   TERMINAL = 'terminal',
   YOUTUBE = 'youtube',
   PDF = 'pdf',
-  NEWSLETTER = 'newsletter'
+  NEWSLETTER = 'newsletter',
+  FLOW = 'flow'
 }
 
 /**
@@ -42,6 +43,17 @@ export enum ApprovalStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected'
+}
+
+// Flow block types
+export type FlowLayer = 'frontend' | 'api' | 'backend' | 'database' | 'service'
+
+export interface FlowItem {
+  label: string
+  layer: FlowLayer
+  file?: string
+  line?: string
+  description: string
 }
 
 /**
@@ -156,6 +168,12 @@ export interface GenerateSummaryResponse {
   success: boolean
   summary: string
   message?: string
+}
+
+export interface GenerateFlowResponse {
+  success: boolean
+  contents: FlowItem[]
+  error?: string
 }
 
 /**

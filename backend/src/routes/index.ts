@@ -64,6 +64,7 @@ router.get('/', (req, res) => {
         list: 'GET /api/card-features',
         create: 'POST /api/card-features',
         getById: 'GET /api/card-features/:id',
+        getFlow: 'GET /api/card-features/:id/flow',
         update: 'PUT /api/card-features/:id',
         delete: 'DELETE /api/card-features/:id',
         search: 'GET /api/card-features/search?q=term',

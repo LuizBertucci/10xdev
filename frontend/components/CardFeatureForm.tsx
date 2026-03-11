@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { X, Loader2, Plus, Save, ChevronUp, ChevronDown, GripVertical, Globe, Link2, Settings, Code2, Trash2, Upload, ExternalLink, Play } from "lucide-react"
 import type { CardFeature, CreateScreenData, CreateBlockData } from "@/types"
+import type { FlowItem, FlowLayer } from "@/types"
 import { ContentType, CardType, Visibility } from "@/types"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -18,6 +19,91 @@ import { createClient } from "@/lib/supabase"
 
 /** Valor usado no Select para "não selecionado"; Radix não permite value="" em SelectItem. */
 const SELECT_NONE = '__none__'
+
+const FLOW_LAYERS: FlowLayer[] = ['frontend', 'api', 'backend', 'database', 'service']
+
+function FlowBlockEditor({ items, onChange }: { items: FlowItem[]; onChange: (items: FlowItem[]) => void }) {
+  const updateItem = (i: number, field: keyof FlowItem, value: string) => {
+    const next = [...items]
+    next[i] = { ...next[i], [field]: value }
+    onChange(next)
+  }
+  const removeItem = (i: number) => onChange(items.filter((_, j) => j !== i))
+  const moveUp = (i: number) => {
+    if (i <= 0) return
+    const next = [...items]
+    ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
+    onChange(next)
+  }
+  const moveDown = (i: number) => {
+    if (i >= items.length - 1) return
+    const next = [...items]
+    ;[next[i], next[i + 1]] = [next[i + 1], next[i]]
+    onChange(next)
+  }
+  const addItem = () => onChange([...items, { label: '', layer: 'frontend', description: '' }])
+
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-gray-500">Item {i + 1}</span>
+            <div className="flex gap-1">
+              <Button type="button" variant="ghost" size="sm" onClick={() => moveUp(i)} disabled={i === 0} className="h-6 w-6 p-0">
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => moveDown(i)} disabled={i === items.length - 1} className="h-6 w-6 p-0">
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(i)} className="h-6 w-6 p-0 text-red-600">
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          <Input
+            placeholder="Label (ex: handleSync())"
+            value={item.label}
+            onChange={(e) => updateItem(i, 'label', e.target.value)}
+            className="text-sm h-8"
+          />
+          <Select value={item.layer} onValueChange={(v) => updateItem(i, 'layer', v)}>
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FLOW_LAYERS.map((l) => (
+                <SelectItem key={l} value={l}>{l}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Arquivo (opcional)"
+            value={item.file || ''}
+            onChange={(e) => updateItem(i, 'file', e.target.value)}
+            className="text-xs h-7 font-mono"
+          />
+          <Input
+            placeholder="Linha (opcional)"
+            value={item.line || ''}
+            onChange={(e) => updateItem(i, 'line', e.target.value)}
+            className="text-xs h-7"
+          />
+          <Input
+            placeholder="Descrição"
+            value={item.description}
+            onChange={(e) => updateItem(i, 'description', e.target.value)}
+            className="text-sm h-8"
+          />
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-full">
+        <Plus className="h-4 w-4 mr-2" />
+        Adicionar item
+      </Button>
+    </div>
+  )
+}
 
 /** Opções permitidas para Tech (Códigos) — valores fora desta lista não são aceitos. */
 const ALLOWED_TECH = ['React', 'Node.js', 'Python', 'JavaScript', 'Vue.js', 'Angular'] as const
@@ -514,6 +600,19 @@ export default function CardFeatureForm({
           : screen
       )
     }))
+  }
+
+  const parseFlowContent = (content: string): FlowItem[] => {
+    try {
+      const parsed = JSON.parse(content || '[]')
+      return Array.isArray(parsed) ? parsed : (parsed?.contents && Array.isArray(parsed.contents) ? parsed.contents : [])
+    } catch {
+      return []
+    }
+  }
+
+  const handleFlowBlockChange = (screenIndex: number, blockIndex: number, items: FlowItem[]) => {
+    handleBlockChange(screenIndex, blockIndex, 'content', JSON.stringify(items))
   }
 
   const handleBlockChange = (screenIndex: number, blockIndex: number, field: string, value: string) => {
@@ -1067,37 +1166,51 @@ export default function CardFeatureForm({
                       <div className="space-y-4">
                           {screen.blocks.map((block, blockIndex) => (
                             <div key={blockIndex} className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md">
-                              {block.type === ContentType.CODE && (
+                              {(block.type === ContentType.CODE || block.type === ContentType.FLOW) && (
                                 <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <Input
-                                      placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
-                                      value={block.route || ''}
-                                      onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
-                                      className="text-xs font-mono bg-blue-50/70 border-blue-200 focus:bg-white focus:border-blue-400"
-                                    />
-                                  </div>
+                                  {block.type === ContentType.CODE && (
+                                    <div className="flex-1 min-w-0">
+                                      <Input
+                                        placeholder="Caminho do arquivo (ex: src/components/Button.tsx)"
+                                        value={block.route || ''}
+                                        onChange={(e) => handleBlockChange(index, blockIndex, 'route', e.target.value)}
+                                        className="text-xs font-mono bg-blue-50/70 border-blue-200 focus:bg-white focus:border-blue-400"
+                                      />
+                                    </div>
+                                  )}
+                                  {block.type === ContentType.FLOW && (
+                                    <div className="flex-1 min-w-0" />
+                                  )}
 
                                   <div className="flex items-center gap-2">
                                     <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
-                                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
-                                        Código
-                                      </div>
-                                      <Select
-                                        value={block.language || 'typescript'}
-                                        onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
-                                      >
-                                        <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-200">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="text-xs">
-                                          <SelectItem value="typescript">TypeScript</SelectItem>
-                                          <SelectItem value="javascript">JavaScript</SelectItem>
-                                          <SelectItem value="python">Python</SelectItem>
-                                          <SelectItem value="html">HTML</SelectItem>
-                                          <SelectItem value="css">CSS</SelectItem>
-                                        </SelectContent>
-                                      </Select>
+                                      {block.type === ContentType.CODE && (
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                                          Código
+                                        </div>
+                                      )}
+                                      {block.type === ContentType.FLOW && (
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700">
+                                          Flow
+                                        </div>
+                                      )}
+                                      {block.type === ContentType.CODE && (
+                                        <Select
+                                          value={block.language || 'typescript'}
+                                          onValueChange={(value) => handleBlockChange(index, blockIndex, 'language', value)}
+                                        >
+                                          <SelectTrigger className="w-28 h-7 text-xs bg-white border-gray-200">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent className="text-xs">
+                                            <SelectItem value="typescript">TypeScript</SelectItem>
+                                            <SelectItem value="javascript">JavaScript</SelectItem>
+                                            <SelectItem value="python">Python</SelectItem>
+                                            <SelectItem value="html">HTML</SelectItem>
+                                            <SelectItem value="css">CSS</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      )}
                                       {screen.blocks.length > 1 && (
                                         <div className="flex items-center ml-1 pr-2 border-r border-gray-200">
                                           <Button
@@ -1139,7 +1252,12 @@ export default function CardFeatureForm({
                               
                               <div className="p-4">
                                 <div className="relative">
-                                  {block.type === ContentType.YOUTUBE ? (
+                                  {block.type === ContentType.FLOW ? (
+                                    <FlowBlockEditor
+                                      items={parseFlowContent(block.content)}
+                                      onChange={(items) => handleFlowBlockChange(index, blockIndex, items)}
+                                    />
+                                  ) : block.type === ContentType.YOUTUBE ? (
                                     <div className="pb-10">
                                       <Input
                                         placeholder="Cole a URL do YouTube..."
@@ -1267,6 +1385,7 @@ export default function CardFeatureForm({
                                         block.type === ContentType.CODE ? 'Cole seu código aqui...' :
                                         block.type === ContentType.TEXT ? 'Escreva texto/markdown aqui...' :
                                         block.type === ContentType.NEWSLETTER ? 'Conteúdo da newsletter em markdown...' :
+                                        block.type === ContentType.FLOW ? '' :
                                         '$ comando...'
                                       }
                                       value={block.content}
@@ -1282,7 +1401,7 @@ export default function CardFeatureForm({
                                       } ${block.type !== ContentType.CODE ? 'pb-10' : ''}`}
                                     />
                                   )}
-                                  {block.type !== ContentType.CODE && (
+                                  {block.type !== ContentType.CODE && block.type !== ContentType.FLOW && (
                                     <div className="flex items-center justify-end">
                                       <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1">
                                         {screen.blocks.length > 1 && (
@@ -1415,6 +1534,18 @@ export default function CardFeatureForm({
                           <Plus className="h-3 w-3 mr-1" />
                           Newsletter
                         </Button>
+                        {effectiveCardType === CardType.CODIGOS && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => addBlock(index, ContentType.FLOW, JSON.stringify([{ label: '', layer: 'frontend', description: '' }]))}
+                            className="h-7 px-2.5 text-[11px] bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 border border-green-200 rounded-md transition-all"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Flow
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </TabsContent>

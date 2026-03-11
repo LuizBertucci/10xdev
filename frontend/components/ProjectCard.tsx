@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, FileCode, Loader2, MoreVertical, Trash2, Users, Link2, Check } from "lucide-react"
+import { Calendar, FileCode, Loader2, MoreVertical, Trash2, Users, Link2, Check, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import type { Project } from "@/services"
@@ -15,6 +15,8 @@ interface ProjectCardProps {
   isImporting?: boolean
   importProgress?: number
   importTooltip?: string
+  importJobId?: string
+  onCancelImport?: (jobId: string) => void
 }
 
 export function ProjectCard({
@@ -24,7 +26,9 @@ export function ProjectCard({
   onLeave,
   isImporting = false,
   importProgress = 0,
-  importTooltip = ""
+  importTooltip = "",
+  importJobId,
+  onCancelImport
 }: ProjectCardProps) {
   const isOwner = project.userRole === "owner"
   const canLeave = project.userRole && project.userRole !== "owner"
@@ -119,6 +123,19 @@ export function ProjectCard({
                     </>
                   )}
                 </DropdownMenuItem>
+
+                {isOwner && isImporting && importJobId && onCancelImport && (
+                  <DropdownMenuItem
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onCancelImport(importJobId)
+                    }}
+                    className="text-orange-600 focus:text-orange-600"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Cancelar importação
+                  </DropdownMenuItem>
+                )}
 
                 {isOwner && onDelete ? (
                   <DropdownMenuItem

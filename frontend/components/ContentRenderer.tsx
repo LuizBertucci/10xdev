@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import SyntaxHighlighter from './SyntaxHighlighter'
 import ReactMarkdown from 'react-markdown'
+import FlowBlock from './FlowBlock'
 import { ContentType, ContentBlock } from '@/types'
 
 // ===== CONTAINERS ESPECÍFICOS POR TIPO =====
@@ -238,7 +239,10 @@ function SingleBlockRenderer({ block, className }: SingleBlockRendererProps) {
           )}
         </PdfBlockContainer>
       )
-    
+
+    case ContentType.FLOW:
+      return <FlowBlock content={block.content} className={className} />
+
     default:
       return (
         <div className="unknown-block mb-4 p-4 bg-red-50 border border-red-200 rounded">
