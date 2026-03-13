@@ -16,11 +16,16 @@ import {
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Github, Loader2, Plus, CheckCircle } from "lucide-react"
+import { Github, Loader2, Plus, CheckCircle, Unplug } from "lucide-react"
 import { projectService, type User, type GithubAppRepo } from "@/services"
 import { Sharing } from "@/components/Sharing"
 import { toast } from "sonner"
 import { IMPORT_JOB_LS_KEY, IMPORT_MODAL_OPEN_KEY, IMPORT_MODAL_CHANGE_EVENT } from "@/lib/importJobUtils"
+import {
+  beginGithubAppInstallation,
+  consumeGithubAppInstallation,
+  getStoredGithubInstallationId,
+} from "@/lib/githubInstallFlow"
 
 const INPUT_CLASS = "h-9 bg-gray-50 border-gray-200 outline-none focus:outline-none focus-visible:outline-none focus:border-gray-200 focus-visible:border-gray-200 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus:shadow-none focus-visible:shadow-none text-sm"
 
@@ -40,7 +45,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const [newProjectDescription, setNewProjectDescription] = useState("")
   const [creating, setCreating] = useState(false)
 
-  // GitHub OAuth states
+  // GitHub App install states
   const [isGithubConnected, setIsGithubConnected] = useState(false)
   const [installationId, setInstallationId] = useState<number | null>(null)
   const [availableRepos, setAvailableRepos] = useState<GithubAppRepo[]>([])
@@ -50,39 +55,81 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const [storageError, setStorageError] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
 
-  // Hidrata conexão GitHub (callback OAuth ou sessão existente)
+  const clearGithubSyncQueryParams = () => {
+    if (!searchParams) return
+
+    const params = new URLSearchParams(searchParams.toString())
+    const keysToDelete = [
+      'github_sync',
+      'installation_id',
+      'state',
+      'open_project_form',
+      'github_sync_error'
+    ]
+
+    let changed = false
+    keysToDelete.forEach((key) => {
+      if (params.has(key)) {
+        params.delete(key)
+        changed = true
+      }
+    })
+
+    if (!changed) return
+
+    const newQuery = params.toString()
+    router.replace(newQuery ? `?${newQuery}` : '/projects')
+  }
+
+  // Hidrata conexão GitHub (retorno da instalação ou sessão existente)
   useEffect(() => {
     if (!open) return
 
+    const githubSyncError = searchParams?.get('github_sync_error')
+    if (githubSyncError) {
+      setLeftTab('import')
+      toast.error(githubSyncError)
+      clearGithubSyncQueryParams()
+      return
+    }
+
+    const shouldOpenImportTab =
+      searchParams?.get('open_project_form') === 'true' ||
+      searchParams?.get('github_sync') === 'true'
+    if (shouldOpenImportTab) {
+      setLeftTab('import')
+    }
+
     const installationIdParam = searchParams?.get('installation_id')
-    const installationIdSession = typeof window !== 'undefined'
-      ? sessionStorage.getItem('github_sync_installation_id')
-      : null
-    const rawId = installationIdParam || installationIdSession
+    const stateParam = searchParams?.get('state')
+
+    let rawId: string | null = null
+    if (installationIdParam) {
+      const callbackResult = consumeGithubAppInstallation({
+        installationId: installationIdParam,
+        state: stateParam
+      })
+
+      if (!callbackResult.success) {
+        toast.error(callbackResult.error)
+        clearGithubSyncQueryParams()
+        return
+      }
+
+      rawId = installationIdParam
+      clearGithubSyncQueryParams()
+    } else {
+      rawId = getStoredGithubInstallationId()
+    }
+
     if (!rawId) return
 
     const id = Number(rawId)
     if (!isNaN(id) && id > 0) {
+      setLeftTab('import')
       setInstallationId(id)
       setIsGithubConnected(true)
       loadAvailableRepos(id)
-
-      // Persistir para reuso entre aberturas do modal
-      try {
-        sessionStorage.setItem('github_sync_installation_id', String(id))
-      } catch {
-        // ignore storage errors
-      }
-
-      // Clean URL (quando veio do callback)
-      if (installationIdParam && searchParams) {
-        const params = new URLSearchParams(searchParams.toString())
-        params.delete('installation_id')
-        const newQuery = params.toString()
-        if (newQuery !== searchParams.toString()) {
-          router.replace(`?${newQuery}`)
-        }
-      }
     }
   }, [open, searchParams, router])
 
@@ -102,47 +149,38 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
     }
   }
 
-  // Handle OAuth connect
+  // Handle GitHub App install
   const handleConnectGithub = () => {
-    const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-    if (!githubClientId) {
-      toast.error('GitHub OAuth não configurado')
-      return
-    }
-
-    // Detect if running on localhost to use correct backend URL
-    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    const backendUrl = isLocalhost
-      ? 'http://localhost:3001'
-      : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
-
-    // Generate cryptographically-random nonce for CSRF protection
-    const nonceBytes = new Uint8Array(16)
-    crypto.getRandomValues(nonceBytes)
-    const nonce = Array.from(nonceBytes, b => b.toString(16).padStart(2, '0')).join('')
     try {
-      sessionStorage.setItem('oauth_state_nonce', nonce)
-    } catch (err) {
-      console.error('[OAuth] Falha ao salvar nonce no sessionStorage:', err)
+      const installUrl = beginGithubAppInstallation()
+      window.location.href = installUrl
+    } catch (error) {
+      console.error('[GitHub App] Falha ao iniciar instalação:', error)
       setStorageError(true)
-      toast.error('Não foi possível iniciar o fluxo OAuth. Tente novamente.')
-      return
+      toast.error(error instanceof Error ? error.message : 'Não foi possível iniciar o fluxo do GitHub.')
     }
-
-    const stateData = JSON.stringify({ origin: window.location.origin, nonce })
-    const state = btoa(stateData)
-
-    const baseUrl = backendUrl.replace(/\/api$/, '')
-    const redirectUri = `${baseUrl}/api/github/callback`
-    
-    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
-    
-    window.location.href = githubAuthUrl
   }
 
   // Handle repo selection
   const handleSelectRepo = (repo: GithubAppRepo) => {
     setSelectedRepo(repo)
+  }
+
+  const handleDisconnectGithub = () => {
+    setIsGithubConnected(false)
+    setInstallationId(null)
+    setAvailableRepos([])
+    setSelectedRepo(null)
+    setLoadingRepos(false)
+
+    try {
+      sessionStorage.removeItem('github_sync_installation_id')
+      localStorage.removeItem('github_sync_installation_id')
+    } catch {
+      // ignore storage errors
+    }
+
+    toast.success('Conexão do GitHub removida deste formulário')
   }
 
   const resetForm = () => {
@@ -291,10 +329,25 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
 
                   <TabsContent value="import" className="space-y-3 mt-0 min-h-[240px]">
                     <div className="space-y-3 border border-gray-200 rounded-lg p-3 bg-white">
-                      <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                        <Github className="h-4 w-4" />
-                        Repositório GitHub
-                      </h3>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <Github className="h-4 w-4" />
+                          Repositório GitHub
+                        </h3>
+                        {isGithubConnected && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleDisconnectGithub}
+                            className="ml-auto h-7 w-7 shrink-0 rounded-md border border-black bg-white text-black hover:bg-gray-100 hover:text-black"
+                            title="Desconectar GitHub"
+                            aria-label="Desconectar GitHub"
+                          >
+                            <Unplug className="h-4 w-4 text-black" />
+                          </Button>
+                        )}
+                      </div>
 
                       {!isGithubConnected ? (
                         <div className="text-center py-6">

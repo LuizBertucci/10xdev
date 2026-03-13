@@ -2,8 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
-// /import-github-token: callback OAuth GitHub - deve carregar sem sessão para processar tokens
-const publicPaths = ['/login', '/register', '/import-github-token', '/']
+const publicPaths = ['/login', '/register', '/']
 
 // Rotas privadas que requerem autenticação
 const privatePathPrefixes = ['/home', '/codes', '/contents', '/projects', '/admin']
@@ -324,7 +323,6 @@ export async function middleware(req: NextRequest) {
   }
 
   // Evita acesso a login/register se já autenticado
-  // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
   if ((pathname === '/login' || pathname === '/register') && hasSession) {
     const url = req.nextUrl.clone()
     url.pathname = '/home'

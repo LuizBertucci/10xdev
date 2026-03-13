@@ -110,7 +110,7 @@ app.post('/api/github/webhook',
   }
 )
 
-// OAuth callback - sem auth do usuario (recebe code do GitHub)
+// GitHub App install callback - sem auth do usuario
 const DEFAULT_FRONTEND_ORIGIN = 'http://localhost:3000'
 
 const parseStateParameter = (state?: string): OAuthStateData => {
@@ -163,61 +163,71 @@ const getValidatedFrontendUrl = (stateOrigin?: string): string => {
   return fallbackOrigin
 }
 
+const buildGithubInstallReturnUrl = ({
+  frontendUrl,
+  projectId,
+  installationId,
+  state,
+  error
+}: {
+  frontendUrl: string
+  projectId?: string
+  installationId?: string
+  state?: string
+  error?: string
+}): string => {
+  const pathname = projectId ? `/projects/${projectId}` : '/projects'
+  const params = new URLSearchParams({
+    github_sync: 'true',
+    ...(projectId ? {} : { open_project_form: 'true' }),
+    ...(installationId ? { installation_id: installationId } : {}),
+    ...(state ? { state } : {}),
+    ...(error ? { github_sync_error: error } : {})
+  })
+
+  return `${frontendUrl}${pathname}?${params.toString()}`
+}
+
 const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
   try {
-    const { code, installation_id, state } = req.query as { code?: string; installation_id?: string; state?: string }
-
-    if (!code) {
-      res.status(400).json({ success: false, error: 'Código de autorização não recebido' })
-      return
-    }
-
-    const tokenData = await GithubService.exchangeCodeForToken(code)
-
-    // Obter installation_id: callback pode não incluir (OAuth padrão).
-    // Fallback: buscar via getUserInstallations com o access_token.
-    let installationId = installation_id
-    if (!installationId) {
-      try {
-        const appId = process.env.GITHUB_APP_ID ? Number(process.env.GITHUB_APP_ID) : null
-        const installations = await GithubService.getUserInstallations(tokenData.access_token)
-        const ourInstallations = appId
-          ? installations.filter((i: { app_id: number }) => i.app_id === appId)
-          : installations
-        const firstInstallation = ourInstallations[0]
-        if (firstInstallation) {
-          installationId = String(firstInstallation.id)
-        }
-      } catch (err) {
-        console.error('[GitSync OAuth] Erro ao buscar installations:', err)
-      }
+    const { installation_id, setup_action, state } = req.query as {
+      installation_id?: string
+      setup_action?: string
+      state?: string
     }
 
     const { origin, projectId } = parseStateParameter(state)
     const frontendUrl = getValidatedFrontendUrl(origin)
 
-    const params = new URLSearchParams({
-      github_access_token: tokenData.access_token,
-      ...(installationId ? { installation_id: installationId } : {}),
-      ...(projectId ? { project_id: projectId } : {}),
-      ...(state ? { state } : {})
-    })
+    if (setup_action && setup_action !== 'install') {
+      throw new Error('A instalação do GitHub não foi concluída.')
+    }
 
-    res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
+    if (!installation_id) {
+      throw new Error('Installation ID não recebido do GitHub.')
+    }
+
+    res.redirect(buildGithubInstallReturnUrl({
+      frontendUrl,
+      ...(projectId ? { projectId } : {}),
+      installationId: installation_id,
+      ...(state ? { state } : {})
+    }))
   } catch (error: unknown) {
-    console.error('[GitSync OAuth] Erro:', error)
+    console.error('[GitSync Install] Erro:', error)
 
     const { state } = req.query as { state?: string }
     const { origin, projectId } = parseStateParameter(state)
     const frontendUrl = getValidatedFrontendUrl(origin)
 
-    const message = error instanceof Error ? error.message : 'Erro ao processar OAuth'
-    const params = new URLSearchParams({
-      error: message,
-      ...(projectId ? { project_id: projectId } : {})
-    })
+    const message = error instanceof Error ? error.message : 'Erro ao processar instalação do GitHub'
 
-    res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
+    res.redirect(buildGithubInstallReturnUrl({
+      frontendUrl,
+      ...(projectId ? { projectId } : {}),
+      ...(state ? { state } : {}),
+      error: message
+    }))
   }
 }
 
