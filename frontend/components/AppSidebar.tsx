@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
-import { Crown, LogOut, PanelLeft, Maximize2, Minimize2, MousePointerClick, Check } from "lucide-react"
+import { Crown, LogOut, PanelLeft, Maximize2, Minimize2, MousePointerClick, Check, LogIn, UserPlus } from "lucide-react"
 import { ROUTES, type TabKey } from '@/utils/routes'
 
 const ROUTE_TO_TAB: Record<string, TabKey> = {
@@ -224,29 +224,54 @@ function AppSidebar() {
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton>
-              <Avatar className="size-6">
-                {user?.avatarUrl ? (
-                  <AvatarImage src={user.avatarUrl} referrerPolicy="no-referrer" alt="" />
-                ) : null}
-                <AvatarFallback>{userInitials}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col flex-1 text-left text-sm" key={user?.id || 'no-user'}>
-                <span className="truncate font-medium flex items-center gap-1">
-                  {userDisplayName}
-                  {isAdmin && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleLogout}>
-              <LogOut className="size-5 text-red-500" />
-              <span>Sair</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {user ? (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <Avatar className="size-6">
+                    {user.avatarUrl ? (
+                      <AvatarImage src={user.avatarUrl} referrerPolicy="no-referrer" alt="" />
+                    ) : null}
+                    <AvatarFallback>{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col flex-1 text-left text-sm">
+                    <span className="truncate font-medium flex items-center gap-1">
+                      {userDisplayName}
+                      {isAdmin && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout}>
+                  <LogOut className="size-5 text-red-500" />
+                  <span>Sair</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          ) : (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push('/login')}
+                  className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white font-medium"
+                >
+                  <LogIn className="size-4" />
+                  <span>Login</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => router.push('/register')}
+                  className="border border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-medium"
+                >
+                  <UserPlus className="size-4" />
+                  <span>Registrar</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
         </SidebarMenu>
       </SidebarFooter>
       {sidebarMode === 'hover' && <SidebarRail />}

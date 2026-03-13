@@ -24,6 +24,12 @@ interface ParsedRepoInfo {
   repo: string
 }
 
+type OAuthStateData = {
+  origin?: string
+  projectId?: string
+  nonce?: string
+}
+
 export interface FileEntry {
   path: string
   content: string
@@ -31,8 +37,84 @@ export interface FileEntry {
 }
 
 const CONCURRENCY = 8
+const DEFAULT_FRONTEND_ORIGIN = 'http://localhost:3000'
 
 export class GithubService {
+
+  static parseStateParameter(state?: string): OAuthStateData {
+    if (!state) return {}
+
+    try {
+      const decoded = Buffer.from(state, 'base64').toString('utf-8')
+
+      try {
+        const parsed = JSON.parse(decoded)
+        if (!parsed || typeof parsed !== 'object') return {}
+
+        const origin = typeof parsed.origin === 'string' ? parsed.origin : undefined
+        const projectId = typeof parsed.projectId === 'string' ? parsed.projectId : undefined
+        const nonce = typeof parsed.nonce === 'string' ? parsed.nonce : undefined
+        return { origin, projectId, nonce }
+      } catch {
+        // Retrocompatibilidade: state antigo codificado só com origin em texto.
+        return { origin: decoded }
+      }
+    } catch {
+      return {}
+    }
+  }
+
+  private static normalizeOrigin(value: string): string | null {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+
+    try {
+      return new URL(trimmed).origin
+    } catch {
+      return null
+    }
+  }
+
+  static getValidatedFrontendUrl(stateOrigin?: string): string {
+    const allowedOrigins = (process.env.CORS_ORIGIN || DEFAULT_FRONTEND_ORIGIN)
+      .split(',')
+      .map((origin) => this.normalizeOrigin(origin))
+      .filter((origin): origin is string => Boolean(origin))
+
+    const fallbackOrigin = allowedOrigins[0] || DEFAULT_FRONTEND_ORIGIN
+    const candidateOrigin = stateOrigin ? this.normalizeOrigin(stateOrigin) : null
+
+    if (candidateOrigin && allowedOrigins.includes(candidateOrigin)) {
+      return candidateOrigin
+    }
+
+    return fallbackOrigin
+  }
+
+  static buildGithubInstallReturnUrl({
+    frontendUrl,
+    projectId,
+    installationId,
+    state,
+    error
+  }: {
+    frontendUrl: string
+    projectId?: string
+    installationId?: string
+    state?: string
+    error?: string
+  }): string {
+    const pathname = projectId ? `/projects/${projectId}` : '/projects'
+    const params = new URLSearchParams({
+      github_sync: 'true',
+      ...(projectId ? {} : { open_project_form: 'true' }),
+      ...(installationId ? { installation_id: installationId } : {}),
+      ...(state ? { state } : {}),
+      ...(error ? { github_sync_error: error } : {})
+    })
+
+    return `${frontendUrl}${pathname}?${params.toString()}`
+  }
 
   static parseGithubUrl(url: string): ParsedRepoInfo | null {
     try {

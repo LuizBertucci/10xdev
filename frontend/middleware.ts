@@ -2,8 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Rotas públicas (acessíveis sem conta)
-// /import-github-token: callback OAuth GitHub - deve carregar sem sessão para processar tokens
-const publicPaths = ['/login', '/register', '/import-github-token', '/']
+const publicPaths = ['/login', '/register', '/']
 
 // Rotas privadas que requerem autenticação
 const privatePathPrefixes = ['/home', '/codes', '/contents', '/projects', '/admin']
@@ -158,16 +157,17 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Rota de detalhe de código (/codes/[id]) deve ser acessível sem autenticação
-  const isCodesDetailPublicRoute =
-    pathname.startsWith('/codes/') && pathname.split('/').length === 3
+  // Rotas de detalhe (/codes/[id], /contents/[id]) devem ser acessíveis sem autenticação
+  const isPublicDetailRoute =
+    pathname.split('/').length === 3 &&
+    (pathname.startsWith('/codes/') || pathname.startsWith('/contents/'))
 
   // Verifica se é rota pública
-  const isPublic = isCodesDetailPublicRoute || publicPaths.includes(pathname) || pathname === '/'
-  
+  const isPublic = isPublicDetailRoute || publicPaths.includes(pathname) || pathname === '/'
+
   // Verifica se é rota privada (começa com algum dos prefixos privados),
-  // exceto a rota pública específica de detalhe de código
-  const isPrivate = !isCodesDetailPublicRoute &&
+  // exceto rotas públicas de detalhe
+  const isPrivate = !isPublicDetailRoute &&
     privatePathPrefixes.some(prefix => pathname.startsWith(prefix))
   const hasOAuthFlags =
     searchParams.has('github_sync') ||
@@ -324,7 +324,6 @@ export async function middleware(req: NextRequest) {
   }
 
   // Evita acesso a login/register se já autenticado
-  // EXCEÇÃO: /import-github-token é callback OAuth - deve carregar mesmo com sessão para processar tokens
   if ((pathname === '/login' || pathname === '/register') && hasSession) {
     const url = req.nextUrl.clone()
     url.pathname = '/home'

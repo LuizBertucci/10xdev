@@ -21,12 +21,6 @@ import { apiRoutes } from '@/routes'
 // Import GitSync (used for webhook/callback before express.json)
 import { GithubService } from '@/services/githubService'
 
-type OAuthStateData = {
-  origin?: string
-  projectId?: string
-  nonce?: string
-}
-
 // Configurar variáveis de ambiente - carregar do diretório do backend
 // Usar process.cwd() para garantir que leia do diretório onde o processo foi iniciado
 const envPath = path.resolve(process.cwd(), '.env')
@@ -110,114 +104,48 @@ app.post('/api/github/webhook',
   }
 )
 
-// OAuth callback - sem auth do usuario (recebe code do GitHub)
-const DEFAULT_FRONTEND_ORIGIN = 'http://localhost:3000'
-
-const parseStateParameter = (state?: string): OAuthStateData => {
-  if (!state) return {}
-
-  try {
-    const decoded = Buffer.from(state, 'base64').toString('utf-8')
-
-    try {
-      const parsed = JSON.parse(decoded)
-      if (!parsed || typeof parsed !== 'object') return {}
-
-      const origin = typeof parsed.origin === 'string' ? parsed.origin : undefined
-      const projectId = typeof parsed.projectId === 'string' ? parsed.projectId : undefined
-      const nonce = typeof parsed.nonce === 'string' ? parsed.nonce : undefined
-      return { origin, projectId, nonce }
-    } catch {
-      // Retrocompatibilidade: state antigo codificado só com origin em texto.
-      return { origin: decoded }
-    }
-  } catch {
-    return {}
-  }
-}
-
-const normalizeOrigin = (value: string): string | null => {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-
-  try {
-    return new URL(trimmed).origin
-  } catch {
-    return null
-  }
-}
-
-const getValidatedFrontendUrl = (stateOrigin?: string): string => {
-  const allowedOrigins = (process.env.CORS_ORIGIN || DEFAULT_FRONTEND_ORIGIN)
-    .split(',')
-    .map((origin) => normalizeOrigin(origin))
-    .filter((origin): origin is string => Boolean(origin))
-
-  const fallbackOrigin = allowedOrigins[0] || DEFAULT_FRONTEND_ORIGIN
-  const candidateOrigin = stateOrigin ? normalizeOrigin(stateOrigin) : null
-
-  if (candidateOrigin && allowedOrigins.includes(candidateOrigin)) {
-    return candidateOrigin
-  }
-
-  return fallbackOrigin
-}
+// GitHub App install callback - sem auth do usuario
 
 const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
   try {
-    const { code, installation_id, state } = req.query as { code?: string; installation_id?: string; state?: string }
-
-    if (!code) {
-      res.status(400).json({ success: false, error: 'Código de autorização não recebido' })
-      return
+    const { installation_id, setup_action, state } = req.query as {
+      installation_id?: string
+      setup_action?: string
+      state?: string
     }
 
-    const tokenData = await GithubService.exchangeCodeForToken(code)
+    const { origin, projectId } = GithubService.parseStateParameter(state)
+    const frontendUrl = GithubService.getValidatedFrontendUrl(origin)
 
-    // Obter installation_id: callback pode não incluir (OAuth padrão).
-    // Fallback: buscar via getUserInstallations com o access_token.
-    let installationId = installation_id
-    if (!installationId) {
-      try {
-        const appId = process.env.GITHUB_APP_ID ? Number(process.env.GITHUB_APP_ID) : null
-        const installations = await GithubService.getUserInstallations(tokenData.access_token)
-        const ourInstallations = appId
-          ? installations.filter((i: { app_id: number }) => i.app_id === appId)
-          : installations
-        const firstInstallation = ourInstallations[0]
-        if (firstInstallation) {
-          installationId = String(firstInstallation.id)
-        }
-      } catch (err) {
-        console.error('[GitSync OAuth] Erro ao buscar installations:', err)
-      }
+    if (setup_action && setup_action !== 'install') {
+      throw new Error('A instalação do GitHub não foi concluída.')
     }
 
-    const { origin, projectId } = parseStateParameter(state)
-    const frontendUrl = getValidatedFrontendUrl(origin)
+    if (!installation_id) {
+      throw new Error('Installation ID não recebido do GitHub.')
+    }
 
-    const params = new URLSearchParams({
-      github_access_token: tokenData.access_token,
-      ...(installationId ? { installation_id: installationId } : {}),
-      ...(projectId ? { project_id: projectId } : {}),
+    res.redirect(GithubService.buildGithubInstallReturnUrl({
+      frontendUrl,
+      ...(projectId ? { projectId } : {}),
+      installationId: installation_id,
       ...(state ? { state } : {})
-    })
-
-    res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
+    }))
   } catch (error: unknown) {
-    console.error('[GitSync OAuth] Erro:', error)
+    console.error('[GitSync Install] Erro:', error)
 
     const { state } = req.query as { state?: string }
-    const { origin, projectId } = parseStateParameter(state)
-    const frontendUrl = getValidatedFrontendUrl(origin)
+    const { origin, projectId } = GithubService.parseStateParameter(state)
+    const frontendUrl = GithubService.getValidatedFrontendUrl(origin)
 
-    const message = error instanceof Error ? error.message : 'Erro ao processar OAuth'
-    const params = new URLSearchParams({
-      error: message,
-      ...(projectId ? { project_id: projectId } : {})
-    })
+    const message = error instanceof Error ? error.message : 'Erro ao processar instalação do GitHub'
 
-    res.redirect(`${frontendUrl}/import-github-token?${params.toString()}`)
+    res.redirect(GithubService.buildGithubInstallReturnUrl({
+      frontendUrl,
+      ...(projectId ? { projectId } : {}),
+      ...(state ? { state } : {}),
+      error: message
+    }))
   }
 }
 

@@ -38,6 +38,10 @@ import { AddMemberInProject } from "@/components/AddMemberInProject"
 import { buildCategoryGroups, getAllCategories, orderCategories } from "@/utils/projectCategories"
 import { useAuth } from "@/hooks/useAuth"
 import { ContentType, type UpdateCardFeatureData } from "@/types"
+import {
+  beginGithubAppInstallation,
+  consumeGithubAppInstallation,
+} from "@/lib/githubInstallFlow"
 
 type ImportJobState = {
   id: string
@@ -337,45 +341,58 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     setHasMoreCommits(true)
   }, [activeBranch])
 
-  // Detectar retorno do OAuth do GitHub (URL ou sessionStorage quando redirect perde params)
+  // Detectar retorno da instalação da GitHub App direto na tela do projeto
   useEffect(() => {
     if (!searchParams || !projectId) return
 
-    const githubSyncFlag = searchParams.get('github_sync')
-    const hasOAuthReturnFlag = searchParams.has('oauth_return')
-    const hasInstallationInUrl = searchParams.has('installation_id')
-    const isOAuthCallbackFlow =
-      githubSyncFlag === 'true' || hasOAuthReturnFlag || hasInstallationInUrl
-    if (!isOAuthCallbackFlow) return
+    const clearGithubSyncQueryParams = () => {
+      const params = new URLSearchParams(searchParams.toString())
+      const keysToDelete = ['github_sync', 'installation_id', 'state', 'github_sync_error']
 
-    let installationId = searchParams.get('installation_id') || null
-    if (!installationId && isOAuthCallbackFlow) {
-      installationId = typeof window !== 'undefined' ? sessionStorage.getItem('github_sync_installation_id') : null
+      let changed = false
+      keysToDelete.forEach((key) => {
+        if (params.has(key)) {
+          params.delete(key)
+          changed = true
+        }
+      })
+
+      if (!changed) return
+
+      const newQuery = params.toString()
+      router.replace(newQuery ? `/projects/${projectId}?${newQuery}` : `/projects/${projectId}`)
     }
 
-    const shouldShowRepoDialog = Boolean(installationId)
-    if (!shouldShowRepoDialog) return
+    const githubSyncError = searchParams.get('github_sync_error')
+    if (githubSyncError) {
+      toast.error(githubSyncError)
+      clearGithubSyncQueryParams()
+      return
+    }
+
+    const installationId = searchParams.get('installation_id')
+    if (!installationId) return
     if (!isAuthenticated) return
 
-    const flowKey = `${projectId}:${installationId}:${searchParams.toString()}`
+    const callbackResult = consumeGithubAppInstallation({
+      installationId,
+      state: searchParams.get('state'),
+      expectedProjectId: projectId
+    })
+
+    if (!callbackResult.success) {
+      toast.error(callbackResult.error)
+      clearGithubSyncQueryParams()
+      return
+    }
+
+    const flowKey = `${projectId}:${installationId}:${searchParams.get('state') || ''}`
     if (handledOAuthFlowRef.current === flowKey) return
     handledOAuthFlowRef.current = flowKey
 
-    const storedProjectId = sessionStorage.getItem('github_sync_project_id')
-    const isForThisProject = (storedProjectId && storedProjectId === projectId) || !storedProjectId
-
-    if (isForThisProject) {
-      if (storedProjectId) sessionStorage.removeItem('github_sync_project_id')
-      loadAvailableRepos(Number(installationId), () => {
-        const params = new URLSearchParams(searchParams.toString())
-        params.delete('github_sync')
-        params.delete('installation_id')
-        const newQuery = params.toString()
-        if (newQuery !== searchParams.toString()) {
-          router.replace(`/projects/${projectId}`)
-        }
-      })
-    }
+    loadAvailableRepos(Number(installationId), () => {
+      clearGithubSyncQueryParams()
+    })
   }, [searchParams, projectId, isAuthenticated])
 
   const loadAvailableRepos = async (
@@ -2031,47 +2048,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       className="w-full"
                       size="sm"
                       onClick={() => {
-                        // Store project ID for post-OAuth redirect
                         try {
-                          sessionStorage.setItem('github_sync_project_id', projectId || '')
-                        } catch { /* ignore */ }
-
-                        // Redirect to GitHub OAuth
-                        const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-
-                        if (!githubClientId) {
-                          toast.error('GitHub Client ID não configurado')
-                          return
+                          const installUrl = beginGithubAppInstallation(projectId)
+                          window.location.href = installUrl
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : 'Não foi possível iniciar o fluxo do GitHub.')
                         }
-
-                        // CSRF protection: gerar nonce e persistir para validação no callback
-                        const nonceBytes = new Uint8Array(16)
-                        crypto.getRandomValues(nonceBytes)
-                        const nonce = Array.from(nonceBytes, b => b.toString(16).padStart(2, '0')).join('')
-                        try {
-                          sessionStorage.setItem('oauth_state_nonce', nonce)
-                        } catch {
-                          toast.error('Não foi possível iniciar o fluxo OAuth. Tente novamente.')
-                          return
-                        }
-
-                        // Detect if running on localhost to use correct backend URL
-                        const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-                        const backendUrl = isLocalhost
-                          ? 'http://localhost:3001'
-                          : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
-
-                        // Encode frontend origin, projectId e nonce no state parameter
-                        const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-                        const stateData = JSON.stringify({ origin: frontendOrigin, projectId: projectId || '', nonce })
-                        const state = btoa(stateData)
-
-                        // Remove /api suffix if present to avoid duplication
-                        const baseUrl = backendUrl.replace(/\/api$/, '')
-                        const redirectUri = `${baseUrl}/api/github/callback`
-                        const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo&state=${encodeURIComponent(state)}`
-
-                        window.location.href = githubAuthUrl
                       }}
                     >
                       <GitBranch className="h-4 w-4 mr-2" />
