@@ -158,16 +158,17 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Rota de detalhe de código (/codes/[id]) deve ser acessível sem autenticação
-  const isCodesDetailPublicRoute =
-    pathname.startsWith('/codes/') && pathname.split('/').length === 3
+  // Rotas de detalhe (/codes/[id], /contents/[id]) devem ser acessíveis sem autenticação
+  const isPublicDetailRoute =
+    pathname.split('/').length === 3 &&
+    (pathname.startsWith('/codes/') || pathname.startsWith('/contents/'))
 
   // Verifica se é rota pública
-  const isPublic = isCodesDetailPublicRoute || publicPaths.includes(pathname) || pathname === '/'
-  
+  const isPublic = isPublicDetailRoute || publicPaths.includes(pathname) || pathname === '/'
+
   // Verifica se é rota privada (começa com algum dos prefixos privados),
-  // exceto a rota pública específica de detalhe de código
-  const isPrivate = !isCodesDetailPublicRoute &&
+  // exceto rotas públicas de detalhe
+  const isPrivate = !isPublicDetailRoute &&
     privatePathPrefixes.some(prefix => pathname.startsWith(prefix))
   const hasOAuthFlags =
     searchParams.has('github_sync') ||

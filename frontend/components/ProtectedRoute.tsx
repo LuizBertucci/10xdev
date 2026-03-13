@@ -15,8 +15,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const isCodesDetailPublicRoute =
-    (pathname ?? '').startsWith('/codes/') && (pathname ?? '').split('/').length === 3
+  const isPublicDetailRoute = (() => {
+    const path = pathname ?? ''
+    const segments = path.split('/').length
+    if (segments !== 3) return false
+    return path.startsWith('/codes/') || path.startsWith('/contents/')
+  })()
   const hasOAuthFlags = Boolean(
     searchParams?.get('github_sync') ||
     searchParams?.get('installation_id') ||
@@ -26,7 +30,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     // Rotas públicas específicas (ex: /codes/[id]) não devem forçar autenticação
-    if (isCodesDetailPublicRoute) return
+    if (isPublicDetailRoute) return
 
     if (!isLoading && !isAuthenticated) {
       if (hasOAuthFlags) {
@@ -65,12 +69,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [isAuthenticated, isLoading, hasOAuthFlags, router, pathname, searchParams])
 
   // Mostrar loading durante verificação (exceto em rotas públicas específicas)
-  if (!isCodesDetailPublicRoute && (isLoading || (!isAuthenticated && hasOAuthFlags))) {
+  if (!isPublicDetailRoute && (isLoading || (!isAuthenticated && hasOAuthFlags))) {
     return <LoadingPage />
   }
 
   // Em rotas públicas específicas, sempre renderizar children (mesmo sem sessão)
-  if (isCodesDetailPublicRoute) {
+  if (isPublicDetailRoute) {
     return <>{children}</>
   }
 
