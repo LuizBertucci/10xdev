@@ -39,8 +39,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         const timeout = setTimeout(() => {
           const safePathname = pathname ?? '/'
           const searchQuery = searchParams?.toString() ?? ''
-          const currentPath = safePathname === '/' && searchQuery
-            ? `/?${searchQuery}`
+          const currentPath = searchQuery
+            ? `${safePathname}?${searchQuery}`
             : safePathname
           const redirectUrl = currentPath !== '/'
             ? `?redirect=${encodeURIComponent(currentPath)}`
@@ -55,8 +55,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
       // Preservar query params se existirem (ex: ?search=term)
       const safePathname = pathname ?? '/'
       const searchQuery = searchParams?.toString() ?? ''
-      const currentPath = safePathname === '/' && searchQuery
-        ? `/?${searchQuery}`
+      const currentPath = searchQuery
+        ? `${safePathname}?${searchQuery}`
         : safePathname
       
       const redirectUrl = currentPath !== '/' 

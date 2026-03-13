@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Search, Trash2, Loader2, AlertTriangle, ChevronRight } from "lucide-react"
@@ -26,6 +26,7 @@ import {
 
 export default function Projects() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,6 +66,19 @@ export default function Projects() {
     loadProjects()
     loadTemplates()
   }, [])
+
+  useEffect(() => {
+    const shouldOpenProjectForm =
+      searchParams?.get('open_project_form') === 'true' ||
+      (
+        searchParams?.get('github_sync') === 'true' &&
+        Boolean(searchParams?.get('installation_id') || searchParams?.get('github_sync_error'))
+      )
+
+    if (shouldOpenProjectForm) {
+      setIsCreateDialogOpen(true)
+    }
+  }, [searchParams])
 
   const loadProjects = async () => {
     try {
