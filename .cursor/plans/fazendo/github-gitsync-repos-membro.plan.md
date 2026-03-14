@@ -11,7 +11,7 @@ isProject: false
 
 Após o commit `a1644e9`, o fluxo OAuth foi removido. O endpoint `listGithubRepos` passou a usar apenas `GET /installation/repositories` com installation token, que retorna somente repos da conta do owner da instalação. Repos onde o usuário é colaborador ou membro de org não aparecem.
 
-A correção restaura o `code` → `user_access_token` no callback e **persiste o token na tabela `users`** (por `user_id`), garantindo que o usuário não precise reconectar a cada sessão. O token é por usuário — não há risco de ver repos de outra pessoa.
+A correção inclui o `userId` no `state` do OAuth, restaura o `code` → `user_access_token` no callback e **persiste o token direto no banco** (por `user_id`) no próprio callback do backend — o token nunca passa pelo frontend. O token é por usuário — não há risco de ver repos de outra pessoa.
 
 **Pré-requisito:** "Request user authorization (OAuth) during installation" deve estar habilitado nas configurações do GitHub App.
 
@@ -20,13 +20,22 @@ A correção restaura o `code` → `user_access_token` no callback e **persiste 
 ## Arquitetura
 
 ```
-OAuth (user token)           → listUserRepos → descobrir todos os repos acessíveis
-                                                 ↓
-                                          usuário escolhe repo
-                                                 ↓
+Frontend inicia install       → state inclui userId (base64)
+                                          ↓
+GitHub callback (backend)     → extrai code + userId do state
+                              → exchangeCodeForToken(code) → user_access_token
+                              → UserModel.saveGithubToken(userId, token)
+                              → redirect para frontend (SEM token na URL)
+                                          ↓
+Frontend lista repos          → GET /github/repos (autenticado)
+                              → backend lê token do banco via req.user.id
+                              → listUserRepos(token) → todos os repos acessíveis
+                                          ↓
+                                   usuário escolhe repo
+                                          ↓
 GET /repos/{owner}/{repo}/installation  → descobrir installation_id correto do repo
-                                                 ↓
-GitHub App (installation token)          → connectRepo → operar no repo
+                                          ↓
+GitHub App (installation token)         → connectRepo → operar no repo
 ```
 
 ---
@@ -37,40 +46,35 @@ GitHub App (installation token)          → connectRepo → operar no repo
 ALTER TABLE users ADD COLUMN github_user_token TEXT;
 ```
 
+**Status: JA APLICADA** — coluna `github_user_token` (text, nullable) já existe na tabela `users`.
+
 ---
 
-## Arquivos a modificar (8)
+## Arquivos a modificar (6)
 
 ### 1. `backend/src/services/githubService.ts`
 
-**1a. `buildGithubInstallReturnUrl` (linhas 93–116)** — adicionar `userToken?`:
+**1a. `OAuthStateData` e `parseStateParameter`** — adicionar `userId`:
 
 ```typescript
-static buildGithubInstallReturnUrl({
-  frontendUrl, projectId, installationId, state, error,
-  userToken
-}: {
-  frontendUrl: string
+type OAuthStateData = {
+  origin?: string
   projectId?: string
-  installationId?: string
-  state?: string
-  error?: string
-  userToken?: string
-}): string {
-  const pathname = projectId ? `/projects/${projectId}` : '/projects'
-  const params = new URLSearchParams({
-    github_sync: 'true',
-    ...(projectId ? {} : { open_project_form: 'true' }),
-    ...(installationId ? { installation_id: installationId } : {}),
-    ...(state ? { state } : {}),
-    ...(error ? { github_sync_error: error } : {}),
-    ...(userToken ? { user_token: userToken } : {})
-  })
-  return `${frontendUrl}${pathname}?${params.toString()}`
+  nonce?: string
+  userId?: string
 }
 ```
 
-**1b. Novo método `listUserRepos` após `listInstallationRepos` (linha ~457)**
+`parseStateParameter` já faz parse genérico de JSON, basta adicionar a extração:
+
+```typescript
+const userId = typeof parsed.userId === 'string' ? parsed.userId : undefined
+return { origin, projectId, nonce, userId }
+```
+
+**1b. `buildGithubInstallReturnUrl`** — sem alteração (não recebe mais `userToken`).
+
+**1c. Novo método `listUserRepos` após `listInstallationRepos` (linha ~457)**
 
 ```typescript
 static async listUserRepos(userAccessToken: string): Promise<unknown[]> {
@@ -116,7 +120,7 @@ static async listUserRepos(userAccessToken: string): Promise<unknown[]> {
 }
 ```
 
-**1c. Novo método `getRepoInstallation`**
+**1d. Novo método `getRepoInstallation`**
 
 Descobre qual installation do GitHub App controla um repo específico (para resolver installation_id correto ao conectar repo de org):
 
@@ -184,7 +188,13 @@ static async clearGithubToken(userId: string): Promise<void> {
 
 ### 3. `backend/src/server.ts`
 
-Em `handleGitSyncCallback`: extrair `code`, trocar por user token, passar brevemente na URL de retorno (o frontend salva no banco e limpa a URL imediatamente):
+**Adicionar import** no topo do arquivo (junto com o import de `GithubService`):
+
+```typescript
+import { UserModel } from '@/models/UserModel'
+```
+
+Em `handleGitSyncCallback`: extrair `code`, trocar por user token e **salvar direto no banco** via `userId` do state (token nunca vai para o frontend):
 
 ```typescript
 const { installation_id, setup_action, state, code } = req.query as {
@@ -196,23 +206,26 @@ const { installation_id, setup_action, state, code } = req.query as {
 
 // ... validações existentes (setup_action, installation_id) ...
 
-let userToken: string | undefined
+// Trocar code por user token e salvar no banco
 if (code) {
   try {
     const tokenData = await GithubService.exchangeCodeForToken(code)
-    userToken = tokenData.access_token
+    const parsedState = GithubService.parseStateParameter(state)
+    if (parsedState.userId && tokenData.access_token) {
+      await UserModel.saveGithubToken(parsedState.userId, tokenData.access_token)
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.warn('[GitSync Install] Falha ao trocar code por user token (continuando sem):', msg)
+    console.warn('[GitSync Install] Falha ao salvar user token (continuando sem):', msg)
   }
 }
 
+// Redirect SEM token na URL
 res.redirect(GithubService.buildGithubInstallReturnUrl({
   frontendUrl,
   ...(projectId ? { projectId } : {}),
   installationId: installation_id,
-  ...(state ? { state } : {}),
-  ...(userToken ? { userToken } : {})
+  ...(state ? { state } : {})
 }))
 ```
 
@@ -220,21 +233,23 @@ res.redirect(GithubService.buildGithubInstallReturnUrl({
 
 ### 4. `backend/src/controllers/ProjectController.ts`
 
-**4a. `listGithubRepos` (linhas 563–589)** — lê token do banco via `req.user.id`. Sem token no request.
+**4a. `listGithubRepos` (linhas 563–589)** — lê token do banco via `req.user.id`. O `installation_id` da query agora é opcional (mantido para backwards compatibility, mas não é mais obrigatório).
+
+**Adicionar import** no topo (junto com os outros imports de model):
+
+```typescript
+import { UserModel } from '@/models/UserModel'
+```
 
 ```typescript
 static listGithubRepos = safeHandler(async (req, res) => {
-  const installationId = Number(req.query.installation_id)
-  if (!installationId) throw badRequest('installation_id é obrigatório')
-
   const userId = req.user?.id
   const userToken = userId ? await UserModel.getGithubToken(userId) : null
 
   if (!userToken) {
     res.status(401).json({
       success: false,
-      error: 'Reconecte o GitHub para listar os repositórios.',
-      code: 'GITHUB_TOKEN_MISSING'
+      error: 'Reconecte o GitHub para listar os repositórios.'
     })
     return
   }
@@ -248,8 +263,7 @@ static listGithubRepos = safeHandler(async (req, res) => {
       if (userId) await UserModel.clearGithubToken(userId)
       res.status(401).json({
         success: false,
-        error: 'Acesso ao GitHub revogado. Reconecte o GitHub.',
-        code: 'GITHUB_TOKEN_REVOKED'
+        error: 'Acesso ao GitHub revogado. Reconecte o GitHub.'
       })
       return
     }
@@ -258,20 +272,7 @@ static listGithubRepos = safeHandler(async (req, res) => {
 })
 ```
 
-**4b. Novo endpoint `saveGithubUserToken`** — `PUT /api/projects/github/user-token`:
-
-```typescript
-static saveGithubUserToken = safeHandler(async (req, res) => {
-  const { token } = req.body as { token?: string }
-  if (!token) throw badRequest('token é obrigatório')
-  const userId = req.user?.id
-  if (!userId) throw badRequest('usuário não autenticado')
-  await UserModel.saveGithubToken(userId, token)
-  res.json({ success: true })
-})
-```
-
-**4c. `connectRepo`** — resolver `installation_id` correto antes de conectar:
+**4b. `connectRepo`** — resolver `installation_id` correto antes de conectar:
 
 ```typescript
 // Após extrair owner/repo do body:
@@ -288,87 +289,50 @@ const resolvedInstallationId = repoInstallation.id
 const result = await GithubService.connectRepo(id, resolvedInstallationId, owner, repo, ...)
 ```
 
-**4d. `disconnectRepo`** — limpar token do banco:
-
-```typescript
-// Adicionar após o update existente:
-if (req.user?.id) await UserModel.clearGithubToken(req.user.id)
-```
+**4c. `disconnectRepo`** — **NÃO limpar** o `github_user_token`. O token é per-user, não per-project. Se o usuário tiver múltiplos projetos conectados, limpar o token ao desconectar um projeto quebraria a listagem de repos nos outros. O token só é limpo automaticamente quando o GitHub retorna 401 (token revogado) — tratado no `listGithubRepos` acima.
 
 ---
 
-### 5. `backend/src/routes/projectRoutes.ts`
+### 5. `frontend/lib/githubInstallFlow.ts`
 
-Adicionar rota para salvar token (autenticada):
-
-```typescript
-router.put('/github/user-token', auth, ProjectController.saveGithubUserToken)
-```
-
----
-
-### 6. `frontend/lib/githubInstallFlow.ts`
-
-Atualizar `consumeGithubAppInstallation` para retornar o `userToken` recebido da URL (sem persistir localmente):
+**5a. `beginGithubAppInstallation`** — incluir `userId` no state:
 
 ```typescript
-export const consumeGithubAppInstallation = ({
-  installationId,
-  state,
-  userToken,
-  expectedProjectId
-}: {
-  installationId: string | null
-  state: string | null
-  userToken?: string | null
-  expectedProjectId?: string | null
-}): { success: true; projectId: string | null; userToken: string | null }
-   | { success: false; error: string } => {
-  // ... lógica existente de nonce ...
-  persistGithubInstallationId(installationId)
-  return { success: true, projectId: parsedState.projectId || null, userToken: userToken ?? null }
-}
-```
+export const beginGithubAppInstallation = (projectId?: string | null, userId?: string | null): string => {
+  // ... nonce existente ...
 
-Sem helpers de sessionStorage para o token.
-
----
-
-### 7. `frontend/components/ProjectForm.tsx`
-
-**7a. `clearGithubSyncQueryParams` (linha 62)** — adicionar `'user_token'`:
-
-```typescript
-const keysToDelete = [
-  'github_sync', 'installation_id', 'state',
-  'open_project_form', 'github_sync_error',
-  'user_token'
-]
-```
-
-**7b. useEffect de hidratação (linha 104)** — extrair `user_token`, salvar no banco e limpar URL imediatamente:
-
-```typescript
-const userTokenParam = searchParams?.get('user_token')
-
-if (installationIdParam) {
-  const callbackResult = consumeGithubAppInstallation({
-    installationId: installationIdParam,
-    state: stateParam,
-    userToken: userTokenParam
+  const stateData = JSON.stringify({
+    origin: window.location.origin,
+    projectId: projectId || '',
+    nonce,
+    userId: userId || ''
   })
+  const state = btoa(stateData)
 
-  if (callbackResult.success && callbackResult.userToken) {
-    // Salva no banco — fire and forget, URL é limpa logo abaixo
-    projectService.saveGithubUserToken(callbackResult.userToken).catch(console.error)
-  }
-
-  clearGithubSyncQueryParams()  // remove user_token da URL imediatamente
-  // ... resto inalterado
+  return `${GITHUB_APP_INSTALL_URL}?state=${encodeURIComponent(state)}`
 }
 ```
 
-**7c. `loadAvailableRepos` (linha 137)** — sem token no request, tratar 401:
+**5b. `consumeGithubAppInstallation`** — sem alteração (não recebe mais `userToken`).
+
+---
+
+### 6. `frontend/components/ProjectForm.tsx`
+
+**6a. Importar `useAuth` e passar `userId`** ao `beginGithubAppInstallation`:
+
+```typescript
+// Adicionar import:
+import { useAuth } from '@/hooks/useAuth'
+
+// Dentro do componente ProjectForm, junto com os outros hooks:
+const { user } = useAuth()
+
+// Em handleConnectGithub, passar userId:
+const installUrl = beginGithubAppInstallation(null, user?.id)
+```
+
+**6b. `loadAvailableRepos` (linha 137)** — tratar 401 (token ausente/revogado). O `apiClient` lança `ApiError` com `statusCode` quando o backend retorna status != 2xx, então a verificação deve estar no `catch`:
 
 ```typescript
 const loadAvailableRepos = async (installId: number) => {
@@ -376,16 +340,16 @@ const loadAvailableRepos = async (installId: number) => {
     setLoadingRepos(true)
     const response = await projectService.listGithubRepos(installId)
 
-    if (!response?.success && response?.status === 401) {
-      setIsGithubConnected(false)
-      toast.error('Reconecte o GitHub para ver os repositórios.')
-      return
-    }
-
     if (response?.success && response.data) {
       setAvailableRepos(response.data)
     }
   } catch (error) {
+    const apiErr = error as { statusCode?: number }
+    if (apiErr?.statusCode === 401) {
+      setIsGithubConnected(false)
+      toast.error('Reconecte o GitHub para ver os repositórios.')
+      return
+    }
     console.error('Error loading repos:', error)
     toast.error('Erro ao carregar repositórios')
   } finally {
@@ -394,37 +358,26 @@ const loadAvailableRepos = async (installId: number) => {
 }
 ```
 
-**7d. `handleDisconnectGithub`** — remover limpeza de sessionStorage do token (o backend limpa via `disconnectRepo`).
+**6c. `handleDisconnectGithub`** — sem alteração necessária (já não há token no sessionStorage para limpar; o token vive no banco e é limpo apenas quando revogado pelo GitHub).
+
+**6d. `clearGithubSyncQueryParams`** — sem alteração (não há mais `user_token` na URL).
 
 ---
 
-### 8. `frontend/services/projectService.ts`
+### 7. `frontend/services/projectService.ts`
 
-`listGithubRepos` sem `userToken` no request:
-
-```typescript
-async listGithubRepos(installationId: number): Promise<ApiResponse<GithubAppRepo[]> | undefined> {
-  return apiClient.get<GithubAppRepo[]>(`${this.endpoint}/github/repos`, { installation_id: installationId })
-}
-```
-
-Novo método `saveGithubUserToken`:
-
-```typescript
-async saveGithubUserToken(token: string): Promise<void> {
-  await apiClient.put(`${this.endpoint}/github/user-token`, { token })
-}
-```
+`listGithubRepos` — sem alteração (já não passa token; backend resolve via `req.user.id`).
 
 ---
 
 ## Verificação
 
 1. `npm run build` backend e frontend — sem erros TypeScript
-2. Rodar migration: `ALTER TABLE users ADD COLUMN github_user_token TEXT`
+2. Migration já aplicada: `ALTER TABLE users ADD COLUMN github_user_token TEXT`
 3. Instalar GitHub App pelo ProjectForm → confirmar que lista inclui repos de colaborador/membro de org
-4. Fechar aba, reabrir → confirmar que repos aparecem sem reconectar
+4. Fechar aba, reabrir → confirmar que repos aparecem sem reconectar (token persiste no banco)
 5. Selecionar repo de org → confirmar que conecta sem erro 404/403
 6. Selecionar repo de org sem app instalado → confirmar mensagem de erro 422
-7. Desconectar GitHub → confirmar que `github_user_token` é limpo na tabela `users`
+7. Desconectar GitHub de um projeto → confirmar que `github_user_token` **permanece** na tabela `users` (token é per-user, não per-project)
+8. Revogar token no GitHub → confirmar que ao listar repos, o backend detecta 401, limpa o token e retorna mensagem "Reconecte o GitHub"
 
