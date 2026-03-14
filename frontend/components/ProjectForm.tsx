@@ -19,10 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Github, Loader2, Plus, CheckCircle, Unplug } from "lucide-react"
 import { projectService, type User, type GithubAppRepo } from "@/services"
 import { Sharing } from "@/components/Sharing"
+import { useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
 import { IMPORT_JOB_LS_KEY, IMPORT_MODAL_OPEN_KEY, IMPORT_MODAL_CHANGE_EVENT } from "@/lib/importJobUtils"
 import {
   beginGithubAppInstallation,
+  beginGithubOAuthAuthorize,
   consumeGithubAppInstallation,
   getStoredGithubInstallationId,
 } from "@/lib/githubInstallFlow"
@@ -39,6 +41,7 @@ interface ProjectFormProps {
 export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useAuth()
 
   const [leftTab, setLeftTab] = useState<"create" | "import">("create")
   const [newProjectName, setNewProjectName] = useState("")
@@ -120,6 +123,9 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
       clearGithubSyncQueryParams()
     } else {
       rawId = getStoredGithubInstallationId()
+      if (searchParams?.get('github_sync') === 'true') {
+        clearGithubSyncQueryParams()
+      }
     }
 
     if (!rawId) return
@@ -142,6 +148,17 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
         setAvailableRepos(response.data)
       }
     } catch (error) {
+      const apiErr = error as { statusCode?: number }
+      if (apiErr?.statusCode === 401) {
+        try {
+          const oauthUrl = beginGithubOAuthAuthorize(user?.id)
+          window.location.href = oauthUrl
+        } catch {
+          setIsGithubConnected(false)
+          toast.error('Reconecte o GitHub para ver os repositórios.')
+        }
+        return
+      }
       console.error('Error loading repos:', error)
       toast.error('Erro ao carregar repositórios')
     } finally {
@@ -152,7 +169,7 @@ export function ProjectForm({ open, onOpenChange, onSaved }: ProjectFormProps) {
   // Handle GitHub App install
   const handleConnectGithub = () => {
     try {
-      const installUrl = beginGithubAppInstallation()
+      const installUrl = beginGithubAppInstallation(null, user?.id)
       window.location.href = installUrl
     } catch (error) {
       console.error('[GitHub App] Falha ao iniciar instalação:', error)

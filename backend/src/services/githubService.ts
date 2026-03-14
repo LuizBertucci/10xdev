@@ -28,6 +28,7 @@ type OAuthStateData = {
   origin?: string
   projectId?: string
   nonce?: string
+  userId?: string
 }
 
 export interface FileEntry {
@@ -54,7 +55,8 @@ export class GithubService {
         const origin = typeof parsed.origin === 'string' ? parsed.origin : undefined
         const projectId = typeof parsed.projectId === 'string' ? parsed.projectId : undefined
         const nonce = typeof parsed.nonce === 'string' ? parsed.nonce : undefined
-        return { origin, projectId, nonce }
+        const userId = typeof parsed.userId === 'string' ? parsed.userId : undefined
+        return { origin, projectId, nonce, userId }
       } catch {
         // Retrocompatibilidade: state antigo codificado só com origin em texto.
         return { origin: decoded }
@@ -455,6 +457,70 @@ export class GithubService {
         avatar_url: (r as { owner?: { avatar_url?: string } }).owner?.avatar_url || ''
       }
     }))
+  }
+
+  /** Lista todos os repos acessíveis pelo usuário (owner + collaborator + org member) via user access token */
+  static async listUserRepos(userAccessToken: string): Promise<unknown[]> {
+    const repos: unknown[] = []
+    let page = 1
+    const perPage = 100
+    let hasMore = true
+
+    while (hasMore) {
+      const response = await axios.get('https://api.github.com/user/repos', {
+        params: {
+          affiliation: 'owner,collaborator,organization_member',
+          sort: 'updated',
+          per_page: perPage,
+          page
+        },
+        headers: {
+          Authorization: `token ${userAccessToken}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28'
+        }
+      })
+      const data: unknown[] = response.data
+      repos.push(...data)
+      if (data.length < perPage) hasMore = false
+      else page++
+    }
+
+    return repos.map(r => ({
+      id: (r as { id?: number }).id || 0,
+      name: (r as { name?: string }).name || '',
+      full_name: (r as { full_name?: string }).full_name || '',
+      description: (r as { description?: string }).description || null,
+      private: (r as { private?: boolean }).private || false,
+      language: (r as { language?: string }).language || null,
+      default_branch: (r as { default_branch?: string }).default_branch || '',
+      html_url: (r as { html_url?: string }).html_url || '',
+      owner: {
+        login: (r as { owner?: { login?: string } }).owner?.login || '',
+        avatar_url: (r as { owner?: { avatar_url?: string } }).owner?.avatar_url || ''
+      }
+    }))
+  }
+
+  /** Descobre qual installation do GitHub App controla um repo específico.
+   *  Retorna null se o App não estiver instalado no owner do repo. */
+  static async getRepoInstallation(owner: string, repo: string): Promise<{ id: number } | null> {
+    try {
+      const jwtToken = this.generateAppJWT()
+      const response = await axios.get(
+        `https://api.github.com/repos/${owner}/${repo}/installation`,
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28'
+          }
+        }
+      )
+      return { id: response.data.id as number }
+    } catch {
+      return null
+    }
   }
 
   /** Troca authorization code por user access token (OAuth do GitHub App) */

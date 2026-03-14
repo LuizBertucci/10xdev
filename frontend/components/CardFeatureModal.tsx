@@ -10,6 +10,7 @@ import {
 } from "react"
 import { Button } from "@/components/ui/button"
 import { Check, Edit, GripVertical, Link2, Loader2, Sparkles, Trash2, GitBranch } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import ContentRenderer from "./ContentRenderer"
 import GenerateFlowModal from "./GenerateFlowModal"
 import { Textarea } from "@/components/ui/textarea"
@@ -83,6 +84,7 @@ export default function CardFeatureModal({
   const [summaryInstructions, setSummaryInstructions] = useState(SUMMARY_INSTRUCTIONS)
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [apiLinkCopied, setApiLinkCopied] = useState(false)
+  const [flowLinkCopied, setFlowLinkCopied] = useState(false)
   const [isEditingSummary, setIsEditingSummary] = useState(false)
   const [summaryDraft, setSummaryDraft] = useState('')
   const [isSavingSummary, setIsSavingSummary] = useState(false)
@@ -446,6 +448,7 @@ export default function CardFeatureModal({
   const apiBaseUrl = isLocalhost ? 'http://localhost:3001/api' : 'https://api.10xdev.com.br/api'
   const cardShareUrl = `${appBaseUrl}/${snippet.card_type === CardType.POST ? 'contents' : 'codes'}/${snippet.id}`
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
+  const flowApiUrl = `${cardApiUrl}/flow`
 
   const handleCopyShareUrl = async () => {
     try {
@@ -462,6 +465,16 @@ export default function CardFeatureModal({
       await navigator.clipboard.writeText(cardApiUrl)
       setApiLinkCopied(true)
       setTimeout(() => setApiLinkCopied(false), 2000)
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleCopyFlowUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(flowApiUrl)
+      setFlowLinkCopied(true)
+      setTimeout(() => setFlowLinkCopied(false), 2000)
     } catch {
       // ignore
     }
@@ -538,7 +551,7 @@ export default function CardFeatureModal({
                     {apiLinkCopied ? <Check className="h-3 w-3 mr-1" /> : <Link2 className="h-3 w-3 mr-1" />}
                     {apiLinkCopied ? 'Copiado!' : 'Link para IA'}
                   </Button>
-                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canGenerateFlow && onCardUpdated && (
+                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canGenerateFlow && !flowScreenItem && onCardUpdated && (
                     <>
                       <span className="text-gray-400 text-sm">●</span>
                       <Button
@@ -548,7 +561,7 @@ export default function CardFeatureModal({
                         className="h-7 px-2 text-xs text-green-600 hover:text-green-700 hover:border-green-300 hover:bg-green-50"
                       >
                         <GitBranch className="h-3 w-3 mr-1" />
-                        {flowScreenItem ? 'Regenerar Flow' : 'Gerar Flow'}
+                        Gerar Flow
                       </Button>
                     </>
                   )}
@@ -651,18 +664,24 @@ export default function CardFeatureModal({
                               </button>
                             </div>
                           )}
-                          {(isFlow && canGenerateFlow && onCardUpdated) && (
+                          {isFlow && (
                             <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowFlowModal(true)}
-                                className="h-8 w-8 text-green-500 hover:text-green-700 hover:bg-green-50"
-                                title="Regenerar Flow"
-                              >
-                                <GitBranch className="h-4 w-4" />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleCopyFlowUrl}
+                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  >
+                                    {flowLinkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{flowLinkCopied ? 'Link copiado!' : 'Copiar link do flow'}</p>
+                                </TooltipContent>
+                              </Tooltip>
                             </div>
                           )}
                           {isSummary && onGenerateSummary && canGenerateSummary && (

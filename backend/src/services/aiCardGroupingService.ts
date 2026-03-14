@@ -536,9 +536,15 @@ export class AiCardGroupingService {
       file => !file.startsWith('backend/') && !file.startsWith('frontend/')
     )
 
+    const seen = new Set<string>()
     const features = nonSummaryScreens
       .map(s => cleanMarkdown(s.description || s.name))
       .filter(Boolean)
+      .filter(f => {
+        if (seen.has(f)) return false
+        seen.add(f)
+        return true
+      })
       .slice(0, 8)
 
     const category = cleanMarkdown(card.category || 'Geral')

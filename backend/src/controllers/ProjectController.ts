@@ -4,6 +4,7 @@ import { ProjectModel } from '@/models/ProjectModel'
 import { CardFeatureModel } from '@/models/CardFeatureModel'
 import { ImportJobModel, type ImportJobStep, type ImportJobUpdate } from '@/models/ImportJobModel'
 import { GithubModel } from '@/models/GithubModel'
+import { UserModel } from '@/models/UserModel'
 import { GithubService } from '@/services/githubService'
 import { AiCardGroupingService } from '@/services/aiCardGroupingService'
 import { executeQuery, supabaseAdmin } from '@/database/supabase'
@@ -561,28 +562,31 @@ export class ProjectController {
   // ================================================
 
   /** GET /api/projects/github/repos
-   *  Lista repos acessiveis via GitHub App installation */
+   *  Lista repos acessíveis pelo usuário via user access token (owner + collaborator + org member) */
   static listGithubRepos = safeHandler(async (req, res) => {
-    const installationId = Number(req.query.installation_id)
-    if (!installationId) throw badRequest('installation_id é obrigatório')
+    const userId = req.user?.id
+    const userToken = userId ? await UserModel.getGithubToken(userId) : null
+
+    if (!userToken) {
+      res.status(401).json({
+        success: false,
+        error: 'Reconecte o GitHub para listar os repositórios.'
+      })
+      return
+    }
 
     try {
-      const repos = await GithubService.listInstallationRepos(installationId)
+      const repos = await GithubService.listUserRepos(userToken)
       res.json({ success: true, data: repos, count: repos.length })
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { status?: number; data?: unknown }; message?: string }
-      const status = axiosErr.response?.status
-      const detail = axiosErr.response?.data
-      console.error('[listGithubRepos] Erro GitHub:', { installationId, status, detail, message: axiosErr.message })
-      if (status === 404) {
-        const e = new Error('Instalação não encontrada. Instale o app 10xDev no GitHub.') as Error & { statusCode: number }
-        e.statusCode = 404
-        throw e
-      }
-      if (status === 403) {
-        const e = new Error('Sem permissão para acessar esta instalação.') as Error & { statusCode: number }
-        e.statusCode = 403
-        throw e
+      const axiosErr = err as { response?: { status?: number } }
+      if (axiosErr.response?.status === 401) {
+        if (userId) await UserModel.clearGithubToken(userId)
+        res.status(401).json({
+          success: false,
+          error: 'Acesso ao GitHub revogado. Reconecte o GitHub.'
+        })
+        return
       }
       throw err
     }
@@ -697,10 +701,20 @@ export class ProjectController {
    *  Conecta um projeto a um repo GitHub e importa cards do código */
   static connectRepo = safeHandler(async (req, res) => {
     const id = requireId(req)
-    const { installationId, owner, repo, defaultBranch } = req.body as ConnectRepoRequest
-    if (!installationId || !owner || !repo) {
-      throw badRequest('installationId, owner e repo são obrigatórios')
+    const { owner, repo, defaultBranch } = req.body as ConnectRepoRequest
+    if (!owner || !repo) {
+      throw badRequest('owner e repo são obrigatórios')
     }
+
+    const repoInstallation = await GithubService.getRepoInstallation(owner, repo)
+    if (!repoInstallation) {
+      res.status(422).json({
+        success: false,
+        error: `Instale o GitHub App na organização/conta "${owner}" para conectar este repositório.`
+      })
+      return
+    }
+    const resolvedInstallationId = repoInstallation.id
 
     assertResult(await ProjectModel.findById(id, req.user!.id))
 
@@ -726,7 +740,7 @@ export class ProjectController {
     try {
       const result = await GithubService.connectRepo(
         id,
-        installationId,
+        resolvedInstallationId,
         owner,
         repo,
         req.user!.id,

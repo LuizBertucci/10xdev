@@ -308,21 +308,48 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // Carregar branches quando o projeto tiver GitSync ativo
   useEffect(() => {
     if (!project?.githubSyncActive || !project?.id) return
-    projectService.listBranches(project.id).then(res => {
-      if (res?.success && res.data) {
-        setBranches(res.data)
-        // Pré-selecionar: branch da URL > localStorage > default_branch
-        if (!activeBranch && project.defaultBranch) {
-          const urlBranch = searchParams?.get('branch')
-          const storedBranch = localStorage.getItem(`activeBranch:${project.id}`)
-          const branchToActivate =
-            (urlBranch && res.data.includes(urlBranch)) ? urlBranch :
-            (storedBranch && res.data.includes(storedBranch)) ? storedBranch :
-            project.defaultBranch
-          setActiveBranch(branchToActivate)
+
+    let cancelled = false
+
+    const loadBranches = async () => {
+      try {
+        const res = await projectService.listBranches(project.id)
+        if (cancelled) return
+
+        if (res?.success && res.data) {
+          setBranches(res.data)
+          // Pré-selecionar: branch da URL > localStorage > default_branch
+          if (!activeBranch && project.defaultBranch) {
+            const urlBranch = searchParams?.get('branch')
+            const storedBranch = localStorage.getItem(`activeBranch:${project.id}`)
+            const branchToActivate =
+              (urlBranch && res.data.includes(urlBranch)) ? urlBranch :
+              (storedBranch && res.data.includes(storedBranch)) ? storedBranch :
+              project.defaultBranch
+            setActiveBranch(branchToActivate)
+          }
         }
+      } catch (error: unknown) {
+        if (cancelled) return
+
+        const maybeError = error as { statusCode?: number }
+
+        // Alguns projetos não têm endpoint/integração de branches disponível ainda.
+        // Tratamos 404 como ausência de branches, sem quebrar a tela com promise rejeitada.
+        if (maybeError?.statusCode === 404) {
+          setBranches([])
+          return
+        }
+
+        console.error('Erro ao carregar branches do projeto:', error)
       }
-    })
+    }
+
+    void loadBranches()
+
+    return () => {
+      cancelled = true
+    }
   }, [project?.githubSyncActive, project?.id, project?.defaultBranch])
 
   // Recarregar cards ao mudar a branch ativa
@@ -2418,15 +2445,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         onGenerateSummary={handleGenerateSummaryFromModal}
         onSaveSummary={handleSaveSummaryFromModal}
         canGenerateFlow={!!expandModalCard && canEditCard(expandModalCard)}
-        onCardUpdated={expandModalCard ? (updatedCard) => {
-          setExpandModalCard(updatedCard)
-          setCardFeatures((prev) => prev.map((c) => (c.id === updatedCard.id ? updatedCard : c)))
-          setCards((prev) =>
-            prev.map((pc) =>
-              pc.cardFeatureId === updatedCard.id ? { ...pc, cardFeature: updatedCard } : pc
-            )
-          )
-        } : undefined}
         onEdit={expandModalCard && canEditCard(expandModalCard) ? (card) => {
           setExpandModalCard(null)
           handleEditCard(card)
