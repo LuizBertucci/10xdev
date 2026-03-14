@@ -337,13 +337,6 @@ export default function Projects() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">Projetos</h2>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-9 px-4"
-              onClick={() => setIsTemplatesModalOpen(true)}
-            >
-              Templates
-            </Button>
             <ProjectForm
               open={isCreateDialogOpen}
               onOpenChange={setIsCreateDialogOpen}
