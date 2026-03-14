@@ -20,6 +20,7 @@ import { apiRoutes } from '@/routes'
 
 // Import GitSync (used for webhook/callback before express.json)
 import { GithubService } from '@/services/githubService'
+import { UserModel } from '@/models/UserModel'
 
 // Configurar variáveis de ambiente - carregar do diretório do backend
 // Usar process.cwd() para garantir que leia do diretório onde o processo foi iniciado
@@ -108,27 +109,36 @@ app.post('/api/github/webhook',
 
 const handleGitSyncCallback = async (req: express.Request, res: express.Response) => {
   try {
-    const { installation_id, setup_action, state } = req.query as {
+    const { installation_id, setup_action, state, code } = req.query as {
       installation_id?: string
       setup_action?: string
       state?: string
+      code?: string
     }
 
-    const { origin, projectId } = GithubService.parseStateParameter(state)
+    const { origin, projectId, userId } = GithubService.parseStateParameter(state)
     const frontendUrl = GithubService.getValidatedFrontendUrl(origin)
 
     if (setup_action && setup_action !== 'install') {
       throw new Error('A instalação do GitHub não foi concluída.')
     }
 
-    if (!installation_id) {
-      throw new Error('Installation ID não recebido do GitHub.')
+    if (code) {
+      try {
+        const tokenData = await GithubService.exchangeCodeForToken(code)
+        if (userId && tokenData.access_token) {
+          await UserModel.saveGithubToken(userId, tokenData.access_token)
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn('[GitSync Install] Falha ao salvar user token (continuando sem):', msg)
+      }
     }
 
     res.redirect(GithubService.buildGithubInstallReturnUrl({
       frontendUrl,
       ...(projectId ? { projectId } : {}),
-      installationId: installation_id,
+      ...(installation_id ? { installationId: installation_id } : {}),
       ...(state ? { state } : {})
     }))
   } catch (error: unknown) {

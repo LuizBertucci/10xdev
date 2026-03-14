@@ -367,6 +367,35 @@ export class UserModel {
     }
   }
 
+  static async saveGithubToken(userId: string, token: string): Promise<void> {
+    await executeQuery(
+      supabaseAdmin
+        .from('users')
+        .update({ github_user_token: token, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+    )
+  }
+
+  static async getGithubToken(userId: string): Promise<string | null> {
+    const { data } = await executeQuery(
+      supabaseAdmin
+        .from('users')
+        .select('github_user_token')
+        .eq('id', userId)
+        .single()
+    )
+    return (data as { github_user_token?: string | null } | null)?.github_user_token ?? null
+  }
+
+  static async clearGithubToken(userId: string): Promise<void> {
+    await executeQuery(
+      supabaseAdmin
+        .from('users')
+        .update({ github_user_token: null, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+    )
+  }
+
   static async deleteProfileRow(userId: string): Promise<ModelResult<null>> {
     try {
       await executeQuery(

@@ -1,4 +1,5 @@
 const GITHUB_APP_INSTALL_URL = 'https://github.com/apps/10xdev-gitsync/installations/new'
+const GITHUB_OAUTH_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
 const OAUTH_STATE_NONCE_KEY = 'oauth_state_nonce'
 const GITHUB_SYNC_INSTALLATION_ID_KEY = 'github_sync_installation_id'
 
@@ -44,7 +45,7 @@ export const persistGithubInstallationId = (installationId: string): void => {
   }
 }
 
-export const beginGithubAppInstallation = (projectId?: string | null): string => {
+export const beginGithubAppInstallation = (projectId?: string | null, userId?: string | null): string => {
   const nonceBytes = new Uint8Array(16)
   crypto.getRandomValues(nonceBytes)
   const nonce = Array.from(nonceBytes, byte => byte.toString(16).padStart(2, '0')).join('')
@@ -58,11 +59,43 @@ export const beginGithubAppInstallation = (projectId?: string | null): string =>
   const stateData = JSON.stringify({
     origin: window.location.origin,
     projectId: projectId || '',
-    nonce
+    nonce,
+    userId: userId || ''
   })
   const state = btoa(stateData)
 
   return `${GITHUB_APP_INSTALL_URL}?state=${encodeURIComponent(state)}`
+}
+
+const getBackendOrigin = (): string =>
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://web-backend-10xdev.azurewebsites.net'
+
+export const beginGithubOAuthAuthorize = (userId?: string | null): string => {
+  const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
+  if (!clientId) throw new Error('GitHub Client ID não configurado')
+
+  const nonceBytes = new Uint8Array(16)
+  crypto.getRandomValues(nonceBytes)
+  const nonce = Array.from(nonceBytes, byte => byte.toString(16).padStart(2, '0')).join('')
+
+  try {
+    sessionStorage.setItem(OAUTH_STATE_NONCE_KEY, nonce)
+  } catch {
+    throw new Error('Não foi possível iniciar o fluxo do GitHub. Tente novamente.')
+  }
+
+  const stateData = JSON.stringify({
+    origin: window.location.origin,
+    projectId: '',
+    nonce,
+    userId: userId || ''
+  })
+  const state = btoa(stateData)
+  const redirectUri = `${getBackendOrigin()}/api/github/callback`
+
+  return `${GITHUB_OAUTH_AUTHORIZE_URL}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`
 }
 
 export const consumeGithubAppInstallation = ({
