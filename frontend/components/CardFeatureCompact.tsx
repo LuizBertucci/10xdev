@@ -71,6 +71,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
   const { activeTab, setActiveTab } = useCardTabState(snippet.id)
   // Estado para feedback de "copiado"
   const [apiLinkCopied, setApiLinkCopied] = useState(false)
+  const [flowLinkCopied, setFlowLinkCopied] = useState(false)
   const [shareLinkCopied, setShareLinkCopied] = useState(false)
   const [contentLinkCopied, setContentLinkCopied] = useState(false)
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
@@ -88,6 +89,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
     ? 'http://localhost:3001/api'
     : 'https://api.10xdev.com.br/api'
   const cardApiUrl = `${apiBaseUrl}/card-features/${snippet.id}`
+  const flowApiUrl = `${cardApiUrl}/flow`
   
   // URL de compartilhamento (link amigável)
   const appBaseUrl = isLocalhost
@@ -165,6 +167,18 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
       setTimeout(() => setApiLinkCopied(false), 2000)
     } catch {
       toast.error("Erro ao copiar link")
+    }
+  }
+
+  const handleCopyFlowUrl = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(flowApiUrl)
+      setFlowLinkCopied(true)
+      toast.success("Link do flow copiado!")
+      setTimeout(() => setFlowLinkCopied(false), 2000)
+    } catch {
+      toast.error("Erro ao copiar link do flow")
     }
   }
 
@@ -751,7 +765,24 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                       </TooltipContent>
                     </Tooltip>
                   )}
-                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canEdit && (
+                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canEdit && activeScreen && isFlowScreen(activeScreen.name) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCopyFlowUrl}
+                          className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        >
+                          {flowLinkCopied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{flowLinkCopied ? 'Link copiado!' : 'Copiar link do flow'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {snippet.card_type === CardType.CODIGOS && hasCodeOrTerminal && canEdit && isSummaryTab && !hasFlowScreen && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -767,7 +798,7 @@ export default function CardFeatureCompact({ snippet, onEdit, onDelete, onUpdate
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{hasFlowScreen ? 'Regenerar Flow' : 'Gerar Flow'}</p>
+                        <p>Gerar Flow</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
